@@ -14,19 +14,19 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.0.95", when = "in testing",
+		v = "1.1.0", when = "released November 2026",
 		items = {
 			"With OneForAll: @book lists the Library Books, where each is and which you've turned in; \"books i still need\", \"nearest library book\".",
-			"With OneForAll, for hunters: @spell has your pet's abilities (each rank, learned or not, Enter: who teaches it; is:ability), @npc says which beasts you can tame (is:tameable); \"where to learn bite 4\", \"tameable cats\", \"rare pets\".",
-			"@reputation lists every quartermaster's reward (OneForAll's, and AtlasLoot's faction loot): can you buy it yet, by faction and standing (\"argent dawn rewards\", is:reward, is:canbuy); with OneForAll, @itemset with each set's pieces (\"my class sets\").",
-			"With OneForAll: the recipes you don't know say if the Merchant's Favor buys them (\"favor recipes i don't know\"); @transport (boats, zeppelins, the tram, roads), drop chances on @loot.",
-			"With OneForAll: \"upgrades\" go by its gear value for your talents, and @loot has the gear its planner knows (quest rewards, crafted, reputation), each by its source (source:quest, \"raid loot\", \"dungeon gear\"); @panel opens its window on any tab.",
-			"With OneForAll: @attune has its dungeon keys and Onyxia's attunement when Attune isn't installed (\"my keys\", \"how do i get into onyxia\"), and quest chains add the dungeon quests' prerequisites it knows.",
-			"Inside a group you stepped into, the bar's Group and Sort work too: step into a faction, then group by standing.",
-			"Kinds and categories are in Title Case on English clients (\"Quest Log\", \"Crafting Mat\").",
-			"More plain-word questions and filters: \"who gives <quest>\", \"quests near me\", \"what does hogger drop\", \"how many linen do i have\", \"what level is hogger\", \"where is my hearth\", \"xp per hour\", \"bigger bags\", \"quests for stormwind rep\", \"tailoring quests\"; is:elite, is:rare, repreward:, skill:, sort:progress; quest tooltips say what a quest needs and the reputation it gives.",
-			"Console: grep -A, -B and -C show the lines around each match, and -H the file's name on every line.",
-			"Plain-word questions answer with the same rows as their Alt+` line: sort:list (a list's own order), prof: (a recipe's profession), is:foryou, is:cantake, is:itemstart, is:started, sort:need, sort:cantake; \"tanks and healers\" finds both, \"what can i craft mining\" the smelting too.",
+			"With OneForAll, for hunters: @spell has your pet's abilities (each rank, learned or not; Enter: who teaches it), @npc says which beasts you can tame; \"where to learn bite 4\", \"tameable cats\", \"rare pets\".",
+			"@reputation lists every quartermaster's reward (OneForAll's, and AtlasLoot's faction loot) and whether you can buy it yet (\"argent dawn rewards\", is:canbuy); with OneForAll, @itemset has each set's pieces (\"my class sets\").",
+			"With OneForAll: \"upgrades\" go by its gear value for your talents, and @loot has the gear its planner knows (quest rewards, crafted, reputation), each by its source (\"raid loot\", \"dungeon gear\"), with drop chances.",
+			"With OneForAll: recipes you don't know say if the Merchant's Favor buys them; @transport (boats, zeppelins, the tram, roads); @attune has its dungeon keys when Attune isn't installed; @panel opens its window on any tab.",
+			"Many more plain-word questions: \"who gives <quest>\", \"quests near me\", \"what does hogger drop\", \"how many linen do i have\", \"what level is hogger\", \"where is my hearth\", \"xp per hour\", \"bigger bags\", \"quests for stormwind rep\", \"tailoring quests\".",
+			"A question shows the same rows as its Alt+` line, and Advanced mode has new words for them: sort:list, sort:progress, sort:need, prof:, is:foryou, is:cantake, is:elite, is:rare, repreward:, skill:.",
+			"Quest tooltips say what a quest needs (red when you lack it) and the reputation it gives.",
+			"Inside a group you stepped into, the bar's Group and Sort work too; kinds and categories are in Title Case on English clients.",
+			"Console: grep -A, -B, -C and -H; sed, awk and grep behave as on Linux in more cases.",
+			"Many fixes and lighter typing from a full review; Terminal is on Wago too, for WoWUp and the Wago app.",
 		},
 	},
 	{
