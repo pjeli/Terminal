@@ -7383,3 +7383,51 @@ pick sort: -
 category: -
 advanced: "quests that start from an item "
 explain: "Everything matching quests that start from an item"
+
+== where to farm linen cloth
+question: 25  asked=where to farm linen cloth
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "linen cloth > sources "
+explain: "Everything matching linen cloth, then: sources "
+
+== where do i find red bandanas
+question: 25  asked=where do i find red bandanas
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "red bandanas > sources "
+explain: "Everything matching red bandanas, then: sources "
+
+== where can i get linen
+question: 25  asked=where can i get linen
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "linen > sources "
+explain: "Everything matching linen, then: sources "
+
+== where is hogger
+question: -
+tokens: hogger
+sort: -
+kinds: dungeon flight maps quests raid
+action: Where is  word=where
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "do:where hogger "
+explain: "Everything matching hogger, Enter: where"

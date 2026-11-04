@@ -111,6 +111,9 @@ do
 		local bq = IB.Question("deadmines bosses")
 		local brows = bq and IB.Answer(bq)
 		check(brows and brows[1] and brows[1].name == "Edwin VanCleef" and IB.Question("bosses") == nil, "deadmines bosses: Edwin VanCleef: " .. tostring(brows and brows[1] and brows[1].name))
+		-- (1.0.53) "where do i find" an NPC: where he is, not sources
+		check(P.Canonical("where do i find hogger") == nil and P.Canonical("where do i find linen cloth") == "linen cloth > sources",
+			"where do i find hogger: not sources; a thing's: " .. tostring(P.Canonical("where do i find hogger")))
 		-- (1.0.52) a quest's rewards and chain in words; the quests an item starts
 		check(P.Canonical("what does the defias brotherhood give") == "defias brotherhood > rewards"
 			and P.Canonical("rewards for wanted hogger") == "wanted hogger > rewards" and P.Canonical("the defias brotherhood chain") == "defias brotherhood > chain"

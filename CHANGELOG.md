@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.53 (in testing)
+
+- "where to farm linen cloth", "where do i find red bandanas", "where can i find …" are where to get it (its sources: who drops, sells or rewards it), as "where to get" is; an NPC or a place named so ("where do i find hogger") stays where it is (the reach audit).
+
 ## 1.0.52 (in testing)
 
 - A quest's rewards and chain in words (the reach audit, with Questie): "what does the defias brotherhood give", "rewards for …" list what it rewards (Advanced: `the defias brotherhood > rewards`, the link OneForAll's faction rewards use too); "the defias brotherhood chain", "next quest after …" its quest chain; "quests that start from an item" the quests an item starts, each with the item.

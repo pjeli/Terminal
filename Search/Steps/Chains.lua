@@ -118,6 +118,12 @@ P.PHRASES = {
 	{ "^what does (.+) sell$", "sells" }, { "^what do (.+) sell$", "sells" }, { "^items sold by (.+)$", "sells" },
 	{ "^what is sold by (.+)$", "sells" }, { "^whats sold by (.+)$", "sells" }, { "^(.+) wares$", "sells" },
 	{ "^what does (.+) have for sale$", "sells" },
+	-- (1.0.53, the reach audit) where to farm or find something: its sources, when the words aren't an NPC's or a place's
+	-- ("where do i find hogger" stays where he is: P.PHRASE_THING)
+	{ "^where to farm (.+)$", "sources", "thing" }, { "^where do i farm (.+)$", "sources", "thing" },
+	{ "^where can i farm (.+)$", "sources", "thing" }, { "^where to find (.+)$", "sources", "thing" },
+	{ "^where do i find (.+)$", "sources", "thing" }, { "^where can i find (.+)$", "sources", "thing" },
+	{ "^best place to farm (.+)$", "sources", "thing" }, { "^farming (.+)$", "sources", "thing" },
 	{ "^where to get (.+)$", "sources" }, { "^where do i get (.+)$", "sources" }, { "^where can i get (.+)$", "sources" },
 	{ "^where to buy (.+)$", "sources" }, { "^where can i buy (.+)$", "sources" }, { "^how to get (.+)$", "sources" },
 	{ "^how do i get (.+)$", "sources" }, { "^sources? for (.+)$", "sources" }, { "^sources? of (.+)$", "sources" },
@@ -194,7 +200,8 @@ function P.Canonical(text, words)
 		local what = P.Available(ph[2]) and lt:match(ph[1])
 		if what and what:find("%S") then
 			what = what:gsub("^the ", ""):gsub("^a ", ""):gsub("^an ", "")
-			if not P.NotAName(what) and not (P.PHRASE_NPC[ph[2]] and not P.NpcNamed(what)) then return what .. " > " .. ph[2] end
+			if not P.NotAName(what) and not (P.PHRASE_NPC[ph[2]] and not P.NpcNamed(what))
+				and not (ph[3] == "thing" and P.NotAThing(what)) then return what .. " > " .. ph[2] end
 		end
 	end
 	return nil
@@ -477,6 +484,19 @@ function P.NpcNamed(what)
 	return npcNames[what] == true
 end
 --- An item's row in a chain's answer (what an NPC drops or sells, what a quest rewards), or nil while its name loads.
+--- Do these (lowercase) words name an NPC or a place rather than a thing ("where do i find hogger", "where can i find
+--- the stockade": where they are, not sources)?
+function P.NotAThing(what)
+	if P.NpcNamed(what) then return true end
+	local I = ns.Integrations
+	if I and I.FindPlace then
+		local words = {}
+		for w in what:gmatch("%S+") do words[#words + 1] = w end
+		local place, rest = I.FindPlace(words)
+		if place and (not rest or #rest == 0) then return true end
+	end
+	return false
+end
 local function NpcItemRow(id, detail, how)
 	local name = ItemName(id)
 	if not name then return nil end

@@ -35,6 +35,10 @@ local ok, err = pcall(function()
 		and HV.Question("how many") == nil and hrows and hrows[1] and hrows[1].name == "Linen Cloth" and (hrows[1].detail or ""):find("have", 1, true),
 		"how many linen do i have: Linen Cloth, how many: " .. tostring(hrows and hrows[1] and hrows[1].detail))
 	check(HV.ToAdvanced(hq):find("linen", 1, true), "...and its Advanced line: " .. HV.ToAdvanced(hq))
+	-- (1.0.53) where to farm or find a thing: its sources
+	local P = ns.Pipes
+	check(P.Canonical("where to farm linen cloth") == "linen cloth > sources" and P.Canonical("where do i find red bandanas") == "red bandanas > sources"
+		and P.Canonical("where can i find linen") == "linen > sources", "where to farm / find a thing: its sources: " .. tostring(P.Canonical("where to farm linen cloth")))
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))
