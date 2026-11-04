@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.75 (in testing)
+
+- .changelog: one line for the plain-word questions and filters added since 1.0.45.
+
 ## 1.0.74 (in testing)
 
 - Console: `grep -A N`, `-B N` and `-C N` show the lines after, before and around each match as GNU grep does ("file-N-" around a match, "file:N:" the match, "--" between groups apart); `-H` puts the file's name on every line, for one file too, and "(standard input)" for what was piped in.
