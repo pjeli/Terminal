@@ -877,3 +877,81 @@ function IB.Answer(q)
 end
 --- Not a search: the question stays as typed (Advanced mode answers it the same).
 function IB.ToAdvanced() return nil end
+
+----------------------------------------------------------------------
+-- "how many linen do i have", "do i have linen cloth", "count my linen": the items with that name, how many in all and
+-- where (your bags, your bank, your alts: @stored's count when a bag addon keeps them), the most first (1.0.51, the
+-- reach audit)
+----------------------------------------------------------------------
+
+local HV = {}
+ns.HaveQ = HV
+local HAVE_SAID = { "^how many (.+) do i have$", "^how much (.+) do i have$", "^how many (.+) have i got$", "^how many (.+) do i own$",
+	"^do i have any (.+)$", "^do i have (.+)$", "^count my (.+)$", "^count of my (.+)$", "^how many (.+) are in my bags$" }
+HV.MAX = 8
+function HV.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = t:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+	for _, pat in ipairs(HAVE_SAID) do
+		local what = t:match(pat)
+		if what then
+			what = what:gsub("^the ", ""):gsub("^my ", ""):gsub(" left$", "")
+			if what ~= "" and not what:find("^%d") then return { what = what } end
+		end
+	end
+	return nil
+end
+local function Counted(e, stored)
+	local id = e.itemID or rawget(e, "key")
+	local count = (C_Item and C_Item.GetItemCount) or _G.GetItemCount
+	local bags = id and Num(Safe(count, id)) or 0
+	local all = id and Num(Safe(count, id, true)) or bags
+	local st = stored and stored[id]
+	local alts = st and math.max(0, (st.total or 0) - all) or 0
+	local parts = { L["have %d"]:format(bags) }
+	if all > bags then parts[1] = parts[1] .. " " .. L["(+%d bank)"]:format(all - bags) end
+	if alts > 0 then parts[#parts + 1] = L["%d on alts"]:format(alts) end
+	return all + alts, table.concat(parts, SEP)
+end
+function HV.Answer(q)
+	local words = {}
+	for w in q.what:gmatch("%S+") do words[#words + 1] = w end
+	local stored = {}
+	for _, e in ipairs(Entries("stored", true)) do local id = e.itemID or rawget(e, "key") if id then stored[id] = e end end
+	local seen, found = {}, {}
+	local function Look(list)
+		for _, e in ipairs(list) do
+			local id = e.itemID or rawget(e, "key")
+			local n = rawget(e, "_lname") or Lower(tostring(e.name))
+			local ok = id and not seen[id]
+			for _, w in ipairs(words) do if ok and not n:find(w, 1, true) then ok = false end end
+			if ok then
+				seen[id] = true
+				local total, said = Counted(e, stored)
+				found[#found + 1] = { total = total, v = setmetatable({ detail = said, count = total }, { __index = e }) }
+			end
+		end
+	end
+	Look(Entries("items", true))
+	local list = {}
+	for _, e in pairs(stored) do list[#list + 1] = e end
+	Look(list)
+	table.sort(found, function(a, b)
+		if a.total ~= b.total then return a.total > b.total end
+		return tostring(a.v.name) < tostring(b.v.name)
+	end)
+	local rows = {}
+	for i = 1, math.min(#found, HV.MAX) do rows[i] = found[i].v end
+	local title = L["Count"] .. SEP .. q.what
+	if #rows == 0 then return { ns.NoteRow(L["You don't carry %s."]:format(q.what)) }, title end
+	ns.ScoreInOrder(rows)
+	return rows, title
+end
+--- The same items, where they are: @stored (your alts and bank too) with a bag addon's records, else @item.
+function HV.ToAdvanced(q)
+	-- (the words as Advanced mode writes them, "linen cloth|type:cloth": Alt+` again reads the same; its own lists left out)
+	local words = ns.LineToAdvanced and ns.LineToAdvanced(q.what) or q.what
+	repeat local n; words, n = words:gsub("^%s*@%S+%s*", "") until n == 0
+	return (ns.providers.stored and "@stored " or "@item ") .. (words:gsub("%s+$", "")) .. " "
+end

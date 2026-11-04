@@ -41,6 +41,8 @@ Scan.ANSWERS = {
 	Asks("NearQuests"),
 	-- "deadmines bosses": an instance's bosses from AtlasLoot, each leading to its loot (Suggest.lua; 1.0.50)
 	Asks("InstanceBosses"),
+	-- "how many linen do i have", "do i have linen cloth": how many in all and where (Suggest.lua; 1.0.51)
+	Asks("HaveQ"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;

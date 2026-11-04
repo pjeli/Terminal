@@ -486,3 +486,8 @@ hogger loot
 what does innkeeper farley sell
 deadmines loot
 deadmines bosses
+
+# (1.0.51) how many you have (the reach audit)
+how many linen do i have
+do i have linen cloth
+count my linen

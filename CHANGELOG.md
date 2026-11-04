@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.51 (in testing)
+
+- "how many linen do i have", "do i have linen cloth", "count my linen": the items with that name, the most first, each saying how many in your bags, your bank and on your alts (with a bag addon that records them); Alt+` writes `@stored linen` (the reach audit).
+
 ## 1.0.50 (in testing)
 
 - What an NPC drops and what a vendor sells (the reach audit): "what does hogger drop", "hogger loot", "loot from edwin vancleef" list a boss's AtlasLoot loot and any creature's drops from Questie; "what does innkeeper farley sell", "items sold by …" the vendor's stock from Questie; "deadmines bosses" the instance's bosses from AtlasLoot, Enter on one its loot. Advanced: two new chain links, `hogger > drops` and `farley > sells`. The plain words count only when they name an NPC or a boss ("deadmines loot" and "raid loot" are as before). Questie's items are read once, in the background, the first time it's asked, and let go after 10 minutes unused; the Console's `/npc` files read the same index. This version also translates the texts added since 1.0.37.

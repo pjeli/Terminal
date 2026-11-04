@@ -27,6 +27,14 @@ local ok, err = pcall(function()
 	-- (1.0.49) your alts': "items on my alts" is @stored (not your bags), "which alt has linen" the alts' linen
 	check(Adv("items on my alts") == "@stored" and Adv("which alt has linen") == "@stored linen" and Adv("linen on my alts") == "@stored linen",
 		"items on my alts, which alt has linen: @stored: " .. Adv("items on my alts") .. " / " .. Adv("which alt has linen"))
+	-- (1.0.51) how many you have, and where
+	local HV = ns.HaveQ
+	local hq = HV.Question("how many linen do i have")
+	local hrows = hq and HV.Answer(hq)
+	check(hq and hq.what == "linen" and HV.Question("do i have linen cloth").what == "linen cloth" and HV.Question("count my linen").what == "linen"
+		and HV.Question("how many") == nil and hrows and hrows[1] and hrows[1].name == "Linen Cloth" and (hrows[1].detail or ""):find("have", 1, true),
+		"how many linen do i have: Linen Cloth, how many: " .. tostring(hrows and hrows[1] and hrows[1].detail))
+	check(HV.ToAdvanced(hq):find("linen", 1, true), "...and its Advanced line: " .. HV.ToAdvanced(hq))
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))
