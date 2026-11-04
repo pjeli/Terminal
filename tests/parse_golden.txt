@@ -1736,7 +1736,7 @@ advanced: "boots|slot:boots is:unlearned spirit|stat:spirit "
 explain: "Unlearned everything matching boots|slot:boots spirit|stat:spirit"
 
 == missing stamina
-question: 45  asked=missing stamina
+question: 46  asked=missing stamina
 place: -
 send: -
 steps: -
@@ -1747,7 +1747,7 @@ advanced: "@group missing:fortitude "
 explain: "Your group, missing:fortitude"
 
 == needs int
-question: 45  asked=needs int
+question: 46  asked=needs int
 place: -
 send: -
 steps: -
@@ -1758,7 +1758,7 @@ advanced: "@group missing:intellect "
 explain: "Your group, missing:intellect"
 
 == who is without fortitude
-question: 45  asked=who is without fortitude
+question: 46  asked=who is without fortitude
 place: -
 send: -
 steps: -
@@ -1769,7 +1769,7 @@ advanced: "@group missing:fortitude "
 explain: "Your group, missing:fortitude"
 
 == party without food
-question: 45  asked=party without food
+question: 46  asked=party without food
 place: -
 send: -
 steps: -
@@ -1780,7 +1780,7 @@ advanced: "@group missing:food "
 explain: "Your group, missing:food"
 
 == needs blessing of kings
-question: 45  asked=needs blessing of kings
+question: 46  asked=needs blessing of kings
 place: -
 send: -
 steps: -
@@ -1791,7 +1791,7 @@ advanced: "@group missing:blessing_kings "
 explain: "Your group, missing:blessing_kings"
 
 == missing shadow protection
-question: 45  asked=missing shadow protection
+question: 46  asked=missing shadow protection
 place: -
 send: -
 steps: -
@@ -1802,7 +1802,7 @@ advanced: "@group missing:shadow "
 explain: "Your group, missing:shadow"
 
 == need flask
-question: 45  asked=need flask
+question: 46  asked=need flask
 place: -
 send: -
 steps: -
@@ -1813,7 +1813,7 @@ advanced: "@group missing:elixir "
 explain: "Your group, missing:elixir"
 
 == missing buffs
-question: 45  asked=missing buffs
+question: 46  asked=missing buffs
 place: -
 send: -
 steps: -
@@ -3236,7 +3236,7 @@ advanced: "@questlog lvl:me "
 explain: "Quests in your log, your level"
 
 == what killed me today
-question: 29  asked=what killed me
+question: 30  asked=what killed me
 place: -
 send: -
 steps: -
@@ -3349,7 +3349,7 @@ advanced: "mail|type:mail older:2w "
 explain: "Everything matching mail|type:mail, older than 2 weeks"
 
 == auctions sold this week
-question: 43  asked=auctions sold
+question: 44  asked=auctions sold
 place: -
 send: -
 steps: -
@@ -4913,7 +4913,7 @@ advanced: "@gold "
 explain: "Gold"
 
 == durability
-question: 42  asked=durability
+question: 43  asked=durability
 place: -
 send: -
 steps: -
@@ -4941,7 +4941,7 @@ advanced: "mail|type:mail "
 explain: "Everything matching mail|type:mail"
 
 == my mail
-question: 44  asked=my mail
+question: 45  asked=my mail
 place: -
 send: -
 steps: -
@@ -5197,7 +5197,7 @@ advanced: "@dungeon dead "
 explain: "Dungeon matching dead"
 
 == a > mats
-question: 28  asked=a > mats
+question: 29  asked=a > mats
 place: -
 send: -
 steps: -
@@ -6356,7 +6356,7 @@ advanced: ""
 explain: ERROR nil
 
 == "tonight we
-question: 51  asked="tonight we
+question: 52  asked="tonight we
 place: -
 send: -
 steps: -
@@ -7385,7 +7385,7 @@ advanced: "quests that start from an item "
 explain: "Everything matching quests that start from an item"
 
 == where to farm linen cloth
-question: 28  asked=where to farm linen cloth
+question: 29  asked=where to farm linen cloth
 place: -
 send: -
 steps: -
@@ -7396,7 +7396,7 @@ advanced: "linen cloth > sources "
 explain: "Everything matching linen cloth, then: sources "
 
 == where do i find red bandanas
-question: 28  asked=where do i find red bandanas
+question: 29  asked=where do i find red bandanas
 place: -
 send: -
 steps: -
@@ -7407,7 +7407,7 @@ advanced: "red bandanas > sources "
 explain: "Everything matching red bandanas, then: sources "
 
 == where can i get linen
-question: 28  asked=where can i get linen
+question: 29  asked=where can i get linen
 place: -
 send: -
 steps: -
@@ -7577,3 +7577,47 @@ pick sort: -
 category: -
 advanced: "bag slots:>0 sort:slots "
 explain: "Everything matching bag, with over 0 slots, most slots first"
+
+== itemid linen cloth
+question: 27  asked=itemid linen cloth
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "itemid linen cloth "
+explain: "Everything matching itemid linen cloth"
+
+== item id 2589
+question: 27  asked=item id 2589
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "itemid 2589 "
+explain: "Everything matching itemid 2589"
+
+== questid 176
+question: 27  asked=questid 176
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "questid 176 "
+explain: "Everything matching questid 176"
+
+== npcid hogger
+question: 27  asked=npcid hogger
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "npcid hogger "
+explain: "Everything matching npcid hogger"

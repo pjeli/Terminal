@@ -3323,4 +3323,8 @@ L["Loot by where it comes from: \"raid loot\", \"dungeon gear\", \"crafted gear\
 L["what a vendor sells (Questie)"] = "was ein Händler verkauft (Questie)"
 L["what an NPC drops: a boss's loot (AtlasLoot), a creature's (Questie)"] = "was ein NPC fallen lässt: die Beute eines Bosses (AtlasLoot), die einer Kreatur (Questie)"
 L["what a quest rewards (Questie)"] = "was eine Quest als Belohnung gibt (Questie)"
+L["Item ID"] = "Gegenstands-ID"
+L["Quest ID"] = "Quest-ID"
+L["NPC ID"] = "NPC-ID"
+L["ID of %s"] = "ID von %s"
 --@end-do-not-package@

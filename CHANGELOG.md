@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.58 (in testing)
+
+- Item, quest and NPC ids, as spell ids are (the reach audit): "itemid linen cloth", "item id 2589", "questid the defias brotherhood", "npcid hogger" list each one with its id, Enter shows the id to copy, an item's Shift+Enter links it in chat.
+
 ## 1.0.57 (in testing)
 
 - "bigger bags", "bags with more slots": the bags bigger than your smallest one (your bags', AtlasLoot's, your recipes' and those you could learn), the most slots first, each saying where it comes from (the reach audit). Alt+` writes `bag slots:>N sort:slots`.

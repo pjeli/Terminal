@@ -86,6 +86,8 @@ Scan.ANSWERS = {
 	{ ask = function(text) local S = ns.SpellIds return S and S.Question(text) end,
 		answer = function(q) return ns.SpellIds.Answer(q) end,
 		toAdvanced = function(q) return ns.SpellIds.ToAdvanced(q) end },
+	-- "itemid linen cloth", "questid 176", "npcid hogger": SpellIds.lua's ns.ObjectIds (1.0.58)
+	Asks("ObjectIds"),
 	-- "healing talents", "shaman crit talents", "druid regen talents": talents by what they do (Search/Questions/Talents.lua; before
 	-- the chains and searches: "talents for crit" isn't a chain, "crit" and "healing" aren't an item's stats here)
 	{ ask = function(text) local Q = ns.TalentsQ return Q and Q.Question(text) end,

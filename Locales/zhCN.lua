@@ -3323,4 +3323,8 @@ L["Loot by where it comes from: \"raid loot\", \"dungeon gear\", \"crafted gear\
 L["what a vendor sells (Questie)"] = "商人出售的物品（Questie）"
 L["what an NPC drops: a boss's loot (AtlasLoot), a creature's (Questie)"] = "NPC的掉落：首领的战利品（AtlasLoot），生物的掉落（Questie）"
 L["what a quest rewards (Questie)"] = "任务的奖励（Questie）"
+L["Item ID"] = "物品ID"
+L["Quest ID"] = "任务ID"
+L["NPC ID"] = "NPC ID"
+L["ID of %s"] = "%s的ID"
 --@end-do-not-package@

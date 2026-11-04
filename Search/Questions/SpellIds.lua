@@ -186,3 +186,87 @@ function SI.Of(e)
 	if (k == "spells" or k == "talents" or k == "spellid") and type(e.spellID) == "number" then return e.spellID end
 	if k == "training" and not e.isItem and type(e.wtId) == "number" then return e.wtId end
 end
+
+----------------------------------------------------------------------
+-- Item, quest and NPC ids, as spell ids (1.0.58, the reach audit): "itemid linen cloth", "item id 2589", "questid the
+-- defias brotherhood", "npcid hogger"; Enter shows the id to copy, an item's Shift+Enter links it in chat.
+----------------------------------------------------------------------
+
+local OI = {}
+ns.ObjectIds = OI
+local OI_KINDS = { item = "item", quest = "quest", npc = "npc", mob = "npc", creature = "npc" }
+local OI_LABEL = { item = L["Item ID"], quest = L["Quest ID"], npc = L["NPC ID"] }
+local OI_ICON = { item = "Interface\\Icons\\INV_Misc_Bag_08", quest = "Interface\\GossipFrame\\AvailableQuestIcon",
+	npc = "Interface\\Icons\\INV_Misc_Head_Human_01" }
+local function OiCopy(e) ns:ShowText(L["ID of %s"]:format(tostring(e.name)), tostring(e.objID), { compact = true }) end
+local function ItemLinkOf(e) return e.oiKind == "item" and ns.ItemLink and ns.ItemLink(e.objID) or nil end
+local OI_CHATBOX = ns.ChatBoxSpec(function(e) return ItemLinkOf(e) or (tostring(e.name) .. " " .. tostring(e.objID)) end)
+local function OiLinkIt(e) ns.LinkInChat(ItemLinkOf(e) or (tostring(e.name) .. " " .. tostring(e.objID))) end
+function OI.Row(kind, id, name, where)
+	local item = kind == "item"
+	return { key = kind .. "id:" .. id, kind = "spellid", kindLabel = OI_LABEL[kind], name = name, objID = id, oiKind = kind,
+		icon = (item and C_Item and C_Item.GetItemIconByID and Safe(C_Item.GetItemIconByID, id)) or OI_ICON[kind],
+		detail = ns.Detail(L["ID %d"]:format(id), where), link = item and ("item:" .. id) or nil, activate = OiCopy, staysOpen = false,
+		secondary = item and OiLinkIt or nil, secondarySecure = item and OI_CHATBOX or nil, secondaryIsOpen = item and ns.ChatBoxNeverOpen or nil }
+end
+local function QDB() local QD = ns.QuestieData return QD and QD.DB and QD.DB() end
+--- Its name by its id: the game's (an item, a quest in your log), else Questie's; nil when neither knows it.
+function OI.NameOf(kind, id)
+	local DB = QDB()
+	if kind == "item" then
+		local n = Str(Safe(C_Item and C_Item.GetItemNameByID, id))
+		return n or (DB and DB.QueryItemSingle and Str(Safe(DB.QueryItemSingle, id, "name")))
+	elseif kind == "quest" then
+		local n = Str(Safe(C_QuestLog and C_QuestLog.GetTitleForQuestID, id))
+		return n or (DB and DB.QueryQuestSingle and Str(Safe(DB.QueryQuestSingle, id, "name")))
+	end
+	return DB and DB.QueryNPCSingle and Str(Safe(DB.QueryNPCSingle, id, "name"))
+end
+OI.LISTS = { item = { "items", "stored", "loot" }, quest = { "quests", "questie" }, npc = { "npc" } }
+OI.MAX = 30
+function OI.ByName(kind, words)
+	local rows, seen = {}, {}
+	for _, list in ipairs(OI.LISTS[kind]) do
+		local p = ns.providers[list]
+		for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+			if #rows >= OI.MAX then break end
+			local id = (kind == "item" and (e.itemID or (list == "stored" and rawget(e, "key")))) or (kind == "quest" and (e.questID or e.qid))
+				or (kind == "npc" and e.npcID)
+			local n = rawget(e, "_lname") or Lower(tostring(e.name))
+			local ok = type(id) == "number" and not seen[id]
+			for _, w in ipairs(words) do if ok and not n:find(w, 1, true) then ok = false end end
+			if ok then seen[id] = true; rows[#rows + 1] = OI.Row(kind, id, e.name, p.label and ns:KindLabel(p) or nil) end
+		end
+	end
+	table.sort(rows, function(a, b) if a.name ~= b.name then return tostring(a.name) < tostring(b.name) end return a.objID < b.objID end)
+	return rows
+end
+function OI.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = t:gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+	local kind, what = t:match("^(%a+) ?ids? of (.+)$")
+	if not kind then kind, what = t:match("^(%a+) ?ids? for (.+)$") end
+	if not kind then kind, what = t:match("^(%a+) ?ids? (.+)$") end
+	if not kind then what, kind = t:match("^(.+) (%a+) ?ids?$") end
+	kind = kind and OI_KINDS[kind]
+	if not (kind and what and what ~= "") then return nil end
+	local id = tonumber(what)
+	if id then return { kind = kind, id = math.floor(id) } end
+	local words = {}
+	for w in what:gmatch("%S+") do if w ~= "the" and w ~= "of" and w ~= "for" and w ~= "a" then words[#words + 1] = w end end
+	if #words == 0 then return nil end
+	return { kind = kind, words = words, said = what }
+end
+function OI.Answer(q)
+	local title = OI_LABEL[q.kind]
+	if q.id then
+		local name = OI.NameOf(q.kind, q.id)
+		if not name then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
+		return ns.ScoreInOrder({ OI.Row(q.kind, q.id, name) }), title .. SEP .. L["Enter copies it"]
+	end
+	local rows = OI.ByName(q.kind, q.words)
+	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
+	return ns.ScoreInOrder(rows), title .. SEP .. L["Enter copies one"]
+end
+function OI.ToAdvanced(q) return q.kind .. "id " .. (q.id and tostring(q.id) or table.concat(q.words, " ")) .. " " end

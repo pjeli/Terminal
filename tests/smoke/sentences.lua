@@ -71,6 +71,15 @@ local ok, err = pcall(function()
 	if C_Container then C_Container.GetContainerNumSlots = numWas end
 	check(bq and bq.least == 6 and badv:find("slots:>6", 1, true) and BB.Question("bags") == nil and BB.Question("bags with more slots")
 		and type(brows) == "table" and brows[1], "bigger bags: than your smallest (6): " .. tostring(bq and bq.least))
+	-- (1.0.58) item, quest and NPC ids, as spell ids
+	local OI = ns.ObjectIds
+	local iq = OI.Question("itemid linen cloth")
+	local irows = iq and OI.Answer(iq)
+	check(iq and iq.kind == "item" and irows and irows[1] and irows[1].name == "Linen Cloth" and irows[1].objID
+		and OI.Question("item id 2589").id == 2589 and OI.Question("questid 176").kind == "quest" and OI.Question("npcid hogger").kind == "npc"
+		and OI.Question("linen cloth item id").kind == "item" and OI.Question("item linen") == nil,
+		"itemid linen cloth: its id: " .. tostring(irows and irows[1] and irows[1].objID))
+	check(Adv("itemid linen cloth") == "itemid linen cloth", "...Alt+`: the question: " .. Adv("itemid linen cloth"))
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))

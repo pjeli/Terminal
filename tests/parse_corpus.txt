@@ -522,3 +522,9 @@ bag value
 # (1.0.57) bigger bags (the reach audit)
 bigger bags
 bags with more slots
+
+# (1.0.58) item, quest and NPC ids (the reach audit)
+itemid linen cloth
+item id 2589
+questid 176
+npcid hogger
