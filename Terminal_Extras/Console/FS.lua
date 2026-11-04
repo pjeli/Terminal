@@ -489,6 +489,7 @@ function FS.GlobPattern(glob)
 				out[#out + 1] = "[" .. Lower(set) .. "]"
 				i = j
 			else out[#out + 1] = "%[" end
+		elseif c == "_" then out[#out + 1] = "[_ ]" -- (a _ stands for a space, as a name typed does; 1.0.88, review)
 		elseif c:match("%p") then out[#out + 1] = "%" .. c
 		else out[#out + 1] = Lower(c) end
 		i = i + 1

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.88 (in testing)
+
+- Console (review): `sed s/^a/b/g` changes only the start of the line (and `\b` only starts of words); awk reads a field of `0` as false and a variable never set as 0 beside a number; `grep 'lin(en|t)'` matches either; a glob's `_` stands for a space as a typed name's does (`cat linen_c*`); `ls -1` works; a backslash escapes `"` inside double quotes; a `>` before a later `|` writes its file; `link` never puts an error message in the chat box; Tab never completes half a character; lines that name friends' shared folder in any way stay out of the history.
+
 ## 1.0.87 (in testing)
 
 - Speed (review): "vendor upgrades" and `sells:upgrade` judge the vendors' items once every two seconds as meant, not on every keystroke; "recipes i can learn" no longer sorts the whole list a second time per keystroke for its footer; steps that keep rows by a text (`| zone:"Elwynn Forest"`) lowercase each text once; Simple mode's bar no longer walks every row on each keystroke and selection move.

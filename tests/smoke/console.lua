@@ -1430,6 +1430,27 @@ ok, err = pcall(function()
 end)
 check(ok, "console wipe: " .. tostring(err))
 
+io.write("[console: review 1.0.88: what bash, sed, awk and grep do with the same line]\n")
+ok, err = pcall(function()
+	local BS = string.char(92)
+	local function One(line) local o, st = Run(line) return table.concat(o, "\n"), st end
+	check(One("echo aaa | sed 's/^a/b/g'") == "baa", "sed s/^a/b/g: the line's start only: " .. One("echo aaa | sed 's/^a/b/g'"))
+	check(One("echo 'xx yx' | sed 's/" .. BS .. "bx/y/g'") == "yx yx", "sed \\b with g: each word's start only")
+	check(One("echo aaa | sed 's/a/b/g'") == "bbb", "sed s/a/b/g: every one, as before")
+	check(One("seq 0 3 | awk '$1'") == "1\n2\n3", "awk '$1': a field of 0 is false: " .. One("seq 0 3 | awk '$1'"))
+	check(One("seq 3 | awk '$1 > 5 { n++ } END { if (n == 0) print \"none\" }'") == "none", "awk: a variable never set is 0 beside a number")
+	check(One("echo linen | grep 'lin(en|t)'") == "linen" and One("echo lint | grep 'lin(en|t)'") == "lint"
+		and select(2, One("echo lime | grep 'lin(en|t)'")) == 1, "grep: a group of alternatives, lin(en|t)")
+	check(One("cat /ctest/linen_c*"):find("Linen Cloth", 1, true), "a glob's _ stands for a space: " .. One("cat /ctest/linen_c*"))
+	local o, st = One("ls -1 /ctest")
+	check(st == 0 and o:find("Linen Cloth", 1, true), "ls -1: one per line, as ls lists them: " .. o)
+	check(One('echo "a' .. BS .. '"b"') == 'a"b', "a backslash in double quotes: " .. One('echo "a' .. BS .. '"b"'))
+	check(One("seq 3 > /tmp/rv88 | wc -l") == "0" and One("cat /tmp/rv88") == "1\n2\n3", "> on a stage before the last: written, nothing passed on")
+	check(SH.SharedLine("cd /shared && cd Bob", "/") and SH.SharedLine("ls /shared | grep Bob", "/") and not SH.SharedLine("ls /ctest", "/"),
+		"lines naming friends' folder however it's followed: never kept")
+end)
+check(ok, "console review 1.0.88: " .. tostring(err))
+
 ns:UnregisterCommand("ctestcmd")
 ns.providers, ns.providerOrder = saved.providers, saved.order
 ns:AliasesChanged()

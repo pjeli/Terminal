@@ -1102,9 +1102,10 @@ SH.Command("sed", {
 			local p = Strip(l)
 			local out, pos = {}, 1
 			while pos <= #p do
-				local s, e = match(p:sub(pos))
+				-- (matched in the whole line from pos: ^ and \b are the line's, not each new position's; 1.0.88, review:
+				-- s/^a/b/g made "aaa" "bbb")
+				local s, e = match(p, pos)
 				if not s then break end
-				s, e = s + pos - 1, e + pos - 1
 				out[#out + 1] = p:sub(pos, s - 1)
 				out[#out + 1] = (rep:gsub("\2", function() return p:sub(s, e) end))
 				pos = math.max(e + 1, s + 1)

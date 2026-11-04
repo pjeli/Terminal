@@ -66,7 +66,20 @@ function SH.Lex(line)
 					buf[#buf + 1] = line:sub(i + 1, i + 1)
 					quoted = true
 					i = i + 2
-				elseif c == "'" or c == '"' then
+				elseif c == '"' then
+					-- (a backslash in double quotes escapes " \ $ `, as bash's; 1.0.88, review: echo "a\"b" left a quote open)
+					quoted = true
+					local j, closed = i + 1, false
+					while j <= n do
+						local d = line:sub(j, j)
+						if d == "\\" and j < n and line:sub(j + 1, j + 1):match('["\\$`]') then
+							buf[#buf + 1] = line:sub(j + 1, j + 1); j = j + 2
+						elseif d == '"' then closed = true break
+						else buf[#buf + 1] = d; j = j + 1 end
+					end
+					if not closed then open = c end
+					i = j + 1
+				elseif c == "'" then
 					quoted = true
 					local j = line:find(c, i + 1, true)
 					if not j then
@@ -315,7 +328,7 @@ FS.Commands = SH.AllCommands
 --- nil and the error.
 function SH.Opts(args, spec, long, numbers)
 	local takes, flag = {}, {}
-	for letter, colon in spec:gmatch("(%a)(:?)") do
+	for letter, colon in spec:gmatch("(%w)(:?)") do -- (ls -1 too; 1.0.88, review)
 		if colon == ":" then takes[letter] = true else flag[letter] = true end
 	end
 	local opts, rest, i = {}, {}, 1
@@ -329,7 +342,7 @@ function SH.Opts(args, spec, long, numbers)
 			if takes[letter] then opts[letter] = args[i + 1]; i = i + 1 else opts[letter] = true end
 		elseif numbers and a:match("^%-%d+$") then
 			opts.number = tonumber(a:sub(2))
-		elseif a:match("^%-%a") then
+		elseif a:match("^%-%a") or (a:match("^%-%d") and (flag[a:sub(2, 2)] or takes[a:sub(2, 2)])) then
 			local j = 2
 			while j <= #a do
 				local letter = a:sub(j, j)
@@ -402,23 +415,60 @@ local function RegexToLua(re)
 	return table.concat(out)
 end
 
---- Splits a regular expression at its top-level "|" (and "\|", as grep's basic syntax writes it).
-local function Alternatives(re)
-	local parts, buf, depth, i = {}, {}, 0, 1
+--- Splits a regular expression at its top-level "|" (and "\|", as grep's basic syntax writes it), and spells out a
+--- group of alternatives ("lin(en|t)" -> "linen", "lint"; 1.0.88, review: split inside the group, each half a broken
+--- pattern, it matched nothing). At most 32 alternatives.
+local function SplitTop(re)
+	local parts, buf, depth, paren, i = {}, {}, 0, 0, 1
 	while i <= #re do
 		local c = re:sub(i, i)
-		if c == "\\" and re:sub(i + 1, i + 1) == "|" and depth == 0 then
+		if c == "\\" and re:sub(i + 1, i + 1) == "|" and depth == 0 and paren == 0 then
 			parts[#parts + 1] = table.concat(buf); buf = {}; i = i + 2
 		elseif c == "\\" then buf[#buf + 1] = re:sub(i, i + 1); i = i + 2
 		else
-			if c == "[" then depth = depth + 1 elseif c == "]" and depth > 0 then depth = depth - 1 end
-			if c == "|" and depth == 0 then parts[#parts + 1] = table.concat(buf); buf = {}
+			if c == "[" then depth = depth + 1 elseif c == "]" and depth > 0 then depth = depth - 1
+			elseif depth == 0 and c == "(" then paren = paren + 1 elseif depth == 0 and c == ")" and paren > 0 then paren = paren - 1 end
+			if c == "|" and depth == 0 and paren == 0 then parts[#parts + 1] = table.concat(buf); buf = {}
 			else buf[#buf + 1] = c end
 			i = i + 1
 		end
 	end
 	parts[#parts + 1] = table.concat(buf)
 	return parts
+end
+--- The first "(...)" group outside brackets with a "|" in it: where it starts and ends, else nil.
+local function GroupOfAlternatives(re)
+	local depth, i, open, paren = 0, 1, nil, 0
+	while i <= #re do
+		local c = re:sub(i, i)
+		if c == "\\" then i = i + 1
+		elseif c == "[" then depth = depth + 1 elseif c == "]" and depth > 0 then depth = depth - 1
+		elseif depth == 0 and c == "(" then
+			if paren == 0 then open = i end
+			paren = paren + 1
+		elseif depth == 0 and c == ")" and paren > 0 then
+			paren = paren - 1
+			if paren == 0 and #SplitTop(re:sub(open + 1, i - 1)) > 1 then return open, i end
+		end
+		i = i + 1
+	end
+	return nil
+end
+local function Alternatives(re)
+	local out, todo = {}, SplitTop(re)
+	while #todo > 0 and #out + #todo <= 32 do
+		local alt = table.remove(todo, 1)
+		local s, e = GroupOfAlternatives(alt)
+		if s then
+			for _, inner in ipairs(SplitTop(alt:sub(s + 1, e - 1))) do
+				todo[#todo + 1] = alt:sub(1, s - 1) .. inner .. alt:sub(e + 1)
+			end
+		else
+			out[#out + 1] = alt
+		end
+	end
+	for _, alt in ipairs(todo) do out[#out + 1] = alt end
+	return out
 end
 
 --- A matcher for `pattern`: function(text) -> start, end (in the text) or nil. `how`: fixed (no regular expression),
@@ -443,11 +493,13 @@ function SH.Matcher(pattern, how)
 		if how.word then p = "%f[%w_]" .. p .. "%f[^%w_]" end
 		pats[i] = p
 	end
-	return function(text)
+	-- (init: where in the text to look from, the text before it still the text's: an anchored ^ only at its start)
+	return function(text, init)
 		local hay = ignore and Lower(text) or text
 		local bs, be
 		for _, p in ipairs(pats) do
-			local ok, s, e = pcall(string.find, hay, p)
+			local ok, s, e = false, nil, nil
+			if not (init and init > 1 and p:sub(1, 1) == "^") then ok, s, e = pcall(string.find, hay, p, init) end
 			if ok and s and e >= s - 1 and (not bs or s < bs) then bs, be = s, e end
 		end
 		return bs, be
@@ -658,13 +710,16 @@ local function RunPipeline(sh, pipeline)
 		else out = function(l) lines[#lines + 1] = l end end
 		status = SH.RunWords(sh, words, input, out)
 		input = lines
-		if last and cmd.out then
+		-- (a > on any stage: the file written, and the next stage gets nothing, as bash does; 1.0.88, review: dropped
+		-- unless on the last)
+		if cmd.out then
 			local target = WriteTarget(sh, cmd.out.v)
 			if not target then
 				sh:Error(L["tsh: %s: Read-only file system (write to /tmp)"]:format(SH.Literal(cmd.out.v)))
 				return 1
 			end
 			SH.Write(target, lines, cmd.append)
+			input = {}
 		end
 	end
 	return status
@@ -1344,9 +1399,11 @@ SH.Command("link", {
 		if not node then io.err(err or L["missing operand"]) return 1 end
 		if node.kind ~= "file" or node.e.special then io.err(L["no link"]) return 1 end
 		local e = node.e
-		local text = ns.Share and ns.Share.Text and select(2, pcall(ns.Share.Text, e)) or nil
+		-- (an error's message isn't the text: select(2, pcall(...)) put it in the chat box; 1.0.88, review)
+		local function Try(fn, ...) local ok, v = pcall(fn, ...) if ok then return v end end
+		local text = ns.Share and ns.Share.Text and Try(ns.Share.Text, e) or nil
 		if type(text) ~= "string" or text == "" then
-			text = e.link or (type(e.getLink) == "function" and select(2, pcall(e.getLink, e))) or FS.Clean(e.name)
+			text = e.link or (type(e.getLink) == "function" and Try(e.getLink, e)) or FS.Clean(e.name)
 		end
 		if ns.LinkInChat then ns.LinkInChat(text) end
 		io.out(Paint("dim", L["in the chat box: "]) .. tostring(text))
@@ -1895,7 +1952,8 @@ function SH.SharedLine(line, cwd)
 	if SH.IsShared(cwd) then return true end
 	local d = FS.DirOf and FS.DirOf("shared")
 	local top = Lower((d and d.name) or "shared"):gsub("%p", "%%%0")
-	return Lower(line):find("%f[%w_]" .. top .. "/") ~= nil
+	-- (the folder named however it's followed: "cd /shared && cd Bob" was kept; 1.0.88, review)
+	return Lower(line):find("%f[%w_]" .. top .. "%f[^%w_]") ~= nil
 end
 
 function SH.ZAdd(path, now)
@@ -2331,6 +2389,9 @@ local function CommonPrefix(list)
 		local s = list[i]
 		local n = 0
 		while n < #p and n < #s and Lower(p:sub(n + 1, n + 1)) == Lower(s:sub(n + 1, n + 1)) do n = n + 1 end
+		-- (never half a character: é and è share their first byte; 1.0.88, review)
+		while n > 0 and n < #p and p:byte(n + 1) >= 128 and p:byte(n + 1) < 192 do n = n - 1 end
+		if n > 0 and p:byte(n) >= 192 then n = n - 1 end
 		p = p:sub(1, n)
 	end
 	return p
