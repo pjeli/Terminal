@@ -165,7 +165,7 @@ do
 	check(#res == 5 and res[5].name == "Seeking the Blade", "an item's name: the chain of the quest rewarding it (yours): " .. Names(res))
 	res = UI:Search("prereq for seeking the blade")
 	check(#res == 5, "prereq for (one prereq): the chain: " .. Names(res))
-	check(ns.Easy.ToAdvanced("gray quests"):find("^@quest "), "Alt+` asks the questions in the search's order: gray quests: "
+	check(ns.Easy.ToAdvanced("gray quests"):find("^@questlog "), "Alt+` asks the questions in the search's order: gray quests: "
 		.. ns.Easy.ToAdvanced("gray quests"))
 	res = UI:Search("the missing diplomat > chain")
 	check(res[1] and res[1].noActivate, "a quest nothing comes before: said so: " .. Names(res))

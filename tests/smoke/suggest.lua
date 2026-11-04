@@ -33,7 +33,8 @@ do
 	local save = { lvl = _G.UnitLevel, zone = _G.GetRealZoneText }
 	_G.UnitLevel = function() return 22 end
 	_G.GetRealZoneText = function() return "The Barrens" end
-	check(QH.ToAdvanced() == '@questie lvl:20-25 in:"the barrens" sort:level ', "quests here as Advanced, by level (0.63.7): " .. tostring(QH.ToAdvanced()))
+	check(ns.QuestionToAdvanced("quests here") == '@questie lvl:20-25 in:"the barrens" is:todo is:cantake sort:level,name ',
+		"quests here as Advanced, by level, the ones you can take (0.63.7, 1.0.79): " .. tostring(ns.QuestionToAdvanced("quests here")))
 	_G.UnitLevel, _G.GetRealZoneText = save.lvl, save.zone
 end
 check(ns.QuestionToAdvanced("what should i do") == "what should i do ", "what should i do stays as typed (answered in Advanced too)")

@@ -382,9 +382,10 @@ do
 	-- (is:upgrade: a quest whose reward is an upgrade, 0.51.15)
 	-- (0.63.3: a quest's colour, tracked, here, a dungeon's or raid's, a class quest: bulk tracking's)
 	-- (1.0.64: daily, repeatable, Questie's)
-	check(quest == "complete upgrade orange yellow green grey red leftbehind drop tracked untracked here raid dungeon class daily repeatable",
+	-- (1.0.79: foryou, cantake, started)
+	check(quest == "complete upgrade orange yellow green grey red leftbehind drop tracked untracked here foryou cantake started raid dungeon class daily repeatable",
 		"@questlog is: only the quest log's: " .. quest)
-	check(Picks("@achievement is:") == "done todo", "@achievement is: done todo: " .. Picks("@achievement is:"))
+	check(Picks("@achievement is:") == "done todo started", "@achievement is: done todo started: " .. Picks("@achievement is:"))
 	local item = Picks("@item is:")
 	check(item:find("usable", 1, true) and item:find("equippable", 1, true) and item:find("boe", 1, true)
 		and not item:find("online", 1, true) and not item:find("leftbehind", 1, true), "@item is: the items': " .. item)
@@ -400,7 +401,7 @@ do
 	local qc = ns.Filters.ValuesFor("is", "@questlog ")
 	local fromAll = 0
 	for _, v in ipairs(ns.Filters.VALUES.is) do if v:sub(1, 2) == "co" then fromAll = fromAll + 1 end end
-	check(#qc == 17 and fromAll > 1, "the quest log's values, several from all of them: " .. #qc)
+	check(#qc == 20 and fromAll > 1, "the quest log's values, several from all of them: " .. #qc)
 	-- every value is said to judge some list, and every list named is one (a typo would hide a value everywhere)
 	local known = { loot = true, questie = true, npc = true, attune = true, training = true, pets = true, toys = true, book = true, itemset = true, transport = true } -- (AtlasLoot's, Questie's, Attune's, What's Training's and OneForAll's lists, the pet journal's and the toy box's: not loaded in every run)
 	for _, id in ipairs(ns.providerOrder) do known[id] = true end

@@ -176,8 +176,8 @@ local ok, err = pcall(function()
 		and ns.Filters.SortOf("sort:progress") == "progress", "progress: an achievement's criteria, a quest's objectives; sort:progress")
 	local AD = ns.AlmostDone
 	check(AD.Question("achievements almost done").kind == "achievements" and AD.Question("quests almost done").kind == "quests"
-		and AD.Question("achievements") == nil and Adv("achievements almost done") == "achievements almost done"
-		and type(AD.Answer(AD.Question("achievements almost done"))) == "table", "achievements almost done: the question, its Advanced line")
+		and AD.Question("achievements") == nil and Adv("achievements almost done") == "@achievement is:started is:todo sort:progress,name"
+		and type(ns.Questions.Answer("achievements almost done")) == "table", "achievements almost done: the question, its Advanced line: " .. tostring(Adv("achievements almost done")))
 	-- (1.0.60) where your hearthstone takes you
 	local HB = ns.HearthBind
 	local bindWas, cdWas = _G.GetBindLocation, C_Container and C_Container.GetItemCooldown

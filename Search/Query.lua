@@ -794,7 +794,10 @@ function Scan.Prepare(self, q)
 	end
 	-- (the kind asked for: sort:slots and the detail say that kind's bag, as "quests that reward bags" does)
 	if ns.QuestRewards then ns.QuestRewards.slotKind = bags end
-	self.showField = (sf == "ahvalue" or sf == "ahprice" or sf == "slots") and sf or (auctionable and "ahvalue")
-		or (bags and "slots") or nil
+	-- (any sort whose field says itself in the detail, and the words that ask for one: is:itemstart its item; 1.0.79)
+	local said
+	for w in ns.Lower(q.text or ""):gmatch("%S+") do said = said or (ns.SHOW_FIELD_FOR and ns.SHOW_FIELD_FOR[w]) end
+	self.showField = (sf and ns.FIELD_DETAIL and ns.FIELD_DETAIL[sf] and sf) or (auctionable and "ahvalue")
+		or (bags and "slots") or said or nil
 	q.tokens, q.empty = tokens, #tokens == 0
 end

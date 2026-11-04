@@ -133,6 +133,10 @@ A.FIELDS = {
 	progress = { label = ns.Lower(L["Progress"]), num = function(e) return A.Progress(e) end },
 	-- (sort:grey: your quest log's grey quests first, then by level, as "quests to drop" lists them; 1.0.78)
 	grey = { label = ns.Lower(L["Grey first"]), num = function(e) if e.kind ~= "quests" then return nil end return e.grey and 0 or 1 end },
+	-- (a recipe's profession, its own: Smelting's are Mining's; sort:need's tie, "| group by prof"; 1.0.79)
+	prof = { label = ns.Lower(L["Profession"]), text = function(e) local n = rawget(e, "profName") or e.profName return n and tostring(n) or nil end },
+	-- (sort:need: the skill a recipe to learn needs, the least first; 1.0.79)
+	need = { label = ns.Lower(L["Skill needed"]), num = function(e) local n = rawget(e, "need") if n == nil then n = e.need end return tonumber(n) end },
 	-- (how far, where it was worked out: the rows of a search sorted by distance; sort:level,distance. 0.66.16)
 	distance = { label = L["distance"], num = function(e) return Num(rawget(e, "_dist")) end },
 	-- (an attunement's steps, line by line as Attune's tree reads them: sort:line; 0.55.21)

@@ -241,3 +241,27 @@ What can't be moved without losing something the player sees stays an own answer
   `ns.Questions.Answer(text)`.
 - easybench (one after the other): Simple 7285.6 -> 7329.0 ms (+0.6%), worst key 22.4 -> 18.8 ms; Advanced 4857.9 ->
   4988.2 ms (+2.7%).
+
+### 1.0.79 (phase 4)
+
+- Search questions now: QuestsHere (`@questie lvl:a-b in:<zone> is:todo is:cantake sort:level,name`: its Alt+` had
+  listed done quests and other races'), QuestNeeds for a profession, dailies and repeatables (`is:foryou`,
+  `sort:cantake`, which says in the detail what each needs; the standing needed stays its own: no filter says it),
+  ItemQuests (`@questie is:itemstart sort:list`, the detail naming the item), AlmostDone (`is:started` with `is:todo` /
+  `-is:complete`, `sort:progress,name`: its Alt+` had stayed as typed), BagQuests (its reward: filter already kept to
+  you; the footer counts the done ones again), MissingRecipes (`prof:`, `sort:need`; MR.Answer is now only what its
+  footer and empty row read).
+- Own answers, with their reasons (`custom`): RepQuests (ranked by the reputation the faction asked for gives; its Alt+`
+  gained `is:foryou`), RewardQuests (in the order of the items rewarded, with the chain), QuestUpgrades and
+  VendorUpgrades (what is an upgrade by how much, the giver's distance or dungeon).
+- New in the search: `is:foryou`, `is:cantake`, `is:itemstart` (Rewards.lua), `is:started` (Others.lua), `sort:cantake`
+  (Rewards.lua's field, the tie by level), `sort:need` (Aggregate's `need`, the tie by `prof`, a new text field that also
+  groups: "| group by prof"). A sort or a word whose field has a detail of its own is said in the detail: Query.lua's
+  showField reads `ns.FIELD_DETAIL[sort]` and `ns.SHOW_FIELD_FOR[word]` (was three sorts by name).
+- Fix: `reward:bag` (quiver, ammo pouch) says it is loading while Questie's rewards are read (`QR.Building()`), so the
+  search is made again: an early Advanced search stayed empty.
+- Lines that name the quest log write `@questlog` (Alt+` of `@quest` prints `@questlog`: one line either way).
+- Tests: [questions: quest filters] (is:foryou, is:cantake, sort:cantake, is:started, reward:bag's loading);
+  [questions: every search question] now 45 examples; questbags.lua and questiedb.lua read the detail as shown and ask
+  the registry.
+- easybench: Simple 7278.7 -> 7195.5 ms, Advanced 4902.2 -> 4884.7 ms (the same).

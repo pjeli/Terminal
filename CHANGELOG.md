@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.79 (in testing)
+
+- Questions (docs/QUESTIONS.md, phase 4): "quests here", "tailoring quests", "daily quests", "quests that start from an item", "achievements almost done", "quests that reward bags" and "recipes i can learn" are answered by their Advanced line. New: `is:foryou` (your race, class and side may take it), `is:cantake` (and you meet its needs), `is:itemstart`, `is:started`, `sort:cantake` (saying what each quest needs), `sort:need` (the least skill first). Fixed: "quests here" as Advanced left out done quests and other races' only in the question; `reward:bag` searched early now waits for Questie's rewards.
+
 ## 1.0.78 (in testing)
 
 - Questions (docs/QUESTIONS.md, phase 3): 21 questions that list a list (history, turn-ins, buyback, loot, bank, lockouts, auctions, calendar, party quests, the combat log, durability, the group, filtered mail, training, collections, spells not on your bars, quests to drop, class spells, what you can craft, profession plans, attunements) are answered by their Advanced line, in their list's own order. New: `prof:` (a recipe's own profession: Smelting's are Mining's), `sort:grey`. Fixed on the way: "tanks and healers" lists both; `@durability is:damaged` keeps the Repair all row; missing:food leaves out the dead and offline; "what can i craft mining" includes the smelting recipes.

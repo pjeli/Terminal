@@ -647,8 +647,30 @@ local function Order(a, b)
 	return tostring(a.name) < tostring(b.name)
 end
 
---- The answer: the rows the question wants, easiest first, and the footer's note.
-function MR.Answer(q)
+--- As Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@recipe is:learnable prof:tailoring sort:need",
+--- easiest first; the footer says what was left out and why.
+function MR.Line(q)
+	local parts = { "@recipe", q.learnable and "is:learnable" or "is:unknown" }
+	local profs = {}
+	for _, n in ipairs(q.profs or {}) do profs[#profs + 1] = (Lower(n):gsub(" ", "_")) end
+	if #profs > 0 then parts[#parts + 1] = "prof:" .. table.concat(profs, "|") end
+	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:need"
+	return table.concat(parts, " ") .. " "
+end
+function MR.Footer(q, rows)
+	local _, note = MR.Answer(q, rows)
+	return note
+end
+function MR.None(q)
+	local got = MR.Answer(q)
+	if #got == 1 and got[1].noActivate then return got end
+	return {}
+end
+
+--- The rows the question wants, easiest first, and the footer's note (its own answer's: MR.Footer and MR.None read it).
+--- `shown`: the rows the search found, the note says how many of those.
+function MR.Answer(q, shown)
 	q = q or {}
 	local p = ns.providers.missing
 	local rows, noSkill, nextUp, later = {}, 0, nil, 0
@@ -672,6 +694,7 @@ function MR.Answer(q)
 	end
 	table.sort(rows, Order)
 	ns.ScoreInOrder(rows)
+	if shown then rows = shown end
 	local which = (#(q.profs or {}) == 1) and q.profs[1] or nil
 	local note = (q.learnable and L["Recipes you can learn now"] or L["Recipes you don't know yet"]) .. (which and (": " .. which) or "")
 	if #rows == 0 then

@@ -32,6 +32,7 @@ local IS_SAY = { vendor = L["vendors"], trainer = L["trainers"], classtrainer = 
 	battlemaster = L["battlemasters"], weaponmaster = L["weapon masters"], upgrade = L["upgrades for you"],
 	reward = ns.Lower(L["Quartermaster rewards"]), rewards = ns.Lower(L["Quartermaster rewards"]), ability = ns.Lower(L["Pet abilities"]) }
 local IS_ADJ = { boe = L["bind on equip"], soulbound = L["soulbound"], usable = L["usable"], equippable = L["equippable"],
+	foryou = L["for your race and class"], cantake = L["you can take"], itemstart = L["started by an item"], started = L["under way"], -- (1.0.79)
 	done = L["done"], todo = L["not done yet"], complete = L["complete"], ready = L["ready"], craftable = L["craftable"],
 	skillup = L["giving skill"], known = L["known"], unknown = L["not known yet"], learnable = L["learnable now"],
 	unread = L["unread"], expiring = L["running out"], enchanted = L["enchanted"], unenchanted = L["unenchanted"],
@@ -52,7 +53,8 @@ local SORT_SAY = { distance = L["nearest first"], ["-distance"] = L["farthest fi
 	damage = L["biggest hits first"], line = L["line by line"], owner = L["by owner"], slots = L["most slots first"],
 	["-slots"] = L["fewest slots first"], ahvalue = L["highest AH value first"], ahprice = L["highest AH price first"],
 	standing = ns.Lower(L["Standing"]), ["-standing"] = ns.Lower(L["Standing"]), list = L["in their list's order"],
-	grey = L["grey ones first, then by level"] }
+	grey = L["grey ones first, then by level"], cantake = L["the ones you can take first, then by level"],
+	need = L["the least skill needed first"] }
 --- A sort: word ("sort:quality,-level") said: "best quality first, then highest level first"; nil when it isn't one.
 local function SortSay(word)
 	local F = ns.Filters

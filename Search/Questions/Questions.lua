@@ -66,7 +66,7 @@ Scan.ANSWERS = {
 	-- "how long to level", "xp per hour": this session's experience an hour (Suggest.lua; 1.0.61)
 	Asks("XpRate", { examples = { "xp per hour", "how long to level" }, custom = "this session's experience" }),
 	-- "quests for stormwind rep", "how do i get exalted with timbermaw": Rewards.lua's ns.RepQuests (1.0.63)
-	Asks("RepQuests"),
+	Asks("RepQuests", { custom = "ranked by the reputation the faction asked for gives" }),
 	-- "tailoring quests", "daily quests", "quests that need honored with stormwind": Rewards.lua's ns.QuestNeeds (1.0.64)
 	Asks("QuestNeeds", { examples = { "tailoring quests", "daily quests" } }),
 	Asks("QuestsHere", { over = { "Zones" }, examples = { "quests here", "zone quests" } }),
@@ -139,15 +139,8 @@ Scan.ANSWERS = {
 		empty = function() return {} end },
 	-- "blacksmithing recipes i'm missing", "recipes i can learn now": MissingRecipes.lua (was before the group's: "who is
 	-- missing recipes" is about recipes)
-	{ id = "MissingRecipes", over = { "Group", "WhatsTraining", "ClassSpells" }, examples = { "recipes i can learn now", "recipes i dont know" },
-		ask = function(text) return ns.MissingRecipes and ns.MissingRecipes.Question(text) end,
-		answer = function(q) return ns.MissingRecipes.Answer(q) end,
-		toAdvanced = function(q)
-			local rest = {}
-			for _, n in ipairs(q.profs) do rest[#rest + 1] = ns.Lower(n) end
-			for _, w in ipairs(q.words) do rest[#rest + 1] = w end
-			return "@recipe " .. (q.learnable and "is:learnable" or "is:unknown") .. " " .. Words(rest)
-		end },
+	Asks("MissingRecipes", { over = { "Group", "WhatsTraining", "ClassSpells" }, examples = { "recipes i can learn now", "recipes i dont know" },
+		answer = function() return nil end }), -- (a search question: MR.Answer is its footer's)
 	-- "what can i train in tailoring", "tailoring training", "profession training": the recipes a trainer teaches you
 	-- don't know (Search/Questions/ProfTraining.lua; was before What's Training's, whose "what can i train" is your
 	-- class's spells)
@@ -196,6 +189,7 @@ Scan.ANSWERS = {
 	Asks("Group", { examples = { "who is dead", "who is offline" } }),
 	-- "quest upgrades", "quests with upgrades": the quests near your level whose reward is an upgrade (Rewards.lua)
 	{ id = "QuestUpgrades", examples = { "quest upgrades", "quests with upgrades" },
+		custom = "the reward that is an upgrade, its giver's distance or dungeon, near your level",
 		ask = function(text)
 			local R = ns.QuestRewards
 			return R and R.UpgradeQuestion and R.UpgradeQuestion(text) or nil
@@ -204,6 +198,7 @@ Scan.ANSWERS = {
 		toAdvanced = function() return ns.QuestRewards.UpgradeToAdvanced() end },
 	-- "upgrades i can buy", "vendor upgrades": the friendly vendors selling an upgrade for you (Rewards.lua; 0.66.12)
 	{ id = "VendorUpgrades", examples = { "upgrades i can buy", "vendor upgrades" },
+		custom = "what each vendor sells that is an upgrade, and by how much",
 		ask = function(text)
 			local R = ns.QuestRewards
 			return R and R.BuyQuestion and R.BuyQuestion(text) or nil
@@ -213,11 +208,11 @@ Scan.ANSWERS = {
 	-- "quests that reward bags", "bag quests" (Rewards.lua; was before the one by an item's name: "bags" names no item)
 	{ id = "BagQuests", over = { "RewardQuests" }, examples = { "quests that reward bags", "bag quests" },
 		ask = function(text) return ns.QuestRewards and ns.QuestRewards.BagQuestion(text) end,
-		answer = function(q) return ns.QuestRewards.BagAnswer(q) end,
-		toAdvanced = function(q) return ns.QuestRewards.BagToAdvanced(q) end },
+		line = function(q) return ns.QuestRewards.BagLine(q) end, note = function(q) return ns.QuestRewards.BagFooter(q) end,
+		empty = function(q) return ns.QuestRewards.BagNone(q) end },
 	-- "outlaw sabre quest", "quest for outlaw sabre": the quests rewarding it (Rewards.lua; only when the words name a
 	-- quest reward, and no quest is called that)
-	{ id = "RewardQuests",
+	{ id = "RewardQuests", custom = "the quests in the order of the items they reward, with the item's chain",
 		ask = function(text) return ns.QuestRewards and ns.QuestRewards.Question(text) end,
 		answer = function(q) return ns.QuestRewards.Answer(q) end,
 		toAdvanced = function(q) return ns.QuestRewards.ToAdvanced(q) end },

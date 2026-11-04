@@ -156,8 +156,8 @@ do
 	res = UI:Search("@recipe belt")
 	for _, e in ipairs(res) do if e.kind == "missing" then n = -1 end end
 	check(n ~= -1, "@recipe belt: only yours")
-	check(ns.Easy.ToAdvanced("blacksmithing recipes i'm missing") == "@recipe is:unknown blacksmithing "
-		and ns.Easy.ToAdvanced("recipes i can learn now") == "@recipe is:learnable ", "Alt+`: " .. ns.Easy.ToAdvanced("blacksmithing recipes i'm missing"))
+	check(ns.Easy.ToAdvanced("blacksmithing recipes i'm missing") == "@recipe is:unknown prof:blacksmithing sort:need "
+		and ns.Easy.ToAdvanced("recipes i can learn now") == "@recipe is:learnable sort:need ", "Alt+`: " .. ns.Easy.ToAdvanced("blacksmithing recipes i'm missing"))
 	check(table.concat({ ns.Easy.Verbs(by["Thorium Belt"]) }, "/") == "where to learn/link in chat", "verbs")
 	-- (0.45.16, the player's call) not a kind: no @missing; @recipe's filter reaches it, and it's written that way
 	check(ns:ResolveProvider("missing") == nil and ns:ResolveProvider("miss") == nil and ns:ResolveProvider("tolearn") == nil

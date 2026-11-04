@@ -134,7 +134,7 @@ QD.NOTE_BEHIND = L["Quests in zones you've left behind"]
 --- 4.1); "Drop all N" on top when there are two or more (QD.Lead); the footer says how many complete ones were left out.
 function QD.Line(q)
 	local which = (q.grey and "is:grey -is:complete") or (q.behind and "is:leftbehind -is:complete") or "is:drop"
-	local parts = { "@quest", which }
+	local parts = { "@questlog", which } -- (as Alt+` names the quest log: one line either way)
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
 	parts[#parts + 1] = "sort:grey"
 	return table.concat(parts, " ") .. " "

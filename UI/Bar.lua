@@ -95,6 +95,8 @@ B.SORTS = {
 	{ id = "list", label = L["List order"], field = "list", asc = true },
 	-- (your quest log's grey quests first, then by level, then by name: "quests to drop"; 1.0.78)
 	{ id = "grey", label = L["Grey first"], field = "grey", asc = true, tie = "level" },
+	-- (recipes to learn: the least skill first, then by profession and name, "recipes i can learn"; 1.0.79)
+	{ id = "need", label = L["Skill needed"], field = "need", asc = true, tie = "prof" },
 }
 B.DISTANCE_FIELD = { id = "distance", field = "distance", asc = true } -- (a later part of a sort: SortSpec)
 -- what Group offers: Aggregate's fields that name something

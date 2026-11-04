@@ -122,7 +122,7 @@ do
 		local rq = ns.RepQuests.Question("quests for stormwind rep")
 		local rrows = rq and ns.RepQuests.Answer(rq)
 		check(rq and rrows and rrows[1] and rrows[1].qid == 176 and tostring(rrows[1].detail):find("+250", 1, true)
-			and ns.RepQuests.ToAdvanced(rq) == "@questie repreward:stormwind -is:done ", "quests for stormwind rep: Wanted: Hogger, +250: " .. tostring(rrows and rrows[1] and rrows[1].detail))
+			and ns.RepQuests.ToAdvanced(rq) == "@questie repreward:stormwind is:foryou -is:done ", "quests for stormwind rep: Wanted: Hogger, +250: " .. tostring(rrows and rrows[1] and rrows[1].detail))
 		local easyQ = ns.db.easyMode
 		ns.db.easyMode = false
 		UI.lastScan = nil
@@ -162,10 +162,15 @@ do
 		stand = 3500
 		local QN = ns.QuestNeeds
 		local tq, dq, rq2 = QN.Question("tailoring quests"), QN.Question("daily quests"), QN.Question("quests that need honored with stormwind")
-		local trows, drows, rrows3 = tq and QN.Answer(tq), dq and QN.Answer(dq), rq2 and QN.Answer(rq2)
-		check(tq and tq.prof[2] == 197 and trows[1] and trows[1].qid == 176 and tostring(trows[1].detail):find("Tailoring 50", 1, true)
-			and QN.ToAdvanced(tq) == "@questie skill:tailoring -is:done ", "tailoring quests: the quests needing it, your skill against theirs: " .. tostring(trows and trows[1] and trows[1].detail))
-		check(dq and drows[1] and drows[1].qid == 176 and QN.ToAdvanced(dq) == "@questie is:daily ", "daily quests: @questie is:daily")
+		-- (1.0.79: a profession's quests and the dailies are searches, each saying what it needs: sort:cantake's detail)
+		local function Real(rows) local out = {} for _, e in ipairs(rows) do if ns.Bar.Real(e) then out[#out + 1] = e end end return out end
+		local trows, drows, rrows3 = Real(ns.Questions.Answer("tailoring quests")), Real(ns.Questions.Answer("daily quests")), rq2 and QN.Answer(rq2)
+		local said = trows[1] and ns.FIELD_DETAIL.cantake(trows[1])
+		check(tq and tq.prof[2] == 197 and trows[1] and trows[1].qid == 176 and tostring(said):find("Tailoring 50", 1, true)
+			and ns.QuestionToAdvanced("tailoring quests") == "@questie skill:tailoring is:foryou -is:done sort:cantake ",
+			"tailoring quests: the quests needing it, your skill against theirs: " .. tostring(said) .. " / " .. tostring(ns.QuestionToAdvanced("tailoring quests")))
+		check(dq and drows[1] and drows[1].qid == 176 and ns.QuestionToAdvanced("daily quests") == "@questie is:daily is:foryou sort:cantake ",
+			"daily quests: @questie is:daily: " .. tostring(ns.QuestionToAdvanced("daily quests")))
 		check(rq2 and rrows3[1] and rrows3[1].qid == 176 and QN.ToAdvanced(rq2) == nil, "quests that need honored with stormwind: the quest")
 		check(QN.Question("hogger quests") == nil and QN.Question("quests") == nil and QN.Question("my quests") == nil
 			and QN.Question("first aid quests").prof[2] == 129 and QN.Question("dailies").what == "daily", "not a question: hogger quests, my quests")
@@ -206,10 +211,10 @@ do
 			_G.C_Reputation = apiWas
 			local maxWas = QN.MAX
 			QN.MAX = 0
-			local cut = QN.Answer(QN.Question("tailoring quests"))
+			local cut = QN.Answer(QN.Question("quests that need friendly with argent dawn")) -- (the one it answers itself: a standing needed; 1.0.79)
 			QN.MAX = maxWas
 			check(cut[1] and tostring(cut[1].name):find("1", 1, true) and QN.Question("quests needing tailoring") and QN.Question("quests that need tailoring").prof[2] == 197
-				and ns.Filters._.KEYS.skill("first_a") ~= nil, "the cut says how many more; quests needing tailoring; skill:first_a")
+				and ns.Filters._.KEYS.skill("first_a") ~= nil, "the cut says how many more; quests needing tailoring; skill:first_a: " .. tostring(cut[1] and cut[1].name))
 		end
 		q176.requiredSkill, q176.requiredMinRep, q176.questFlags = nil, nil, nil
 		ns.Professions.PlayerProfessions, _G.C_Reputation = profWas, repApiWas

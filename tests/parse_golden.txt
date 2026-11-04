@@ -7452,14 +7452,19 @@ explain: "Quests in your log matching next after defias brotherhood"
 
 == quests that start from an item
 question: ItemQuests  asked=quests that start from an item
+tokens: -
+filter: hard is:itemstart  sig=is:itemstart
+sort: sortField=list
+kinds: -
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "quests that start from an item "
-explain: "Everything matching quests that start from an item"
+advanced: "@questie is:itemstart sort:list "
+explain: "Started by an item quests, in their list's order"
 
 == where to farm linen cloth
 question: Chains  asked=where to farm linen cloth
@@ -7701,25 +7706,37 @@ explain: "Everything matching npcid hogger"
 
 == achievements almost done
 question: AlmostDone  asked=achievements almost done
+tokens: -
+filter: hard is:started  sig=is:started
+filter: hard is:todo  sig=is:todo
+sort: sortField=progress,name
+kinds: achievements
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "achievements almost done "
-explain: "Everything matching achievements almost done"
+advanced: "@achievement is:started is:todo sort:progress,name "
+explain: "Under way, not done yet achievements, progress, then A to Z"
 
 == quests almost done
 question: AlmostDone  asked=quests almost done
+tokens: -
+filter: hard is:started  sig=is:started
+filter: hard -is:complete  sig=-is:complete
+sort: sortField=progress,name
+kinds: quests
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "quests almost done "
-explain: "Everything matching quests almost done"
+advanced: "@questlog is:started -is:complete sort:progress,name "
+explain: "Under way quests in your log, not complete, progress, then A to Z"
 
 == where is my hearth
 question: HearthBind  asked=where is my hearth
@@ -7925,47 +7942,73 @@ explain: "Everything matching exalted with timbermaw, then: sources "
 
 == tailoring quests
 question: QuestNeeds  asked=tailoring quests
+tokens: -
+filter: hard skill:tailoring  sig=skill:tailoring
+filter: hard is:foryou  sig=is:foryou
+filter: hard -is:done  sig=-is:done
+sort: sortField=cantake
+kinds: -
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@questie skill:tailoring -is:done "
-explain: "Quests, that need tailoring, not done"
+advanced: "@questie skill:tailoring is:foryou -is:done sort:cantake "
+explain: "For your race and class quests, that need tailoring, not done, the ones you can take first, then by level"
 
 == fishing quests
 question: QuestNeeds  asked=fishing quests
+tokens: -
+filter: hard skill:fishing  sig=skill:fishing
+filter: hard is:foryou  sig=is:foryou
+filter: hard -is:done  sig=-is:done
+sort: sortField=cantake
+kinds: -
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@questie skill:fishing -is:done "
-explain: "Quests, that need fishing, not done"
+advanced: "@questie skill:fishing is:foryou -is:done sort:cantake "
+explain: "For your race and class quests, that need fishing, not done, the ones you can take first, then by level"
 
 == daily quests
 question: QuestNeeds  asked=daily quests
+tokens: -
+filter: hard is:daily  sig=is:daily
+filter: hard is:foryou  sig=is:foryou
+sort: sortField=cantake
+kinds: -
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@questie is:daily "
-explain: "Daily quests"
+advanced: "@questie is:daily is:foryou sort:cantake "
+explain: "Daily, for your race and class quests, the ones you can take first, then by level"
 
 == repeatable quests
 question: QuestNeeds  asked=repeatable quests
+tokens: -
+filter: hard is:repeatable  sig=is:repeatable
+filter: hard is:foryou  sig=is:foryou
+sort: sortField=cantake
+kinds: -
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@questie is:repeatable "
-explain: "Repeatable quests"
+advanced: "@questie is:repeatable is:foryou sort:cantake "
+explain: "Repeatable, for your race and class quests, the ones you can take first, then by level"
 
 == quests that need honored with stormwind
 question: -

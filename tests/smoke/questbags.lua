@@ -106,12 +106,14 @@ do
 	UI:Hide(); FlushAll()
 	UI:Open("quests that reward bags"); FlushAll()
 	local res = UI.Results()
+	-- (the detail as shown: the search's, sort:slots says the bag; 1.0.79, docs/QUESTIONS.md)
+	local function D(e) local how = UI.showField and ns.FIELD_DETAIL[UI.showField] return e and (how and how(e) or e.detail) or nil end
 	check(Names(res) == "The Tailor's Errand | Herbalist's Favor | Pouch for a Farmer | Goblin Sack",
 		"the bags you can still get, the most slots first (then the lowest level); the Horde giver's 16-slot one left out: " .. Names(res))
-	check(res[1] and res[1].detail:find("Rewards Tailor's Satchel", 1, true) and res[1].detail:find("12 slots", 1, true),
-		"each says which bag and its slots: " .. tostring(res[1] and res[1].detail))
-	check(res[2] and res[2].detail:find("Herb Bag", 1, true) and not res[1].detail:find("  Bag", 1, true),
-		"a trade's bag says which; a plain one doesn't: " .. tostring(res[2] and res[2].detail))
+	check(D(res[1]) and D(res[1]):find("Rewards Tailor's Satchel", 1, true) and D(res[1]):find("12 slots", 1, true),
+		"each says which bag and its slots: " .. tostring(D(res[1])))
+	check(D(res[2]) and D(res[2]):find("Herb Bag", 1, true) and not D(res[1]):find("  Bag", 1, true),
+		"a trade's bag says which; a plain one doesn't: " .. tostring(D(res[2])))
 	check(tostring(UI.status:GetText()):find(ns.L["%d done already, not listed"]:format(1), 1, true),
 		"the footer: how many you've done: " .. tostring(UI.status:GetText()))
 	check(ns.QuestionToAdvanced("quests that reward bags") == "@questie reward:bag -is:done sort:slots ",

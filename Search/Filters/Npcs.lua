@@ -499,7 +499,8 @@ F.SORTS = { distance = "distance", dist = "distance", nearest = "distance", near
 	damage = "damage", hit = "damage", biggest = "damage", line = "line", lines = "line", owner = "owner", owners = "owner",
 	standing = "standing", rep = "standing", reputation = "standing",
 	list = "list", listed = "list", order = "list", -- (the lists' own order, never your picks first; 1.0.77)
-	grey = "grey", gray = "grey" } -- (grey quests first, then by level; 1.0.78)
+	grey = "grey", gray = "grey", -- (grey quests first, then by level; 1.0.78)
+	cantake = "cantake", need = "need", easiest = "need" } -- (1.0.79: Rewards.lua's, Aggregate's)
 -- the sorts that don't turn round: the plan's, the biggest upgrades (a field's do: sort:-level; distance too, 0.65.7)
 local NO_REVERSE = { plan = true, best = true }
 --- A sort's field and whether it's turned round: "-level" -> "level", true; "level" -> "level", false.

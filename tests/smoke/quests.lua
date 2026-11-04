@@ -144,8 +144,8 @@ do
 	end
 	check(names("@quest is:grey") == "101,103" and names("@quest is:leftbehind") == "101,102,103" and names("@quest is:drop") == "101,102",
 		"@quest is:grey / is:leftbehind / is:drop: " .. names("@quest is:grey") .. " / " .. names("@quest is:leftbehind") .. " / " .. names("@quest is:drop"))
-	check(ns.Easy.ToAdvanced("quests to drop") == "@quest is:drop sort:grey " and ns.Easy.ToAdvanced("grey quests") == "@quest is:grey -is:complete sort:grey "
-		and ns.Easy.ToAdvanced("westfall quests to drop") == "@quest is:drop westfall sort:grey ",
+	check(ns.Easy.ToAdvanced("quests to drop") == "@questlog is:drop sort:grey " and ns.Easy.ToAdvanced("grey quests") == "@questlog is:grey -is:complete sort:grey "
+		and ns.Easy.ToAdvanced("westfall quests to drop") == "@questlog is:drop westfall sort:grey ",
 		"Alt+` writes it: " .. tostring(ns.Easy.ToAdvanced("quests to drop")))
 	check(names("@quest is:grey -is:complete") == "101", "and that finds the same")
 	-- (the recipes' is:grey still answers for recipes only)

@@ -217,6 +217,39 @@ local ok, err = pcall(function()
 			and ns.Filters.Parse("prof:first_aid")({ profName = "First Aid" }), "[questions: prof:] the recipe's own profession")
 	end
 
+	-- [questions: quest filters] is:foryou (your race, class and side may take it), is:cantake (and you meet its needs),
+	-- is:started (some progress), sort:cantake (those you can take first, then by level); 1.0.79
+	do
+		local QR, F = ns.QuestRewards, ns.Filters
+		local save = { fy = QR.ForYou, mr = QR.MeetsRequires, prog = ns.Aggregate.Progress }
+		QR.ForYou = function(id) return id ~= 2 end
+		QR.MeetsRequires = function(id) return id ~= 3 end
+		local A, B, C = { kind = "questie", qid = 1, key = 1, name = "A", level = 9 }, { kind = "questie", qid = 2, key = 2, name = "B", level = 1 },
+			{ kind = "questie", qid = 3, key = 3, name = "C", level = 2 }
+		local fy, ct = F.Parse("is:foryou"), F.Parse("is:cantake")
+		check(fy(A) and not fy(B) and fy(C) and ct(A) and not ct(B) and not ct(C) and not fy({ kind = "items", key = 1 }),
+			"[questions: quest filters] is:foryou / is:cantake")
+		local rows = { C, B, A }
+		ns.Bar.SortRows(rows, "cantake")
+		table.sort(rows, function(x, y) return x._score > y._score end)
+		check(rows[1] == A and rows[2] == B and rows[3] == C, "[questions: quest filters] sort:cantake: those you can take first, then by level: "
+			.. rows[1].name .. rows[2].name .. rows[3].name)
+		ns.Aggregate.Progress = function(e) return e.p end
+		local st = F.Parse("is:started")
+		check(st({ kind = "achievements", p = 0.5 }) and not st({ kind = "achievements", p = 0 }) and not st({ kind = "achievements" }),
+			"[questions: quest filters] is:started: some progress")
+		QR.ForYou, QR.MeetsRequires, ns.Aggregate.Progress = save.fy, save.mr, save.prog
+		-- (reward:bag while the reward index is still read: said, so the search is made again; it stayed empty before)
+		local idx, building = QR.Index, QR.Building
+		QR.Index, QR.Building = function() return nil end, function() return true end
+		F.loading = nil
+		local bag = F.Parse("reward:bag")
+		local passed = bag(A)
+		QR.Index, QR.Building = idx, building
+		check(not passed and F.loading == true, "[questions: quest filters] reward:bag while the index is read: says it's loading")
+		F.loading = nil
+	end
+
 	-- [questions: step lines] a search question whose line has steps is read at the steps stage, its tail before the "|"
 	do
 		local SL = Q.StepLine

@@ -40,6 +40,8 @@ function QR.Index()
 	if not index and not building then QR.Build() end
 	return index
 end
+--- Is the index being read now (a slice at a time)?
+function QR.Building() return building end
 
 --- Reads them, a slice at a time (every Questie item once: 15-20 thousand on WoW Forever; review, 0.49.17: read at once
 --- in the first keystroke that asked, a hitch). Started once Questie's quests are indexed, or when first asked.
@@ -255,6 +257,9 @@ if Fk and Fk.KEYS then
 			return function(e)
 				local id = QuestIdOf(e)
 				if not id then return false end
+				-- (the reward index still being read: said, so the search is made again once it's in; 1.0.79: an early
+				-- search stayed empty, as the question didn't)
+				if not QR.Index() and QR.Building() and ns.Filters then ns.Filters.loading = true end
 				if not set then set = QR.KindQuests(kind) end
 				return set[id] ~= nil
 			end
@@ -918,10 +923,30 @@ function QR.BagAnswer(q)
 end
 
 local KIND_VALUE = { bag = "bag", quiver = "quiver", ammo = "ammo_pouch" }
---- Alt+`: the same in Advanced mode: "@questie reward:bag -is:done sort:slots" (reward: keeps to your race, class and
---- side; 0.65.3, the player: it stayed as said).
-function QR.BagToAdvanced(q)
+--- As Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@questie reward:bag -is:done sort:slots"
+--- (reward: keeps to your race, class and side; the detail says which bag and its slots, FIELD_DETAIL.slots).
+function QR.BagLine(q)
 	return "@questie reward:" .. (KIND_VALUE[q.kind] or "bag") .. " -is:done sort:slots "
+end
+function QR.BagFooter(q)
+	local note = BAG_NOTE[q.kind] or BAG_NOTE.bag
+	-- (how many you've done already: not listed, said)
+	local db, done = DB(), C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
+	local seen, n = {}, 0
+	if db and done and QR.Index() then
+		for _, it in ipairs(QR.KindItems(q.kind)) do
+			for _, qid in ipairs(it.quests) do
+				if not seen[qid] and ForYou(db, qid) and Safe(done, qid) then seen[qid] = true n = n + 1 end
+			end
+		end
+	end
+	if n > 0 then note = note .. ns.DETAIL_SEP .. L["%d done already, not listed"]:format(n) end
+	return note
+end
+function QR.BagNone()
+	if not DB() then return { NoneRow(L["Needs Questie: it knows what every quest rewards"]) } end
+	if not QR.Index() then return { NoneRow(L["Reading what Questie's quests reward: a moment"]) } end
+	return { NoneRow(L["No quest Questie knows of rewards one"]) }
 end
 
 --- Alt+`: the same in Advanced mode ("@questie reward:outlaw_sabre").
@@ -1284,7 +1309,9 @@ function RQ.Answer(q)
 	ns.ScoreInOrder(rows)
 	return rows, title
 end
-function RQ.ToAdvanced(q) return "@questie repreward:" .. (q.said:gsub("%s+", "_")) .. " -is:done " end
+-- (its own answer: ranked by the reputation the faction asked for gives, which no sort knows; Alt+` lists the same quests,
+-- the ones you can take: is:foryou, 1.0.79)
+function RQ.ToAdvanced(q) return "@questie repreward:" .. (q.said:gsub("%s+", "_")) .. " is:foryou -is:done " end
 
 ----------------------------------------------------------------------
 -- What a quest needs (1.0.64, the reach audit), QuestieDB's quest fields as its questMeta.lua says them: requiredSkill (18)
@@ -1478,9 +1505,8 @@ function QN.Answer(q)
 	for _, e in ipairs(qp and ns:GetEntries(qp) or {}) do
 		local id = QuestIdOf(e)
 		local r = id and QR.Requires(id)
-		local ok = r and ((q.what == "daily" and r.daily) or (q.what == "repeatable" and r.repeatable)
-			or (q.what == "skill" and r.skill and (not q.prof or r.skill[1] == q.prof[2]))
-			or (q.what == "rep" and r.rep and q.fids[r.rep[1]] and QR.StandingOfValue(r.rep[2]) >= q.need))
+		-- (a standing needed only: daily, repeatable and a profession are searches, QN.Line)
+		local ok = r and q.what == "rep" and r.rep and q.fids[r.rep[1]] and QR.StandingOfValue(r.rep[2]) >= q.need
 		if ok and not (done and Safe(done, id) and not r.daily and not r.repeatable) and QR.ForYou(id) then
 			found[#found + 1] = { e = e, id = id, can = QR.MeetsRequires(id, memo), lv = tonumber(e.level) or 0 }
 		end
@@ -1500,9 +1526,62 @@ function QN.Answer(q)
 	if #found > #rows then rows[#rows + 1] = ns.NoteRow(L["+%d more"]:format(#found - #rows)) end
 	return rows, title
 end
-function QN.ToAdvanced(q)
-	if q.what == "daily" then return "@questie is:daily " end
-	if q.what == "repeatable" then return "@questie is:repeatable " end
-	if q.what == "skill" then return "@questie skill:" .. (q.prof and q.prof[1] or "any") .. " -is:done " end
+--- As Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): those you can take first, then by level, each
+--- saying what it needs (sort:cantake's detail); nil for a standing needed ("quests that need honored with stormwind":
+--- its own answer, no filter says a standing needed).
+function QN.Line(q)
+	if q.what == "daily" then return "@questie is:daily is:foryou sort:cantake " end
+	if q.what == "repeatable" then return "@questie is:repeatable is:foryou sort:cantake " end
+	if q.what == "skill" then return "@questie skill:" .. (q.prof and q.prof[1] or "any") .. " is:foryou -is:done sort:cantake " end
 	return nil
+end
+function QN.Footer() return L["Quests"] end
+function QN.None()
+	if not DB() then return { ns.NoteRow(L["Needs Questie: it knows every quest and where it starts"]) } end
+	return { ns.NoteRow(L["Questie knows no quest like that here"]) }
+end
+function QN.ToAdvanced() return nil end
+
+if Fk and Fk.IS then
+	-- is:foryou: a quest your race, class and side may take; is:cantake: and whose needs you meet (1.0.79: "quests here",
+	-- "tailoring quests" kept to them, their Alt+` didn't)
+	Fk.IS.foryou = function(e) local id = QuestIdOf(e) return id ~= nil and QR.ForYou(id) end
+	Fk.IS.cantake = function(e) local id = QuestIdOf(e) return id ~= nil and QR.ForYou(id) and QR.MeetsRequires(id) end
+	-- is:itemstart: a quest an item starts (Questie's startedBy, its items; "quests that start from an item")
+	Fk.IS.itemstart = function(e)
+		local db, id = DB(), QuestIdOf(e)
+		local by = db and id and Safe(db.QueryQuestSingle, id, "startedBy")
+		return type(by) == "table" and type(by[3]) == "table" and by[3][1] ~= nil
+	end
+end
+--- The item that starts a quest, by name ("Started by Grimy Note"): is:itemstart's detail.
+function QR.StartItemDetail(e)
+	local db, id = DB(), QuestIdOf(e)
+	local by = db and id and Safe(db.QueryQuestSingle, id, "startedBy")
+	local item = type(by) == "table" and type(by[3]) == "table" and by[3][1]
+	if not item then return nil end
+	local name = db.QueryItemSingle and Str(Safe(db.QueryItemSingle, item, "name"))
+	return L["Started by %s"]:format(name or L["an item"])
+end
+ns.FIELD_DETAIL.itemstart = function(e) return QR.StartItemDetail(e) end
+ns.SHOW_FIELD_FOR = ns.SHOW_FIELD_FOR or {}
+ns.SHOW_FIELD_FOR["is:itemstart"] = "itemstart"
+-- sort:cantake: the quests you can take first, then by level, then by name; its detail says what each needs
+do
+	local A, F, B = ns.Aggregate, ns.Filters, ns.Bar
+	if A and A.FIELDS then
+		A.FIELDS.cantake = { label = ns.Lower(L["Can take"]), num = function(e)
+			local id = QuestIdOf(e)
+			if not id then return nil end
+			return (QR.ForYou(id) and QR.MeetsRequires(id)) and 0 or 1
+		end }
+	end
+	if B and B.SORTS then B.SORTS[#B.SORTS + 1] = { id = "cantake", label = L["Can take"], field = "cantake", asc = true, tie = "level" } end
+	ns.FIELD_DETAIL.cantake = function(e)
+		local id = QuestIdOf(e)
+		local said = id and QR.RequiresSaid(id)
+		local own = rawget(e, "detail") or e.detail
+		if not said or #said == 0 then return own end
+		return table.concat(said, ns.DETAIL_SEP) .. ((own and own ~= "") and (ns.DETAIL_SEP .. own) or "")
+	end
 end

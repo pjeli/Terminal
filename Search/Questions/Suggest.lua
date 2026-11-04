@@ -484,15 +484,25 @@ function QH.Answer()
 	return rows, note
 end
 
---- '@questie lvl:21-26 in:"the barrens"', as Advanced mode writes the same quests.
-function QH.ToAdvanced()
+--- '@questie lvl:21-26 in:"the barrens" is:todo is:cantake sort:level,name': its answer and its Alt+` (docs/QUESTIONS.md
+--- 4.1), the quests you can take at your level here, not done (1.0.79: the Alt+` line listed done ones and others'
+--- too); nil (its own answer: says why) when your level or zone isn't known.
+function QH.Line()
 	local level = Level()
 	local zone = Str(Safe(GetRealZoneText))
 	if not (level and zone) then return nil end
 	local lo, hi = Band(level)
 	local z = Lower(zone)
-	-- (by level, as the answer lists them; 0.63.7, review: by name)
-	return ("@questie lvl:%d-%d in:%s sort:level "):format(lo, hi, z:find(" ", 1, true) and ('"' .. z .. '"') or z)
+	return ("@questie lvl:%d-%d in:%s is:todo is:cantake sort:level,name "):format(lo, hi, z:find(" ", 1, true) and ('"' .. z .. '"') or z)
+end
+function QH.Footer()
+	local level, zone = Level(), Str(Safe(GetRealZoneText))
+	local lo, hi = Band(level or 1)
+	return L["Quests here"] .. SEP .. tostring(zone) .. SEP .. L["Lv %d-%d"]:format(lo, hi)
+end
+function QH.None()
+	if not Has("Questie") then return { ns.NoteRow(L["Needs Questie: it knows every quest and where it starts"]) } end
+	return { ns.NoteRow(L["No quests at your level here: try \"where should i quest\""]) }
 end
 
 ----------------------------------------------------------------------
@@ -988,8 +998,14 @@ function QS.Answer()
 	ns.ScoreInOrder(rows)
 	return rows, title
 end
---- Not a search: the question stays as typed (Advanced mode answers it the same).
-function QS.ToAdvanced() return nil end
+--- As Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@questie is:itemstart sort:list", each saying
+--- which item starts it (is:itemstart's detail).
+function QS.Line() return "@questie is:itemstart sort:list " end
+function QS.Footer() return L["Started by %s"]:format(L["an item"]) end
+function QS.None()
+	if not Has("Questie") then return { ns.NoteRow(L["Needs Questie: it knows every quest and where it starts"]) } end
+	return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }
+end
 
 ----------------------------------------------------------------------
 -- "what level is hogger", "what level is the stockade", "duskwood level": the level Terminal has for it (an NPC's from
@@ -1184,9 +1200,14 @@ function AD.Answer(q)
 	ns.ScoreInOrder(rows)
 	return rows, title
 end
---- Not a search: the question stays as typed (Advanced mode answers it the same; "@achievement is:todo sort:progress"
---- listed the ones not begun too; review, 1.0.70).
-function AD.ToAdvanced() return nil end
+--- As Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): those under way and not done, the most done
+--- first ("@achievement is:todo sort:progress" listed the ones not begun too, review 1.0.70: is:started, 1.0.79).
+function AD.Line(q)
+	if q.kind == "achievements" then return "@achievement is:started is:todo sort:progress,name " end
+	return "@questlog is:started -is:complete sort:progress,name " -- (as Alt+` names the quest log: one line either way)
+end
+function AD.Footer() return L["Progress"] .. SEP .. L["the most first"] end
+function AD.None() return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) } end
 
 ----------------------------------------------------------------------
 -- "where is my hearth", "my hearthstone location": where your hearthstone takes you (the game's GetBindLocation) and

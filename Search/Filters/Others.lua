@@ -548,6 +548,13 @@ IS.key = AttuneIs("key")
 IS.class = function(e) return (e.kind == "quests" and e.classQuest == true) or AttuneClass(e) end
 -- (your gear's wear: Durability.lua)
 IS.broken = function(e) return e.kind == "durability" and e.duraKind ~= "total" and e.duraCur == 0 end
+-- is:started: an achievement or a quest with some progress made, not done yet or done ("achievements almost done": with
+-- is:todo and sort:progress; 1.0.79)
+IS.started = function(e)
+	local A = ns.Aggregate
+	local f = A and A.Progress and A.Progress(e)
+	return f ~= nil and f > 0
+end
 -- prof:<profession>: recipes (and recipes to learn) of that profession, the recipe's own: Smelting's are Mining's, as
 -- your profession list names it ("_" for a space: prof:first_aid). "what can i craft mining", "blacksmithing plan"
 -- (1.0.78: the profession was a word searched, which the window's name Smelting didn't have)
@@ -677,6 +684,7 @@ IS.skillups, IS.gray, IS.trivial = IS.skillup, IS.grey, IS.grey
 F.VALUES = {
 	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "enchanted", "unenchanted", "craftable", "skillup",
 		"orange", "yellow", "green", "grey", "red", "leftbehind", "drop", "tracked", "untracked", "here", "passive", "unplaced", "known",
+		"foryou", "cantake", "itemstart", "started",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "spirithealer", "battlemaster", "weaponmaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
 		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
@@ -694,7 +702,7 @@ F.VALUES = {
 	-- (no "warband": WoW Forever has no warband bank; 0.50.5, the player)
 	["in"] = { "bags", "bank", "mail", "guild", "equipped" },
 	faction = { "horde", "alliance", "neutral", "friendly" },
-	sort = { "distance", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner", "standing", "progress", "list", "grey" },
+	sort = { "distance", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner", "standing", "progress", "list", "grey", "cantake", "need" },
 	fish = { "mine", "75", "150", "225", "300" },
 	cast = { "instant", "channeled", "<2", ">=3" }, cost = { "0", "mana", "rage", "energy", "<100" },
 	range = { "melee", "self", "30", ">=30" }, cd = { "0", "<10", ">60" },
@@ -737,6 +745,9 @@ F.APPLIES = {
 		red = { "quests" }, tracked = { "quests" }, untracked = { "quests" }, here = { "quests" },
 		elite = { "npc" }, rare = { "npc" }, rareelite = { "npc" }, boss = { "npc" }, worldboss = { "npc" },
 		daily = { "questie", "quests" }, repeatable = { "questie", "quests" },
+		-- (1.0.79: your race and class may take it; and you meet what it needs; an item starts it: Rewards.lua; some
+		-- progress made: below)
+		foryou = { "questie", "quests" }, cantake = { "questie", "quests" }, itemstart = { "questie" }, started = { "achievements", "quests" },
 		grey = { "recipes", "professions", "quests" }, leftbehind = { "quests" }, drop = { "quests" },
 		passive = { "spells" }, unplaced = { "spells" }, known = { "spells", "classspells" }, ability = { "spells" }, tameable = { "npc" }, tamable = { "npc" }, reward = { "reputation" }, rewards = { "reputation" },
 		canbuy = { "reputation" }, buyable = { "reputation" }, capped = { "currency" },
@@ -769,6 +780,7 @@ F.APPLIES = {
 		name = { "items", "spells", "classspells", "talents", "quests", "recipes" }, level = { "quests", "classspells", "recipes" },
 		damage = { "combatlog" }, line = { "attune" }, owner = { "shared" }, standing = { "reputation" }, progress = { "achievements", "quests" },
 		grey = { "quests" }, -- (1.0.78)
+		cantake = { "questie", "quests" }, need = { "missing", "recipes" }, -- (1.0.79)
 		-- (sort:list: the lists that keep an order of their own; 1.0.77)
 		list = { "quests", "spells", "history", "buyback", "lootlog", "combatlog", "lockouts", "auctions", "calendar", "groupquests",
 			"attune", "training", "durability", "mail", "group", "book", "transport", "items", "bank", "stored" } },
@@ -864,6 +876,9 @@ F.HELP = {
 	{ "sort:quality,-level", L["several fields: by the first, then on a tie by the next (sort:quality,-level: the best first, the highest level first among equals); Simple mode's Sort takes a then by with Shift"] },
 	{ "sort:line", L["an attunement's steps (> steps) line by line, as Attune's tree reads; else by their numbers: 1, 2a, 2b, 3a..."] },
 	{ "prof:mining", L["@recipe: the recipes of that profession, the recipe's own (Smelting's are Mining's; _ for a space, prof:first_aid)"] },
+	{ "is:foryou", L["@questie: the quests your race, class and side may take; is:cantake: and whose needs you meet (a profession's skill, a standing)"] },
+	{ "is:itemstart", L["@questie: the quests an item starts (the detail says which); is:started: achievements and quests with some progress made"] },
+	{ "sort:need", L["recipes to learn: the least skill needed first (those whose skill isn't known last); sort:cantake: the quests you can take first, then by level, saying what each needs"] },
 	{ "sort:grey", L["your quest log: the grey quests first, then by level (as \"quests to drop\" lists them)"] },
 	{ "sort:list", L["the rows in their list's own order (your quest log's, the spellbook's, the newest first...), not your picks first; a sorted list with no words is listed whole"] },
 	{ "sort:distance", L["NPCs, mailboxes, forges, anvils, cooking fires, moonwells, dungeon and raid entrances and flight paths closest to you first, with how far (the other rows stay, after them); sort:-distance the farthest first, those with no distance known before them, as if infinitely far (sort:nearest and sort:farthest say the same)"] },
