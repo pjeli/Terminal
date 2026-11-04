@@ -22,6 +22,8 @@ do
 		{ "@drop since:3d", "Loot you saw drop, in the last 3 days" },
 		{ "@drop since:1h", "Loot you saw drop, in the last hour" },
 		{ "@mail older:1d", "Mail, older than 1 day" },
+		-- (1.0.86, review) the units .explain says are filters too
+		{ "@mail older:2weeks", "Mail, older than 2 weeks" },
 	}
 	for _, c in ipairs(CASES) do
 		local got = E.Explain(c[1])

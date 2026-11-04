@@ -30,7 +30,8 @@ local IS_SAY = { vendor = L["vendors"], trainer = L["trainers"], classtrainer = 
 	innkeeper = L["innkeepers"], banker = L["bankers"], repair = L["repairers"], flightmaster = L["flight masters"],
 	auctioneer = L["auctioneers"], questgiver = L["quest givers"], stablemaster = L["stable masters"], spirithealer = L["spirit healers"],
 	battlemaster = L["battlemasters"], weaponmaster = L["weapon masters"], upgrade = L["upgrades for you"],
-	reward = ns.Lower(L["Quartermaster rewards"]), rewards = ns.Lower(L["Quartermaster rewards"]), ability = ns.Lower(L["Pet abilities"]) }
+	reward = ns.Lower(L["Quartermaster rewards"]), rewards = ns.Lower(L["Quartermaster rewards"]), ability = ns.Lower(L["Pet abilities"]),
+	inn = L["innkeepers"], bank = L["bankers"], flight = L["flight masters"] } -- (the filters' short words too; 1.0.86, review)
 local IS_ADJ = { boe = L["bind on equip"], soulbound = L["soulbound"], usable = L["usable"], equippable = L["equippable"],
 	foryou = L["for your race and class"], cantake = L["you can take"], itemstart = L["started by an item"], started = L["under way"], -- (1.0.79)
 	done = L["done"], todo = L["not done yet"], complete = L["complete"], ready = L["ready"], craftable = L["craftable"],

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.86 (in testing)
+
+- Filters (review): `since:` and `older:` take every unit `.explain` says (`2weeks`, `3hours`, `10mins`); a money field kept in a step reads money (`in:bags | value:>1g`); `stat:spellhit`, `stat:spellcrit`, `stat:feralap`, `stat:spelldamage` and `stat:blockvalue` find what `.weights` weighs; `.explain` names `is:inn`, `is:bank` and `is:flight`.
+
 ## 1.0.85 (in testing)
 
 - Terminal's window (review): the share badge's pop-out shows under `.zen` when it was first opened before a fade (every pop-out of Terminal's now stays up under `.zen`, wherever it was made); a row whose tooltip was still waiting for its data gets one after closing and reopening the terminal; holding Shift+Right in Simple mode opens the row menu once instead of 22 times a second; letting go of Ctrl (or Shift) while a key is held stops deleting (or selecting) whole words.

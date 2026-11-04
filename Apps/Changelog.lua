@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.0.85", when = "in testing",
+		v = "1.0.86", when = "in testing",
 		items = {
 			"With OneForAll: @book lists the Library Books, where each is and which you've turned in; \"books i still need\", \"nearest library book\".",
 			"With OneForAll, for hunters: @spell has your pet's abilities (each rank, learned or not, Enter: who teaches it; is:ability), @npc says which beasts you can tame (is:tameable); \"where to learn bite 4\", \"tameable cats\", \"rare pets\".",

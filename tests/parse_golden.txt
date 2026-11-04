@@ -8104,7 +8104,7 @@ pick: spec=is:flight word=flight
 pick sort: -
 category: -
 advanced: "@flight do:where do i master is:flight "
-explain: "Flight flight paths matching do i master, Enter: where"
+explain: "Flight masters matching do i master, Enter: where"
 
 == how many mounts do i have
 question: CollectionsQ  asked=how many mounts do i have

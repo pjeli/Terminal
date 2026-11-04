@@ -606,7 +606,9 @@ end
 -- midnight), week (the last 7 days), month (30), login (this session), or a time ago: 30m, 2h, 3d, 2w. On the lists that
 -- keep times: the loot log, mail, auctions, history, the combat log, buyback.
 local SESSION_START = (_G.time and _G.time()) or 0 -- (when the addon loaded: since:login)
-local SPAN_SECONDS = { m = 60, min = 60, h = 3600, hr = 3600, d = 86400, day = 86400, days = 86400, w = 604800, wk = 604800 }
+-- (every unit .explain says, singular and plural: since:2weeks and older:3hours weren't filters; 1.0.86, review)
+local SPAN_SECONDS = { m = 60, min = 60, mins = 60, minute = 60, minutes = 60, h = 3600, hr = 3600, hrs = 3600, hour = 3600,
+	hours = 3600, d = 86400, day = 86400, days = 86400, w = 604800, wk = 604800, wks = 604800, week = 604800, weeks = 604800 }
 --- When a since:/older: value starts (seconds since the epoch, as time() counts), or nil when it isn't one.
 function F.TimeStart(v)
 	local now = ns.Now()

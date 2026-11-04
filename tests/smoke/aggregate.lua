@@ -26,6 +26,9 @@ do
 	check(s.op == "group" and s.by == "quality", "count by q: a group by quality")
 	s = A.ParseStep("count")
 	check(s.op == "count", "count alone")
+	-- (1.0.86, review) a money field kept by its value as the filter reads it
+	s = A.ParseStep("value:>1g")
+	check(s and not s.bad and s.where == "value" and s.test, "| value:>1g: kept by money: " .. tostring(s and s.bad))
 	s = A.ParseStep("avg ilvl by slot")
 	check(s.op == "avg" and s.field == "ilvl" and s.by == "slot", "avg ilvl by slot")
 	check(A.ParseStep("sum zone").bad and A.ParseStep("sum").bad and A.ParseStep("group").bad and A.ParseStep("frobnicate").bad,

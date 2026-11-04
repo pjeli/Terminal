@@ -439,6 +439,11 @@ do -- type: and stat: lowercase the game's words once (kept per item / per stat 
 	F.ClearCache()
 	_G.ITEM_MOD_FROBNITZ_SHORT = "Sparkle"
 	check(P("stat:sparkle")(axe) and not P("stat:glimmer")(axe), "stat names read afresh after the caches are cleared")
+	-- (1.0.86, review) .weights' stat words are stat: words too
+	F.ClearCache()
+	C_Item.GetItemStats = function() return { ITEM_MOD_HIT_SPELL_RATING_SHORT = 1, ITEM_MOD_FERAL_ATTACK_POWER_SHORT = 20 } end
+	check(P("stat:spellhit")(axe) and P("stat:feralap")(axe) and not P("stat:spellcrit")(axe) and not P("stat:blockvalue")(axe),
+		"stat:spellhit, stat:feralap: .weights' words")
 	C_Item.GetItemInfo, C_Item.GetItemStats, _G.ITEM_MOD_FROBNITZ_SHORT = base.info, base.stats, base.mod
 	F.ClearCache()
 end

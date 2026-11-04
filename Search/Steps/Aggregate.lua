@@ -232,7 +232,9 @@ local function ParseStep(step)
 		-- kept level 25 as "2" is in "25")
 		local fd = A.FIELDS[f]
 		if fd.num and not fd.text then
-			local test = ns.Filters and ns.Filters.Range and ns.Filters.Range(value)
+			-- (money read as the value: filter reads it, "| value:>1g"; 1.0.86, review: "a number or a range")
+			local Fs = ns.Filters
+			local test = Fs and ((fd.money and Fs.MoneyRange and Fs.MoneyRange(value)) or (Fs.Range and Fs.Range(value)))
 			if not test then return { bad = L["a number or a range: %s:20-30"]:format(field) } end
 			return { where = f, value = ns.Lower(value), test = test }
 		end

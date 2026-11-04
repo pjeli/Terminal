@@ -201,6 +201,9 @@ local STAT_WORDS = {
 	frost = "RESISTANCE4", shadow = "RESISTANCE5", arcane = "RESISTANCE6",
 	-- weapon damage: no item stat has it (StatIs never matches it); sharpening stones, weightstones: their effect text
 	weapondamage = "WEAPON_DAMAGE", wdmg = "WEAPON_DAMAGE", weapon_damage = "WEAPON_DAMAGE",
+	-- (.weights' words, Upgrades.lua's F.STAT_WORDS: stat:spellhit found nothing; 1.0.86, review)
+	spellhit = "SPELLHIT", spellcrit = "SPELLCRIT", feralap = "FERAL_ATTACK_POWER", spelldamage = "SPELL_POWER",
+	blockvalue = "BLOCK_VALUE", blockv = "BLOCK_VALUE",
 }
 F.STATS = { "stamina", "strength", "agility", "intellect", "spirit", "armor", "ap", "rap", "sp", "healing",
 	"crit", "hit", "haste", "dodge", "parry", "block", "defense", "mp5", "dps", "fire", "frost",
@@ -212,12 +215,15 @@ F.STATS = { "stamina", "strength", "agility", "intellect", "spirit", "armor", "a
 local KEY_PARTS = {
 	REGEN = { "MANA_REGEN", "POWER_REGEN0" }, HEAL = { "HEALING" }, SPELL_POWER = { "SPELL_POWER", "SPELL_DAMAGE" },
 	ATTACK_POWER = { "MOD_ATTACK_POWER", "FERAL_ATTACK_POWER" },
+	SPELLHIT = { "HIT_SPELL", "SPELL_HIT" }, SPELLCRIT = { "CRIT_SPELL", "SPELL_CRIT" },
 }
+-- (every part's list made once: StatIs made a table per stat per row per keystroke; 1.0.86, review)
+for _, part in pairs(STAT_WORDS) do if not KEY_PARTS[part] then KEY_PARTS[part] = { part } end end
 --- Does this stat key (ITEM_MOD_STAMINA_SHORT) answer to the typed word?
 local function StatIs(key, word)
 	local part = STAT_WORDS[word]
 	if part then
-		for _, p in ipairs(KEY_PARTS[part] or { part }) do
+		for _, p in ipairs(KEY_PARTS[part]) do
 			if key:find(p, 1, true) then return true end
 		end
 		return false

@@ -6,6 +6,13 @@ local ns, UI, check = T.ns, T.UI, T.check
 local E, F = ns.Easy, ns.Filters
 
 io.write("[datewords: since: and older:, in words too]\n")
+do -- (1.0.86, review) every unit .explain says: since:2weeks, older:3hours were searched as words
+	local F, now = ns.Filters, ns.Now()
+	for _, c in ipairs({ { "2weeks", 14 * 86400 }, { "3hours", 3 * 3600 }, { "1hour", 3600 }, { "10mins", 600 }, { "2wks", 14 * 86400 } }) do
+		local t = F.TimeStart(c[1])
+		check(t and math.abs((now - t) - c[2]) < 5, "since:" .. c[1] .. ": " .. tostring(t and now - t))
+	end
+end
 do
 	local function Read(text)
 		local words = {}
