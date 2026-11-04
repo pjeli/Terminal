@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.43 (in testing)
+
+- The Console with OneForAll and no AtlasLoot (the player's ask): `/loot` is on OneForAll's mount in `/etc/fstab`, `df` and `mount`, and AtlasLoot's line no longer claims it. With AtlasLoot, `/loot` stays AtlasLoot's (OneForAll's rows in it).
+
 ## 1.0.42 (in testing)
 
 - Alt+` on "zone exits" writes your zone's roads (`@transport road in:<your zone> sort:distance`), not every road; on "library book rewards" it keeps the question, which Advanced answers with the same reward tiers (`@book` listed every book).

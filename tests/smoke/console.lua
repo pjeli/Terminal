@@ -540,6 +540,21 @@ local ok, err = pcall(function()
 	o, err = Run("umount /ctest")
 	check(err == 32 and Has(o, "target is busy (CtestAddon is using it)"), "umount: busy, as the addon is using it")
 	for i = #FS.MOUNTS, mountsWere + 1, -1 do table.remove(FS.MOUNTS, i) end
+	-- (1.0.43, the player's ask) OneForAll's @loot without AtlasLoot: /loot on OneForAll's mount, AtlasLoot's line without it
+	do
+		local G, I = ns.OneForAllGear, ns.Integrations
+		local wasOn, wasAL, wasLoot = G and G.on, I.loot.on, ns.providers.loot
+		G.on, I.loot.on = true, false
+		ns.providers.loot = ns.providers.loot or { id = "loot", label = "Loot", collect = function() return {} end }
+		local al, ofa
+		for _, m in ipairs(FS.MOUNTS) do if m.type == "atlasloot" then al = m elseif m.type == "oneforall" then ofa = m end end
+		local alLists, ofaLists = table.concat(FS.ListsOf(al), " "), table.concat(FS.ListsOf(ofa), " ")
+		I.loot.on = true
+		local both = table.concat(FS.ListsOf(al), " ") .. " / " .. table.concat(FS.ListsOf(ofa), " ")
+		G.on, I.loot.on, ns.providers.loot = wasOn, wasAL, wasLoot
+		check(alLists == "" and ofaLists:find("loot", 1, true) and both == "loot / book itemset transport",
+			"/loot: OneForAll's mount without AtlasLoot, AtlasLoot's with it: " .. alLists .. " | " .. ofaLists .. " | " .. both)
+	end
 	-- Terminal: Share as NFS: a friend connected a remote mount, the groups fstab's exports, /shared a folder a friend
 	local realSsh = ns.Ssh
 	local friends = { { name = "Bob", n = 12, friend = { mode = "limited" } } }

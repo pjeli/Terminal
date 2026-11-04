@@ -1244,11 +1244,17 @@ local function AddonLoaded(name)
 	return ok and yes == true
 end
 
--- each: the lists it fills (provider ids), its addons' names (the first one said in /etc/fstab when none is
--- loaded), and which of them is in use now (nil: none). Lists Terminal fills itself (items, spells, flight paths,
--- entrances...) aren't mounts.
+-- each: the lists it fills (provider ids; or a function giving them, when that changes), its addons' names (the first
+-- one said in /etc/fstab when none is loaded), and which of them is in use now (nil: none). Lists Terminal fills itself
+-- (items, spells, flight paths, entrances...) aren't mounts.
+-- (/loot: AtlasLoot's, with OneForAll's planner's rows in it; without AtlasLoot, OneForAll's alone, so on its mount.
+-- 1.0.43, the player's ask: /etc/fstab said "# AtlasLootClassic /loot ... not installed" while /loot was OneForAll's)
+local function OneForAllLoot()
+	local G = ns.OneForAllGear
+	return G ~= nil and G.on and not (I and I.loot and I.loot.on) and ns.providers.loot ~= nil
+end
 FS.MOUNTS = {
-	{ type = "atlasloot", lists = { "loot" }, names = { "AtlasLootClassic", "AtlasLoot", "AtlasLootContinued" },
+	{ type = "atlasloot", lists = function() return OneForAllLoot() and {} or { "loot" } end, names = { "AtlasLootClassic", "AtlasLoot", "AtlasLootContinued" },
 		source = function() return I and I.LoadedCore and I.LoadedCore() end },
 	{ type = "questiedb", lists = { "npc", "questie", "mailbox", "forge", "anvil", "cookingfire", "moonwell" }, names = { "Questie", "QuestieDB" },
 		source = function() return ns.QuestieData and ns.QuestieData.Source() end },
@@ -1265,7 +1271,11 @@ FS.MOUNTS = {
 			if p then return p.fromTrainerSpells and "TrainerSpells" or "WhatsTraining" end
 		end },
 	-- (1.0.1-1.0.5: OneForAll - Forever's lists, Providers/Integrations/OneForAll/)
-	{ type = "oneforall", lists = { "book", "itemset", "transport" },
+	{ type = "oneforall", lists = function()
+			local t = { "book", "itemset", "transport" }
+			if OneForAllLoot() then t[#t + 1] = "loot" end
+			return t
+		end,
 		names = { "OneForAll" }, source = function() return ns.OneForAll and ns.OneForAll.Loaded() and "OneForAll" or nil end },
 	{ type = "aceconfig", lists = { "addonoptions" }, names = { "Ace3" },
 		source = function()
@@ -1315,6 +1325,16 @@ FS.MOUNTS = {
 --- Every mount as it stands: { m, source (the addon in use, or nil), points (its directories' paths), size, used
 --- (rows: all of them, those ready; nil when no list is made yet), opts (mount's: ro, lazy, loading...), note }. A mount
 --- with `remotes` (Share) is one a remote (a friend connected), or one with no source and a note when there's none.
+--- A mount's lists now (FS.MOUNTS: a list, or a function giving one).
+function FS.ListsOf(m)
+	local l = m.lists
+	if type(l) == "function" then
+		local ok, got = pcall(l)
+		l = ok and got or nil
+	end
+	return type(l) == "table" and l or {}
+end
+
 function FS.Mounts()
 	local out = {}
 	for _, m in ipairs(FS.MOUNTS) do
@@ -1333,7 +1353,7 @@ function FS.Mounts()
 		else
 			local points, size, used, opts = {}, nil, nil, { "ro" }
 			local lazy, busy, drop = false, false, false
-			for _, id in ipairs(m.lists) do
+			for _, id in ipairs(FS.ListsOf(m)) do
 				local d = FS.DirOf(id)
 				local p = ns.providers[id]
 				if d then points[#points + 1] = "/" .. d.name end
@@ -1383,7 +1403,7 @@ function FS.Fstab()
 		else
 			local points = #mt.points > 0 and mt.points or {}
 			if #points == 0 then
-				for _, id in ipairs(m.lists) do points[#points + 1] = "/" .. id end
+				for _, id in ipairs(FS.ListsOf(m)) do points[#points + 1] = "/" .. id end
 				if #points == 0 then points[1] = "none" end
 			end
 			for _, pt in ipairs(points) do
