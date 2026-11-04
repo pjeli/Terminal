@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.62 (in testing)
+
+- An NPC's rank, from Questie (the reach audit): `@npc` rows say Elite, Rare, Rare Elite or Boss, and the filters `is:elite`, `is:rare`, `is:rareelite`, `is:boss` keep them; in Simple mode "rare mobs near me", "rare spawns in westfall", "elite mobs in westfall", "elite npcs" mean the rank ("rare swords" is still the quality).
+
 ## 1.0.61 (in testing)
 
 - "how long to level", "xp per hour", "time to level": the experience you've gained an hour this session and when you'll reach your next level at that rate (counted from login, in memory only; the reach audit).

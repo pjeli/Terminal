@@ -380,6 +380,8 @@ local function SetupQuestie()
 			local d = x and ((sub and (sub .. ns.DETAIL_SEP) or "") .. x) or sub or (L["NPC"] .. "  #" .. t.npcID)
 			local inside = I.NpcDungeon and I.NpcDungeon(t.npcID)
 			if inside then d = d .. ns.DETAIL_SEP .. L["in %s"]:format(inside) end -- (pointed at its entrance; 0.51.18)
+			local rank = I.NpcRankName and I.NpcRankName(t.npcID) -- ("Rare Elite"; 1.0.62)
+			if rank then d = d .. ns.DETAIL_SEP .. rank end
 			return d
 		end,
 		inDungeon = function(t) return I.NpcDungeon and I.NpcDungeon(t.npcID) or false end,

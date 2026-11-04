@@ -614,6 +614,20 @@ IS.flight, IS.flightmaster = FlightMaster, FlightMaster
 IS.flightpath = function(e) return e.kind == "flight" end
 -- (1.0.9) a hunter's pet ability ranks (@spell's since 1.0.37, @tame's before)
 IS.ability = function(e) return e.kind == "spells" and e.ability ~= nil end -- (a view on one too: not rawget)
+-- (1.0.62, the reach audit) an NPC's rank, Questie's: is:elite (rare elites too), is:rare (rare elites too), is:rareelite,
+-- is:boss (a world boss's); OneForAll's rare beasts are is:rare as well. q:rare stays an item's quality
+local function RankIs(set)
+	return function(e)
+		if e.kind ~= "npc" then return false end
+		if set == "rare" and e.rare == true then return true end
+		local I = ns.Integrations
+		local id = NpcID(e)
+		local r = id and I and I.NpcField and ns.Num(I.NpcField(id, "rank"))
+		return r ~= nil and I.NPC_RANKS[set][r] == true
+	end
+end
+IS.elite, IS.rare, IS.rareelite, IS.boss = RankIs("elite"), RankIs("rare"), RankIs("rareelite"), RankIs("boss")
+IS.worldboss = IS.boss
 -- (1.0.37) the beasts a hunter can tame: Questie's NPCs OneForAll lists, and its own (the questions' answers)
 IS.tameable = function(e)
 	if e.kind ~= "npc" then return false end

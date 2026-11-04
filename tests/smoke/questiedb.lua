@@ -39,7 +39,7 @@ do
 		Npc = Entity({
 			[448] = { name = "Hogger", minLevel = 11, maxLevel = 11, spawns = { [12] = { { 27.5, 85.3 } } }, npcFlags = 0 },
 			[240] = { name = "Marshal Dughan", minLevel = 25, maxLevel = 25, spawns = { [12] = { { 42.1, 65.9 } } }, npcFlags = 2 },
-			[639] = { name = "Edwin VanCleef", spawns = { [1581] = { { 50, 50 } } } },
+			[639] = { name = "Edwin VanCleef", rank = 1, spawns = { [1581] = { { 50, 50 } } } }, -- (rank: 1.0.62's is:elite)
 		}),
 		Item = Entity({ [2320] = { name = "Coarse Thread", vendors = { 240 } } }),
 		flavor = { name = "Forever", rules = "Classic" },
@@ -111,6 +111,19 @@ do
 		local bq = IB.Question("deadmines bosses")
 		local brows = bq and IB.Answer(bq)
 		check(brows and brows[1] and brows[1].name == "Edwin VanCleef" and IB.Question("bosses") == nil, "deadmines bosses: Edwin VanCleef: " .. tostring(brows and brows[1] and brows[1].name))
+		-- (1.0.62) an NPC's rank: is:elite, its detail; "elite npcs", "rare mobs near me" in Simple mode
+		local IS = ns.Filters._.IS
+		local van = ns.Integrations.NpcRow(639)
+		check(van and IS.elite(van) and not IS.rare(van) and not IS.elite(ns.Integrations.NpcRow(448)) and tostring(van.detail):find("Elite", 1, true),
+			"Edwin VanCleef: elite, said in his detail: " .. tostring(van and van.detail))
+		local easyR = ns.db.easyMode
+		ns.db.easyMode = true
+		local elite = ns.Easy.ToAdvanced("elite npcs")
+		local rareNear = ns.Easy.ToAdvanced("rare mobs near me")
+		local swords = ns.Easy.ToAdvanced("rare swords")
+		ns.db.easyMode = easyR
+		check(elite:find("@npc", 1, true) and elite:find("is:elite", 1, true) and rareNear:find("is:rare", 1, true) and not rareNear:find("mobs", 1, true)
+			and swords:find("q:rare", 1, true), "elite npcs, rare mobs near me: the rank; rare swords: the quality: " .. elite .. " / " .. rareNear .. " / " .. swords)
 		-- (1.0.55) what level an NPC is: Questie's
 		local lq = ns.LevelOf.Question("what level is hogger")
 		local lrows = lq and ns.LevelOf.Answer(lq)

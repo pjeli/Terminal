@@ -556,6 +556,7 @@ function E.Action(word) return E.On() and (E.ACTIONS[word] or E.NearTypo(word)) 
 -- that category (Query.lua's Scan.KindWord); `kind`: the one list of it the word names ("mounts")
 E.KIND_WORDS = { quest = { cat = "quests" }, quests = { cat = "quests" }, npc = { cat = "npcs" }, npcs = { cat = "npcs" },
 	mob = { cat = "npcs" }, mobs = { cat = "npcs" }, creature = { cat = "npcs" }, creatures = { cat = "npcs" },
+	spawn = { cat = "npcs" }, spawns = { cat = "npcs" }, -- ("rare spawns in westfall"; 1.0.62)
 	item = { cat = "items" }, items = { cat = "items" }, spell = { cat = "spells" }, spells = { cat = "spells" },
 	ability = { cat = "spells" }, abilities = { cat = "spells" }, recipe = { cat = "crafting" }, recipes = { cat = "crafting" },
 	mount = { cat = "collections", kind = "mounts" }, mounts = { cat = "collections", kind = "mounts" },

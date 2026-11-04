@@ -1466,7 +1466,8 @@ explain: "Everything matching raptor"
 
 == @npc hogger is:elite >> party
 question: -
-tokens: hogger is:elite
+tokens: hogger
+filter: hard is:elite  sig=is:elite
 sort: -
 kinds: -
 action: -
@@ -1474,6 +1475,7 @@ place: -
 send: label=party chat=PARTY query=@npc hogger is:elite 
 steps: -
 group: -
+pick: spec=is:elite word=is:elite
 pick sort: -
 category: -
 advanced: "hogger is:elite >> party"
@@ -7702,3 +7704,105 @@ pick sort: -
 category: -
 advanced: "xp per hour "
 explain: "Everything matching xp per hour"
+
+== rare mobs near me
+question: -
+tokens: -
+filter: hard is:rare  sig=is:rare
+sort: -
+kinds: -
+action: Nearest  word=near me
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare word=rare
+pick sort: id=distance word=near me
+category: -
+advanced: "@npc is:rare sort:distance "
+explain: "Rare NPCs, nearest first"
+
+== rare spawns in westfall
+question: -
+tokens: westfall
+filter: hard is:rare  sig=is:rare
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare word=rare
+pick sort: -
+category: -
+advanced: "westfall is:rare "
+explain: "Rare everything matching westfall"
+
+== elite mobs in westfall
+question: -
+tokens: westfall
+filter: hard is:elite  sig=is:elite
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "westfall is:elite "
+explain: "Elite everything matching westfall"
+
+== elite npcs
+question: -
+tokens: -
+filter: hard is:elite  sig=is:elite
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "is:elite "
+explain: "Elite everything"
+
+== rare swords
+question: -
+tokens: -
+filter: soft q:rare  sig=~rare  word=rare
+filter: soft type:sword  sig=~swords  word=swords
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare word=rare
+pick: spec=type:sword word=swords
+pick sort: -
+category: -
+advanced: "q:rare swords|type:sword "
+explain: "Rare everything matching swords|type:sword"
+
+== rare items
+question: -
+tokens: -
+filter: soft q:rare  sig=~rare  word=rare
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare word=rare
+pick sort: -
+category: -
+advanced: "@item q:rare "
+explain: "Rare items"

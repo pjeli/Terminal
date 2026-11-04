@@ -541,3 +541,11 @@ hearthstone
 # (1.0.61) experience an hour (the reach audit)
 how long to level
 xp per hour
+
+# (1.0.62) an NPC's rank (the reach audit)
+rare mobs near me
+rare spawns in westfall
+elite mobs in westfall
+elite npcs
+rare swords
+rare items

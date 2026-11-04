@@ -659,7 +659,7 @@ F.VALUES = {
 		"auctioneer", "questgiver", "stablemaster", "spirithealer", "battlemaster", "weaponmaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
 		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
 		"shareable", "together", "raid", "dungeon", "key", "class", "broken", "damaged", "holiday", "invite", "today", "guild",
-		"sold", "listed", "mine", "death", "taken", "dealt", "ability", "reward", "canbuy", "tameable" },
+		"sold", "listed", "mine", "death", "taken", "dealt", "ability", "reward", "canbuy", "tameable", "elite", "rare", "rareelite", "boss" },
 	-- (and the consumables Group.lua's missing: takes: 0.49.2, review)
 	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing", "consumables", "food", "elixir" },
 	when = { "today", "tomorrow", "week", "weekend", "nextweek", "month", "nextmonth" },
@@ -710,6 +710,7 @@ F.APPLIES = {
 		online = PEOPLE, offline = PEOPLE,
 		craftable = RECIPES, skillup = RECIPES, orange = RECIPE_QUEST, yellow = RECIPE_QUEST, green = RECIPE_QUEST,
 		red = { "quests" }, tracked = { "quests" }, untracked = { "quests" }, here = { "quests" },
+		elite = { "npc" }, rare = { "npc" }, rareelite = { "npc" }, boss = { "npc" }, worldboss = { "npc" },
 		grey = { "recipes", "professions", "quests" }, leftbehind = { "quests" }, drop = { "quests" },
 		passive = { "spells" }, unplaced = { "spells" }, known = { "spells", "classspells" }, ability = { "spells" }, tameable = { "npc" }, tamable = { "npc" }, reward = { "reputation" }, rewards = { "reputation" },
 		canbuy = { "reputation" }, buyable = { "reputation" }, capped = { "currency" },

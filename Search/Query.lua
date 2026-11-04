@@ -566,6 +566,9 @@ function Scan.ActionAndPlace(self, q)
 	if simple and not (act and act.map) and not q.trainerAsked and not (self.category and not self.categoryAuto) then
 		Scan.KindWord(q)
 	end
+	-- (1.0.62, the reach audit) "rare", "elite" beside NPCs ("rare mobs near me", "elite npcs", "rare spawns in westfall"),
+	-- or with a place and nothing else ("rare in westfall"): an NPC's rank, not an item's quality
+	if simple then Scan.RankWords(self, q, act) end
 	-- (the nearest of a list named: where you are, for its rows' distances; Scan.Nearest)
 	if q.nearList and not q.here then q.here = I and I.Here and I.Here() or nil end
 	self.action = act
@@ -596,6 +599,40 @@ local function NameTaken(lname, ids)
 	end
 	return false
 end
+--- Simple mode's "rare" and "elite" as an NPC's rank: beside an NPC word, the nearest NPCs, or a place said alone with them.
+function Scan.RankWords(self, q, act)
+	local npcs = q.kindCat == "npcs" or (q.kindIds and q.kindIds.npc) or (act and act.map and act.map.npc)
+	local onlyRank = true
+	for _, w in ipairs(q.tokens) do if w ~= "elite" and w ~= "rare" then onlyRank = false end end
+	if not (npcs or (self.place and onlyRank)) then return end
+	local F = ns.Filters
+	if not F then return end
+	local rare, elite = false, false
+	for i = #(q.softWords or {}), 1, -1 do
+		if q.softWords[i] == "rare" then
+			local f = q.softs and q.softs[i]
+			if f then Scan.DropFilters(q, { [f] = true }, "~rare") end
+			table.remove(q.softWords, i)
+			rare = true
+		end
+	end
+	local NPC_WORDS = { mob = true, mobs = true, npc = true, npcs = true, spawn = true, spawns = true, creature = true, creatures = true }
+	for i = #q.tokens, 1, -1 do
+		local w = q.tokens[i]
+		if w == "elite" or w == "elites" then elite = true; table.remove(q.tokens, i); q.tokenSrc = nil
+		elseif w == "rare" or w == "rares" then rare = true; table.remove(q.tokens, i); q.tokenSrc = nil end
+	end
+	-- (the nearest NPCs said with an NPC word, "rare mobs near me": the word's said by the action)
+	if (rare or elite) and act and act.map and act.map.npc then
+		for i = #q.tokens, 1, -1 do if NPC_WORDS[q.tokens[i]] then table.remove(q.tokens, i); q.tokenSrc = nil end end
+	end
+	local spec = (rare and elite and "is:rareelite") or (rare and "is:rare") or (elite and "is:elite") or nil
+	if spec then
+		Scan.AddFilter(q, F.Parse(spec), "hard", spec, nil, spec)
+		q.kindIds = q.kindIds or (not act and { npc = true }) or q.kindIds -- (an NPC's rank: @npc's)
+	end
+end
+
 --- Is the word said as yours ("my bank", "linen in my bank")?
 local function Mine(text, w)
 	local pat = "%smy%s+" .. w:gsub("%p", "%%%0") .. "[%s%p]"

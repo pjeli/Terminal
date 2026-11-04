@@ -20,8 +20,20 @@ local function QDB() return QD.DB() end
 
 --- One field of a Questie NPC (minLevel, maxLevel, zoneID, npcFlags...), for the search filters.
 -- the small fields filters ask of every NPC row on every keystroke ("vendor", "nearest repair"): read once per NPC
+-- (rank: QuestieDB's npc field 6, cmangos' creature_template rank: 0 normal, 1 elite, 2 rare elite, 3 world boss, 4 rare;
+-- read as its own field, nil when a version has none. 1.0.62, the reach audit)
 local SMALL = { npcFlags = true, friendlyToFaction = true, minLevel = true, maxLevel = true, zoneID = true, subName = true,
-	subNameEn = true }
+	subNameEn = true, rank = true }
+I.NPC_RANKS = { elite = { [1] = true, [2] = true }, rare = { [2] = true, [4] = true }, rareelite = { [2] = true }, boss = { [3] = true } }
+--- An NPC's rank as the game names it ("Elite", "Rare", "Rare Elite", "Boss"), or nil for a normal one.
+function I.NpcRankName(id)
+	local r = ns.Num(id and I.NpcField(id, "rank"))
+	if r == 1 then return ns.GameText("ELITE", "Elite") end
+	if r == 2 then return ns.GameText("ITEM_QUALITY3_DESC", "Rare") .. " " .. ns.GameText("ELITE", "Elite") end
+	if r == 3 then return ns.GameText("BOSS", "Boss") end
+	if r == 4 then return ns.GameText("ITEM_QUALITY3_DESC", "Rare") end
+	return nil
+end
 -- "subNameEn": an NPC's title as QuestieDB's base data has it, in English, on a client in another language (QuestieDB
 -- translates titles there: "Bergbaulehrer", "Maître des mineurs"; Terminal matches titles in English). Nil on an
 -- English client, or from a QuestieDB that can't say (no GetRaw): the title as read then
