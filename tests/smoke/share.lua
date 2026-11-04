@@ -271,6 +271,28 @@ do
 	check(#net.sent == 0, "your own hello heard back: nothing")
 end
 
+-- (1.0.89, review) a snapshot one of whose pieces is lost: asked for whole after a while, and it all arrives
+do
+	local net = Net()
+	local many = {}
+	for i = 1, 400 do many[100000 + i * 37] = i end
+	local A = net.Add("Ann", { friends = { bob = "Bob" } })
+	local B = net.Add("Bob", { friends = { ann = "Ann" }, items = many })
+	A:SetKey(GOOD)
+	B:SetKey(GOOD)
+	net.Run()
+	for i, m in ipairs(B.queue) do if m.text:find("^5D") then table.remove(B.queue, i) break end end
+	net.Tick(20)
+	local function Got()
+		local n = 0
+		for id, e in pairs(A:Items()) do if many[id] == e.total then n = n + 1 end end
+		return n
+	end
+	local before = Got()
+	net.Tick((SSH.PIECES_WAIT or 30) + 60)
+	check(before < 400 and Got() == 400, "a piece lost: asked for again, all 400 arrive: " .. before .. " -> " .. Got())
+end
+
 -- the send queue: a burst, then one a second; the game's "throttled" tried again; nothing while chat is locked
 do
 	local net = Net()

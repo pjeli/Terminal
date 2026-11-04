@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.89 (in testing)
+
+- Share (review): a friend's bags whose update lost a piece on the way are asked for again after 30 seconds, instead of staying out of date until their bags change; invites from the same person are said once a minute whatever group they name, so changing the name can't fill your chat.
+
 ## 1.0.88 (in testing)
 
 - Console (review): `sed s/^a/b/g` changes only the start of the line (and `\b` only starts of words); awk reads a field of `0` as false and a variable never set as 0 beside a number; `grep 'lin(en|t)'` matches either; a glob's `_` stands for a space as a typed name's does (`cat linen_c*`); `ls -1` works; a backslash escapes `"` inside double quotes; a `>` before a later `|` writes its file; `link` never puts an error message in the chat box; Tab never completes half a character; lines that name friends' shared folder in any way stay out of the history.

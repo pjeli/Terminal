@@ -149,6 +149,12 @@ do
 	local n = 0
 	for _, s in ipairs(net.says) do if s:find("invites you") then n = n + 1 end end
 	check(n == 1 and #A:Invites() == 1, "invited twice in a row: said once, one invite waiting: " .. n)
+	-- (1.0.89, review) another group's name each time: still once a minute
+	net.says = {}
+	for i = 1, 5 do B:Receive(W("Ann"), ("5N %016x,group%d"):format(0xab0 + i, i)) end
+	n = 0
+	for _, s in ipairs(net.says) do if s:find("invites you") then n = n + 1 end end
+	check(n <= 1, "invites to five new group names in a row: said once at most: " .. n)
 end
 
 -- Bob's own default group (with friends of his): Ann's comes in as default-2, and both work

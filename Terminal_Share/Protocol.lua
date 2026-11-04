@@ -43,6 +43,7 @@ SSH.MAX_ITEMS = 3000
 SSH.MAX_PLACES = 64        -- characters and banks a snapshot names
 SSH.HANDSHAKE_TIMEOUT = 30 -- s for an answer
 SSH.HELLO_GAP = 5          -- s between handshakes a friend can start
+SSH.PIECES_WAIT = 30       -- s a snapshot's pieces are waited for before it's asked for whole
 SSH.MAX_PENDING = 20       -- handshakes under way at once
 SSH.SEND_GAP = 15          -- s between snapshots to a friend
 SSH.PING_EVERY = 600       -- s: "still here"
@@ -1238,7 +1239,7 @@ function E:Receive(route, text)
 		-- base and count, all of them its key: review, 0.58.16, a number heard again with another count read a piece
 		-- that wasn't there, an error)
 		local key = letter .. ver .. "," .. (base or "") .. "," .. n
-		if p.inKey ~= key then p.inKey, p.pieces, p.got = key, {}, 0 end
+		if p.inKey ~= key then p.inKey, p.pieces, p.got, p.piecesAt = key, {}, 0, now end
 		if not p.pieces[i] then p.got = p.got + 1 end
 		p.pieces[i] = payload
 		if p.got < n then return end
@@ -1303,7 +1304,8 @@ function E:Receive(route, text)
 		local k = self:Key(route)
 		local old = self.offers[k]
 		self.offers[k] = { id = id, group = label, name = name, route = Reply(route), at = now }
-		if not (old and old.group == label and now - (old.saidAt or 0) < SSH.INVITE_SAY_GAP) then
+		-- (once a minute per person whatever the group: a new name each time said one line a second; 1.0.89, review)
+		if not (old and now - (old.saidAt or 0) < SSH.INVITE_SAY_GAP) then
 			self.offers[k].saidAt = now
 			self.env.say(L["Share: %s invites you to share bags in the group %s. Type .share accept %s to join (or .share decline %s)"]:format(name, label, name, name))
 		else
@@ -1434,6 +1436,16 @@ function E:Tick()
 		end
 	end
 	for k, p in pairs(self.peers) do
+		-- (a snapshot with a piece that never came: asked for whole, as a delta built on one we lack is; 1.0.89, review:
+		-- kept waiting until their bags changed again)
+		if p.inKey and now - (p.piecesAt or now) >= SSH.PIECES_WAIT then
+			p.pieces, p.got, p.inKey, p.piecesAt = {}, 0, nil, nil
+			local f = self.friends[p.claim]
+			if f and (not f.askedAt or now - f.askedAt >= SSH.HELLO_GAP) then
+				f.askedAt = now
+				self:Send(p.route, SSH.V .. "R")
+			end
+		end
 		if p.state == "hello" or p.state == "challenged" or p.state == "proved" then
 			if not p.queuedMsg and now - (p.since or now) >= SSH.HANDSHAKE_TIMEOUT then
 				-- (connected before it: still so, nothing disproved it)
