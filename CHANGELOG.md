@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.91 (in testing)
+
+- Code (review): the questions layer's own answers that their Advanced lines replaced, and its Alt+` functions that only said "as typed", are gone (about 250 lines, no change in what any question answers).
+
 ## 1.0.90 (in testing)
 
 - Small fixes (review): a ring you wear and the same ring in your bags are told apart, so Enter after a bag update opens the bags and not the character window; `!t` only looks closer at guild and group lines with a `!` in them.

@@ -360,21 +360,10 @@ function Q.Answer(q)
 		local rows, trail = P.Search(q.steps .. " > steps")
 		return rows, trail, true
 	end
-	local rows, done = Q.Match(q), 0
-	for i, e in ipairs(rows) do
-		e._score = 1e6 - i
-		local rec = AT.RecOf(e)
-		local pct = rec and AT.Mine(rec)
-		if pct and pct >= 100 then done = done + 1 end
-	end
-	local note = Q.NOTE[q.group or "misc"]
-	if #rows == 0 then
-		local none = (q.class and q.class ~= select(2, ns.Safe(UnitClass, "player")))
-			and L["No class quests for that class: Attune lists your class's (its options can list every class's)"]
-			or L["No attunement has that"]
-		return { NoteRow(none) }, note
-	end
-	return rows, note .. ns.DETAIL_SEP .. L["%d of %d done"]:format(done, #rows)
+	local rows = Q.Match(q)
+	for i, e in ipairs(rows) do e._score = 1e6 - i end
+	if #rows == 0 then return Q.None(q), Q.Footer(q, rows) end
+	return rows, Q.Footer(q, rows)
 end
 
 --- The list asked for, as Advanced syntax: its answer and its Alt+` (docs/QUESTIONS.md 4.1), in Attune's order; nil for
@@ -409,12 +398,6 @@ end
 function Q.ToAdvanced(q)
 	if q.steps then return q.steps .. " > steps " end
 	-- (words: the answer takes the attunements they name, their steps' text only when none; a search's words take both,
-	-- "mc" Onyxia's too. Kept as said; 0.63.7, review)
-	if q.words and #q.words > 0 then return nil end
-	local parts = { "@attune" }
-	if q.group then parts[#parts + 1] = "is:" .. q.group end
-	if q.state then parts[#parts + 1] = "is:" .. q.state end
-	if q.class then parts[#parts + 1] = "class:" .. Lower(q.class) end
-	for _, w in ipairs(q.words) do parts[#parts + 1] = w end
-	return table.concat(parts, " ") .. " "
+	-- "mc" Onyxia's too. Kept as said; 0.63.7, review. A list is Q.Line's)
+	return nil
 end

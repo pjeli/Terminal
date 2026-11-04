@@ -1569,8 +1569,6 @@ function MA.Footer(q, rows)
 	return note .. ("  ·  %s"):format(Plural(mails, L["mail"], L["mails"])) .. (money > 0 and (", " .. Money(money, true)) or "")
 end
 function MA.None() return {} end
---- Its own answer's Alt+`: as said (nil).
-function MA.ToAdvanced() return nil end
 
 ----------------------------------------------------------------------
 -- The login warning: mail with something in it that runs out soon

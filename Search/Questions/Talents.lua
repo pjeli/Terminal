@@ -175,6 +175,3 @@ function TQ.Answer(q)
 	return out, ns.Detail(L["Talents by what they do"], still) -- (the footer counts them)
 end
 
--- (as said, 0.55.7: the talents are found by what they do, the words' kin and the descriptions scored, which "@talent crit"
--- doesn't do: nil, Search.lua's ns.QuestionToAdvanced)
-function TQ.ToAdvanced() return nil end

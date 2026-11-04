@@ -278,11 +278,11 @@ do
 		{ name = "Heavy Linen Gloves", recipeID = 4, profName = "Tailoring", reagents = { { 2996, 2 } } } } }
 	ns.GetEntries = function(self, p) return rawget(p, "collect") and save.get(self, p) or p._entries end
 	C_Item.GetItemCount = function(id) return id == 2589 and 2 or 0 end
-	local rows = CC.Answer({ profs = {} })
+	local rows = ns.Questions.Answer("what can i craft")
 	local names = {}
 	for i, e in ipairs(rows) do names[i] = e.name end
 	check(table.concat(names, ",") == "Bolt of Linen Cloth,Linen Bandage", "the ones you have every reagent for: " .. table.concat(names, ","))
-	rows = CC.Answer({ profs = { "cooking" } })
+	rows = ns.Questions.Answer("what can i cook")
 	check(#rows == 1 and rows[1].kind ~= "recipes" and rows[1].recipeID == nil, "none for cooking: a note")
 	ns.providers.recipes, ns.GetEntries, C_Item.GetItemCount = saveR, saveG, saveC
 end

@@ -150,7 +150,7 @@ do
 		.. tostring(Words("whats the best way to level blacksmithing")) .. " / " .. tostring(Words("blacksmithing leveling guide")))
 	res = UI:Search("whats the best way to level blacksmithing")
 	check(#res == 5 and res[1].name == "Forever Gizmo", "whats the best way to level blacksmithing: the plan: " .. tostring(res[1] and res[1].name))
-	local none = PL.Answer(Q("blacksmithing plan zzqx"))
+	local none = ns.Questions.Answer("blacksmithing plan zzqx")
 	check(#none == 1 and none[1].name == PL.NO_MATCH and PL.NO_MATCH ~= PL.NONE, "words leaving every recipe out: "
 		.. tostring(none[1] and none[1].name))
 	local lp = Q("leveling plan")

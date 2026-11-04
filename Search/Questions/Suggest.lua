@@ -405,9 +405,6 @@ function SG.Answer()
 	return rows, L["Things to do"] .. SEP .. L["Enter searches for it"]
 end
 
---- Not a search: the question stays as typed (Advanced mode answers it the same).
-function SG.ToAdvanced() return nil end
-
 ----------------------------------------------------------------------
 -- "quests to turn in", "turn in quests", "quests ready": your quest log's quests ready to turn in
 ----------------------------------------------------------------------
@@ -462,27 +459,8 @@ end
 
 local function Band(level) return math.max(1, level - 2), level + 3 end
 
-function QH.Answer()
-	local Z = ns.Zones
-	local level = Level()
-	local zone = Str(Safe(GetRealZoneText))
-	if not (Z and Z.QuestFitter and level and zone) then return { ns.NoteRow(L["Your zone isn't known here"]) }, L["Quests here"] end
-	if not Has("Questie") then return { ns.NoteRow(L["Needs Questie: it knows every quest and where it starts"]) }, L["Quests here"] end
-	local fits = Z.QuestFitter(level)
-	local rows = {}
-	for _, e in ipairs(Entries("questie", true)) do
-		if rawget(e, "zone") == zone and fits(e) then rows[#rows + 1] = e end
-	end
-	table.sort(rows, function(a, b)
-		if (a.level or 0) ~= (b.level or 0) then return (a.level or 0) < (b.level or 0) end
-		return tostring(a.name) < tostring(b.name)
-	end)
-	ns.ScoreInOrder(rows)
-	local lo, hi = Band(level)
-	local note = L["Quests here"] .. SEP .. zone .. SEP .. L["Lv %d-%d"]:format(lo, hi)
-	if #rows == 0 then return { ns.NoteRow(L["No quests at your level here: try \"where should i quest\""]) }, note end
-	return rows, note
-end
+--- Your level or zone not known (QH.Line has none): said so.
+function QH.Answer() return { ns.NoteRow(L["Your zone isn't known here"]) }, L["Quests here"] end
 
 --- '@questie lvl:21-26 in:"the barrens" is:todo is:cantake sort:level,name': its answer and its Alt+` (docs/QUESTIONS.md
 --- 4.1), the quests you can take at your level here, not done (1.0.79: the Alt+` line listed done ones and others'
@@ -551,23 +529,6 @@ function CC.Question(text)
 	-- ("craft", "cook", "make" alone: searches; "what can i craft", "craftable", "tailoring i can make": this)
 	if not (any or named or t:find("craftable", 1, true)) then return nil end
 	return { profs = profs }
-end
-
-function CC.Answer(q)
-	local F = ns.Filters
-	local ok = F and F._ and F._.IS and F._.IS.craftable
-	local want = {}
-	for _, n in ipairs(q.profs or {}) do want[n] = true end
-	local rows = {}
-	if ok then
-		for _, e in ipairs(Entries("recipes", true)) do
-			if e.recipeID ~= nil and (not next(want) or (e.profName and want[Lower(e.profName)])) and ok(e) then rows[#rows + 1] = e end
-		end
-	end
-	table.sort(rows, function(a, b) return tostring(a.name) < tostring(b.name) end)
-	ns.ScoreInOrder(rows)
-	if #rows == 0 then return { ns.NoteRow(L["Nothing to craft from what's in your bags"]) }, L["You can craft"] end
-	return rows, L["You can craft"]
 end
 
 --- As Advanced syntax: its answer and its Alt+` (docs/QUESTIONS.md 4.1); its professions by prof:, the recipe's own
@@ -727,8 +688,6 @@ function QP.Answer(q)
 	ns.ScoreInOrder(rows)
 	return rows, title
 end
---- Not a search: the question stays as typed (Advanced mode answers it the same).
-function QP.ToAdvanced() return nil end
 
 ----------------------------------------------------------------------
 -- "quests near me", "nearest quests": Questie's quests at your level, not done, whose giver is nearest; "turn ins near
@@ -810,8 +769,6 @@ function NQ.Answer(q)
 	ns.ScoreInOrder(rows)
 	return rows, title
 end
---- Not a search: the question stays as typed (Advanced mode answers it the same).
-function NQ.ToAdvanced() return nil end
 
 ----------------------------------------------------------------------
 -- "deadmines bosses", "bosses in the deadmines": an instance's bosses from AtlasLoot, each leading to its loot (1.0.50,
@@ -874,8 +831,6 @@ function IB.Answer(q)
 	ns.ScoreInOrder(rows)
 	return rows, L["Bosses"] .. SEP .. q.place
 end
---- Not a search: the question stays as typed (Advanced mode answers it the same).
-function IB.ToAdvanced() return nil end
 
 ----------------------------------------------------------------------
 -- "how many linen do i have", "do i have linen cloth", "count my linen": the items with that name, how many in all and
@@ -979,25 +934,6 @@ function QS.Question(text)
 	t = t:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
 	return QS_SET[t] and {} or nil
 end
-function QS.Answer()
-	local QD = ns.QuestieData
-	local DB = QD and QD.DB and QD.DB()
-	local title = L["Started by %s"]:format(L["an item"])
-	if not (DB and Has("Questie")) then return { ns.NoteRow(L["Needs Questie: it knows every quest and where it starts"]) }, title end
-	local rows = {}
-	for _, e in ipairs(Entries("questie", true)) do
-		local by = Safe(DB.QueryQuestSingle, e.qid, "startedBy")
-		local items = type(by) == "table" and type(by[3]) == "table" and by[3]
-		local id = items and items[1]
-		if id then
-			local name = DB.QueryItemSingle and Str(Safe(DB.QueryItemSingle, id, "name"))
-			rows[#rows + 1] = setmetatable({ detail = name and L["Started by %s"]:format(name) or L["Started by %s"]:format(L["an item"]) }, { __index = e })
-		end
-	end
-	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
-	ns.ScoreInOrder(rows)
-	return rows, title
-end
 --- As Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@questie is:itemstart sort:list", each saying
 --- which item starts it (is:itemstart's detail).
 function QS.Line() return "@questie is:itemstart sort:list " end
@@ -1069,8 +1005,6 @@ function LV.Answer(q)
 	local d = q.row.detail
 	return { setmetatable({ detail = q.said .. ((d and d ~= "" and not tostring(d):find(q.said, 1, true)) and (SEP .. d) or "") }, { __index = q.row }) }, title
 end
---- Not a search: the question stays as typed (Advanced mode answers it the same).
-function LV.ToAdvanced() return nil end
 
 ----------------------------------------------------------------------
 -- "what are my bags worth", "bag value", "what's my stuff worth": what your bags sell to a vendor for, summed (with
@@ -1157,8 +1091,6 @@ function BB.Answer(q)
 	ns.ScoreInOrder(rows)
 	return rows, title
 end
---- Not a search: the question stays as typed (Advanced mode answers it the same).
-function BB.ToAdvanced() return nil end
 
 ----------------------------------------------------------------------
 -- "achievements almost done", "quests almost done": those under way, the closest to done first (sort:progress: an
@@ -1184,21 +1116,6 @@ function AD.Question(text)
 	end
 	if not (near and kind) then return nil end
 	return { kind = kind }
-end
-function AD.Answer(q)
-	local A = ns.Aggregate
-	local found = {}
-	for _, e in ipairs(Entries(q.kind, true)) do
-		local f = A and A.Progress and A.Progress(e)
-		if f and f > 0 and f < 1 and not rawget(e, "completed") and not e.complete then found[#found + 1] = { f = f, e = e } end
-	end
-	table.sort(found, function(a, b) if a.f ~= b.f then return a.f > b.f end return tostring(a.e.name) < tostring(b.e.name) end)
-	local rows = {}
-	for i = 1, math.min(#found, AD.MAX) do rows[i] = found[i].e end
-	local title = L["Progress"] .. SEP .. L["the most first"]
-	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
-	ns.ScoreInOrder(rows)
-	return rows, title
 end
 --- As Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): those under way and not done, the most done
 --- first ("@achievement is:todo sort:progress" listed the ones not begun too, review 1.0.70: is:started, 1.0.79).
@@ -1248,8 +1165,6 @@ function HB.Answer()
 	end
 	return { ns.NoteRow(said) }, title
 end
---- Not a search: the question stays as typed (Advanced mode answers it the same).
-function HB.ToAdvanced() return nil end
 
 ----------------------------------------------------------------------
 -- "how long to level", "xp per hour", "time to level": experience an hour this session, and the time to your next level
@@ -1290,5 +1205,3 @@ function XR.Answer()
 		ns.NoteRow(L["Level %d in about %s"]:format(me.level + 1, Dur(left / rate * 3600))),
 	}, title
 end
---- Not a search: the question stays as typed (Advanced mode answers it the same).
-function XR.ToAdvanced() return nil end

@@ -393,37 +393,6 @@ end
 PL.NONE = L["Open a profession's window once: Terminal reads its recipes from it"]
 PL.NO_MATCH = L["No recipe has that"]
 
-function PL.Answer(q)
-	local p = ns.providers.recipes
-	local all = p and ns:GetEntries(p) or {}
-	local want = {}
-	for _, n in ipairs(q.profs or {}) do want[Lower(n)] = true end
-	local rows = {}
-	for _, e in ipairs(all) do
-		local ok = e.recipeID ~= nil and (not next(want) or (e.profName and want[Lower(e.profName)]))
-		if ok then
-			local hay = (rawget(e, "_lname") or Lower(e.name)) .. " " .. (e._ltext or "")
-			for _, w in ipairs(q.words or {}) do if not hay:find(w, 1, true) then ok = false break end end
-		end
-		if ok then rows[#rows + 1] = e end
-	end
-	if #rows == 0 then
-		-- (the profession's recipes are read, the words left every one out: say that, not "open its window"; 0.49.2, review)
-		local none = PL.NONE
-		if q.words and #q.words > 0 then
-			for _, e in ipairs(all) do
-				if e.recipeID ~= nil and (not next(want) or (e.profName and want[Lower(e.profName)])) then none = PL.NO_MATCH break end
-			end
-		end
-		return { ns.NoteRow(none) }, L["Plan"]
-	end
-	local out, note = PL.Rows(rows)
-	if #out == 0 then
-		return { ns.NoteRow(L["None of these recipes gives skill now: train new ones"]) }, note
-	end
-	return out, note
-end
-
 --- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@recipe prof:blacksmithing
 --- sort:plan" (the search's sort:plan says the skill in the footer); its professions by prof:, the recipe's own.
 function PL.Line(q)

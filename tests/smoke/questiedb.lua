@@ -171,7 +171,7 @@ do
 			"tailoring quests: the quests needing it, your skill against theirs: " .. tostring(said) .. " / " .. tostring(ns.QuestionToAdvanced("tailoring quests")))
 		check(dq and drows[1] and drows[1].qid == 176 and ns.QuestionToAdvanced("daily quests") == "@questie is:daily is:foryou sort:cantake ",
 			"daily quests: @questie is:daily: " .. tostring(ns.QuestionToAdvanced("daily quests")))
-		check(rq2 and rrows3[1] and rrows3[1].qid == 176 and QN.ToAdvanced(rq2) == nil, "quests that need honored with stormwind: the quest")
+		check(rq2 and rrows3[1] and rrows3[1].qid == 176, "quests that need honored with stormwind: the quest")
 		check(QN.Question("hogger quests") == nil and QN.Question("quests") == nil and QN.Question("my quests") == nil
 			and QN.Question("first aid quests").prof[2] == 129 and QN.Question("dailies").what == "daily", "not a question: hogger quests, my quests")
 		local easyN = ns.db.easyMode

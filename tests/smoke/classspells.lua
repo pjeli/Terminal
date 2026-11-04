@@ -172,10 +172,10 @@ do
 			"labelled Spell: " .. tostring(ns.providers.classspells.label))
 		-- "my spells": your spellbook (a question)
 		local q = Q.Question("my spells")
-		check(q and q.known and Names((Q.Answer(q))) == "Battle Shout | Heroic Strike", "my spells: the spellbook: " .. Names((Q.Answer(q))))
+		local mine, note = ns.Questions.Answer("my spells")
+		check(q and q.known and Names(mine) == "Battle Shout | Heroic Strike", "my spells: the spellbook: " .. Names(mine))
 		check(ns.QuestionToAdvanced("my spells") == "@spell is:known sort:name ", "my spells as Advanced: " .. tostring(ns.QuestionToAdvanced("my spells")))
 		-- (0.55.15, the player's screenshot: "46 results · 46 results") the note says what, the footer how many
-		local _, note = Q.Answer(q)
 		check(note == ns.L["Your spellbook"], "the note has no count of its own: " .. tostring(note))
 		-- (0.55.18, review) Alt+` keeps Advanced words typed after a question
 		check(ns.QuestionToAdvanced("my spells sort:name") == "@spell is:known sort:name ", "a question's sort: kept: " .. tostring(ns.QuestionToAdvanced("my spells sort:name")))

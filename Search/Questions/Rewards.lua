@@ -346,7 +346,6 @@ end
 function QR.Question(text)
 	local t = ns.QuestionText(text)
 	if not t then return nil end
-	t = t -- ("what's", as the other questions read it)
 	local quest, words = false, {}
 	for w in t:gmatch("%S+") do
 		if QUEST[w] then quest = true elseif not FILLER[w] and #w >= 3 then words[#words + 1] = w end
@@ -488,9 +487,6 @@ function QR.UpgradeAnswer()
 	return rows, note
 end
 
---- Alt+`: the same in Advanced mode.
--- (as said: the quests near your level, not done, for your race and class; "@questie is:upgrade" had none of that; 0.55.7)
-function QR.UpgradeToAdvanced() return nil end
 
 ----------------------------------------------------------------------
 -- Upgrades you can buy (0.66.12, the player: "interesting; can't think of many NPC sold items that are upgrades, but not
@@ -860,69 +856,6 @@ end
 
 local BAG_NOTE = { bag = L["Quests that reward a bag"], quiver = L["Quests that reward a quiver"],
 	ammo = L["Quests that reward an ammo pouch"] }
-
---- The answer: the quests rewarding one that you can still take, the most slots first (then the lowest level), each
---- saying which and how many slots; the footer how many you've done already.
-function QR.BagAnswer(q)
-	local note = BAG_NOTE[q.kind] or BAG_NOTE.bag
-	local db = DB()
-	if not db then return { NoneRow(L["Needs Questie: it knows what every quest rewards"]) }, note end
-	local F = ns.Filters
-	if not QR.Index() then
-		if building and F then F.loading = true end
-		return { NoneRow(L["Reading what Questie's quests reward: a moment"]) }, note
-	end
-	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
-	QR.slotKind = q.kind -- (the bar's Sort: Slots on these rows: this kind's; RewardBag)
-	local best, doneN = {}, 0 -- (quest id -> { it, slots }: the most slots it rewards)
-	local doneSeen = {}
-	for _, it in ipairs(QR.KindItems(q.kind)) do
-		local slots = QR.Slots(it.id) -- (one not loaded yet: asked for, the answer read again once it's in)
-		for _, qid in ipairs(it.quests) do
-			if ForYou(db, qid) then
-				if done and Safe(done, qid) then
-					if not doneSeen[qid] then doneSeen[qid] = true doneN = doneN + 1 end
-				else
-					local b = best[qid]
-					if not b or (slots or 0) > (b.slots or 0) then best[qid] = { it = it, slots = slots } end
-				end
-			end
-		end
-	end
-	local I = ns.Integrations
-	local found = {}
-	for qid, b in pairs(best) do
-		local row = I and I.QuestRow and I.QuestRow(qid)
-		if row then found[#found + 1] = { row = row, b = b, lvl = ns.Num(Safe(db.QueryQuestSingle, qid, "questLevel")) or 0 } end
-	end
-	-- (as Advanced's sort:slots lists them: the most slots, the lowest level, then the name as its sort reads it; those
-	-- not known yet after, by level then name; Bar.lua's Keyed)
-	for _, f in ipairs(found) do f.ln = ns.Lower(ns.Plain(tostring(f.row.name or ""))) end
-	table.sort(found, function(x, y)
-		local a, c = x.b.slots or 0, y.b.slots or 0
-		if a ~= c then return a > c end
-		if x.lvl ~= y.lvl then return x.lvl < y.lvl end
-		return x.ln < y.ln
-	end)
-	local rows = {}
-	for i, f in ipairs(found) do
-		local it, d = f.b.it, f.row.detail
-		local what = L["Rewards %s"]:format(it.name)
-		if f.b.slots then what = what .. ns.DETAIL_SEP .. L["%d slots"]:format(f.b.slots) end
-		-- (a bag for one trade, an Herb Bag: said; a plain one isn't)
-		if q.kind == "bag" and it.sub and it.subID and it.subID ~= 0 then
-			what = what .. ns.DETAIL_SEP .. it.sub
-		end
-		local v = setmetatable({ detail = what .. ((d and d ~= "") and (ns.DETAIL_SEP .. d) or ""), rewardItem = it.id,
-			_score = 1e6 - i }, { __index = f.row })
-		rows[#rows + 1] = v
-	end
-	if doneN > 0 then note = note .. ns.DETAIL_SEP .. L["%d done already, not listed"]:format(doneN) end
-	if #rows == 0 then
-		return { NoneRow(doneN > 0 and L["You've done every one you can take"] or L["No quest Questie knows of rewards one"]) }, note
-	end
-	return rows, note
-end
 
 local KIND_VALUE = { bag = "bag", quiver = "quiver", ammo = "ammo_pouch" }
 --- As Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@questie reward:bag -is:done sort:slots"
@@ -1542,7 +1475,6 @@ function QN.None()
 	if not DB() then return { ns.NoteRow(L["Needs Questie: it knows every quest and where it starts"]) } end
 	return { ns.NoteRow(L["Questie knows no quest like that here"]) }
 end
-function QN.ToAdvanced() return nil end
 
 if Fk and Fk.IS then
 	-- is:foryou: a quest your race, class and side may take; is:cantake: and whose needs you meet (1.0.79: "quests here",

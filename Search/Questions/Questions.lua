@@ -114,8 +114,7 @@ Scan.ANSWERS = {
 	-- was before the chains and searches: "talents for crit" isn't a chain, "crit" and "healing" aren't an item's stats here)
 	{ id = "Talents", over = { "Chains" }, custom = "descriptions read with families of like words, yours first",
 		ask = function(text) local T = ns.TalentsQ return T and T.Question(text) end,
-		answer = function(q) return ns.TalentsQ.Answer(q) end,
-		toAdvanced = function(q) return ns.TalentsQ.ToAdvanced(q) end },
+		answer = function(q) return ns.TalentsQ.Answer(q) end },
 	-- a chain ("thorium belt > mats", "mats for thorium belt"): Chains.lua. (a ">" chain runs whichever way it came, in
 	-- either mode; 0.55.4)
 	{ id = "Chains", examples = { "mats for thorium belt", "thorium belt > mats" }, custom = "a chain: one pipeline either way",
@@ -197,8 +196,7 @@ Scan.ANSWERS = {
 			local R = ns.QuestRewards
 			return R and R.UpgradeQuestion and R.UpgradeQuestion(text) or nil
 		end,
-		answer = function() return ns.QuestRewards.UpgradeAnswer() end,
-		toAdvanced = function() return ns.QuestRewards.UpgradeToAdvanced() end },
+		answer = function() return ns.QuestRewards.UpgradeAnswer() end },
 	-- "upgrades i can buy", "vendor upgrades": the friendly vendors selling an upgrade for you (Rewards.lua; 0.66.12)
 	{ id = "VendorUpgrades", examples = { "upgrades i can buy", "vendor upgrades" },
 		custom = "what each vendor sells that is an upgrade, and by how much",
@@ -268,7 +266,6 @@ end
 -- (the ranking of a line, kept for one search only (UI:Search's Q.Begin/Q.Finish): the answer asks of the same line
 -- several times, as typed and as its variants; outside a search every call asks again, what it reads may have changed)
 local memo, memoN, stamp = {}, 0, nil
-function Q.Forget() memo = {} end
 function Q.Begin() stamp = {}; memo = {}; Q.lineDepth = 0 end
 function Q.Finish() stamp = nil; memo = {} end
 

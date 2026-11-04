@@ -355,7 +355,6 @@ function CB.QuestionFooter(kind, rows)
 	return (kind == "killed" and L["Your deaths, newest first"]) or (kind == "crit" and L["The hardest crits on you"])
 		or L["Your biggest crits"]
 end
-function CB.QuestionNone() return {} end
 
 --- Forget the combat log kept: `.forget combatlog` (0.65.12: .combatlog is gone; "what killed me" and @combatlog read it).
 function CB.Clear()

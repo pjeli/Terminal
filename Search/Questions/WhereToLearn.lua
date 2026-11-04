@@ -295,16 +295,20 @@ local NoteRow = ns.NoteRow
 
 --- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@training is:learnable sort:list";
 --- nil for what it costs ("how much is training": the list with its total, Q.Answer's).
-function Q.Line(q)
-	if q.money then return nil end
+local IS_WORD = { now = "learnable" }
+local function Parts(q)
 	local parts = { "@training" }
-	local IS_WORD = { now = "learnable" }
 	if q.state then parts[#parts + 1] = "is:" .. (IS_WORD[q.state] or q.state) end
 	if q.level then parts[#parts + 1] = "lvl:" .. q.level end
 	if q.weapon then parts[#parts + 1] = "is:weapon" end
 	if q.pet then parts[#parts + 1] = "is:pet" end
 	if not q.state then parts[#parts + 1] = "-is:ignored" end
 	for _, w in ipairs(q.words) do parts[#parts + 1] = w end
+	return parts
+end
+function Q.Line(q)
+	if q.money then return nil end
+	local parts = Parts(q)
 	parts[#parts + 1] = "sort:list"
 	return table.concat(parts, " ") .. " "
 end
@@ -334,42 +338,16 @@ end
 function Q.Answer(q)
 	local rows = Q.Match(q)
 	ns.ScoreInOrder(rows)
-	local now, cost = 0, 0
-	for _, e in ipairs(Rows()) do
-		if e.state == "now" then now, cost = now + 1, cost + (e.cost or 0) end
-	end
-	local note = L["Training"] .. SEP .. L["%d to learn now"]:format(now) .. (cost > 0 and (SEP .. ns.Money(cost)) or "")
-	if #rows == 0 then
-		local say = L["Nothing to train that fits"]
-		if q.state == "now" then
-			local nxt
-			for _, e in ipairs(Rows()) do
-				if (e.state == "nextlevel" or e.state == "later") and e.level and (not nxt or e.level < nxt) then nxt = e.level end
-			end
-			say = nxt and L["Nothing to train right now: the next at level %d"]:format(nxt) or L["Nothing to train right now"]
-		end
-		local p = ns.providers.training
-		if not WT.Ready() and not (p and p.fromTrainerSpells) then say = L["What's Training is still reading your spells: a moment"] end
-		return { NoteRow(say) }, note
-	end
-	if q.money then
-		local sum = 0
-		for _, e in ipairs(rows) do sum = sum + (e.cost or 0) end
-		note = L["Training"] .. SEP .. L["%d to learn: %s"]:format(#rows, ns.Money(sum))
-	end
-	return rows, note
+	if #rows == 0 then return Q.None(q), Q.Footer() end
+	if not q.money then return rows, Q.Footer() end
+	local sum = 0
+	for _, e in ipairs(rows) do sum = sum + (e.cost or 0) end
+	return rows, L["Training"] .. SEP .. L["%d to learn: %s"]:format(#rows, ns.Money(sum))
 end
 
 --- The question as Advanced syntax (Alt+`): "@training is:learnable", "@training lvl:30", "@training is:learnable | sum cost".
 function Q.ToAdvanced(q)
-	local parts = { "@training" }
-	local IS_WORD = { now = "learnable" }
-	if q.state then parts[#parts + 1] = "is:" .. (IS_WORD[q.state] or q.state) end
-	if q.level then parts[#parts + 1] = "lvl:" .. q.level end
-	if q.weapon then parts[#parts + 1] = "is:weapon" end
-	if q.pet then parts[#parts + 1] = "is:pet" end
-	if not q.state then parts[#parts + 1] = "-is:ignored" end
-	for _, w in ipairs(q.words) do parts[#parts + 1] = w end
+	local parts = Parts(q)
 	if q.money then parts[#parts + 1] = "| sum cost" end
 	return table.concat(parts, " ") .. " "
 end

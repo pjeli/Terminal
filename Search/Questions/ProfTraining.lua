@@ -193,7 +193,7 @@ function PT.ToAdvanced(q)
 	-- (every one still to learn: the answer lists what you can learn now first, then by the skill each needs; no Advanced
 	-- line orders them so. Kept as said; 0.63.7, review)
 	if q.state ~= "now" then return nil end
-	local parts = { "@recipe", q.state == "now" and "is:learnable" or "is:unknown" }
+	local parts = { "@recipe", "is:learnable" }
 	local profs = {}
 	for _, p in ipairs(q.profs or {}) do profs[#profs + 1] = (Lower(p):gsub(" ", "_")) end
 	-- (the recipe's own profession, Smelting's are Mining's, as PT.Keeps reads it; 1.0.82, review: "mining" as a word)

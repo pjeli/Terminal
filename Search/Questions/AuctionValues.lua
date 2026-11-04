@@ -464,8 +464,7 @@ function Q.ToAdvanced(q)
 	-- (your bags are @item, your bank @bank, your alts' @stored; together, each list named)
 	local kinds = {}
 	if pl.bags then kinds[#kinds + 1] = "@item" end
-	if pl.alts then kinds[#kinds + 1] = "@stored"
-	elseif pl.bank then kinds[#kinds + 1] = "@bank" end
+	if pl.bank then kinds[#kinds + 1] = "@bank" end
 	if #kinds == 0 then kinds[1] = "@item" end
 	return table.concat(kinds, " ") .. " is:auctionable sort:ahvalue "
 end
@@ -625,7 +624,6 @@ function AHU.Answer()
 	end
 	return out, note .. SEP .. L["at Auctionator's last-scanned prices"]
 end
-function AHU.ToAdvanced() return nil end -- (as said: gain per gold has no Advanced form)
 
 ----------------------------------------------------------------------
 -- Starting: Auctionator's data changing forgets the prices asked (and @auction's undercuts are worked out again)

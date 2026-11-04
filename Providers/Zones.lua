@@ -435,13 +435,6 @@ local function FishRows(skill)
 	return rows
 end
 
---- The answer to a question (Z.Question): rows, and the footer's note ("Zones for level 23", "Your fishing: 150").
---- The question as Advanced mode writes it (Alt+`): "@map lvl:20", "@dungeon lvl:35", "@map fish:mine".
---- (0.55.7: kept as said, nil: the zones, dungeons and raids are ranked by how well they fit your level, and fishing
---- spots by the catches, which no filter does: "@map lvl:23" listed only exact fits, in another order. Search.lua's
---- ns.QuestionToAdvanced)
-function Z.ToAdvanced() return nil end
-
 function Z.Answer(kind, said)
 	local level = said or PlayerLevel()
 	if kind == "fish" then

@@ -154,5 +154,3 @@ function C.Answer()
 	for i, e in ipairs(rows) do e._score = 1e7 - i end
 	return rows, C.NOTE .. ((#rows > 1) and (ns.DETAIL_SEP .. L["and the nearest spirit healers"]) or "")
 end
-
-function C.ToAdvanced() return nil end -- (as said: the nearest spirit healers come too, which @corpse doesn't list; 0.55.7)

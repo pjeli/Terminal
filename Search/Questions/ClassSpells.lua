@@ -104,14 +104,7 @@ function Q.Answer(q)
 	local lvl = ns.Safe(UnitLevel, "player")
 	lvl = type(lvl) == "number" and lvl or 1
 	local rows, note = {}, nil
-	if q.known then
-		local P = ns.providers.spells
-		for _, e in ipairs(P and ns:GetEntries(P) or {}) do if not e.ability then rows[#rows + 1] = e end end -- (not a pet's)
-		table.sort(rows, function(a, b) return tostring(a.name) < tostring(b.name) end)
-		if #rows == 0 then return { NoteRow(L["No spell that fits"]) }, L["Your spellbook"] end
-		-- (no count: the footer says how many, after the bar's filter too; 0.55.15, the player's screenshot had it twice)
-		return ns.ScoreInOrder(rows), L["Your spellbook"]
-	elseif q.class then
+	if q.class then
 		-- (its words too, "mage frost spells": they were left out of the answer, not out of its Alt+`; 1.0.82, review)
 		for _, e in ipairs(CS.Rows(q.class, q.class == mine, true)) do
 			if (not q.level or RankAt(e, q.level)) and Has(e, q.words) then rows[#rows + 1] = e end
@@ -169,7 +162,6 @@ end
 function Q.None() return { ns.NoteRow(L["No spell that fits"]) } end
 
 function Q.ToAdvanced(q)
-	if q.known then return "@spell is:known " end
 	-- (as said, 0.55.7: the next level you learn something new at, which lvl:N+ didn't say, nor "when do i learn":
 	-- your class's first. Search.lua's ns.QuestionToAdvanced)
 	if q.upcoming or (not q.class and #(q.words or {}) > 0) then return nil end
