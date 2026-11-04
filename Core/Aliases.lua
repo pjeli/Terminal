@@ -105,7 +105,8 @@ local function Define(name, original)
 		-- the chat box by Terminal, as the slash rows' own fallback)
 		def.secure = { macro = function() return A.Expand(text, ns.UI and ns.UI.args) end }
 		def.isOpen = ns.Never
-		def.after = function() ns:Trace("alias: the game ran " .. A.Expand(text, ns.UI and ns.UI.args)) end
+		-- (its command only: "/w Bob hi" names someone; 1.0.83, review)
+		def.after = function() ns:Trace("alias: the game ran " .. (A.Expand(text, ns.UI and ns.UI.args):match("^%S*") or "")) end
 		def.run = function(args) if ns.RunSlash then ns.RunSlash(A.Expand(text, args)) end end
 	end
 	ns:RegisterCommand(name, def)

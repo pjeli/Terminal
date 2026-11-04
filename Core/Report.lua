@@ -19,8 +19,9 @@ R.STEPS = 15 -- (Terminal's last trace lines)
 R.ERRORS = 3 -- (Terminal's newest errors BugSack holds)
 R.HINT = L["expected something? .report"]
 
--- people's rows: their names are someone's, never put in a report
-local PEOPLE = { guild = true, friends = true, who = true, group = true, shared = true }
+-- people's rows: their names are someone's, never put in a report (UI.IsPerson's one list; 1.0.83, review: this copy
+-- had drifted, without "people")
+local function Person(e) return ns.UI and ns.UI.IsPerson and ns.UI.IsPerson(e) or false end
 
 local function Plain(s)
 	s = tostring(s or "")
@@ -106,10 +107,11 @@ function R.Lines(opts)
 	local e = opts.row
 	if type(e) == "table" then
 		local kind = tostring(rawget(e, "kind") or e.kind or "?")
-		local name = PEOPLE[kind] and "(a player)" or Plain(e.name)
-		local detail = PEOPLE[kind] and "" or Plain(e.detail)
+		local person = Person(e)
+		local name = person and "(a player)" or Plain(e.name)
+		local detail = person and "" or Plain(e.detail)
 		lines[#lines + 1] = ("About this result: %s \"%s\"%s%s"):format(kind, name,
-			(e.key ~= nil and not PEOPLE[kind]) and (" (key " .. tostring(e.key) .. ")") or "",
+			(e.key ~= nil and not person) and (" (key " .. tostring(e.key) .. ")") or "",
 			detail ~= "" and (" · " .. detail) or "")
 	end
 	local UI = ns.UI

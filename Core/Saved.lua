@@ -34,7 +34,7 @@ SV.GROUPS = {
 		label = L["your characters' experience, lockouts and flight paths"], lists = { "experience", "lockouts", "flight" } },
 	{ name = "recipes", keys = { "recipes", "recipeVendors", "recipeTrainers" }, label = L["recipes and where to learn them"],
 		lists = { "recipes", "missing", "professions" } },
-	{ name = "mail", keys = { "mailboxes", "mailAuctions", "mailSent", "auctionsPosted", "auctionsEnded", "auctionsSold" },
+	{ name = "mail", keys = { "mailboxes", "mailAuctions", "mailSent", "auctionsPosted", "auctionsEnded", "auctionsSold", "auctionBids" },
 		label = L["mail and auctions"], lists = { "mail", "auctions" } },
 	{ name = "vendors", keys = { "vendorItems", "repairVendor", "buyback" }, label = L["vendors and buyback"],
 		lists = { "buyback", "durability" } },
@@ -317,19 +317,20 @@ SV.CODECS = {
 ----------------------------------------------------------------------
 
 --- A group's level name (the player's pick, else its default).
-function SV.Level(g)
+function SV.Level(g, db)
 	g = type(g) == "string" and SV.BY_NAME[g] or g
 	if not (g and g.levels) then return nil end
-	local picks = ns.db and rawget(ns.db, "savedKeep")
+	db = db or ns.db
+	local picks = db and rawget(db, "savedKeep")
 	local pick = type(picks) == "table" and picks[g.name]
 	return g.levels[pick] and pick or g.default
 end
 
 --- How many of a group's records are kept between sessions (0: none; nil: all, it has no levels).
-function SV.Limit(name)
+function SV.Limit(name, db)
 	local g = SV.BY_NAME[name]
 	if not (g and g.levels) then return nil end
-	return g.levels[SV.Level(g)]
+	return g.levels[SV.Level(g, db)]
 end
 
 -- (a list newest first: the first n kept)
@@ -414,7 +415,8 @@ function SV.Load()
 			if SV.KEY[k] then cache[k] = v else rawset(t, k, v) end
 		end,
 	})
-	if ns.ItemStore then ns.ItemStore.UseLimit(SV.Limit("items")) end
+	-- (the level picked read from this file: ns.db is set only once Load returns; 1.0.83, review: always "normal")
+	if ns.ItemStore then ns.ItemStore.UseLimit(SV.Limit("items", db)) end
 	return db
 end
 

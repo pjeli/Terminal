@@ -103,7 +103,7 @@ function UI:TryArmSecure(e)
 	end
 	local target = S.Resolve(e.secure, e)
 	if not target then ns:Trace("secure: no binding/button for " .. UI.TraceName(e)) return false end
-	if InCombatLockdown() or not S.Arm(target) then ns:Trace("secure: could not arm for " .. UI.TraceName(e) .. " (combat or no proxy)") return false end
+	if InCombatLockdown() or not S.Arm(target, UI.IsPerson(e)) then ns:Trace("secure: could not arm for " .. UI.TraceName(e) .. " (combat or no proxy)") return false end
 	ns:Trace("secure: armed Enter -> " .. tostring(target.binding or target.button or target.spell) .. " for " .. UI.TraceName(e))
 	ns:Bump(e.freqKey)
 	self.armedEntry = e
@@ -124,7 +124,7 @@ function UI:ArmForPress(e)
 	local S = ns.Secure
 	local target = S.Resolve(e.secure, e)
 	if not target or (e.isOpen and e.isOpen(e)) then return false end
-	if not S.Arm(target) then ns:Trace("secure: arm failed on key press for " .. UI.TraceName(e)) return false end
+	if not S.Arm(target, UI.IsPerson(e)) then ns:Trace("secure: arm failed on key press for " .. UI.TraceName(e)) return false end
 	ns:Trace("secure: key press armed -> " .. tostring(target.binding or target.button or target.spell) .. " for " .. UI.TraceName(e))
 	-- (a text box holding the keyboard gets the press instead of the binding: say whose, for .debug log)
 	local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
@@ -414,7 +414,7 @@ function UI:CatcherClicked(button)
 	if kind == "macro" and type(text) == "string" and text ~= "" then
 		local se = SecureView(e, text ~= c.plain) or e
 		ns:Trace("click: the game ran " .. (UI.IsPerson(e) and "(a line to a person)" or text:gsub("\n", " | ")) .. " for " .. UI.TraceName(e))
-		ns.Secure.NotePress(text, "click")
+		ns.Secure.NotePress(text, "click", UI.IsPerson(e))
 		C_Timer.After(0.3, function()
 			local cf = _G.CharacterFrame
 			if cf and cf.IsShown and cf:IsShown() then

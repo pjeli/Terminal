@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.83 (in testing)
+
+- Privacy and saved data (review): a whisper, an invite or a chat line Terminal pressed for a person is never written in its trace (what `.report` and `.debug log` copy), nor a long macro's text or an alias's line; `.report` leaves out the name on every list of people; the auction bids you placed are kept in TerminalCache.lua with the rest of the mail, not in your settings; `.saved keep items` sets the session's item cache from the start, not only after it's picked again.
+
 ## 1.0.82 (in testing)
 
 - Questions (review): steps typed after a step question ("items by quality | first 2") follow its own instead of replacing it; Alt+` of a question keeps the bar's "then by" sort and leaves out a bar group the search ignored; a quoted value typed after a question (`zone:"the barrens"`) is read whole; "druid travel spells" lists only the spells with those words; "what are my bags worth" sums your bags whatever category is picked; "what can i train in mining" as Alt+` includes the Smelting recipes (`prof:`).

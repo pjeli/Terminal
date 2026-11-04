@@ -109,9 +109,12 @@ function S.TaintCheck(after)
 end
 
 --- The game ran `text` for Terminal (`via`: "Enter", "click", "menu"). Noted, and the window fields are read a moment later.
-function S.NotePress(text, via)
+--- private: a line to a person (a whisper, an invite): kept without its text, which names them (.report and .debug log
+--- copy these; 1.0.83, review).
+function S.NotePress(text, via, private)
 	if type(text) ~= "string" or text == "" then return end
 	local run = text:find("/run", 1, true) ~= nil
+	if private then text = S.PRIVATE end
 	local p = { t = GetTime(), text = text, via = via, run = run }
 	S.presses[#S.presses + 1] = p
 	if #S.presses > S.PRESSES_MAX then table.remove(S.presses, 1) end
@@ -211,7 +214,8 @@ function S.Resolve(spec, e)
 		end
 		-- the game cuts a macro off at 255 characters in all (a cut /run line is a Lua error): never hand one over
 		if type(text) == "string" and #text > S.MACRO_MAX then
-			if ns.Trace then ns:Trace(("secure: macro too long (%d of %d characters), not used: %s"):format(#text, S.MACRO_MAX, text:sub(1, 60))) end
+			-- (its first word only: the rest can name a person)
+			if ns.Trace then ns:Trace(("secure: macro too long (%d of %d characters), not used: %s"):format(#text, S.MACRO_MAX, text:match("^%S*"))) end
 			text = nil
 		end
 		if type(text) == "string" and text ~= "" then return { macro = text } end
@@ -427,7 +431,7 @@ local function TracePress(p, _, down)
 	if ns.Trace then ns:Trace(("secure: the game pressed %s on key %s"):format(p:GetName(), down and "down" or "up")) end
 	-- (the half of the key press the macro runs on: noted for Debug.lua and the taint check)
 	if p.actsOnDown == nil or down == nil or (down and true or false) == p.actsOnDown then
-		S.NotePress(p:GetAttribute("macrotext"), "Enter")
+		S.NotePress(p:GetAttribute("macrotext"), "Enter", S.armedPrivate)
 	end
 end
 
@@ -439,10 +443,16 @@ local function BindEnter(set, ...)
 	set(owner, true, "NUMPADENTER", ...)
 end
 
---- Bind Enter to a resolved spec. False if that isn't possible right now.
-function S.Arm(r)
+--- Bind Enter to a resolved spec. False if that isn't possible right now. private: a person's row (UI.IsPerson): its
+--- macro never traced, it names them.
+S.PRIVATE = "(a line to a person)"
+function S.Arm(r, private)
 	if InCombatLockdown() or type(r) ~= "table" then return false end
-	if ns.Trace then ns:Trace("Secure.Arm " .. tostring(r.binding or r.button or r.spell or (r.macro and ("macro: " .. r.macro:gsub("\n", " | "))))) end
+	S.armedPrivate = private and true or nil
+	if ns.Trace then
+		local macro = r.macro and ("macro: " .. (private and S.PRIVATE or r.macro:gsub("\n", " | ")))
+		ns:Trace("Secure.Arm " .. tostring(r.binding or r.button or r.spell or macro))
+	end
 	if r.macro then
 		local p = MacroProxy()
 		if not p then return false end

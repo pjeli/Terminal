@@ -49,6 +49,15 @@ local ok, err = pcall(function()
 	R.Open({ row = { kind = "guild", name = "Fatherless Behavior", key = "Fatherless Behavior", detail = "Orgrimmar" } })
 	check(shown.text:find('About this result: guild "(a player)"', 1, true) and not shown.text:find("Fatherless", 1, true),
 		"a guildie's row: never their name")
+	-- (1.0.83, review) every people's list UI.IsPerson knows (this file's own copy had no "people"), and a line to a person
+	-- armed or pressed never in the trace lines the report copies
+	R.Open({ row = { kind = "people", name = "Zzwhisperee", key = "Zzwhisperee" } })
+	check(not shown.text:find("Zzwhisperee", 1, true), "a people row: never their name")
+	ns.Secure.Arm({ macro = "/w Zzwhisperee hi" }, true)
+	ns.Secure.NotePress("/w Zzwhisperee hi", "click", true)
+	R.Open({})
+	check(not shown.text:find("Zzwhisperee", 1, true) and (ns.Secure.presses[#ns.Secure.presses] or {}).text == ns.Secure.PRIVATE,
+		"a line to a person: armed and pressed, never in the trace or the presses kept")
 
 	-- Terminal's errors BugSack caught, newest first, only Terminal's
 	_G.BugGrabber = { GetDB = function() return {

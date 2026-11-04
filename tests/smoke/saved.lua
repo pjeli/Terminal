@@ -224,6 +224,17 @@ local ok, err = pcall(function()
 		check(has["keep loot small"] and has["keep all minimal"] and has["keep atlasloot off"] and has["clear mail"]
 			and not has["keep"], "Tab offers every choice whole, from the start")
 	end
+	-- (1.0.83, review) the bids you placed are the cache file's (they landed in Terminal.lua); the item level picked is
+	-- read at load, before ns.db is set (the session's cap stayed "normal")
+	do
+		_G.TerminalDB, _G.TerminalCacheDB = { savedKeep = { items = "large" } }, {}
+		ns.db = nil
+		ns.db = SV.Load()
+		check(ns.ItemStore.CAP.quality == 12000, "keep items large: the session's cap at load: " .. tostring(ns.ItemStore.CAP.quality))
+		ns.DbTable("auctionBids")
+		check(rawget(_G.TerminalDB, "auctionBids") == nil and type(_G.TerminalCacheDB.auctionBids) == "table",
+			"auction bids in the cache file, not the settings")
+	end
 end)
 _G.TerminalDB, _G.TerminalCacheDB = was.tdb, was.cache
 ns.db = SV.Load()
