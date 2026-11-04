@@ -9,7 +9,7 @@ local L = ns.L
 --   3 x 45g 20s     = 135g 60s     (gold, silver, copper: g s c)
 --   =123456c        = 12g 34s 56c
 --   2k / 8          = 250          (k = thousand, m = million)
---   sqrt(2), floor(), ceil(), round(), abs(), min(a, b), max(a, b), pi
+--   sqrt(2), floor, ceil, round, abs, min(a, b), max(a, b), pi
 -- Enter prints the sum and answer in chat; Shift+Enter puts the answer in the chat box.
 -- Hand-written parser: nothing typed here is ever run as Lua.
 
@@ -31,8 +31,8 @@ local function Tokenize(s)
 		if ch:match("%s") then
 			i = i + 1
 		elseif ch:match("[%d%.]") then
-			-- (digits, a point, digits: "3.5", ".5", "3." (a trailing point is the number too; review, 0.53.6: "3.*2" read
-			-- "3" and stopped at the "."); a "." alone is no number)
+			-- (digits, a point, digits: "3.5", ".5", "3." (a trailing point is the number too); a "." alone is no
+			-- number)
 			local num = s:match("^%d*%.?%d*", i)
 			if num == "." or num == "" then num = nil end
 			if not num then return nil end
@@ -100,7 +100,7 @@ local function Parse(toks)
 			return val
 		elseif t.t == "fn" then
 			pos = pos + 1
-			binops = binops + 1 -- (a function call is an operation too: "sqrt(2)", "max(3, 5)" gave no answer; 0.49.2, review)
+			binops = binops + 1 -- (a function call is an operation too: "sqrt(2)", "max(3, 5)" gave no answer)
 			if not isop("(") then error("(") end
 			pos = pos + 1
 			local args = { expr() }

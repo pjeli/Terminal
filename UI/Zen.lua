@@ -10,13 +10,12 @@ local L = ns.L
 -- ignore their parent's alpha (SetIgnoreParentAlpha), so they stay as they are; a black frame over the world and under
 -- Terminal (HIGH strata, the terminal is DIALOG) dims the screen. Alpha only: nothing is hidden or moved, so key
 -- bindings and secure buttons work as before. Alpha isn't protected, and nothing of Blizzard's Lua is called. The mouse
--- doesn't reach the faded interface: the dimming frame takes it (a click on it closes the terminal; 0.53.1). A client without SetIgnoreParentAlpha only gets the dimming.
+-- doesn't reach the faded interface: the dimming frame takes it (a click on it closes the terminal). A client without SetIgnoreParentAlpha only gets the dimming.
 --
--- The dimming takes the weather's colour (0.50.6, the player's ask: subtle): bluer in rain, paler in snow, warmer in a
--- sandstorm, as strong as the weather is (C_Weather.GetCurrentWeather: its type and intensity, 12.1.5); clear skies,
--- other weather, under a roof (IsIndoors) or a client without C_Weather: plain black, as before. Weather that turns
--- while the screen is dimmed (WEATHER_CHANGED; walking in or out of a building, looked at every second) fades to the
--- new colour over Z.TINT_FADE.
+-- The dimming takes the weather's colour: bluer in rain, paler in snow, warmer in a sandstorm, as strong as the weather
+-- is (C_Weather.GetCurrentWeather: its type and intensity, 12.1.5); clear skies, other weather, under a roof
+-- (IsIndoors) or a client without C_Weather: plain black, as before. Weather that turns while the screen is dimmed
+-- (WEATHER_CHANGED; walking in or out of a building, looked at every second) fades to the new colour over Z.TINT_FADE.
 
 local Z = {}
 ns.Zen = Z
@@ -29,17 +28,14 @@ function Z.DimAlpha()
 	local v = t and tonumber(t.zenDim)
 	return v and math.max(0, math.min(1, v)) or Z.DIM
 end
-Z.IN, Z.OUT = 0.2, 0.2 -- (s: fading away as Terminal opens; coming back as it closes; the player's, 0.46.13)
+Z.IN, Z.OUT = 0.2, 0.2 -- (s: fading away as Terminal opens; coming back as it closes; the player's)
 Z.WATCH = 0.25 -- (s: while one of Terminal's apps shows in its place, checked this often)
--- frames that don't follow UIParent's alpha, faded on their own (0.46.8, the player: the minimap's icons stayed up),
--- and the frame-rate counter (0.48.8, the player: it showed through: its parent is WorldFrame, not UIParent, as the
--- game's Blizzard_FramerateFrame makes it; one turned on while faded stays faded, its alpha already 0)
+-- frames that don't follow UIParent's alpha, faded on their own, and the frame-rate counter
 Z.ALSO = { "Minimap", "MinimapCluster", "FramerateFrame" }
 -- frames whose drawing ignores alpha altogether: the minimap's blips (party members, tracked herbs and ores, quest
--- spots: the engine draws them on the minimap at full strength). Hidden as the fade starts (0.46.13, the player:
--- sooner; 0.46.11 hid them once it was done), shown again the moment it turns back or combat comes (0.46.11, the
--- player's screenshot: the blips stayed up). Blizzard's own minimap key
--- does the same (ToggleMinimap: Minimap:Hide()); one you hid yourself is left alone.
+-- spots: the engine draws them on the minimap at full strength). Hidden as the fade starts, shown again the moment it
+-- turns back or combat comes. Blizzard's own minimap key does the same (ToggleMinimap: Minimap:Hide); one you hid
+-- yourself is left alone.
 Z.HIDE = { "Minimap" }
 -- Terminal's frames that sit on UIParent (its apps' frames come from the Panel registry)
 Z.OWN = { "TerminalFrame", "TerminalTooltip", "TerminalRowMenu", "TerminalLinkFrame", "TerminalCopyFrame",
@@ -113,7 +109,6 @@ local function Dim()
 	dim:SetFrameStrata("HIGH") -- (over the interface, under the terminal)
 	dim:SetFrameLevel(1) -- (under the drag grid, also HIGH)
 	dim:SetAllPoints(UIParent)
-	-- (0.53.1, the player: the faded interface still took clicks and hovers where it was, stray clicks set things off)
 	-- while faded, the dimming takes the mouse: nothing under it is clicked or hovered, and a click on it closes the
 	-- terminal, as clicking away from it would; the wheel still turns the camera. Back to clicks going through as soon
 	-- as the interface comes back (MoveTo).
@@ -133,7 +128,7 @@ local function Dim()
 end
 
 local function SetTint(r, g, b)
-	tint[1], tint[2], tint[3] = r, g, b -- (written into: every frame of a fade made a table; review, 0.53.6)
+	tint[1], tint[2], tint[3] = r, g, b -- (written into: every frame of a fade made a table)
 	if dim then dim.tex:SetColorTexture(r, g, b, 1) end
 end
 local function Same(a, r, g, b) return math.abs(a[1] - r) + math.abs(a[2] - g) + math.abs(a[3] - b) < 0.004 end
@@ -184,11 +179,10 @@ end
 Z.Keep = Keep -- (the drag grid, made on the first drag: UI.lua)
 function Z.Kept(f) return kept[f] == true end
 --- One of Terminal's frames made just now (the tooltip, the row menu, the copy bar... are made the first time they're
---- needed): while the interface is faded it keeps its own alpha at once; later opens keep it by name (Z.OWN). 0.46.17,
---- the player's screenshot: right after a /reload no tooltip ever showed until Terminal was opened again: the tooltip
---- was made after .zen had faded UIParent, and so faded with it, invisible.
--- Every frame made so is kept on later fades too, whether .zen was on when it was made or not (1.0.85, review: the
--- badge's pop-out, made before a fade and not in Z.OWN, stayed faded away; Z.OWN no longer has to name each one).
+--- needed): while the interface is faded it keeps its own alpha at once; later opens keep it by name (Z.OWN). right
+--- after a /reload no tooltip ever showed until Terminal was opened again: the tooltip was made after .zen had faded
+--- UIParent, and so faded with it, invisible.
+-- Every frame made so is kept on later fades too, whether .zen was on when it was made or not.
 local made = {}
 function Z.Made(f)
 	if type(f) == "table" and not made[f] then made[f] = true; made[#made + 1] = f end
@@ -209,8 +203,7 @@ end
 
 --- Terminal's frames keep their own alpha while the interface fades: the named ones and every app's (Panel.Build keeps
 --- them). Never a walk over UIParent's children: GetChildren there gives hundreds of values, and through pcall that
---- overflows the C stack (0.46.5: "Assertion failure! L->top < L->ci->top", the game closed; pcall pushes its true
---- after the callee's results, past the room it has).
+--- overflows the C stack.
 function Z.KeepOwn()
 	for _, name in ipairs(Z.OWN) do Keep(_G[name]) end
 	for _, f in ipairs(made) do Keep(f) end
@@ -219,7 +212,7 @@ end
 
 --- The look at a point of the fade (v: 0 = as it was, 1 = faded away), eased. The interface's alpha in Z.STEPS steps,
 --- the dimming every frame: UIParent's alpha goes down through every frame of the interface, and on a fast screen a
---- fade was 30 of those as Terminal opened and closed (0.53.1, the player: a CPU spike).
+--- fade was 30 of those as Terminal opened and closed.
 Z.STEPS = 10
 local shownStep
 local function Apply(v)

@@ -12,20 +12,20 @@ local L = ns.L
 --   Group    a row per zone, quality, type, slot, dungeon... with how many in each (Advanced's "| group by")
 --   (horn)   the selected result, or all of them, to say, party, raid, guild..., or copied as text or CSV
 --
--- What the words typed already ask shows too ("rare sword": Filter: Rare; "nearest ...": Sort: Distance), and
--- unticking it takes the word out of the line: the bar is one more way to write the search's query (0.55.7). A question's
--- answer ("my auctions") is filtered, sorted and grouped like any search's rows.
--- A click on one opens its menu; a right-click clears it. What's picked lasts while the prompt has words and goes
--- when it's cleared or the terminal closes. Typing Advanced syntax takes the bar away (that line is Advanced); Alt+`,
--- or Advanced syntax typed after the words, writes what's picked into the line ("q:rare+ sort:distance | group by
--- zone": the search's query printed, Search.lua's ns.QueryToAdvanced). While the categories show (nothing picked yet), only Filter works: they count what passes it.
+-- What the words typed already ask shows too ("rare sword": Filter: Rare; "nearest ...": Sort: Distance), and unticking
+-- it takes the word out of the line: the bar is one more way to write the search's query. A question's answer ("my
+-- auctions") is filtered, sorted and grouped like any search's rows. A click on one opens its menu; a right-click
+-- clears it. What's picked lasts while the prompt has words and goes when it's cleared or the terminal closes. Typing
+-- Advanced syntax takes the bar away (that line is Advanced); Alt+`, or Advanced syntax typed after the words, writes
+-- what's picked into the line ("q:rare+ sort:distance | group by zone": the search's query printed, Search.lua's
+-- ns.QueryToAdvanced). While the categories show (nothing picked yet), only Filter works: they count what passes it.
 
 local UI, Theme = ns.UI, ns.Theme
 local B = {}
 ns.Bar = B
 
 B.H = 22
-local state = { filters = {}, sort = nil, group = nil, thenBy = nil } -- (thenBy: Sort's "then by", Shift picked; 0.66.4)
+local state = { filters = {}, sort = nil, group = nil, thenBy = nil } -- (thenBy: Sort's "then by", Shift picked)
 B.state = state -- (tests)
 
 -- what Filter offers: the filter (an Advanced one), what it says; shown when a list it judges is shown (F.APPLIES)
@@ -40,8 +40,7 @@ B.FILTERS = {
 	{ id = "is:known", label = L["Known"] },
 	{ id = "is:unknown", label = L["Not known yet"] },
 	{ id = "is:ready", label = L["Ready (off cooldown)"] },
-	-- (0.55.15, the player: "missing the is:unplaced / missing from my action bars filter") every list's own, offered
-	-- where its list is shown (F.APPLIES)
+	-- every list's own, offered where its list is shown (F.APPLIES)
 	{ id = "is:unplaced", label = L["Not on my action bars"] },
 	{ id = "is:passive", label = L["Passive"] },
 	{ id = "is:capped", label = L["Capped"] },
@@ -66,16 +65,15 @@ B.FILTERS = {
 	{ id = "is:vendor", label = L["Vendors"] },
 	{ id = "is:trainer", label = L["Trainers"] },
 	{ id = "is:online", label = L["Online"] },
-	-- (OneForAll's and AtlasLoot's, in @reputation; 1.0.27. Only when there are some: on a plain reputation list they only
-	-- emptied it; review, 1.0.38)
+	-- (OneForAll's and AtlasLoot's, in @reputation. Only when there are some: on a plain reputation list they only
+	-- emptied it)
 	{ id = "is:reward", label = L["Quartermaster rewards"], needs = "repReward" },
 	{ id = "is:canbuy", label = L["Can buy now"], needs = "repReward" },
 }
 -- what Sort offers: distance (sort:distance's lists), else a field the rows have (Aggregate's, and the name)
 -- a sort's way, in the menu: the game's sort arrow (down as drawn, up flipped)
 B.ARROW = "Interface\\Buttons\\UI-SortArrow"
--- (the sorts picked the lowest first: by words, A-Z; distance, the nearest (0.65.7, the player: "for distance we should
--- always prefer nearest"))
+-- (the sorts picked the lowest first: by words, A-Z; distance, the nearest)
 B.LOW_FIRST = { name = true, owner = true, line = true, distance = true }
 B.SORTS = {
 	{ id = "distance", label = L["Distance"], near = true, asc = true },
@@ -87,15 +85,15 @@ B.SORTS = {
 	{ id = "count", label = L["Count"], field = "count" },
 	{ id = "damage", label = L["Biggest hit"], field = "damage" },
 	{ id = "line", label = L["Line by line"], field = "line", asc = true },
-	{ id = "owner", label = L["Owner"], field = "owner", asc = true }, -- (friends' items, Terminal: Share; 0.58.6)
-	{ id = "standing", label = L["Standing"], field = "standing", asc = true }, -- (reputations and their rewards; 1.0.27)
-	{ id = "progress", label = L["Progress"], field = "progress" }, -- (achievements, quests: the closest to done first; 1.0.59)
-	-- (the rows in their lists' own order, never your picks first: a search question's line; docs/QUESTIONS.md, 1.0.77.
-	-- No Aggregate field: not on the bar's Sort, which offers the fields rows have)
+	{ id = "owner", label = L["Owner"], field = "owner", asc = true }, -- (friends' items, Terminal: Share)
+	{ id = "standing", label = L["Standing"], field = "standing", asc = true }, -- (reputations and their rewards)
+	{ id = "progress", label = L["Progress"], field = "progress" }, -- (achievements, quests: the closest to done first)
+	-- (the rows in their lists' own order, never your picks first: a search question's line; docs/QUESTIONS.md. No
+	-- Aggregate field: not on the bar's Sort, which offers the fields rows have)
 	{ id = "list", label = L["List order"], field = "list", asc = true },
-	-- (your quest log's grey quests first, then by level, then by name: "quests to drop"; 1.0.78)
+	-- (your quest log's grey quests first, then by level, then by name: "quests to drop")
 	{ id = "grey", label = L["Grey first"], field = "grey", asc = true, tie = "level" },
-	-- (recipes to learn: the least skill first, then by profession and name, "recipes i can learn"; 1.0.79)
+	-- (recipes to learn: the least skill first, then by profession and name, "recipes i can learn")
 	{ id = "need", label = L["Skill needed"], field = "need", asc = true, tie = "prof" },
 }
 B.DISTANCE_FIELD = { id = "distance", field = "distance", asc = true } -- (a later part of a sort: SortSpec)
@@ -104,7 +102,7 @@ B.GROUPS = { "kind", "owner", "faction", "standing", "zone", "quality", "type", 
 
 local function E() return ns.Easy end
 local function ById(list, id) for _, o in ipairs(list) do if o.id == id then return o end end end
---- A sort's id without its direction, and whether it's the other way round ("-level": the highest first; 0.65.5).
+--- A sort's id without its direction, and whether it's the other way round ("-level": the highest first).
 local function SortParts(id)
 	if type(id) == "string" and id:sub(1, 1) == "-" then return id:sub(2), true end
 	return id, false
@@ -121,7 +119,7 @@ B.ById = ById
 --- Is the bar in use: Simple mode (not a line run in Advanced, not fuzzy finding), searching, words typed?
 function B.On()
 	local Ez = E()
-	-- (Ctrl+R's history search: its lines, nothing to filter; 0.63.7, review)
+	-- (Ctrl+R's history search: its lines, nothing to filter)
 	if not (UI.frame and Ez and Ez.On and Ez.On()) or Ez.temp or UI.fzf or UI.histSearch then return false end
 	if UI.mode ~= "search" then return false end
 	local text = UI.edit and UI.edit:GetText() or ""
@@ -139,7 +137,7 @@ function B.Active()
 end
 
 --- The bar's sort as the search takes it: with its "then by" (Shift picked) after it ("level,name"), never after
---- distance (Query.lua's Scan.Parse; 1.0.82, review: a question's answer and its Alt+` left it out).
+--- distance (Query.lua's Scan.Parse).
 function B.SortWord(st)
 	st = st or state
 	local s = st and st.sort
@@ -187,8 +185,8 @@ function B.Typed()
 	local out = { filters = {}, sort = t and t.sort or nil, group = UI.typedGroup }
 	for _, p in ipairs(t and t.filters or {}) do
 		local spec = p.spec
-		-- (an everyday word's of those kinds, "rare"; any filter typed as key:value, in:"Scarlet Monastery" a group's Enter
-		-- wrote (0.55.14): you're in that group, the bar says so and takes it back out)
+		-- (an everyday word's of those kinds, "rare"; any filter typed as key:value, in:"Scarlet Monastery" a group's
+		-- Enter wrote: you're in that group, the bar says so and takes it back out)
 		local shown = (type(p.word) == "string" and p.word:find("^[-!]?%a+:") ~= nil) or p.plain == true
 		for _, pat in ipairs(SHOWN_SPEC) do if type(spec) == "string" and spec:find(pat) then shown = true break end end
 		if shown then out.filters[#out.filters + 1] = p end
@@ -254,7 +252,7 @@ function B.DropWords(words)
 	if not edit then return end
 	local text = edit:GetText() or ""
 	-- the ways each may stand in the line: a filter's value of several words is read without its quotes (in:Scarlet
-	-- Monastery; the line has them); "not boe" is read as -boe (Easy.JoinLogic: the line has the words; 0.55.18)
+	-- Monastery; the line has them); "not boe" is read as -boe (Easy.JoinLogic: the line has the words)
 	local forms = {}
 	for _, w in ipairs(words) do
 		forms[#forms + 1] = w
@@ -383,7 +381,7 @@ local function KeyOf(s, e)
 		return -(tonumber(r) or 0)
 	end
 	if s.field == "name" then
-		-- (the lowered name the search keeps, when it has no colour codes to take out: a sort of 100k rows; 0.63.7)
+		-- (the lowered name the search keeps, when it has no colour codes to take out: a sort of 100k rows)
 		local ln = rawget(e, "_lname")
 		if ln and not find(ln, "|", 1, true) then return ln end
 		return ns.Lower(ns.Plain(tostring(e.name or "")))
@@ -397,8 +395,8 @@ local function KeyOf(s, e)
 	end
 	return NumOf(s.field, e)
 end
---- Of two rows' keys for the "then by" sorts (`more`: { { s, asc } ... }; 0.66.4), which comes first: -1, 1, or 0 for
---- a tie (a row without the field after one with it).
+--- Of two rows' keys for the "then by" sorts (`more`: { { s, asc } ... }), which comes first: -1, 1, or 0 for a tie (a
+--- row without the field after one with it).
 local function ThenOrder(more, am, bm)
 	for j, m in ipairs(more) do
 		local x, y = am[j], bm[j]
@@ -422,7 +420,7 @@ local function Keyed(s, rows, asc, more)
 	if asc == nil then asc = s.asc end
 	if more and #more == 0 then more = nil end
 	local keyed, rest = {}, {}
-	-- (a tie-breaker field, lowest first: sort:slots, then the level; 0.65.3)
+	-- (a tie-breaker field, lowest first: sort:slots, then the level)
 	local tie = s.tie and { field = s.tie }
 	for i, e in ipairs(rows) do
 		if Real(e) then
@@ -439,7 +437,7 @@ local function Keyed(s, rows, asc, more)
 			if asc then return a.k < b.k end
 			return a.k > b.k
 		end
-		-- (then by the fields typed after it: sort:quality,-level; 0.66.4)
+		-- (then by the fields typed after it: sort:quality,-level)
 		if more then
 			local o = ThenOrder(more, a.m, b.m)
 			if o ~= 0 then return o < 0 end
@@ -470,10 +468,9 @@ end
 
 --- The search's rows in a field's order (Search.lua's Finalize, "sort:name" typed or picked on the bar): the rows that
 --- have it scored above any search score, in its order (a pinned row stays on top). Past 5000 rows, only the first
---- `keep` (the rows shown) are found, with a bounded heap: not every row sorted (0.63.7, review: past 5000 the sort was
---- skipped, "@stress1 ka sort:name" listed by relevance). `overBudget`: the search's clock, to yield on.
---- A sort's id (several: "quality,-level", 0.66.4) as its first field's sort, its way, and the fields after it, each with
---- its way: s, asc, { { s, asc } ... }; nil when the first isn't a field's.
+--- `keep` (the rows shown) are found, with a bounded heap: not every row sorted. `overBudget`: the search's clock, to
+--- yield on. A sort's id (several: "quality,-level") as its first field's sort, its way, and the fields after it, each
+--- with its way: s, asc, { { s, asc } ... }; nil when the first isn't a field's.
 local function SortSpec(id)
 	local parts = {}
 	if type(id) == "string" then for part in (id .. ","):gmatch("([^,]*),") do if part ~= "" then parts[#parts + 1] = part end end end
@@ -484,7 +481,7 @@ local function SortSpec(id)
 	for j = 2, #parts do
 		local b2, r2 = SortParts(parts[j])
 		local s2 = ById(B.SORTS, b2)
-		-- (distance after a field: the yards the search worked out; 0.66.16)
+		-- (distance after a field: the yards the search worked out)
 		if b2 == "distance" then s2 = B.DISTANCE_FIELD end
 		if s2 and s2.field then more[#more + 1] = { s = s2, asc = Ascending(s2, r2) } end
 	end
@@ -651,9 +648,8 @@ function B.Options(which)
 		if Real(e) then sample[#sample + 1] = e; if #sample >= 100 then break end end
 	end
 	local A = ns.Aggregate
-	-- (0.55.14, the player: "I am already in a chosen group and it is letting me group again" (a group's Enter: its rows
-	-- all in one dungeon) only what tells the rows apart: two values or more, as a sort or a group by one value does
-	-- nothing)
+	-- ("I am already in a chosen group and it is letting me group again" (a group's Enter: its rows all in one dungeon)
+	-- only what tells the rows apart: two values or more, as a sort or a group by one value does nothing)
 	local function Has(field)
 		if field == "name" then return #sample >= 2 end
 		local f = A and A.FIELDS[field]
@@ -680,15 +676,15 @@ function B.Options(which)
 			local on = pickedBase == o.id or typedHere
 			local isThen = not on and thenBase == o.id and o.field and true or false
 			if isThen then
-				-- (the "then by": its arrow too, said as such; 0.66.4)
+				-- (the "then by": its arrow too, said as such)
 				out[#out + 1] = { id = o.id, label = o.label, on = true, thenBy = true, asc = Ascending(o, thenRev) }
 			elseif fits or on then
-				-- (which way: an arrow, up for ascending, down for descending, in the tick's place; 0.65.5, the player)
-				-- (a word typed that sorts by distance, "farthest innkeeper": the search goes by it, so the arrow does too;
-				-- 0.65.x review: the arrow said nearest over the farthest listed)
+				-- (which way: an arrow, up for ascending, down for descending, in the tick's place) (a word typed that
+				-- sorts by distance, "farthest innkeeper": the search goes by it, so the arrow does too; 0.65.x review:
+				-- the arrow said nearest over the farthest listed)
 				local said = typedHere and typed.sort and not typed.sort.drop
 				local rev = (said and typedRev) or (pickedBase == o.id and pickedRev) or (pickedBase ~= o.id and typedHere and typedRev)
-				-- (asc: true, false or nil, not on: not "on and Ascending() or nil", which made a descending one's false nil)
+				-- (asc: true, false or nil, not on: not "on and Ascending or nil", which made a descending one's false nil)
 				local asc
 				if on and (o.field or o.near) then asc = Ascending(o, rev) end
 				out[#out + 1] = { id = o.id, label = o.label, on = on, typed = typedHere and pickedBase ~= o.id and typed.sort.word or nil,
@@ -729,7 +725,7 @@ function B.Pick(which, id, thenBy)
 		for i, f in ipairs(state.filters) do if f == id then table.remove(state.filters, i); had = true break end end
 		if not had then state.filters[#state.filters + 1] = id end
 	elseif which == "sort" then
-		-- (the one picked again: the other way round, the highest first or the lowest; "Best match" undoes it; 0.65.5)
+		-- (the one picked again: the other way round, the highest first or the lowest; "Best match" undoes it)
 		local o = ById(B.SORTS, id)
 		local turns = o and (o.field or o.near) and true or false
 		local pickedBase, pickedRev = SortParts(state.sort)
@@ -761,8 +757,8 @@ function B.Pick(which, id, thenBy)
 			B.Changed()
 			return
 		end
-		-- (picked: the highest first, as the player said, "assume descending at first" (0.65.5): the level too; the
-		-- words' sorts, a name, an owner, an attunement's lines, A-Z first; picked again, the other way)
+		-- (picked: the highest first, as the player said, "assume descending at first": the level too; the words'
+		-- sorts, a name, an owner, an attunement's lines, A-Z first; picked again, the other way)
 		state.sort = (turns and o.asc and not B.LOW_FIRST[id]) and ("-" .. id) or id
 		-- (another sort picked: a sort: typed goes from the line, one sort at a time; "nearest" stays, it says the NPCs)
 		if state.sort and typed.sort and typed.sort.drop then
@@ -785,9 +781,9 @@ function B.Pick(which, id, thenBy)
 	B.Changed()
 end
 
---- Shift picked on Sort (0.66.4, the player: a "then by" pick): rows that tie on the sort go by this one. Picked again:
---- the other way round; a third time: gone. Nothing sorted yet: it's the sort. A typed sort of several fields
---- (sort:quality,-level) becomes the bar's own first, its word taken out.
+--- Shift picked on Sort: rows that tie on the sort go by this one. Picked again: the other way round; a third time:
+--- gone. Nothing sorted yet: it's the sort. A typed sort of several fields (sort:quality,-level) becomes the bar's own
+--- first, its word taken out.
 function B.PickThen(id)
 	local typed = B.Typed()
 	local o = ById(B.SORTS, id)
@@ -897,7 +893,7 @@ local function Label(which, typed)
 	elseif which == "sort" then
 		local list = ns.Filters and ns.Filters.SortList and ns.Filters.SortList(state.sort or (typed.sort and typed.sort.id)) or {}
 		local o = list[1] and ById(B.SORTS, (SortParts(list[1])))
-		-- (and its "then by", "Sort: Quality, Level"; 0.66.4)
+		-- (and its "then by", "Sort: Quality, Level")
 		local nxt = state.thenBy or (not state.sort and list[2]) or nil
 		-- (none after distance: rows don't tie on yards, so a field after it isn't said; review)
 		local t = nxt and SortParts(list[1]) ~= "distance" and ById(B.SORTS, (SortParts(nxt)))
@@ -912,8 +908,8 @@ end
 
 B.Label = function(which) return Label(which, B.Typed()) end -- (a button's words, as shown)
 
---- The Group button's word when nothing's grouped: "Group" (0.56.1, the player). Translated as "Group by", since "Group"
---- is also the party's word and some languages say the two differently (zhCN: 队伍, the party; 分组, grouping).
+--- The Group button's word when nothing's grouped: "Group". Translated as "Group by", since "Group" is also the party's
+--- word and some languages say the two differently (zhCN: 队伍, the party; 分组, grouping).
 function B.GroupWord()
 	local t = L["Group by"]
 	if t == "Group by" then t = L["Group"] end -- (English, or not translated yet)
@@ -953,7 +949,6 @@ local function Build()
 	strip.measure:SetFontObject(Theme.fonts.small)
 	strip.measure:Hide()
 	local horn = CreateFrame("Button", nil, strip)
-	-- (0.55.9, the player: "more like a megaphone": the game's own speaker on a dark square with a thin edge)
 	horn.bg = horn:CreateTexture(nil, "BACKGROUND")
 	horn.bg:SetAllPoints()
 	horn.edges = {}
@@ -980,8 +975,7 @@ local function Build()
 		end
 		local tip = B.tip
 		if not tip then return end
-		-- (0.55.10, the player's screenshot: it sat over the selected row's tooltip beside the terminal) that one put
-		-- away while the pointer is here, and this one growing left, over the terminal
+		-- that one put away while the pointer is here, and this one growing left, over the terminal
 		if UI.HideTooltip then UI:HideTooltip() end
 		B.tipUp = true
 		tip:SetOwner(horn, "ANCHOR_TOPLEFT")
@@ -1028,13 +1022,12 @@ function B.Update()
 	local inset = classic and 9 or 6
 	local top = (UI.tabsH or 0) + ns.UI.layout.HEADER_H + (UI.promptExtra or 0) - 4
 	-- (only whether categories show: B.Overview stops at the first; ShownKinds walked every row and built the kinds on
-	-- every keystroke and selection move; 1.0.87, review)
+	-- every keystroke and selection move)
 	local overview = B.Overview(UI.results)
 	-- (placed again only when where it goes or a label's width changed: a frame moved under the pointer loses it, so
-	-- placing the buttons on every footer update took every hover and click away; 0.55.1, the player: "mousing over and
-	-- clicking do nothing")
+	-- placing the buttons on every footer update took every hover and click away)
 	local widths = {}
-	local typed = B.Typed() -- (once per update, not per button: it runs on every keystroke; review, 0.57.7)
+	local typed = B.Typed() -- (once per update, not per button: it runs on every keystroke)
 	for i, b in ipairs(s.buttons) do
 		local label = Label(b.which, typed)
 		if b.label ~= label then b.label = label; b.text:SetText(label); B.Underline(b) end
@@ -1081,8 +1074,8 @@ end
 -- each button's key: Alt+F, Alt+S, Alt+G (Keys.lua)
 B.KEY_LETTER = { filter = "f", sort = "s", group = "g" }
 
---- Its key's letter underlined in its label, as a menu's keys are shown (0.56.7, the player: "a hint that there is a
---- shortcut"): the first F of "Filter", S of "Sort", G of "Group". A language whose word hasn't that letter: none.
+--- Its key's letter underlined in its label, as a menu's keys are shown: the first F of "Filter", S of "Sort", G of
+--- "Group". A language whose word hasn't that letter: none.
 function B.Underline(b)
 	local u, label = b.under, ns.Plain and ns.Plain(tostring(b.label or "")) or tostring(b.label or "")
 	local letter = B.KEY_LETTER[b.which]
@@ -1146,7 +1139,7 @@ local function MenuLine(m, i)
 	b.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
 	b.check:SetSize(14, 14)
 	b.check:SetPoint("LEFT", 3, 0)
-	-- (a sort's way: the game's sort arrow, as its auction house columns show it, up or down; 0.65.5)
+	-- (a sort's way: the game's sort arrow, as its auction house columns show it, up or down)
 	b.arrow = b:CreateTexture(nil, "OVERLAY")
 	b.arrow:SetTexture(B.ARROW)
 	b.arrow:SetSize(9, 8)
@@ -1161,7 +1154,7 @@ local function MenuLine(m, i)
 		local which, id = m.which, b.id
 		if id == nil then return end -- (a line saying something: nothing to pick)
 		if id == false then B.Clear(which) m:Hide() return end
-		-- (Shift: Sort's "then by"; 0.66.4)
+		-- (Shift: Sort's "then by")
 		B.Pick(which, id, which == "sort" and IsShiftKeyDown and IsShiftKeyDown() or nil)
 		-- (filters add up: it stays open, the keys' line where it was)
 		-- (the keys' line: the one picked again, found by what it is; a typed one unticked has gone: the line where it was)
@@ -1182,7 +1175,7 @@ function B.ShowMenu(which, owner, keys, sel, selId)
 		on = #opts == 0 or not HasOn(opts) } }
 	for _, o in ipairs(opts) do items[#items + 1] = o end
 	if #opts == 0 then items[#items + 1] = { label = L["Nothing to pick for these results"], dead = true } end
-	-- (a field sorted by: Shift picks another to go by on a tie; 0.66.4)
+	-- (a field sorted by: Shift picks another to go by on a tie)
 	if which == "sort" then
 		for _, o in ipairs(opts) do
 			local so = o.on and not o.thenBy and ById(B.SORTS, o.id)
@@ -1240,16 +1233,15 @@ end
 function B.HideMenu() if B.menu then B.menu:Hide() end end
 
 ----------------------------------------------------------------------
--- The keys (0.55.13, the player: "allow Alt+F, Alt+S and Alt+G to step into the filter, sort and group menus"): the
--- menu opens with a line picked; Up/Down (Tab) move, Enter or Space picks (Filter's stay open), Left/Right go to the
--- next menu, Esc closes it. Any other key closes it and does what it does.
+-- The keys: the menu opens with a line picked; Up/Down (Tab) move, Enter or Space picks (Filter's stay open),
+-- Left/Right go to the next menu, Esc closes it. Any other key closes it and does what it does.
 ----------------------------------------------------------------------
 
 B.ALT_KEYS = { F = "filter", S = "sort", G = "group" }
 
---- Alt+F's character, when the client types one for it (Windows types the f, a Mac's Option+F ƒ; 0.55.19, the player:
---- "pressing Alt+G is both typing g and opening the menu"): not typed. Only that key's letter, or a character a Mac
---- makes of it, and only before the next key goes down (Keys.lua): nothing coming, the next letter isn't eaten.
+--- Alt+F's character, when the client types one for it (Windows types the f, a Mac's Option+F ƒ): not typed. Only that
+--- key's letter, or a character a Mac makes of it, and only before the next key goes down (Keys.lua): nothing coming,
+--- the next letter isn't eaten.
 function B.SwallowAltChar(key)
 	UI.swallowChar = { at = GetTime(), letter = type(key) == "string" and ns.Lower(key) or nil }
 end
@@ -1337,12 +1329,11 @@ function B.FirstReal()
 	local res = UI.results or {}
 	if Real(res[UI.sel]) then return UI.sel end
 	for i, e in ipairs(res) do if Real(e) then return i end end
-	-- (grouped or summed up: its rows, to copy out all of them; 0.55.18, review: the button was greyed out)
+	-- (grouped or summed up: its rows, to copy out all of them)
 	for i, e in ipairs(res) do if type(e) == "table" and e.kind == "aggregate" and not e.noActivate then return i end end
 end
 
---- The send button: every result at once, to a channel or copied (0.55.12, the player: the "All" lines only here; a
---- row's own are its right-click menu's).
+--- The send button: every result at once, to a channel or copied.
 function B.Horn()
 	B.HideMenu()
 	local i = B.FirstReal()

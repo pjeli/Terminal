@@ -46,8 +46,7 @@ function Bags.Keyring()
 	return ok and not ns.Secret(on) and on == true and id or nil
 end
 
---- Your bags' ids, in order: the backpack to the reagent bag, then the keyring when the client shows one (0.49.2,
---- review: keys in the keyring were never read, while @stored counts them as in your bags).
+--- Your bags' ids, in order: the backpack to the reagent bag, then the keyring when the client shows one.
 function Bags.BagIDs()
 	local ids = {}
 	for b = 0, LAST_BAG do ids[#ids + 1] = b end
@@ -83,9 +82,9 @@ function Bags.Open(bags)
 	return which
 end
 
--- Baganator's bag windows are named Baganator_<View>BackpackViewFrame<group>: kept once found, looked for again (at most
--- once a second: every name in _G) while none of them shows, as switching its view makes another one. Review, 0.53.6: the
--- walk ran on every 0.1 s poll while none was found, and a view made later was never searched.
+-- Baganator's bag windows are named Baganator_<View>BackpackViewFrame<group>: kept once found, looked for again (at
+-- most once a second: every name in _G) while none of them shows, as switching its view makes another one. the walk ran
+-- on every 0.1 s poll while none was found, and a view made later was never searched.
 local baganatorRoots, rootsAt
 local function AnyShown(list)
 	for _, f in ipairs(list) do
@@ -172,7 +171,7 @@ end
 
 ShowInBags = function(e)
 	-- (where it is now: the row may be an older list's, kept while a new one waits for F5, and the stack moved or was
-	-- sold since; one pass over the bags, on Enter only. Review, 0.53.6)
+	-- sold since; one pass over the bags, on Enter only.)
 	local now = e.itemID and Bags.Locations(e.itemID)
 	local locs = (now and #now > 0) and now or e.locs
 	local bags, seen = {}, {}

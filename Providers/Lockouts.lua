@@ -176,7 +176,7 @@ local function Tooltip(e, t)
 		else t:AddDoubleLine(b[1], L["still up"], 1, 1, 1, 0.3, 1, 0.3) end
 	end
 	if not e.mine then t:AddLine(L["As of %s"]:format(ns.Ago(Now() - (e.seen or 0))), 0.6, 0.6, 0.6) end
-	-- (your world boss has no link: words, as ShareText sends; 0.49.2, review)
+	-- (your world boss has no link: words, as ShareText sends)
 	ns.KeyHints(t, (e.mine and not e.world) and L["Enter: show in chat    Shift+Enter: put its link in the chat box"]
 		or L["Enter: show in chat    Shift+Enter: put it in the chat box"], 0.6, 0.6, 0.6, true)
 end
@@ -261,7 +261,7 @@ ns:RegisterProvider("lockouts", {
 ----------------------------------------------------------------------
 
 local ASK = {}
--- (time words too: "what resets this week", "raid lockouts this week" said "No lockout has that"; 0.49.2, review)
+-- (time words too: "what resets this week", "raid lockouts this week" said "No lockout has that")
 for w in ([[my me i am im the in a an of is are do does did have has any what whats which how show list check see all
 	for on to still this that it its there theres when where will be been got get our we were was at with currently
 	now week today tomorrow tonight next weekly daily time]]):gmatch("%a+") do ASK[w] = true end
@@ -285,7 +285,7 @@ end
 
 -- Do these words name a lockout listed (all of them in one row), or an instance (each a word of a dungeon's or raid's
 -- name, the start of one, or its shorthand: "mc", "molten core", "strat")? "reset my keybinds", "when does my
--- hearthstone reset" aren't about lockouts (0.49.2, review)
+-- hearthstone reset" aren't about lockouts
 local function NamesLockout(words)
 	local p = ns.providers.lockouts
 	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
@@ -361,8 +361,7 @@ function LK.None(q)
 		or (q.dungeon and L["No dungeon lockouts"]) or LK.NONE) }
 end
 
---- Forget an alt's lockouts (not the character you're on): `.forget <name>` (0.65.12: .lockouts is gone, @lockout lists
---- them). How many were dropped.
+--- Forget an alt's lockouts (not the character you're on): `.forget <name>`. How many were dropped.
 function LK.ForgetAlt(who)
 	local lw, chars, myKey, n = Lower(who), Chars() or {}, MyKey(), 0
 	for key, c in pairs(chars) do

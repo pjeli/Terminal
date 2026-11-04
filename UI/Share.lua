@@ -13,15 +13,14 @@ local L = ns.L
 -- Terminal's own code never sends chat. What goes out: the row's link (items, spells, achievements,
 -- recipes, quests), a map pin for NPCs, else its name. The game runs at most 255 characters of a macro.
 --
--- ">>> channel" (0.44.2) sends every result at once instead: "mats for thorium belt >>> party",
--- "@loot lorgus jett >>> guild". One line says what they are ("Mats for Thorium Belt (3): 12x [Thorium Bar], ..."),
--- as many lines as it takes (SH.GROUP_LINES at most). A macro the game presses runs only 255 characters in all, so
--- these lines are sent by Terminal itself, inside the key press or click that asked (SH.SendAll). The right-click
--- menu has the same as "All N to party" (Simple mode too).
+-- ">>> channel" sends every result at once instead: "mats for thorium belt >>> party", "@loot lorgus jett >>> guild".
+-- One line says what they are ("Mats for Thorium Belt (3): 12x [Thorium Bar], ..."), as many lines as it takes
+-- (SH.GROUP_LINES at most). A macro the game presses runs only 255 characters in all, so these lines are sent by
+-- Terminal itself, inside the key press or click that asked (SH.SendAll). The right-click menu has the same as "All N
+-- to party" (Simple mode too).
 
--- ">> text" and ">> csv" (0.52.10, the player's ask: "simple copy pasting of outputs") aren't chat: the selected result
--- (">>> text": every result) opens in a box to copy (Ctrl+C), as plain lines or as CSV (name,detail,kind,id). In Simple
--- mode too.
+-- ">> text" and ">> csv" aren't chat: the selected result (">>> text": every result) opens in a box to copy (Ctrl+C),
+-- as plain lines or as CSV (name,detail,kind,id). In Simple mode too.
 
 local SH = {}
 ns.Share = SH
@@ -50,7 +49,7 @@ local LABEL = { party = L["party"], guild = L["guild"], raid = L["raid"], office
 --- only when it can still become a channel number (1-20, as Channel takes them).
 function SH.IsStart(word)
 	local w = ns.Lower(word or "")
-	-- (every word Channel takes, its other names too: "gro" for group, "tel" for tell, "cop" for copy; review, 0.53.6)
+	-- (every word Channel takes, its other names too: "gro" for group, "tel" for tell, "cop" for copy)
 	for _, names in ipairs({ CHANNELS, WHISPER, COPY, { drop = true, track = true, untrack = true } }) do
 		for n in pairs(names) do if n:sub(1, #w) == w then return true end end
 	end
@@ -85,9 +84,8 @@ ns.Phrase.Register({ id = "send", stage = "send", priority = 20, classes = { op 
 			channel = (r.line:sub(t.s + (all and 3 or 2)):gsub("^%s+", ""):gsub("%s+$", "")) }
 	end })
 
---- Simple mode's way to copy (0.52.12, the player's call: ">>" is Advanced mode's): "linen to csv", "linen as text"
---- at the end of a search copies every result. Gives the search and "csv" / "text", or nil.
---- (Read by the line's copy recognizer below: the reading's copy, Phrase.lua)
+--- Simple mode's way to copy: "linen to csv", "linen as text" at the end of a search copies every result. Gives the
+--- search and "csv" / "text", or nil. (Read by the line's copy recognizer below: the reading's copy, Phrase.lua)
 function SH.PlainCopy(text)
 	if type(text) ~= "string" then return nil end
 	local copy = ns.Phrase.ReadLine(text, { simple = true }).copy
@@ -123,7 +121,7 @@ function SH.Channel(rest)
 	local lw = ns.Lower(w or "")
 	if lw == "" then return { pending = true } end
 	if lw == "drop" then return { drop = true, label = "drop" } end
-	-- ("track", "untrack", "track only": quests in your log tracked or untracked instead: QuestTrack.lua, 0.63.3)
+	-- ("track", "untrack", "track only": quests in your log tracked or untracked instead: QuestTrack.lua)
 	if lw == "track" or lw == "untrack" then
 		local how = lw == "untrack" and "untrack" or (ns.Lower(more or "") == "only" and "only" or "track")
 		return { quests = how, label = how == "only" and "track only" or lw }
@@ -178,7 +176,7 @@ function SH.CopyText(rows, how)
 	local out, n = {}, 0
 	if how == "csv" then out[1] = SH.CSV_HEAD end
 	for _, e in ipairs(rows or {}) do
-		-- (a summed-up row goes too, totals and all, its money as plain text: "| sum value >> text", 0.52.13)
+		-- (a summed-up row goes too, totals and all, its money as plain text: "| sum value >> text")
 		if type(e) == "table" and (not e.noActivate or (e.kind == "aggregate" and e.key ~= "aggregate:hint")) then
 			local name, detail = Clean(e.copyName or e.name), Clean(e.copyDetail or e.detail)
 			if name ~= "" then
@@ -204,8 +202,7 @@ local ItemLink = ns.ItemLink
 --- trash in Stratholme", "from Molten Core" (no boss named); nil for other rows.
 --- A loot row's boss and instance, from its detail ("Garr  Molten Core"): "Garr", "Molten Core"; "" for one not
 --- named ("?"); nil for other rows.
--- (where a row no boss drops comes from: a quest's, a recipe's, a faction's, a set's; review, 1.0.34: OneForAll's quest
--- rewards said "dropped by Quest: Ours", AtlasLoot's faction loot "dropped by Exalted in Brood of Nozdormu")
+-- (where a row no boss drops comes from: a quest's, a recipe's, a faction's, a set's)
 local NOT_DROPPED = { quest = true, crafted = true, reputation = true, pvp = true, collection = true }
 
 function SH.LootWhere(e)
@@ -335,8 +332,8 @@ function SH.Context(query, e)
 		if lw:sub(1, 1) == "@" then
 			-- (the kind: an NPC already)
 		elseif lw:find("^[-!]") or lw:find("[|&]") then
-			-- (a word left out, or either of several: not what it is, as SH.Describe reads them; a "|" in a chat line is an
-			-- escape the game refuses. 0.50.7, review: "Nearby hogger|vancleef: Hogger")
+			-- (a word left out, or either of several: not what it is, as SH.Describe reads them; a "|" in a chat line
+			-- is an escape the game refuses. "Nearby hogger|vancleef: Hogger")
 		elseif F and F.SortOf and F.SortOf(lw) then
 			nearby = F.SortOf(lw) == "distance" -- (sort:plan: recipes, nothing to say of them; sort:-distance: nor the farthest)
 		elseif key and F and F.IsKey and F.IsKey(key) then
@@ -347,7 +344,7 @@ function SH.Context(query, e)
 				roles[#roles + 1] = SH.ROLES[val]
 			elseif key == "trainer" then
 				if MY_CLASS[val] then
-					-- (a !t question: the asker's class, Core/Ask.lua's ns.Asker; one not known says "class"; 0.68.12)
+					-- (a !t question: the asker's class, Core/Ask.lua's ns.Asker; one not known says "class")
 					local A, cls = ns.Asker, nil
 					if A then
 						local names = _G.LOCALIZED_CLASS_NAMES_MALE
@@ -383,7 +380,7 @@ end
 --- raid, instance, guild when you're in one; your target when it's another player: "/w Name").
 function SH.MenuChannels()
 	local out = { { cmd = "/s", label = L["Say in chat"], chat = "SAY", short = L["say"] } }
-	-- (a secret answer, UnitIsUnit's where unit comparison is restricted, is never tested: false; 0.50.7, review)
+	-- (a secret answer, UnitIsUnit's where unit comparison is restricted, is never tested: false)
 	local function Is(fn, ...)
 		if type(fn) ~= "function" then return false end
 		local v = Call(fn, ...)
@@ -392,8 +389,7 @@ function SH.MenuChannels()
 	end
 	local instance = _G.LE_PARTY_CATEGORY_INSTANCE
 	local inInstance = instance and Is(_G.IsInGroup, instance)
-	-- (your own raid: one only the instance made (a battleground, the raid finder) takes instance chat, not /raid; 0.49.2,
-	-- review: "All N to raid" was offered there and the game refused it)
+	-- (your own raid: one only the instance made (a battleground, the raid finder) takes instance chat, not /raid)
 	if Is(_G.IsInRaid, _G.LE_PARTY_CATEGORY_HOME) then
 		out[#out + 1] = { cmd = "/raid", label = L["Send to raid"], chat = "RAID", short = L["raid"] }
 	elseif Is(_G.IsInGroup) and not (inInstance and not Is(_G.IsInGroup, _G.LE_PARTY_CATEGORY_HOME)) then
@@ -758,7 +754,6 @@ function SH.GroupLines(rows, query, maxLines, lineMax)
 		end
 		return nil
 	end
-	-- (review, 0.53.6: a long search's header made a line the game refuses; cut, room left for the count and a row)
 	if header then header = ns.Cut(header, LM - 20) end
 	local head = header and (header .. " (" .. #rows .. "):") or nil
 	local lines, line = {}, head
@@ -785,7 +780,7 @@ function SH.GroupLines(rows, query, maxLines, lineMax)
 	end
 	if line and #lines < ML then lines[#lines + 1] = line end
 	local total = #rows - skipped
-	-- (the header's count: the rows that went or are counted, not those with nothing to say; review, 0.53.6)
+	-- (the header's count: the rows that went or are counted, not those with nothing to say)
 	if head and skipped > 0 and lines[1] and lines[1]:sub(1, #head) == head then
 		lines[1] = header .. " (" .. total .. "):" .. lines[1]:sub(#head + 1)
 	end
@@ -889,14 +884,13 @@ local LOCKED = L["The game doesn't let addons send chat right now (in combat in 
 local Locked = ns.ChatLocked
 local waiting -- (a send waiting for its items to load: another Enter meanwhile doesn't send them twice)
 
--- (0.45.16, the player: ">>> party" with nothing searched sent every recent pick, with no word of what they were)
 SH.NO_SEARCH = L["Search for something first: with nothing searched there's nothing to say what they are."]
 --- Was something searched (the words before ">>", or the menu's query)? Every result at once needs it.
 function SH.Searched(query) return type(query) == "string" and query:find("%S") ~= nil end
 
 --- The chat type the game takes for `chat` now: party or raid when your only group is one an instance made (a
 --- battleground, the dungeon or raid finder) is instance chat, as the game's chat box switches it itself
---- (ChatFrameEditBox's UpdateHeader). (0.49.2, review: ">>> raid" there was refused while the trace said sent.)
+--- (ChatFrameEditBox's UpdateHeader).
 function SH.ChatType(chat)
 	local home, inst = _G.LE_PARTY_CATEGORY_HOME, _G.LE_PARTY_CATEGORY_INSTANCE
 	if not (home and inst) or (chat ~= "PARTY" and chat ~= "RAID") then return chat end

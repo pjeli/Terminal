@@ -58,8 +58,8 @@ function QD.Question(text)
 	local only = not cues.all
 	local q = { words = rest, grey = only and cues.grey and not cues.behind or nil, behind = only and cues.behind and not cues.grey or nil }
 	-- other words: only when they name one of the quests it would list, unless the line plainly asks ("raptor quests to
-	-- drop", "abandon", "outleveled": then "none of those" is the answer). 0.50.7, review: "old blanchy quest", "grey
-	-- wolf quest", "remove curse quest", "quest item drop" were taken, an empty answer where the quest was searched for
+	-- drop", "abandon", "outleveled": then "none of those" is the answer). "old blanchy quest", "grey wolf quest",
+	-- "remove curse quest", "quest item drop" were taken, an empty answer where the quest was searched for
 	if #rest > 0 and not QD.Plain(t) and not QD.AnyFor(q) then return nil end
 	return q
 end
@@ -116,7 +116,7 @@ DropAllRow = function(rows)
 		name = L["Drop all %d"]:format(#list), kind = "dropall", kindLabel = "|cffffd200" .. L["quests"] .. "|r", raw = true, lead = true,
 		icon = "Interface\\Buttons\\UI-GroupLoot-Pass-Up", detail = L["you'll see them all and be asked first"],
 		actionVerb = L["drop them all"], activate = function() QD.Confirm(list) end, _pos = ns.UI and ns.UI.NO_POS or {},
-		-- (a filter after the question left some: those alone; 0.63.7, review)
+		-- (a filter after the question left some: those alone)
 		replan = function(kept)
 			local left = {}
 			for _, e in ipairs(kept) do if type(e) == "table" and e.kind == "quests" then left[#left + 1] = e end end

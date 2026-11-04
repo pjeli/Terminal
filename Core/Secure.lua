@@ -3,9 +3,9 @@ local L = ns.L
 
 -- Secure opening of Blizzard windows.
 --
--- In Forever, windows such as the Character frame read "secret" values (your own health,
--- for one) when they show. If Terminal calls ToggleCharacter() from its own Lua, that whole
--- call runs tainted and Blizzard's code errors on the comparison.
+-- In Forever, windows such as the Character frame read "secret" values (your own health, for one) when they show. If
+-- Terminal calls ToggleCharacter from its own Lua, that whole call runs tainted and Blizzard's code errors on the
+-- comparison.
 --
 -- So the terminal never opens those windows itself. When you press Enter on one, Enter is
 -- briefly bound to the game's own keybinding command for that window (TOGGLECHARACTER0,
@@ -39,13 +39,13 @@ S.armed = nil -- binding command or button name currently armed
 S.mode = nil  -- "binding" or "button"
 
 ----------------------------------------------------------------------
--- What Terminal had the game press, and what it left written (0.46.2)
+-- What Terminal had the game press, and what it left written
 --
 -- A /run line runs tainted even when the game presses it: the game blames what it does on "*** ForceTaint_Strong ***",
--- not on Terminal (0.46.1). So every macro the game ran for Terminal is noted here (S.NotePress, from the macro proxy,
--- the click catcher and the row menu): Debug.lua counts a ForceTaint_Strong block as Terminal's when one of its /run
--- presses came just before, and names the last one otherwise. A moment after each press, S.TaintCheck reads (never
--- writes) who last wrote the Blizzard window fields those presses touch (issecurevariable), and traces the tainted.
+-- not on Terminal. So every macro the game ran for Terminal is noted here (S.NotePress, from the macro proxy, the click
+-- catcher and the row menu): Debug.lua counts a ForceTaint_Strong block as Terminal's when one of its /run presses came
+-- just before, and names the last one otherwise. A moment after each press, S.TaintCheck reads (never writes) who last
+-- wrote the Blizzard window fields those presses touch (issecurevariable), and traces the tainted.
 ----------------------------------------------------------------------
 
 S.PRESSES_MAX = 8
@@ -108,9 +108,9 @@ function S.TaintCheck(after)
 	return out
 end
 
---- The game ran `text` for Terminal (`via`: "Enter", "click", "menu"). Noted, and the window fields are read a moment later.
---- private: a line to a person (a whisper, an invite): kept without its text, which names them (.report and .debug log
---- copy these; 1.0.83, review).
+--- The game ran `text` for Terminal (`via`: "Enter", "click", "menu"). Noted, and the window fields are read a moment
+--- later. private: a line to a person (a whisper, an invite): kept without its text, which names them (.report and
+--- .debug log copy these).
 function S.NotePress(text, via, private)
 	if type(text) ~= "string" or text == "" then return end
 	local run = text:find("/run", 1, true) ~= nil
@@ -135,7 +135,7 @@ end
 
 --- Opens the settings window on a category (and scrolls to the setting `name`) from Terminal's own code: the game's C
 --- call, fine from here (SettingsMacro's note). True when it was called. The fallbacks of the presses (Options, Game
---- options, Keybindings, AddOn settings) share this one (review, 0.53.6: four copies).
+--- options, Keybindings, AddOn settings) share this one.
 function S.OpenSettings(idOrName, name)
 	local U = _G.C_SettingsUtil
 	local id = S.SettingsID(idOrName)
@@ -146,8 +146,8 @@ end
 
 --- The line that opens the settings window on a category (and scrolls to the setting `name`), or nil.
 --- C_SettingsUtil.OpenSettingsPanel is the game's own call (Blizzard's Settings.OpenToCategory only calls it): the game
---- answers with SETTINGS_PANEL_OPEN and the settings window's own code opens itself, as C_Map.OpenWorldMap does for
---- the map (0.46.1). No Blizzard Lua runs from the line. No id: the window as it was last (no category).
+--- answers with SETTINGS_PANEL_OPEN and the settings window's own code opens itself, as C_Map.OpenWorldMap does for the
+--- map. No Blizzard Lua runs from the line. No id: the window as it was last (no category).
 function S.SettingsMacro(idOrName, name)
 	local U = _G.C_SettingsUtil
 	if not (U and type(U.OpenSettingsPanel) == "function") then return nil end
@@ -496,7 +496,7 @@ function S.Disarm()
 end
 
 ----------------------------------------------------------------------
--- Turning a window to the right page by the game's own clicks (0.46.18, the player's ask)
+-- Turning a window to the right page by the game's own clicks
 --
 -- The press that opens a window goes on to its tab, page, section or row in the same Enter press: the macro gets lines
 -- "/click TerminalNavN", and each one is one step. Just before it runs, the step's PreClick (Terminal's code, which only
@@ -646,8 +646,7 @@ function S.NavMacro(def, e, open)
 	if not (def and S.NavOn(def.route)) or InCombatLockdown() then return nil end
 	if open == "" then open = nil end
 	local slot = navSlot % S.NAV_SLOTS + 1
-	-- (past the row menu's: its lines' macros click their slots when pressed; review, 1.0.19: a hover over 8 rows on
-	-- the way to the menu gave its line another spell's plan)
+	-- (past the row menu's: its lines' macros click their slots when pressed)
 	for _ = 1, S.NAV_SLOTS do
 		if not navPinned[slot] then break end
 		slot = slot % S.NAV_SLOTS + 1

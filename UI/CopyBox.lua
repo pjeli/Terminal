@@ -237,8 +237,7 @@ local function ShowLink(title, text)
 		link:SetScale(1)
 		link:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
 	else
-		-- (where the terminal sits: its point is in the terminal's units, its scale's; review, 0.48.6: at scale 1.3 the
-		-- bar showed elsewhere)
+		-- (where the terminal sits: its point is in the terminal's units, its scale's)
 		link:SetScale(t.scale or 1)
 		link:SetPoint(pt[1], UIParent, pt[2], pt[3], pt[4])
 	end

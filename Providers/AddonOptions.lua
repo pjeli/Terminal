@@ -2,9 +2,9 @@ local ns = select(2, ...)
 local L = ns.L
 local H = ns.Highlight
 
--- Other addons' options (@addonoption, @addonoptions; Simple mode: under Settings; 0.50.3, the player's ask): every
--- setting an addon registers through Ace3 (AceConfigRegistry: Questie, Attune, AtlasLoot, Details and most others),
--- searchable by its name, its description and the groups it's in: "questie map icons", "attune announce".
+-- Other addons' options (@addonoption, @addonoptions; Simple mode: under Settings): every setting an addon registers
+-- through Ace3 (AceConfigRegistry: Questie, Attune, AtlasLoot, Details and most others), searchable by its name, its
+-- description and the groups it's in: "questie map icons", "attune announce".
 --
 --   Enter        that addon's options in Ace3's own window (AceConfigDialog: an addon's frame, never the game's Settings
 --                panel, which Terminal's code would taint), open on the setting's group, pointing at the setting
@@ -200,7 +200,7 @@ local function ReadApp(reg, appName)
 end
 
 -- each addon's settings as last read, and the addons that said theirs changed since (ConfigTableChange names it): only
--- those read again (0.63.7, review: Shift+Enter's own change read every addon's options again, their functions called)
+-- those read again
 AO.perApp, AO.stale = {}, {}
 
 --- Every visible setting of every addon registered with Ace3 (at most MAX): ReadApp's, an addon's kept until it changes.
@@ -440,7 +440,7 @@ ns:RegisterProvider("addonoptions", {
 	aliases = { "addonoption", "addonoptions", "addonsetting", "addonsettings", "aceoptions" },
 	lazy = true, -- (read on the first search that needs it)
 	-- (read again when an addon says its options changed (Watch), or one loads; not every 5 minutes inside a keystroke:
-	-- every option of every addon, its own functions called for each, review 0.53.6)
+	-- every option of every addon, its own functions called for each)
 	events = { "ADDON_LOADED" },
 	collect = function() return AO.Collect() end,
 })

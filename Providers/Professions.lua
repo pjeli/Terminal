@@ -9,7 +9,7 @@ local H = ns.Highlight
 -- in saved variables, per character. Searching then works any time, window open or not.
 --
 -- Forever quirks this copes with:
---  * GetProfessions() returns prof1, prof2, first aid, fishing, cooking (with gaps).
+--  * GetProfessions returns prof1, prof2, first aid, fishing, cooking (with gaps).
 --  * The open window's own profession info can come back without a name or with id 0,
 --    so the profession is worked out from its recipes' skill line and matched against
 --    the player's list instead.
@@ -103,8 +103,8 @@ end
 --- Forever's like (skinners' tanning and so on). Same test the game's spellbook uses:
 --- C_TradeSkillUI.CanTradeSkillShowCraftingUI(spellID). Opened by casting the spell.
 P.tradeSpellNames = {}
--- (kept until the spellbook or the skill lines change: every rebuild of the professions list, which plain searches read,
--- went through the whole spellbook asking each spell; review, 0.53.6)
+-- (kept until the spellbook or the skill lines change: every rebuild of the professions list, which plain searches
+-- read, went through the whole spellbook asking each spell)
 local tradeKept
 function P.ForgetTradeSpells() tradeKept = nil end
 do
@@ -355,7 +355,7 @@ function P.Prune()
 		names[Lower(pr.name)] = true
 	end
 	-- (a trade spell's window, Smelting's, is kept as "spell:<name>": it goes with its profession, or once the
-	-- spellbook no longer has the spell; review, 0.48.6: "Smelt Copper" stayed in @recipe after Mining was dropped)
+	-- spellbook no longer has the spell)
 	local trade
 	local function TradeNames()
 		if trade == nil then
@@ -395,9 +395,9 @@ local function ReagentsOf(recipeID)
 	local made = type(s.outputItemID) == "number" and s.outputItemID > 0 and s.outputItemID or nil
 	if type(s.reagentSlotSchematics) ~= "table" then return nil, made end
 	local out = {}
-	-- (0.49.2, review: one need per slot. Every reagent of every slot was kept as needed: an optional slot's (required
-	-- false) and a slot's alternatives (its quality tiers: any one of them does), so is:craftable and "mats for" asked
-	-- for all of them. A slot's first reagent stands for it)
+	-- (one need per slot. Every reagent of every slot was kept as needed: an optional slot's (required false) and a
+	-- slot's alternatives (its quality tiers: any one of them does), so is:craftable and "mats for" asked for all of
+	-- them. A slot's first reagent stands for it)
 	for _, slot in ipairs(s.reagentSlotSchematics) do
 		if slot.required ~= false then
 			local qty = slot.quantityRequired or 1
@@ -434,7 +434,7 @@ P.RecipeIDs = RecipeIDs
 
 --- What the open profession window's filters leave out, as Forever's Professions.IsUsingDefaultFilters reads them
 --- (Blizzard_ProfessionsTemplates/Blizzard_Professions.lua), plus its search box: nil when nothing is filtered. Every
---- call only reads (C calls). Review, 0.48.6: "Has skill up" ticked, the saved index became the skill-up recipes alone.
+--- call only reads (C calls). "Has skill up" ticked, the saved index became the skill-up recipes alone.
 function P.WindowFiltered(api)
 	local function Q(fn, ...)
 		local f = api[fn]
@@ -459,7 +459,7 @@ end
 --- Which of the player's professions the open window belongs to.
 --- Returns key, name, fromList.
 local function ResolveProfession(api, ids)
-	-- (every field through ns.Num / ns.Str: a secret one is never compared, not even with 0 or ""; review, 0.53.6)
+	-- (every field through ns.Num / ns.Str: a secret one is never compared, not even with 0 or "")
 	local Num, Str = ns.Num, ns.Str
 	local function Usable(t) return type(t) == "table" and Str(t.professionName) and (Num(t.professionID) or 0) ~= 0 end
 	local info = api.GetChildProfessionInfo and api.GetChildProfessionInfo()
@@ -532,9 +532,9 @@ local function SaveSnapshot(store, key, profName, fromList, list, unknown, parti
 	-- a window opened by a profession spell (Smelting): keep it apart from its profession
 	local last = P.lastSpell
 	local spell = last and (GetTime() - last.at) < 6 and last.name or nil
-	-- (0.49.2, review: only for that spell's own window: the window read is its profession's (Mining for Smelting) or the
-	-- spell's own name. It was kept 6 s whatever opened next, nothing pressed (its window already open) or a cast that
-	-- failed: Blacksmithing opened just after Enter on a Smelting recipe was saved as Smelting's)
+	-- (only for that spell's own window: the window read is its profession's (Mining for Smelting) or the spell's own
+	-- name. It was kept 6 s whatever opened next, nothing pressed (its window already open) or a cast that failed:
+	-- Blacksmithing opened just after Enter on a Smelting recipe was saved as Smelting's)
 	if spell and last.parent and Lower(profName) ~= Lower(last.parent) and Lower(profName) ~= Lower(spell) then
 		ns:Trace(("professions: %s's window isn't %s's (%s): not kept as it"):format(profName, spell, last.parent))
 		spell = nil
@@ -576,8 +576,7 @@ local function SaveSnapshot(store, key, profName, fromList, list, unknown, parti
 		end
 		ns:Trace(("professions: %s's window is filtered (%s): %d recipes kept with what it showed"):format(profName, partial, #list))
 	end
-	-- a profession indexed (anew, or with more recipes): a trace, so chat says it only in debug mode (0.49.7, the
-	-- player's ask: it was a chat line every time a profession window opened with something new)
+	-- a profession indexed (anew, or with more recipes): a trace, so chat says it only in debug mode
 	if not P.scanning and prevCount ~= #list then
 		local more = (unknown and #unknown > 0) and (", %d more to learn"):format(#unknown) or ""
 		ns:Trace(("professions: indexed %s: %d known recipe%s%s"):format(profName, #list, #list == 1 and "" or "s", more))
@@ -594,16 +593,16 @@ local function SaveSnapshot(store, key, profName, fromList, list, unknown, parti
 		parent = parent,
 		updated = time(),
 		list = list,
-		-- the window's recipes you don't know yet (0.45.14: "recipes i'm missing", MissingRecipes.lua)
+		-- the window's recipes you don't know yet
 		unknown = unknown,
 	}
 	store[key] = saved
 	return saved
 end
 
---- What a read of the open window depends on (0.49.2, review): which profession it is, your skill in it (the game's,
---- and the window's with its bonus: the recipes' colours follow it) and its recipe ids. The same again: nothing to
---- read again on a list update.
+--- What a read of the open window depends on: which profession it is, your skill in it (the game's, and the window's
+--- with its bonus: the recipes' colours follow it) and its recipe ids. The same again: nothing to read again on a list
+--- update.
 local function SnapSig(api, key, profName, ids)
 	local rank
 	for _, pr in ipairs((P.PlayerProfessions())) do
@@ -630,8 +629,7 @@ function P.Snapshot(done, quick)
 		busy = false
 		P.MarkDirty()
 		if done then done() end
-		-- (asked for meanwhile, by an event: read once more now; review, 0.53.6: it was dropped, a recipe learned during
-		-- a read spread over frames went unread until the window's next event)
+		-- (asked for meanwhile, by an event: read once more now)
 		if again ~= nil then
 			local q = again
 			again = nil
@@ -660,10 +658,10 @@ function P.Snapshot(done, quick)
 	local partial = all == 0 and P.WindowFiltered(api) or nil
 	local key, profName, fromList = ResolveProfession(api, ids)
 	if not key or not profName then return skip() end
-	-- (0.49.2, review: the window sends a list update on every bag change while it's open, and each one read every
-	-- recipe's info and schematic again, made a new saved list and rebuilt three lists. Read again only when something
-	-- the read depends on changed, and while the list it made is still kept: a skill-up changes the signature (the
-	-- colours, 0.42.10), a recipe learned is an event of its own, read in full)
+	-- (the window sends a list update on every bag change while it's open, and each one read every recipe's info and
+	-- schematic again, made a new saved list and rebuilt three lists. Read again only when something the read depends
+	-- on changed, and while the list it made is still kept: a skill-up changes the signature (the colours), a recipe
+	-- learned is an event of its own, read in full)
 	local sig = SnapSig(api, key, profName, ids)
 	local last = P.lastRead
 	if quick and last and last.sig == sig then
@@ -744,9 +742,7 @@ local function WindowHas(recipeID)
 end
 
 --- Whether the profession window shows this profession now: its skill line, or one of the names given (a trade spell's
---- own window, Smelting, or its parent), whatever the window's search or filters hide. (Review, 0.48.6: the open check
---- looked a recipe up in the window's filtered list, so a window with a search typed counted as closed and the /cast
---- press then shut it; profession and trade-spell rows had no check at all.)
+--- own window, Smelting, or its parent), whatever the window's search or filters hide.
 function P.WindowShows(skillLine, ...)
 	local pf = _G.ProfessionsFrame
 	if not (pf and pf.IsVisible and pf:IsVisible()) then return false end
@@ -770,8 +766,8 @@ function P.WindowShows(skillLine, ...)
 end
 
 --- A profession with no window spell, no route left (combat): its window only by the protected direct call (tried until
---- the game blocks it), else said. Never ToggleProfessionsBook from here (review, 0.48.6: the book then held what
---- Terminal's code wrote); the rows' own route is the book's key (Recipes.lua).
+--- the game blocks it), else said. Never ToggleProfessionsBook from here; the rows' own route is the book's key
+--- (Recipes.lua).
 function P.OpenProfession(skillLine, name)
 	ns.LoadBlizz("Blizzard_Professions")
 	Unhide()
@@ -963,8 +959,8 @@ local function WatchNames(on)
 end
 P.WatchNames = WatchNames
 local pendingSnap, pendingPrune
--- (0.49.2, review) true once an event since the last read wants the window read in full: any but a bare list update
--- (the window opened, its data source changed, a recipe learned, your skills changed)
+-- true once an event since the last read wants the window read in full: any but a bare list update (the window opened,
+-- its data source changed, a recipe learned, your skills changed)
 local fullSnap = false
 P.events = ev -- (tests)
 ev:SetScript("OnEvent", function(_, event, id)
@@ -975,14 +971,13 @@ ev:SetScript("OnEvent", function(_, event, id)
 			pendingItems = true
 			C_Timer.After(2, function()
 				pendingItems = false
-				-- (reagents' names: only the recipes list shows them; review, 0.53.6: camp and missing, the costliest to
-				-- read again, were read again for every batch of names)
+				-- (reagents' names: only the recipes list shows them)
 				P.MarkDirty({ "recipes" })
 			end)
 		end
 	elseif event == "SKILL_LINES_CHANGED" then
-		-- (the skills list's own read opens folded groups, which fires this: no skill changed; its list drops it the same
-		-- way, selfEvents. 0.50.7, review: the recipes, camp and missing lists were all read again for it)
+		-- (the skills list's own read opens folded groups, which fires this: no skill changed; its list drops it the
+		-- same way, selfEvents. the recipes, camp and missing lists were all read again for it)
 		local sk = ns.providers.skills
 		if sk and sk._firedOwn and sk._collectedAt and GetTime() - sk._collectedAt < (sk.guard or 2) then return end
 		fullSnap = true

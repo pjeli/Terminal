@@ -182,8 +182,8 @@ if ns.QuestieData and ns.QuestieData.OnReady then
 end
 
 --- The rows: one per instance (and per door with a note of its own: Dire Maul's Hidden Reach). An instance behind two
---- doors (Blackrock Mountain's, from Searing Gorge and from Burning Steppes) is one row at the nearer door (0.53.3, the
---- player: Molten Core and Blackwing Lair were each listed twice); the lists are made again as you change zones.
+--- doors (Blackrock Mountain's, from Searing Gorge and from Burning Steppes) is one row at the nearer door; the lists
+--- are made again as you change zones.
 function I.EntranceRows(raids)
 	local rows = {}
 	local count, doors, order = {}, {}, {}

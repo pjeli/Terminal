@@ -1,7 +1,7 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Spell ids (0.54.1, a player's ask: "what I most need to go to Wowhead for is looking up spell ids"):
+-- Spell ids:
 --
 --   "spellid claw", "spell id claw", "claw spell id"   every spell called that and each of its ranks, with its id:
 --                                                     Enter copies the id, Shift+Enter links it in chat
@@ -182,14 +182,14 @@ end
 function SI.Of(e)
 	if type(e) ~= "table" then return nil end
 	local k = e.kind
-	-- (not @classspell's: its tooltip lists every rank's id already; 0.54.3, the player: "redundant")
+	-- (not @classspell's: its tooltip lists every rank's id already)
 	if (k == "spells" or k == "talents" or k == "spellid") and type(e.spellID) == "number" then return e.spellID end
 	if k == "training" and not e.isItem and type(e.wtId) == "number" then return e.wtId end
 end
 
 ----------------------------------------------------------------------
--- Item, quest and NPC ids, as spell ids (1.0.58, the reach audit): "itemid linen cloth", "item id 2589", "questid the
--- defias brotherhood", "npcid hogger"; Enter shows the id to copy, an item's Shift+Enter links it in chat.
+-- Item, quest and NPC ids, as spell ids: "itemid linen cloth", "item id 2589", "questid the defias brotherhood", "npcid
+-- hogger"; Enter shows the id to copy, an item's Shift+Enter links it in chat.
 ----------------------------------------------------------------------
 
 local OI = {}

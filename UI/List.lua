@@ -53,7 +53,7 @@ do
 	local function Append(text, x) return text .. (text ~= "" and STATUS_SEP or "") .. x end
 	local function Prepend(x, text) return x .. (text ~= "" and STATUS_SEP or "") .. text end
 
-	--- ">> track only" on a row: how many others it untracks (0.63.7, review: the footer said only "Enter tracks it").
+	--- ">> track only" on a row: how many others it untracks.
 	local function OnlyFooter(e)
 		local QK = ns.QuestTrack
 		local o = QK and type(e) == "table" and (rawget(e, "pipeOf") or e) or nil
@@ -73,11 +73,10 @@ do
 			return
 		end
 		if self.armedEntry then
-			-- (what the press does, as the footer said it: "Press Enter: use", "...: cast"; 0.49.2, review: "Press Enter to %s" read
-			-- "Press Enter to options" where the verb is a noun)
+			-- (what the press does, as the footer said it: "Press Enter: use", "...: cast")
 			local a = self.armedEntry
 			local enter, shift
-			if ns.Easy then enter, shift = ns.Easy.Verbs(a) end -- (not `x and f()`: that keeps only f's first result)
+			if ns.Easy then enter, shift = ns.Easy.Verbs(a) end -- (not `x and f`: that keeps only f's first result)
 			local verb = (rawget(a, "isShift") and shift) or enter or L["open"]
 			status:SetText(Theme.FixColors(HINT .. L["Press Enter: %s"]:format(verb) .. "|r  " .. a.name))
 			if hints then hints:Hide() end -- the armed line gets the whole footer
@@ -99,7 +98,7 @@ do
 			text = (groups == 1 and L["%d group"] or L["%d groups"]):format(groups) .. STATUS_SEP
 				.. (inside == 1 and L["%s result"] or L["%s results"]):format(inside)
 		end
-		-- ("| first 3": how many of how many; 0.66.7)
+		-- ("| first 3": how many of how many)
 		local agg = self.aggregate
 		if agg and agg.first and agg.firstOf and not agg.last and agg.firstOf > count and count > 0 then
 			text = L["%d of %d"]:format(count, agg.firstOf)
@@ -121,15 +120,15 @@ do
 		local to = self.sendTo
 		local selRow = UI.results[UI.sel]
 		if to and self.mode == "search" and selRow and selRow.catId then
-			-- (a category row selected: Enter picks it, the count says so; what's sent is in it. 0.63.7, review: it said
-			-- "Enter sends it to party", and sent the word "Items")
+			-- (a category row selected: Enter picks it, the count says so; what's sent is in it. it said "Enter sends
+			-- it to party", and sent the word "Items")
 		elseif to and to.drop and self.mode == "search" then
 			local n = to.all and self.groupRows and #self.groupRows
 			local say = (to.all and ((n or 0) == 0 and L["nothing to drop"] or (n == 1 and L["Enter drops it: Terminal asks first"] or L["Enter drops all %s: Terminal asks first"]:format(n))))
 				or L["Enter drops it: Terminal asks first"]
 			text = Prepend(HINT .. say .. "|r", text)
 		elseif to and to.quests and self.mode == "search" then
-			-- (">>>": the one row's own word when it does nothing: "no quest in your log among the results"; 0.63.7, review)
+			-- (">>>": the one row's own word when it does nothing: "no quest in your log among the results")
 			local row = UI.results[1]
 			local say = to.all and ((row and row.noActivate and row.detail) or L["Enter changes the tracker for the quests listed"])
 				or (to.quests == "untrack" and L["Enter untracks it"]) or (to.quests == "only" and OnlyFooter(selRow))
@@ -165,7 +164,7 @@ do
 		if self.flightNote and self.mode == "search" and count > 0 then text = Append(text, HINT .. self.flightNote .. "|r") end
 		-- (recipes you don't know listed, a profession's window that would list more not read yet: MissingRecipes.lua)
 		if self.missingNote and self.mode == "search" and count > 0 then text = Append(text, HINT .. self.missingNote .. "|r") end
-		-- (upgrades weighed: how to judge them otherwise, with them listed or none; Search.lua's UI:Search, 0.65.9)
+		-- (upgrades weighed: how to judge them otherwise, with them listed or none; Search.lua's UI:Search)
 		if self.weightsNote and self.mode == "search" then text = Append(text, HINT .. self.weightsNote .. "|r") end
 		if busy and busy:IsShown() then text = Append(text, L["loading..."]) end
 		-- (a search run again in the background found more: UI.held, shown on F5)
@@ -175,7 +174,7 @@ do
 		-- (an addon the line reaches for that isn't installed: which one to add, on a line of its own; Setup.lua)
 		local I = ns.Integrations
 		local missing = self.mode == "search" and not self.bare and I and I.MissingHint and UI.edit and I.MissingHint(UI.edit:GetText()) or nil
-		-- (a typed search that found nothing: where to say so, .report, on that same line; 0.67.11. Simple mode's row says it)
+		-- (a typed search that found nothing: where to say so, .report, on that same line. Simple mode's row says it)
 		if not missing and count == 0 and self.mode == "search" and not self.bare and not (self.fzf or self.histSearch)
 			and ns.Report and UI.edit and UI.edit:GetText():find("%S") then
 			missing = ns.Report.HINT
@@ -195,10 +194,8 @@ do
 	end
 end
 
---- What Enter does to the selected row while ">> party", ">> drop", ">> track"... is typed: the one verb (false: none, no
---- channel yet), or nil when the row's own verbs stand (">>>", a category to pick, a heading). Both modes (0.63.7, review:
---- Simple mode's hints said "use" while its footer said where it went). (review, 0.48.6: the hints said "Enter open"
---- while the status line said where it would be sent)
+--- What Enter does to the selected row while ">> party", ">> drop", ">> track"... is typed: the one verb (false: none,
+--- no channel yet), or nil when the row's own verbs stand (">>>", a category to pick, a heading). Both modes.
 local function SendVerb(self, sel)
 	local to = self.sendTo
 	if not (to and not to.all and self.mode == "search" and sel) then return nil end
@@ -348,9 +345,9 @@ local function NavTick()
 			r.dist:SetText(L["%d yd"]:format(shown))
 		end
 	end
-	-- where: the slot before the distance's column (the same place on every such row); else just left of the
-	-- detail's text as shown (cut to the room it has: a long one is cut off, never wider)
-	-- (measured when the row or its text changes, not every frame the arrow turns: review, 0.53.6)
+	-- where: the slot before the distance's column (the same place on every such row); else just left of the detail's
+	-- text as shown (cut to the room it has: a long one is cut off, never wider) (measured when the row or its text
+	-- changes, not every frame the arrow turns: review)
 	local w = 0
 	if not r.distShown then
 		local text, room = r.detail:GetText(), r.detail:GetWidth()
@@ -442,16 +439,16 @@ end
 
 -- An item row drawn before the game had that item (its quality: the colour, read as it's drawn) came out white, and
 -- stayed so until it was drawn again (scrolled off and back; the player's screenshot of loot lists). Such an item is
--- asked for, and the rows on screen are drawn again once it comes: on its GET_ITEM_INFO_RECEIVED / ITEM_DATA_LOAD_RESULT,
--- and, as the server answers late while thousands of AtlasLoot items are asked for (0.51.7: an item given up on after
--- 10 s, and never asked for again that session, stayed white), looked at every UI.COLOR_POLL s while the terminal is
--- open; asked for again every UI.COLOR_REASK s, given up on after UI.COLOR_POLLS looks (drawn again: waited for anew).
+-- asked for, and the rows on screen are drawn again once it comes: on its GET_ITEM_INFO_RECEIVED /
+-- ITEM_DATA_LOAD_RESULT, and, as the server answers late while thousands of AtlasLoot items are asked for, looked at
+-- every UI.COLOR_POLL s while the terminal is open; asked for again every UI.COLOR_REASK s, given up on after
+-- UI.COLOR_POLLS looks (drawn again: waited for anew).
 UI.COLOR_POLL, UI.COLOR_POLLS, UI.COLOR_REASK = 1, 60, 5
 local colorWait = { ids = {}, n = 0, asked = {}, queued = false, polling = false }
 UI.colorWait = colorWait -- (tests)
 local function ColorWaitDone()
 	for k in pairs(colorWait.ids) do colorWait.ids[k] = nil end
-	-- (when each was last asked for: let go with the wait, not kept for every item ever drawn; review, 0.51.25)
+	-- (when each was last asked for: let go with the wait, not kept for every item ever drawn)
 	for k in pairs(colorWait.asked) do colorWait.asked[k] = nil end
 	colorWait.n = 0
 	local f = colorWait.frame
@@ -553,7 +550,7 @@ end
 --- of the row (cut there when both are long), the detail the rest.
 UI.NAME_SHARE = 0.4
 local function FitDetail(r)
-	-- (measured when the row's texts or the layout change, not on every render; release review, 0.63.0)
+	-- (measured when the row's texts or the layout change, not on every render)
 	local name, detail = r.label:GetText(), r.detail:GetText()
 	if r.fitName == name and r.fitDetail == detail and r.fitSpan == LY.SPAN and r.fitBase == LY.DETAIL_W and type(r.detailW) == "number" then return end
 	r.fitName, r.fitDetail, r.fitSpan, r.fitBase = name, detail, LY.SPAN, LY.DETAIL_W
@@ -611,8 +608,7 @@ local function FillRow(self, r, e, light)
 	local yd, rest
 	if not from and rawget(e, "_dist") and type(e.detail) == "string" then yd, rest = e.detail:match("^(%d+ yd)%s*(.*)$") end
 	if yd then
-		-- how far, in its column after the arrow's slot; what it is after that: every such row lines up (0.45.18, the
-		-- player's screenshot: the arrow sat wherever the text began, a different place on every row)
+		-- how far, in its column after the arrow's slot; what it is after that: every such row lines up
 		r.distShown, r.distRest = true, rest
 		r.dist:SetText(L["%d yd"]:format(tonumber(yd:match("%d+")) or 0)) -- (the detail says "N yd" in English: read here)
 		r.dist:Show()
@@ -732,7 +728,7 @@ function UI:FitHeight(text) -- (text: the prompt's text about to be set, on open
 	if not frame then return end
 	local n = math.max(0, math.min(LY.ROWS, #UI.results - UI.offset))
 	-- nothing typed yet: just the prompt, no divider, no footer. Once something is typed the footer stays, in both
-	-- modes, even when nothing was found (0.43.4: Simple mode hid it then, and the player lost what the keys do)
+	-- modes, even when nothing was found
 	local bare = #UI.results == 0 and self.mode == "search" and not self.sendTo
 		and not (text or (edit and edit:GetText()) or ""):find("%S")
 	if bare ~= (self.bare or false) then
@@ -784,8 +780,8 @@ function UI:SetSelectionY(y)
 	selBar:ClearAllPoints()
 	selBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 6, y)
 	selBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, y)
-	-- (every frame of a glide: only the bar moves; its height when the theme's rows change, the edge anchored to it once.
-	-- Review, 0.53.6)
+	-- (every frame of a glide: only the bar moves; its height when the theme's rows change, the edge anchored to it
+	-- once.)
 	if selBar.h ~= LY.ROW_H then selBar.h = LY.ROW_H; selBar:SetHeight(LY.ROW_H) end
 	if not selEdge.anchored then
 		selEdge.anchored = true

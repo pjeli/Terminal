@@ -4,8 +4,8 @@ if not ns then return end
 local L = ns.L
 
 -- The console's commands that look around (ls, cd, pwd, tree, find, locate, cat, head, tail, stat, file) and those that
--- make what was piped in into something else (sort, uniq, wc, cut...): split from Shell.lua as they were (0.69.8).
--- Shell.lua is the shell: reading a line, running it, the commands' registry and what they share.
+-- make what was piped in into something else (sort, uniq, wc, cut...): split from Shell.lua as they were. Shell.lua is
+-- the shell: reading a line, running it, the commands' registry and what they share.
 
 local FS = ns.ConsoleFS
 local SH = ns.Shell
@@ -552,8 +552,8 @@ SH.Command("grep", {
 			["--invert-match"] = "v", ["--recursive"] = "r", ["--files-with-matches"] = "l", ["--after-context"] = "A",
 			["--before-context"] = "B", ["--context"] = "C", ["--with-filename"] = "H", ["--no-filename"] = "h" })
 		if not opts then io.err(rest) return 2 end
-		-- (-A/-B/-C: the lines around each match, as GNU grep prints them: "file-N-" before a line around one, "file:N:"
-		-- before a match, "--" between groups apart; 1.0.74, the player's ask)
+		-- (-A/-B/-C: the lines around each match, as GNU grep prints them: "file-N-" before a line around one,
+		-- "file:N:" before a match, "--" between groups apart)
 		local around = {}
 		for _, k in ipairs({ "A", "B", "C" }) do
 			if opts[k] ~= nil then
@@ -1102,8 +1102,7 @@ SH.Command("sed", {
 			local p = Strip(l)
 			local out, pos = {}, 1
 			while pos <= #p do
-				-- (matched in the whole line from pos: ^ and \b are the line's, not each new position's; 1.0.88, review:
-				-- s/^a/b/g made "aaa" "bbb")
+				-- (matched in the whole line from pos: ^ and \b are the line's, not each new position's)
 				local s, e = match(p, pos)
 				if not s then break end
 				out[#out + 1] = p:sub(pos, s - 1)

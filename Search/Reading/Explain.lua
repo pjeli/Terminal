@@ -8,9 +8,9 @@ local E = ns.Easy
 local Lower = ns.Lower
 
 ----------------------------------------------------------------------
--- An Advanced line read back in plain words (0.66.9, the player: "the explain; reverse Alt+`"): .explain <line>, or the
--- last line you ran. "@npc is:vendor sells:arrow faction:friendly sort:distance" -> "Friendly vendors that sell arrow,
--- nearest first". For lines pasted by others, old aliases, and learning the syntax.
+-- An Advanced line read back in plain words: .explain <line>, or the last line you ran. "@npc is:vendor sells:arrow
+-- faction:friendly sort:distance" -> "Friendly vendors that sell arrow, nearest first". For lines pasted by others, old
+-- aliases, and learning the syntax.
 ----------------------------------------------------------------------
 local KIND_NOUN = { npc = L["NPCs"], items = L["items"], gear = L["gear you wear"], quests = L["quests in your log"],
 	questie = L["quests"], spells = L["spells"], classspells = L["class spells"], talents = L["talents"], loot = ns.Lower(L["Loot"]),
@@ -31,16 +31,16 @@ local IS_SAY = { vendor = L["vendors"], trainer = L["trainers"], classtrainer = 
 	auctioneer = L["auctioneers"], questgiver = L["quest givers"], stablemaster = L["stable masters"], spirithealer = L["spirit healers"],
 	battlemaster = L["battlemasters"], weaponmaster = L["weapon masters"], upgrade = L["upgrades for you"],
 	reward = ns.Lower(L["Quartermaster rewards"]), rewards = ns.Lower(L["Quartermaster rewards"]), ability = ns.Lower(L["Pet abilities"]),
-	inn = L["innkeepers"], bank = L["bankers"], flight = L["flight masters"] } -- (the filters' short words too; 1.0.86, review)
+	inn = L["innkeepers"], bank = L["bankers"], flight = L["flight masters"] } -- (the filters' short words too)
 local IS_ADJ = { boe = L["bind on equip"], soulbound = L["soulbound"], usable = L["usable"], equippable = L["equippable"],
-	foryou = L["for your race and class"], cantake = L["you can take"], itemstart = L["started by an item"], started = L["under way"], -- (1.0.79)
+	foryou = L["for your race and class"], cantake = L["you can take"], itemstart = L["started by an item"], started = L["under way"],
 	done = L["done"], todo = L["not done yet"], complete = L["complete"], ready = L["ready"], craftable = L["craftable"],
 	skillup = L["giving skill"], known = L["known"], unknown = L["not known yet"], learnable = L["learnable now"],
 	unread = L["unread"], expiring = L["running out"], enchanted = L["enchanted"], unenchanted = L["unenchanted"],
 	favorite = L["favorite"], tracked = L["tracked"], untracked = L["untracked"], online = L["online"], offline = L["offline"],
 	dead = L["dead"], grey = L["grey"], sold = L["sold"], listed = L["listed"], mine = L["yours"],
 	canbuy = ns.Lower(L["Can buy now"]), buyable = ns.Lower(L["Can buy now"]), tameable = L["tameable"], tamable = L["tameable"],
-	-- (1.0.62-1.0.64's: an NPC's rank, a quest's repeating; review, 1.0.70)
+	-- (1.0.62-1.0.64's: an NPC's rank, a quest's repeating)
 	elite = ns.Lower(L["Elite"]), rare = ns.Lower(L["Rare"]), rareelite = ns.Lower(L["Rare Elite"]), boss = ns.Lower(L["Boss"]),
 	worldboss = ns.Lower(L["Boss"]), daily = ns.Lower(L["Daily"]), repeatable = ns.Lower(L["Repeatable"]) }
 -- (source:, where loot comes from: its words, English)
@@ -152,16 +152,16 @@ local function FilterSay(key, val)
 	elseif key == "trainer" then return { after = L["who teach %s"]:format(v) }
 	elseif key == "near" then return { after = L["within %s yards"]:format(RangeSay(v)) }
 	elseif key == "reward" or key == "rewards" then return { after = L["rewarding %s"]:format(v) }
-	elseif key == "prof" or key == "profession" then return { after = L["of %s"]:format((v:gsub("_", " "))) } -- (1.0.78)
-	elseif key == "skill" then return { after = L["that need %s"]:format(v == "any" and L["a profession"] or v) } -- (1.0.64)
-	elseif key == "repreward" then return { after = L["rewarding %s"]:format(v .. " " .. ns.Lower(L["Reputation"])) } -- (1.0.63)
+	elseif key == "prof" or key == "profession" then return { after = L["of %s"]:format((v:gsub("_", " "))) }
+	elseif key == "skill" then return { after = L["that need %s"]:format(v == "any" and L["a profession"] or v) }
+	elseif key == "repreward" then return { after = L["rewarding %s"]:format(v .. " " .. ns.Lower(L["Reputation"])) }
 	elseif key == "standing" or key == "rep" then return { after = L["at %s"]:format(RangeSay(v)) }
 	elseif key == "source" or key == "src" then return { after = L["from %s"]:format(SOURCE_SAY[v] or v) }
 	elseif key == "since" then return { after = SinceSay(v) }
 	elseif key == "older" or key == "before" then return { after = v:find("^%d") and L["older than %s"]:format(TimeSay(v)) or L["from before %s"]:format(TimeSay(v)) }
 	elseif key == "class" then return { after = L["of the %s class"]:format(v) }
 	elseif key == "when" then return { after = L["on the calendar %s"]:format(TIME_SAY[v] or v) }
-	-- (what a spell does, 0.68.8)
+	-- (what a spell does)
 	elseif key == "cast" then
 		if v == "instant" then return { adj = L["instant"] } end
 		if v == "channeled" or v == "channelled" or v == "channel" then return { adj = L["channeled"] } end
@@ -187,7 +187,7 @@ function E.SayFilter(word)
 	if type(word) ~= "string" then return nil end
 	local lw = Lower(word)
 	-- (as F.Parse reads it: "-a|b" neither, the word's "-"; "-a|-b", a piece with a "-" of its own: each piece's is its
-	-- own, "not a or not b". Review, 1.0.32: it said "not (a or -b)")
+	-- own, "not a or not b". it said "not (a or -b)")
 	local own = lw:find("[|&][-!]") ~= nil
 	local firstNeg = own and lw:find("^[-!]") ~= nil
 	local neg = not own and lw:find("^[-!]") ~= nil
@@ -287,7 +287,7 @@ function E.Explain(line)
 					local j = Join(field)
 					if j then say = say or {}; say[field] = j end
 				end
-				-- ("stat:||", only bars: no value to say; it errored, 0.68.9, review)
+				-- ("stat:||", only bars: no value to say; it errored)
 				say = say or first or { after = lw }
 				if neg then
 					after[#after + 1] = L["not %s"]:format(say.noun or say.adj or say.after or lw)

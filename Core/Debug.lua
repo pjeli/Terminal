@@ -148,7 +148,7 @@ local function OnAction(event, addon, func)
 		for _, l in ipairs(Describe(ev)) do print("|cffff5555Terminal|r " .. l) end
 	else
 		ns:Print(L["Blocked %s (%s). Type /term .debug log for what led to it."]:format(tostring(func), event == "ADDON_ACTION_FORBIDDEN" and L["forbidden"] or L["blocked"]))
-		if ns.Report then ns.Report.Nudge() end -- (where to tell the author: once a session; 0.67.11)
+		if ns.Report then ns.Report.Nudge() end -- (where to tell the author: once a session)
 	end
 end
 
@@ -216,7 +216,7 @@ function D.Set(on)
 end
 
 -- (D.Log and D.Report stay in English on every client, as the trace does: they're copied into bug reports for the
--- author to read, not read in the game; what the player is told goes through L[]. 0.63.7, review)
+-- author to read, not read in the game; what the player is told goes through L[].)
 function D.Log(n)
 	local lines = {}
 	if #events == 0 then
@@ -302,8 +302,8 @@ ns:RegisterCommand("debug", {
 			for i = #trace, 1, -1 do trace[i] = nil end
 			out = { L["Cleared."] }
 		elseif arg == "reset" then
-			-- (a call blocked once, outside combat, is never tried again on any character: a passing restriction kept it
-			-- off for good; review, 0.48.6)
+			-- (a call blocked once, outside combat, is never tried again on any character: a passing restriction kept
+			-- it off for good)
 			local calls = D.BlockedCalls()
 			if ns.db then ns.db.blockedCalls = {} end
 			out = { #calls > 0 and L["Terminal will try these again: %s"]:format(table.concat(calls, ", ")) or L["No call was blocked."] }
@@ -316,7 +316,6 @@ ns:RegisterCommand("debug", {
 				out = D.Report()
 			end
 		elseif D.PARTS[arg] then
-			-- (0.65.12: .talentdebug and .profdebug, as parts of .debug)
 			out = D.PARTS[arg]()
 		elseif arg == "" then
 			out = { L["Debug is %s  (taintLog %s)  -  .debug on | off | log | clear | reset"]:format(Live() and L["ON"] or L["off"], tostring(Cvar("taintLog"))),

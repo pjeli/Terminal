@@ -16,7 +16,7 @@ local L = ns.L
 --- Does the NPC have this role (Questie's npcFlags; its numbers differ between game versions)?
 local function NpcRole(e, flagName)
 	if not NpcID(e) then return false end
-	local roles = rawget(e, "roles") -- (a row that says its own: TrainerSpells' trainers; 0.57.1)
+	local roles = rawget(e, "roles") -- (a row that says its own: TrainerSpells' trainers)
 	if roles then return roles[flagName] == true end
 	local flags = NpcField(e, "npcFlags")
 	if type(flags) ~= "number" then return false end -- (before asking for the database's flag names: most rows)
@@ -73,7 +73,7 @@ local function Places(e, v)
 		return false
 	end
 	if e.slotId and ("equipped"):find(v, 1, true) then return true end
-	-- (your own bags' rows say "x5  Backpack", "Bag 2": in:bags is them; 0.50.7, review: only @stored rows matched it)
+	-- (your own bags' rows say "x5  Backpack", "Bag 2": in:bags is them)
 	if e.firstBag ~= nil and ("bags"):find(v, 1, true) then return true end
 	if e.noPlace then return false end -- (a list whose detail never says a place: Achievements)
 	local d = LowerField(e, "detail", "_ldetail", "_ldetailOf")
@@ -180,8 +180,8 @@ local function Sellers(v)
 	return c
 end
 
---- The plain in: test for a place's name: a row with it in its text or where it is (Places.lua's PlaceFilter ends in it;
---- review, 0.53.6: it parsed "in:<place>", which found the place again and made a second place filter inside it).
+--- The plain in: test for a place's name: a row with it in its text or where it is (Places.lua's PlaceFilter ends in
+--- it).
 function F.InPlaceText(v) return function(e) return Places(e, v) end end
 
 KEYS["in"] = function(v)
@@ -204,15 +204,15 @@ KEYS["in"] = function(v)
 	return function(e) return Places(e, v) end
 end
 -- (your quest log: the heading a quest is listed under, its spaces and punctuation aside: in:"thunder bluff",
--- in:thunderbluff; a quest whose text names the place isn't in it. 0.63.5, the player: Alt+` on "untrack thunder bluff
--- quests" took in quests that only mention Thunder Bluff)
+-- in:thunderbluff; a quest whose text names the place isn't in it. Alt+` on "untrack thunder bluff quests" took in
+-- quests that only mention Thunder Bluff)
 do
 	local InPlace = KEYS["in"]
 	KEYS["in"] = function(v)
 		local base = InPlace(v)
 		if not base then return nil end
 		-- (the place's own name when it's one Terminal knows, or a shorthand's: in:rfc, in:tb, in:sw is Stormwind, not
-		-- the Swamp of Sorrows; else the words as typed. 0.63.7, review)
+		-- the Swamp of Sorrows; else the words as typed.)
 		local wants = {}
 		local I = ns.Integrations
 		local words = {}
@@ -274,7 +274,7 @@ local function TrainerTitle(e)
 	if sub:find("trainer", 1, true) or sub:find("instructor", 1, true) or NpcRole(e, "TRAINER") then return sub end
 end
 
--- PvP NPCs (0.43.5): "nearby battlemaster" listed anything with "battle" in it, of either faction
+-- PvP NPCs: "nearby battlemaster" listed anything with "battle" in it, of either faction
 local function NpcTitle(e)
 	if not NpcID(e) then return nil end
 	local sub = EnglishTitle(e)
@@ -329,7 +329,7 @@ end
 --- Your class as the trainers' titles write it ("warrior", "death knight"), from the game's class token; while
 --- Terminal answers someone's !t question, theirs (Core/Ask.lua's ns.Asker).
 local function MyClass()
-	-- (WARRIOR: the same in every language. An asker whose class isn't known has none, not yours; 0.68.5, review)
+	-- (WARRIOR: the same in every language. An asker whose class isn't known has none, not yours)
 	local token
 	if ns.Asker then token = ns.Asker.class else token = UnitClass and select(2, UnitClass("player")) end
 	if type(token) ~= "string" then return nil end
@@ -351,8 +351,7 @@ F.ProfNamed = ProfNamed -- (Simple mode: "enchanting trainer" is trainer:enchant
 local function AnyClassTrainer(e) local sub = TrainerTitle(e); return sub and ClassOf(sub) ~= nil or false end
 local function AnyProfTrainer(e) local sub = TrainerTitle(e); return sub and ProfOf(sub) ~= nil or false end
 
--- weapon skills by the words for them (0.53.9, the player: "dagger trainer" found no one; weapon masters' titles say
--- "Weapon Master", not what they teach): their spell ids (What's Training's); the client's own names asked of the game
+-- weapon skills by the words for them: their spell ids (What's Training's); the client's own names asked of the game
 F.WEAPON_SKILLS = { dagger = { 1180 }, daggers = { 1180 }, sword = { 201, 202 }, swords = { 201, 202 }, axe = { 196, 197 },
 	axes = { 196, 197 }, mace = { 198, 199 }, maces = { 198, 199 }, staff = { 227 }, staves = { 227 }, polearm = { 200 },
 	polearms = { 200 }, bow = { 264 }, bows = { 264 }, gun = { 266 }, guns = { 266 }, crossbow = { 5011 }, crossbows = { 5011 },
@@ -451,7 +450,7 @@ KEYS.faction = function(v)
 	local want = FACTION[v]
 	local mine = v == "friendly" or v == "mine" or v == "me"
 	if not (want or mine) then return nil end
-	local w -- (yours: asked once per search, not per row; review, 0.53.6)
+	local w -- (yours: asked once per search, not per row)
 	return function(e)
 		local f
 		if NpcID(e) then f = NpcField(e, "friendlyToFaction")
@@ -479,7 +478,7 @@ KEYS.near = function(v)
 	return function(e)
 		if not (I and I.RowYards) or not (NpcID(e) or e.wcont) then return false end
 		if here == nil then here = I.Here and I.Here() or false end
-		-- (Questie's NPCs, and @mailbox rows; the yards alone: RowDistance made a spot table per NPC; 0.50.7, review)
+		-- (Questie's NPCs, and @mailbox rows; the yards alone: RowDistance made a spot table per NPC)
 		local d = here and I.RowYards(e, here)
 		return d and r(d) or false
 	end
@@ -489,27 +488,25 @@ KEYS.within, KEYS.dist = KEYS.near, KEYS.near
 -- sort:distance: not a filter (every row stays); SearchText reads it and puts Questie NPCs closest first, with how far.
 -- sort:plan: your recipes that still give skill, by how many times your materials make each (Search/Questions/Plan.lua)
 -- sort:best: with is:upgrade, the biggest upgrades first (F.GainOf; Simple mode's "upgrades" sorts so on its own)
--- (0.65.7, the player: "sort:distance ideally", the nearest first; sort:-distance the farthest: as said, sort:farthest)
 F.SORTS = { distance = "distance", dist = "distance", nearest = "distance", near = "distance", closest = "distance",
 	farthest = "-distance", furthest = "-distance", far = "-distance",
 	plan = "plan", leveling = "plan", levelling = "plan", best = "best", gain = "best",
-	-- (0.55.1: by what the rows have, as Simple mode's bar sorts; Bar.lua's B.SortRows)
 	name = "name", alpha = "name", az = "name", level = "level", lvl = "level", ilvl = "ilvl", itemlevel = "ilvl",
 	quality = "quality", q = "quality", value = "value", worth = "value", count = "count", qty = "count",
-	progress = "progress", done = "progress", -- (1.0.59: the closest to done first)
+	progress = "progress", done = "progress",
 	damage = "damage", hit = "damage", biggest = "damage", line = "line", lines = "line", owner = "owner", owners = "owner",
 	standing = "standing", rep = "standing", reputation = "standing",
-	list = "list", listed = "list", order = "list", -- (the lists' own order, never your picks first; 1.0.77)
-	grey = "grey", gray = "grey", -- (grey quests first, then by level; 1.0.78)
-	cantake = "cantake", need = "need", easiest = "need" } -- (1.0.79: Rewards.lua's, Aggregate's)
--- the sorts that don't turn round: the plan's, the biggest upgrades (a field's do: sort:-level; distance too, 0.65.7)
+	list = "list", listed = "list", order = "list", -- (the lists' own order, never your picks first)
+	grey = "grey", gray = "grey", -- (grey quests first, then by level)
+	cantake = "cantake", need = "need", easiest = "need" }
+-- the sorts that don't turn round: the plan's, the biggest upgrades (a field's do: sort:-level; distance too)
 local NO_REVERSE = { plan = true, best = true }
 --- A sort's field and whether it's turned round: "-level" -> "level", true; "level" -> "level", false.
 function F.SortParts(id)
 	if type(id) == "string" and id:sub(1, 1) == "-" then return id:sub(2), true end
 	return id, false
 end
---- "level" -> "level", "-level" -> "-level" (the other way round, 0.65.5), "farthest" -> "-distance", "-farthest" ->
+--- "level" -> "level", "-level" -> "-level" (the other way round), "farthest" -> "-distance", "-farthest" ->
 --- "distance"; else nil.
 local function SortId(v)
 	local neg, name = v:match("^(%-?)(%a+)$")
@@ -520,9 +517,9 @@ local function SortId(v)
 	if neg == "-" then rev = not rev end
 	return rev and ("-" .. base) or base
 end
--- Sort by more than one field (0.66.4, the player): sort:quality,-level is by quality, then on a tie by level, the
--- lowest first; as many as typed. Distance too (0.66.16, the player's sort:level,distance: the level, the nearest first
--- among equals); plan and best sort their own ways, so they stand alone.
+-- Sort by more than one field: sort:quality,-level is by quality, then on a tie by level, the lowest first; as many as
+-- typed. Distance too (0.66.16, the player's sort:level,distance: the level, the nearest first among equals); plan and
+-- best sort their own ways, so they stand alone.
 local NOT_THEN = { plan = true, best = true }
 --- "quality,-level" -> "quality,-level" (each part as SortId says it), "nearest" -> "distance"; nil when a part isn't a
 --- sort, or distance, plan or best are in a list of several.
@@ -556,7 +553,7 @@ function F.SortOf(word)
 end
 KEYS.sells = function(v)
 	if v == "" then return nil end
-	-- sells:upgrade: a vendor whose stock holds a clear upgrade for you (0.66.12; Rewards.lua's QR.VendorUpgrades)
+	-- sells:upgrade: a vendor whose stock holds a clear upgrade for you (Rewards.lua's QR.VendorUpgrades)
 	if v == "upgrade" or v == "upgrades" then
 		local by
 		return function(e)
@@ -586,7 +583,7 @@ KEYS.sold = KEYS.sells
 IS.classtrainer = AnyClassTrainer
 IS.proftrainer = AnyProfTrainer
 IS.battlemaster = Battlemaster
--- weapon masters, by their title (0.56.8: "weapon master" alone)
+-- weapon masters, by their title
 IS.weaponmaster = function(e) local t = NpcTitle(e); return t ~= nil and t:find("weapon master", 1, true) ~= nil end
 IS.weaponmasters = IS.weaponmaster
 IS.pvpvendor = PvpVendor
@@ -596,16 +593,15 @@ local ROLES = { vendor = "VENDOR", trainer = "TRAINER",
 	innkeeper = "INNKEEPER", inn = "INNKEEPER", banker = "BANKER", bank = "BANKER", repair = "REPAIR",
 	auctioneer = "AUCTIONEER", questgiver = "QUEST_GIVER", stablemaster = "STABLEMASTER" }
 for word, flag in pairs(ROLES) do IS[word] = function(e) return NpcRole(e, flag) end end
--- spirit healers (0.50.5, the player's ask: "nearest spirit healer"): Questie's flag for them (its names for it differ by
--- version), else the Spirit Healer himself (6491) or one called that
+-- spirit healers: Questie's flag for them (its names for it differ by version), else the Spirit Healer himself (6491)
+-- or one called that
 local SPIRIT_IDS = { [6491] = true, [13116] = true, [13117] = true } -- (the Spirit Healer; the battlegrounds' Spirit Guides)
 local SPIRIT_NAME, SPIRIT_LNAME = "spirit healer", Lower(L["Spirit Healer"])
 function IS.spirithealer(e)
 	local id = NpcID(e)
 	if not id then return false end
 	if SPIRIT_IDS[id] or NpcRole(e, "SPIRIT_HEALER") or NpcRole(e, "SPIRITHEALER") or NpcRole(e, "SPIRIT_GUIDE") then return true end
-	-- (the row's own name, lowercased already: Questie's database asked for every NPC's name made each search slow;
-	-- 0.50.7, review)
+	-- (the row's own name, lowercased already: Questie's database asked for every NPC's name made each search slow)
 	local n = rawget(e, "_lname") or Lower(tostring(e.name or ""))
 	return n == SPIRIT_NAME or n == SPIRIT_LNAME
 end
@@ -616,10 +612,10 @@ IS.flight, IS.flightmaster = FlightMaster, FlightMaster
 -- flight paths: learned or not, as a flight master's map (or the world map's data) said; one not checked yet counts as
 -- not learned (it may be)
 IS.flightpath = function(e) return e.kind == "flight" end
--- (1.0.9) a hunter's pet ability ranks (@spell's since 1.0.37, @tame's before)
+-- a hunter's pet ability ranks (@spell's since 1.0.37, @tame's before)
 IS.ability = function(e) return e.kind == "spells" and e.ability ~= nil end -- (a view on one too: not rawget)
--- (1.0.62, the reach audit) an NPC's rank, Questie's: is:elite (rare elites too), is:rare (rare elites too), is:rareelite,
--- is:boss (a world boss's); OneForAll's rare beasts are is:rare as well. q:rare stays an item's quality
+-- an NPC's rank, Questie's: is:elite (rare elites too), is:rare (rare elites too), is:rareelite, is:boss (a world
+-- boss's); OneForAll's rare beasts are is:rare as well. q:rare stays an item's quality
 local function RankIs(set)
 	return function(e)
 		if e.kind ~= "npc" then return false end
@@ -632,7 +628,7 @@ local function RankIs(set)
 end
 IS.elite, IS.rare, IS.rareelite, IS.boss = RankIs("elite"), RankIs("rare"), RankIs("rareelite"), RankIs("boss")
 IS.worldboss = IS.boss
--- (1.0.37) the beasts a hunter can tame: Questie's NPCs OneForAll lists, and its own (the questions' answers)
+-- the beasts a hunter can tame: Questie's NPCs OneForAll lists, and its own (the questions' answers)
 IS.tameable = function(e)
 	if e.kind ~= "npc" then return false end
 	if e.tameable == true then return true end
@@ -640,14 +636,13 @@ IS.tameable = function(e)
 	return H ~= nil and H.BeastOf ~= nil and H.BeastOf(e.npcID) ~= nil
 end
 IS.tamable = IS.tameable
--- (1.0.27) @reputation's quartermaster rewards (OneForAll's), and those your standing lets you buy
+-- @reputation's quartermaster rewards (OneForAll's), and those your standing lets you buy
 IS.reward = function(e) return e.kind == "reputation" and e.repReward == true end
 IS.rewards = IS.reward
 IS.canbuy = function(e) return e.kind == "reputation" and e.repReward == true and e.canBuy == true end
 IS.buyable = IS.canbuy
--- (0.45.14) recipes too: yours are learned; the ones you don't know yet (MissingRecipes.lua) aren't, and is:learnable
--- keeps those your skill already allows
--- (0.54.6: spells too, @spell listing the ones you don't know yet: is:known keeps to your spellbook, as @spell did before)
+-- recipes too: yours are learned; the ones you don't know yet (MissingRecipes.lua) aren't, and is:learnable keeps those
+-- your skill already allows
 IS.learned = function(e)
 	return (e.kind == "flight" and e.learned == true) or e.kind == "recipes" or (e.kind == "spells" and e.ability == nil)
 		or ((e.kind == "classspells" or IS.ability(e)) and rawget(e, "known") == true)

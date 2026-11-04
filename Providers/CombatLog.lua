@@ -30,8 +30,6 @@ CB.state = { events = 0, secret = 0, blocked = false } -- (for .combatlog)
 local function Dirty() ns:Changed("combatlog") end
 
 --- Adds an entry: { t, what = "crit"/"critby"/"killed"/"died", who, spell, amount, overkill, zone, guid, char }.
---- (0.49.2, review: the log is the account's, kept across characters: each entry says whose it is, so "what killed me"
---- on one character doesn't answer with another's death)
 function CB.Add(e)
 	local log = Log()
 	if not log then return end
@@ -70,7 +68,7 @@ local DAMAGE = {
 	ENVIRONMENTAL_DAMAGE = { 13, 14, 19, env = 12 },
 }
 
---- One combat log event, given its values as the game lists them (CombatLogGetCurrentEventInfo()).
+--- One combat log event, given its values as the game lists them (CombatLogGetCurrentEventInfo).
 function CB.OnCombatEvent(...)
 	local st = CB.state
 	st.events = st.events + 1
@@ -134,9 +132,9 @@ function CB.Listen(frame)
 	return ok and true or false, "the game refused it to addons"
 end
 
--- The game's Death Recap (C_DeathRecap: WoW Forever has it, 0.43.17): what hit you last before you died, even where the
--- combat log is kept from addons. Each death has a recap id (the chat's "[Death Recap]" link: |Hdeath:<id>|h); the
--- newest is found by asking HasRecapEvents up from the last one seen, or read from that chat link when it comes.
+-- The game's Death Recap (C_DeathRecap: WoW Forever has it): what hit you last before you died, even where the combat
+-- log is kept from addons. Each death has a recap id (the chat's "[Death Recap]" link: |Hdeath:<id>|h); the newest is
+-- found by asking HasRecapEvents up from the last one seen, or read from that chat link when it comes.
 local recapSeen, recapLink = 0, nil
 CB.RECAP_LOOK = 40 -- (ids asked past the last one seen)
 local Num = ns.Num -- (Util.lua: a number that isn't secret, else nil)
@@ -284,7 +282,7 @@ ns:RegisterProvider("combatlog", {
 	aliases = { "combatlog", "combat", "deaths", "crits" },
 	explicit = true,
 	refreshOnOpen = 60, -- (the "5 min ago" moves on: rebuilt on open when a minute old; new entries mark it dirty)
-	leadRow = ns.EmptyLead(L["Nothing recorded yet"], function() return #(Log() or {}) == 0 end), -- (0.49.2, review)
+	leadRow = ns.EmptyLead(L["Nothing recorded yet"], function() return #(Log() or {}) == 0 end),
 	collect = function()
 		local out, log = {}, Log() or {}
 		local n = #log
@@ -298,10 +296,10 @@ ns:RegisterProvider("combatlog", {
 				local other = d.guid and me and d.guid ~= me or nil
 				if other then parts[#parts + 1] = L["on %s"]:format(d.char or "?") end
 				out[#out + 1] = {
-					-- (by what it is, not its place: each new entry moved every older one's key, and picks never matched again;
-					-- review, 0.53.6)
+					-- (by what it is, not its place: each new entry moved every older one's key, and picks never
+					-- matched again)
 					key = table.concat({ d.t or 0, d.what, tostring(d.who), tostring(d.spell), tostring(d.amount) }, ":"), name = line, line = line, what = d.what, amount = d.amount, other = other,
-					at = d.t, -- (when: since:today; 0.66.8)
+					at = d.t, -- (when: since:today)
 					icon = (d.what == "died" or d.what == "killed") and "Interface\\Icons\\Ability_Rogue_FeignDeath"
 						or "Interface\\Icons\\Ability_CriticalStrike",
 					detail = table.concat(parts, ns.DETAIL_SEP),
@@ -356,7 +354,7 @@ function CB.QuestionFooter(kind, rows)
 		or L["Your biggest crits"]
 end
 
---- Forget the combat log kept: `.forget combatlog` (0.65.12: .combatlog is gone; "what killed me" and @combatlog read it).
+--- Forget the combat log kept: `.forget combatlog`.
 function CB.Clear()
 	if ns.db then ns.db.combatLog = {} end
 	Dirty()

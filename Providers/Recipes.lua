@@ -43,7 +43,7 @@ local function RecipeActivate(e) P.OpenRecipe(e.recipeID, e.profID, e.name) end
 -- (its profession's window showing, whatever its search or filters hide: P.WindowShows)
 local function RecipeIsOpen(e) return P.WindowShows(e.profID, e.profName, e.profWindow) end
 local function RecipeAfter(e)
-	-- (`parent`: the profession whose window it is, for SaveSnapshot to check against the window it reads; 0.49.2)
+	-- (`parent`: the profession whose window it is, for SaveSnapshot to check against the window it reads)
 	if e.profSpell then P.lastSpell = { name = e.profSpell, parent = e.profName, at = GetTime() } end
 	P.SelectRecipe(e.recipeID, e.name)
 end
@@ -67,10 +67,10 @@ local function DiffColor(d)
 	return DIFF_HEX[d]
 end
 
---- What opens a recipe in its window, on a row of its own (a recipe's, a camp's): the window's names, how the game opens
---- it, the link. castSpell: the spell that opens this profession's window (false: none), once per profession; worked
---- out here when not given. (Camping took a whole recipe row for these, its reagents' names asked of the server and
---- thrown away: review, 0.53.6.)
+--- What opens a recipe in its window, on a row of its own (a recipe's, a camp's): the window's names, how the game
+--- opens it, the link. castSpell: the spell that opens this profession's window (false: none), once per profession;
+--- worked out here when not given. (Camping took a whole recipe row for these, its reagents' names asked of the server
+--- and thrown away: review.)
 function P.RecipeOpenFields(profID, pdata, r, castSpell)
 	if castSpell == nil then castSpell = pdata.spell or P.WindowSpell(pdata.skillLine, pdata.name, pdata) or false end
 	castSpell = castSpell or nil
@@ -102,7 +102,7 @@ local function MakeEntry(profID, pdata, r, castSpell)
 		key = r.id,
 		name = r.name,
 		icon = r.icon,
-		color = DiffColor(r.diff), -- (every caller lists known recipes only: no "unlearned" grey; review, 0.53.6)
+		color = DiffColor(r.diff), -- (every caller lists known recipes only: no "unlearned" grey)
 		difficulty = r.diff, -- (is:skillup, is:orange...: as of the window's last read)
 		detail = ns.Detail(pdata.name),
 		text = table.concat(parts, " "),
@@ -154,10 +154,10 @@ ns:RegisterProvider("recipes", {
 				detail = L["open a profession once to index it"],
 				text = "recipes crafts crafting professions scan index reagents",
 				activate = function() P.Scan() end,
-				actionVerb = L["scan your professions"], -- (0.49.2, review: the footer said "show recipe")
+				actionVerb = L["scan your professions"],
 			}
-			-- (0.49.2, review) the game won't let addons open profession windows (WoW Forever: db.noDirectOpen): a scan
-			-- would only say so, so the row only says what indexes them
+			-- the game won't let addons open profession windows (WoW Forever: db.noDirectOpen): a scan would only say
+			-- so, so the row only says what indexes them
 			if ns.db and ns.db.noDirectOpen then
 				local n = out[1]
 				n.name = L["Open a profession's window once: Terminal reads its recipes from it"]
@@ -252,7 +252,7 @@ ns:RegisterProvider("professions", {
 		local Trainers = ns.TrainerSpells
 		for _, pr in ipairs((P.PlayerProfessions())) do
 			local opener = P.WindowSpell(pr.skillLine, pr.name)
-			-- (its next rank at a trainer, as TrainerSpells lists it: what it needs and costs; 0.57.1)
+			-- (its next rank at a trainer, as TrainerSpells lists it: what it needs and costs)
 			local nr = Trainers and Trainers.NextRank and Trainers.NextRank(pr)
 			local nextSaid = nr and ns.DETAIL_SEP .. (nr.now and "|cff40ff40" or "") .. L["next rank%s at skill %d"]:format(
 				nr.title and (" (" .. nr.title .. ")") or "", nr.skill) .. ((nr.cost or 0) > 0 and (": " .. ns.Money(nr.cost)) or "")
@@ -287,7 +287,6 @@ ns:RegisterCommand("profs", {
 	aliases = { "professions" },
 	run = function()
 		local lines = { L["Professions:"] }
-		-- (0.49.2, review: where the game won't let addons open profession windows, @recipe has no scan to pick)
 		local noScan = ns.db and ns.db.noDirectOpen
 		for _, pr in ipairs((P.PlayerProfessions())) do
 			local pd = P.FindIndexed(pr)
@@ -300,9 +299,8 @@ ns:RegisterCommand("profs", {
 	end,
 })
 
--- .profdebug : what the open profession window reports, for bug reports.
--- Printed to chat as well, so it can be copied.
--- (.debug professions, for bug reports; 0.65.12: it was .profdebug)
+-- .profdebug : what the open profession window reports, for bug reports. Printed to chat as well, so it can be copied.
+-- (.debug professions, for bug reports)
 if ns.Debug and ns.Debug.PARTS then
 	ns.Debug.PARTS["professions"] = function()
 			local function S(v)

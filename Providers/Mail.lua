@@ -18,11 +18,11 @@ local L = ns.L
 -- Read with the inbox's own calls only (GetInboxHeaderInfo, GetInboxItem, GetInboxInvoiceInfo, InboxItemCanDelete:
 -- what Forever's MailFrame.lua reads); never GetInboxText, which marks a mail read.
 --
--- Mail on its way (0.47.2, the player's ask): mail you send to anyone who isn't one of your characters is kept for an
--- hour (MA.SENT_KEEP: what mail with items or gold takes between accounts), and the auction house's news as the game
--- tells it (AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION: sold, won, outbid, expired; the classic chat lines too): a sold
--- auction's gold due about an hour later, with its price when Terminal saw the auction posted (C_AuctionHouse.PostItem
--- / PostCommodity hooked, then AUCTION_HOUSE_AUCTION_CREATED; or the Auctions tab's list, OWNED_AUCTIONS_UPDATED).
+-- Mail on its way: mail you send to anyone who isn't one of your characters is kept for an hour (MA.SENT_KEEP: what
+-- mail with items or gold takes between accounts), and the auction house's news as the game tells it
+-- (AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION: sold, won, outbid, expired; the classic chat lines too): a sold auction's
+-- gold due about an hour later, with its price when Terminal saw the auction posted (C_AuctionHouse.PostItem /
+-- PostCommodity hooked, then AUCTION_HOUSE_AUCTION_CREATED; or the Auctions tab's list, OWNED_AUCTIONS_UPDATED).
 
 local MA = {}
 ns.Mail = MA
@@ -145,10 +145,9 @@ function MA.ReadInbox()
 		more = (total and total > n) and (total - n) or nil,
 	}
 	-- when each mail was first seen here (carried over from the reads before): an auction's return is mail that came
-	-- after it was made (MA.EndedFromMail)
-	-- (the same mail: alike and running out when this one does, each read mail matched once. 0.63.7, review: a new mail
-	-- alike an older one, an auction's arrows back a second time, took the older one's time, and the auction it ended
-	-- was never seen as over)
+	-- after it was made (MA.EndedFromMail) (the same mail: alike and running out when this one does, each read mail
+	-- matched once. a new mail alike an older one, an auction's arrows back a second time, took the older one's time,
+	-- and the auction it ended was never seen as over)
 	local before, old = boxes[key], {}
 	if type(before) == "table" and type(before.mails) == "table" then
 		for _, m in ipairs(before.mails) do
@@ -245,8 +244,7 @@ function MA.SendConfirming()
 	ns:Trace("mail: the game asks you to confirm sending to " .. pendingSend.to .. " (gold or items to someone not your own)")
 end
 
---- MAIL_FAILED: the send didn't go, unless a confirmation comes or came (0.47.5, the player: mail to "Cai Te" not
---- kept, no trace at all: dropping the send at MAIL_FAILED lost one the game then sent once you'd confirmed it).
+--- MAIL_FAILED: the send didn't go, unless a confirmation comes or came.
 function MA.SendFailed()
 	if not pendingSend then return end
 	pendingSend.failed = true
@@ -341,10 +339,9 @@ MA.Store = Store
 local function ItemIDOf(link) return type(link) == "string" and tonumber(link:match("item:(%d+)")) or nil end
 local NameOfLink = ns.LinkName
 
---- An auction of yours sold (0.56.12, a player: "auctions" listed what's up and what failed, never what sold): kept
---- MA.SOLD_KEEP on your character's list of sales (db.auctionsSold), newest first, each auction once. `a`: what was kept
---- of it posted (its price, its count); `item`: its name when nothing was (the news names it). The sale's mail tells the
---- buyer and what you got (MA.SalesFromMail).
+--- An auction of yours sold: kept MA.SOLD_KEEP on your character's list of sales (db.auctionsSold), newest first, each
+--- auction once. `a`: what was kept of it posted (its price, its count); `item`: its name when nothing was (the news
+--- names it). The sale's mail tells the buyer and what you got (MA.SalesFromMail).
 function MA.KeepSale(id, a, now, item)
 	local list = Mine("auctionsSold")
 	if not list then return nil end
@@ -357,7 +354,7 @@ function MA.KeepSale(id, a, now, item)
 		-- notification's id when it comes second; release review)
 		if not s.auctionID and s.item == name and math.abs(now - (s.at or 0)) < MA.SAME then
 			s.auctionID = id
-			-- (and what was kept of it posted, which the chat line didn't have; review, 0.57.7)
+			-- (and what was kept of it posted, which the chat line didn't have)
 			if type(a) == "table" then
 				s.link, s.price, s.each, s.count = s.link or a.link, s.price or a.price, s.each or a.each, s.count or a.count
 			end
@@ -390,9 +387,8 @@ function MA.SalesFromMail(box, now)
 	now = now or Now()
 	local n, changed, used = 0, false, {}
 	-- a sale's mail is told apart by its item, count and price and by when it runs out (the mail's own, steady to the
-	-- second whatever is read when): not by its buyer (the game can give it a moment after the mail) nor by where
-	-- alike mails sit in the inbox (one taken moves the others). 0.63.7, review: alike sales lost, doubled, or one
-	-- not kept
+	-- second whatever is read when): not by its buyer (the game can give it a moment after the mail) nor by where alike
+	-- mails sit in the inbox (one taken moves the others). alike sales lost, doubled, or one not kept
 	local function Same(x, v, count)
 		return x.item == v.item and (x.count or 1) == count and (not v.bid or x.price == nil or x.price == v.bid)
 	end
@@ -412,8 +408,7 @@ function MA.SalesFromMail(box, now)
 					end
 				end
 			end
-			-- (its "Sale Pending" mail read before this one, an hour earlier: that sale, moving to this mail's time; review,
-			-- 1.0.20: it was kept twice, its expiry another hour's)
+			-- (its "Sale Pending" mail read before this one, an hour earlier: that sale, moving to this mail's time)
 			if not s and v.kind == "seller" then
 				for i = #list, 1, -1 do
 					local x = list[i]
@@ -515,7 +510,7 @@ end
 
 --- Mail sent to someone not one of your characters: kept an hour on your character's list.
 function MA.KeepSent(s)
-	MA.Prune() -- (on every write: what's past its time goes even when @mail is never looked at; review, 0.48.6)
+	MA.Prune() -- (on every write: what's past its time goes even when @mail is never looked at)
 	local list = Mine("mailSent")
 	if not list then return nil end
 	table.insert(list, 1, { to = s.to, at = s.at, mail = s.mail })
@@ -536,9 +531,8 @@ local function NotificationKind(n)
 	return NOTIFIED[n]
 end
 
---- What an auction's item is (0.48.4, the player: what you bought should show its own icon and quality): its id, link,
---- quality and icon, from an id or link known, else from its name (the client knows an item by name once the auction
---- house has shown it). Each nil when not known.
+--- What an auction's item is: its id, link, quality and icon, from an id or link known, else from its name (the client
+--- knows an item by name once the auction house has shown it). Each nil when not known.
 function MA.ItemFacts(id, link, name)
 	local CI = C_Item
 	id, link = Num(id), Str(link)
@@ -606,8 +600,7 @@ function MA.OnAuction(kind, item, auctionID, now, extra)
 		if a.kind == kind and a.item == item and math.abs(now - (a.at or 0)) < MA.SAME
 			and (not auctionID or not a.auctionID or a.auctionID == auctionID) then
 			a.auctionID = a.auctionID or auctionID
-			-- (told first by a chat line, which has no id: its price from the post, read before MA.Over lets go of it;
-			-- review, 0.57.7)
+			-- (told first by a chat line, which has no id: its price from the post, read before MA.Over lets go of it)
 			local kept = auctionID and Store("auctionsPosted")[key]
 			kept = kept and kept[auctionID]
 			if kept and a.price == nil and a.each == nil then
@@ -660,8 +653,7 @@ function MA.ChatNews(text)
 end
 MA.ResetChatForTests = function() chatPatterns = nil end
 
--- posts waiting for the game's word that each was made, in order (0.56.12: one slot, two posted at once gave the first
--- the second's price, and the second none)
+-- posts waiting for the game's word that each was made, in order
 local pendingPosts = {}
 
 -- the auction house's durations as its post window names them (AUCTION_DURATION_ONE..THREE: "12 Hours"...): the
@@ -735,8 +727,8 @@ function MA.ReadOwned()
 			listed[id] = true
 			local sold = SOLD ~= nil and info.status == SOLD
 			local link = Str(info.itemLink)
-			-- (the list's price is for one: x16 at 19c each says 19c, a player saw in game; 0.63.1. What the auction
-			-- brings is that times how many)
+			-- (the list's price is for one: x16 at 19c each says 19c, a player saw in game. What the auction brings is
+			-- that times how many)
 			local each = Num(info.buyoutAmount) or Num(info.bidAmount)
 			local count = Num(info.quantity) or 1
 			local price = each and each * count
@@ -815,8 +807,7 @@ function MA.SettleAuctions(box, now)
 	MA.SalesFromMail(box, now)
 	local list = Mine("mailAuctions")
 	if not (list and box) then return end
-	-- each sold item's newest sale mail, by when the inbox first had it (0.49.2, review: an older sale's mail still in
-	-- the inbox dropped the news of a new sale whose gold hadn't come yet)
+	-- each sold item's newest sale mail, by when the inbox first had it
 	local soldItems = {}
 	for _, m in ipairs(box.mails or {}) do
 		if m.auction == "sold" or m.auction == "pending" then
@@ -845,8 +836,7 @@ function MA.EndedFromMail(box, now)
 	local posted = Mine("auctionsPosted")
 	if not (posted and box and next(posted)) then return 0 end
 	local used, n = {}, 0
-	-- (the ones whose time ran out first, then the oldest: of two alike, the one that came back is the one that ended;
-	-- 0.50.7, review: pairs' order could mark the one still up as over)
+	-- (the ones whose time ran out first, then the oldest: of two alike, the one that came back is the one that ended)
 	now = now or Now()
 	local order = {}
 	for id, a in pairs(posted) do order[#order + 1] = id end
@@ -911,8 +901,7 @@ end
 
 local function ItemName(it) return it.name or NameOfLink(it.link) or L["item %s"]:format(tostring(it.id)) end
 
---- A mail's first item's icon and quality colour (0.48.4: a mail is drawn as what it carries, as every item row is; the
---- inbox may have given neither, the client not having the item yet: asked by its id).
+--- A mail's first item's icon and quality colour.
 local function FirstItemLook(m)
 	local first = m.items and m.items[1]
 	if not first then return nil, nil end
@@ -1066,8 +1055,8 @@ local AUCTION_SAID = {
 	won = L["The item comes by mail."], outbid = L["Your bid comes back by mail."], expired = L["The item comes back by mail."],
 }
 
--- the tooltip's Shift+Enter, only where there is one: the nearest mailbox is Questie's (@mailbox), so without it Shift+Enter
--- does what Enter does (0.49.2, review: the tooltip promised a waypoint the footer, rightly, didn't)
+-- the tooltip's Shift+Enter, only where there is one: the nearest mailbox is Questie's (@mailbox), so without it
+-- Shift+Enter does what Enter does
 local function ShiftHint()
 	return ns.providers.mailbox and ("    " .. L["Shift+Enter: set a waypoint to the nearest mailbox"]) or ""
 end
@@ -1363,8 +1352,7 @@ function MA.Collect()
 		return a.name < b.name
 	end)
 	for _, e in ipairs(mailRows) do rows[#rows + 1] = e end
-	-- then mail you sent to others (newest first); the auction house's news is @auction's (0.48.10, the player's call:
-	-- MA.NewsRows, Auctions.lua)
+	-- then mail you sent to others (newest first); the auction house's news is @auction's
 	MA.Prune(now)
 	local way = {}
 	for key, list in pairs(Store("mailSent")) do
@@ -1389,7 +1377,7 @@ ns:RegisterProvider("mail", {
 	refreshOnOpen = 60, -- (the time left moves on)
 	events = { "UPDATE_PENDING_MAIL", "PLAYER_ENTERING_WORLD" },
 	guard = 1,
-	-- nothing kept anywhere: a line saying how to fill it (0.49.2, review: @mail said nothing, as @lockout does)
+	-- nothing kept anywhere: a line saying how to fill it
 	leadRow = ns.EmptyLead(function() return MA.NONE end, function() return not (list and #list > 0) end),
 	collect = function() return MA.Collect() end,
 })
@@ -1411,7 +1399,7 @@ local CUE = { expiring = "soon", expire = "soon", expires = "soon", expiry = "so
 	coming = "incoming" }
 -- what only mail is: these make even "mail" (the armour too) a question; the other cues (from, sold, new, gold, out...)
 -- count with "mail" only when nothing else is searched ("new mail", "my mail from bob"), else "new mail gloves", "mail
--- boots from wailing caverns" and "mail armor sold by vendors" were taken for mail questions (0.47.0 review)
+-- boots from wailing caverns" and "mail armor sold by vendors" were taken for mail questions
 local STRONG_CUE = { expiring = true, expire = true, expires = true, expiry = true, expired = true, cod = true,
 	unread = true, returned = true, bounced = true, waiting = true, sent = true, outgoing = true, outbox = true,
 	incoming = true, pending = true, expected = true }
@@ -1528,9 +1516,9 @@ function MA.Answer(q)
 	return rows, note
 end
 
---- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@mail is:expiring bob sort:list";
---- nil, its own answer, for "my mail" (the auction house's news and every mailbox too), gold and auction mail (the news's
---- sales too): no one list has them (0.55.7).
+--- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@mail is:expiring bob
+--- sort:list"; nil, its own answer, for "my mail" (the auction house's news and every mailbox too), gold and auction
+--- mail (the news's sales too): no one list has them.
 function MA.Line(q)
 	if not Filtered(q) or q.money or q.auction then return nil end
 	local parts = { q.incoming and "@auction" or "@mail" } -- (the auction house's news is @auction's)
@@ -1617,7 +1605,7 @@ function MA.Warnings(now)
 end
 
 function MA.Warn()
-	-- (the setting, .set mailWarn; 0.65.12: it was .mail warn off, moved to the setting once)
+	-- (the setting, .set mailWarn)
 	if ns.db and ns.db.mailWarn == false and ns.Theme and ns.Theme.Set then
 		ns.db.mailWarn = nil
 		pcall(ns.Theme.Set, "mailWarn", "off")
@@ -1630,8 +1618,8 @@ function MA.Warn()
 	return true
 end
 
---- Forget an alt's mailboxes (and what it sent, its auction news and the prices kept for them: review, 0.48.6): `.forget
---- <name>` (0.65.12: .mail is gone, @mail lists them). How many were dropped.
+--- Forget an alt's mailboxes (and what it sent, its auction news and the prices kept for them: review): `.forget
+--- <name>`. How many were dropped.
 function MA.ForgetAlt(who)
 	local lw, n = Lower(who), 0
 	local boxes = Boxes() or {}
@@ -1723,7 +1711,7 @@ end
 
 local ev = CreateFrame("Frame")
 MA.frame = ev
--- (not UPDATE_PENDING_MAIL: the list's own event already; review, 0.53.6: handled twice, @auction marked changed for it too)
+-- (not UPDATE_PENDING_MAIL: the list's own event already)
 for _, e in ipairs({ "MAIL_SHOW", "MAIL_CLOSED", "MAIL_INBOX_UPDATE", "PLAYER_ENTERING_WORLD",
 	"MAIL_SEND_SUCCESS", "MAIL_FAILED", "SECURE_TRANSFER_CONFIRM_SEND_MAIL", "SECURE_TRANSFER_CANCEL",
 	"AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", "CHAT_MSG_SYSTEM",

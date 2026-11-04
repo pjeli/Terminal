@@ -1,13 +1,12 @@
 local ns = select(2, ...)
 
--- What Terminal has learned of items, kept between sessions (0.51.13, the player's ask: after a /reload "upgrades" and
--- the loot list's colours filled in bit by bit as the game sent its items again). Kinds: "quality" (item id -> its
--- quality) and "facts" (item id -> what is:upgrade reads of it, Upgrades.lua's record). Each kind keeps two
--- generations of at most S.CAP[kind] items (the older dropped when the newer is full), and all of it is let go when the
--- game's build changes (a patch may change items).
+-- What Terminal has learned of items, kept between sessions. Kinds: "quality" (item id -> its quality) and "facts"
+-- (item id -> what is:upgrade reads of it, Upgrades.lua's record). Each kind keeps two generations of at most
+-- S.CAP[kind] items (the older dropped when the newer is full), and all of it is let go when the game's build changes
+-- (a patch may change items).
 local S = {}
 ns.ItemStore = S
-S.VERSION = 4 -- (2: "usable" kept per character, not per class; 0.51.25. 3: spells' hit and crit, feral attack power: 0.56.14.
+S.VERSION = 4 -- (2: "usable" kept per character, not per class. 3: spells' hit and crit, feral attack power: 0.56.14.
 -- 4: block value, spell schools, a ranged weapon's DPS: 0.65.11)
 S.CAP = { quality = 4000, facts = 2000 } -- (the .saved keep level's: S.UseLimit, set at load)
 

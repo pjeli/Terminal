@@ -4,11 +4,11 @@ local I = ns.Integrations
 local OA = ns.OneForAll
 local AT = ns.Attune
 
--- @attune without Attune (1.0.7, the player's ask): OneForAll's dungeon keys and raid attunements (DUNGEON_KEYS: the
--- Scarlet Key, the Skeleton Key, the Seal of Ascension... and Onyxia's Drakefire Amulet, each faction's chain), made
--- into the records Attune's part reads (Providers/Integrations/Attune.lua: AT.Index, AT.fallback), so the rows, "> steps",
--- "> attunement", "my keys", "how do i get into onyxia", is:done and the rest work as they do with Attune. Attune
--- installed: Attune's, never these (it has more of them, and your alts' progress).
+-- @attune without Attune: OneForAll's dungeon keys and raid attunements (DUNGEON_KEYS: the Scarlet Key, the Skeleton
+-- Key, the Seal of Ascension... and Onyxia's Drakefire Amulet, each faction's chain), made into the records Attune's
+-- part reads (Providers/Integrations/Attune.lua: AT.Index, AT.fallback), so the rows, "> steps", "> attunement", "my
+-- keys", "how do i get into onyxia", is:done and the rest work as they do with Attune. Attune installed: Attune's,
+-- never these (it has more of them, and your alts' progress).
 --
 -- How far along: the game's, as OneForAll's own window has it: the key or amulet in your bags, bank or keyring (all of it
 -- done), else every step up to the last quest you've turned in. A step that isn't a quest ("Open Doan's Strongbox") is
@@ -213,9 +213,9 @@ local TOON = { done = DONE }
 function K.Toon() return TOON end
 
 -- OneForAll's prerequisites of dungeon quests (QUEST_PREREQ_CHAINS: each quest's, first to last, lead-ins marked
--- optional; 1.0.8, the player's ask), for Questie's "> chain" (QR.Chain in Search/Questions/Rewards.lua): only the
--- required ones (a lead-in doesn't block the quest). Most are Questie's too; 22 quests' aren't (checked against
--- QuestieDB Forever, November 2026: Hurley Blackbreath's, Imp Delivery's...).
+-- optional), for Questie's "> chain" (QR.Chain in Search/Questions/Rewards.lua): only the required ones (a lead-in
+-- doesn't block the quest). Most are Questie's too; 22 quests' aren't (checked against QuestieDB Forever, November
+-- 2026: Hurley Blackbreath's, Imp Delivery's...).
 local chains -- quest id -> { quest ids, first to last }; false: none
 --- The quests OneForAll says must be done before this one, first to last, or nil.
 function K.Before(q)

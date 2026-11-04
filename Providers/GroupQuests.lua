@@ -289,8 +289,7 @@ function Row(q, members, short, said)
 	-- (someone lacks it, or isn't known to have it: the game says "already on that quest" otherwise)
 	local canShare = pushable ~= false and (#lacks + #unknown) > 0
 	local everyone = #on > 0 and #on == online and online > 0
-	-- (level and zone as the quest log's rows say them, parts left out when missing; review, 0.53.6: one with neither
-	-- began "  ·  the whole party")
+	-- (level and zone as the quest log's rows say them, parts left out when missing)
 	local d = { q.level and L["Lv %d"]:format(q.level) or nil }
 	if q.zone and q.zone ~= "" then d[#d + 1] = q.zone end
 	if everyone and #on > 1 then d[#d + 1] = GREEN .. L["the whole party"] .. "|r"

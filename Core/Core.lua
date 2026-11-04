@@ -4,10 +4,10 @@ _G.Terminal = ns -- public API for other addons
 ns.name = ADDON
 ns.version = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version")) or "dev"
 
--- Translations (0.47.10): L[<an English text>] is the player's language's (Locales/<lang>.lua, loaded right after this file:
--- CurseForge's packager fills them in from its localization tool), else the English itself. Keys are the English
--- texts; a text with a value in it is a format string ("%s can't be shared."; translators may write %1$s / %2$s to
--- change the order). tests/gen_locale.py lists every key in Locales/enUS.lua (the file CurseForge imports).
+-- Translations: L[<an English text>] is the player's language's (Locales/<lang>.lua, loaded right after this file:
+-- CurseForge's packager fills them in from its localization tool), else the English itself. Keys are the English texts;
+-- a text with a value in it is a format string ("%s can't be shared."; translators may write %1$s / %2$s to change the
+-- order). tests/gen_locale.py lists every key in Locales/enUS.lua (the file CurseForge imports).
 ns.LOCALE = (GetLocale and GetLocale()) or "enUS"
 ns.L = setmetatable({}, { __index = function(_, k) return k end })
 
@@ -114,7 +114,7 @@ end
 function ns:Bump(freqKey)
 	if not freqKey or not self.db then return end
 	self.db.freq[freqKey] = (self.db.freq[freqKey] or 0) + 1
-	-- (the index made already: this pick put in it, not the whole of db.freq read again by the next search; review, 0.53.6)
+	-- (the index made already: this pick put in it, not the whole of db.freq read again by the next search)
 	if self.freqKinds then FreqNote(self.freqKinds, freqKey, self.db.freq[freqKey]) end
 	-- history: most recent first, each thing once
 	local recent = self.db.recent
@@ -143,12 +143,12 @@ end
 --     ignoreEvent = function(event) end, -- true: that event isn't a change for this list (Keybinds: Terminal's own Enter)
 --     idleDrop = 600,                  -- free the entries after N s without a search
 --     warmDirty = 2,                   -- read again N s after its events, terminal closed (a costly list in use)
---     onDrop   = function() end,       -- ...and free whatever else the provider keeps
+--     onDrop   = function end,       -- ...and free whatever else the provider keeps
 --     refreshOnOpen = true,            -- re-collect each time the terminal opens (a number: when older than that, s)
 --     noCombat = true,                 -- Enter does nothing in combat (protected actions)
---     busy     = function() return "Indexing..." end, -- still loading: the terminal shows a
+--     busy     = function return "Indexing..." end, -- still loading: the terminal shows a
 --                                      -- spinner with this text on mouse-over (nil: ready)
---     collect  = function() return { entry, ... } end,
+--     collect  = function return { entry, ... } end,
 -- })
 --
 -- Entry fields:
@@ -214,7 +214,7 @@ function ns:Changed(id)
 	local p = self.providers[id]
 	if p then
 		p._dirty = true
-		if ns.WarmLater then ns.WarmLater(p) end -- (a costly list: read again in the background, not in a keystroke; 0.50.7)
+		if ns.WarmLater then ns.WarmLater(p) end -- (a costly list: read again in the background, not in a keystroke)
 	end
 	-- (who else wants to know: Terminal: Share sends your bank again when @stored's records change)
 	for i = 1, #ns.changedHooks do pcall(ns.changedHooks[i], id) end
@@ -225,7 +225,7 @@ ns.changedHooks = {}
 function ns:AliasesChanged() self.aliasMap = nil end
 
 --- How a list is named to the player (.mem, traces, Alt+`): "@<its first alias>"; a list no @ names (`noKind`) by how a
---- search reaches it (its `reach`: "@recipe is:unknown"), else by its label. (0.45.22: .mem said "@missing".)
+--- search reaches it (its `reach`: "@recipe is:unknown"), else by its label.
 function ns:KindName(p)
 	if not p then return nil end
 	if p.noKind then return p.reach or p.label end
@@ -251,7 +251,7 @@ end
 
 function ns:ResolveProvider(token)
 	token = ns.Lower(token)
-	-- (the map made first, even for "": ns:ResolveProvider("") is how others ask for it; release review, 0.63.0)
+	-- (the map made first, even for "": ns:ResolveProvider("") is how others ask for it)
 	local map = self.aliasMap or AliasMap(self)
 	if token == "" then return nil end
 	local p = map[token]
@@ -272,7 +272,7 @@ end
 ns.entriesGen = 0 -- bumped whenever any provider's entries are rebuilt
 
 --- A list's name in its colour, as a row's kind column says it (`label`: another word in its place). One copy: five
---- places wrote it out (review, 0.53.6).
+--- places wrote it out.
 function ns:KindLabel(p, label)
 	return "|c" .. (p.color or "ff7fb2ff") .. tostring(label and ns.TitleCase(label) or p.label or p.id) .. "|r"
 end
@@ -370,7 +370,7 @@ function ns:RegisterCommand(name, def)
 	end
 	self.commands[name] = def
 	-- (the command rows are made again: a name registered over another, Terminal Extras' real commands over their
-	-- stand-ins, kept running the old one; review, 0.48.6)
+	-- stand-ins, kept running the old one)
 	self.commandsGen = (self.commandsGen or 0) + 1
 end
 
@@ -385,9 +385,8 @@ function ns:UnregisterCommand(name)
 	self.commandsGen = (self.commandsGen or 0) + 1
 end
 
---- The command a name or alias calls (any case), or nil. Next to the registry (it was History.lua's), aliases looked
---- up in a map made again only when a command is registered or dropped (review, 0.53.6: every alias of every command
---- lowercased on each call, every keystroke of a ".command").
+--- The command a name or alias calls (any case), or nil. Next to the registry (it was History.lua's), aliases looked up
+--- in a map made again only when a command is registered or dropped.
 local cmdAliases, cmdAliasesGen
 function ns:FindCommand(name)
 	name = ns.Lower(name)
@@ -409,9 +408,8 @@ end
 -- Events / saved variables
 ----------------------------------------------------------------------
 
---- The first run's keys: ` (or CTRL-` if ` is taken) for the terminal, Alt+` for Advanced, each only on a free key.
---- Not in combat (SetBinding is blocked then): at the fight's end (0.63.7, review: a login in combat used up the first
---- run, nothing bound).
+--- The first run's keys: ` (or CTRL-` if ` is taken) for the terminal, Alt+` for Advanced, each only on a free key. Not
+--- in combat (SetBinding is blocked then): at the fight's end.
 function ns.FirstBindings()
 	-- First run: bind ` (tilde key) to toggle the terminal, or CTRL-` if ` is taken.
 	-- Change it any time with:  /term .bind <KEY>
@@ -434,8 +432,8 @@ function ns.FirstBindings()
 			end
 		end
 	end
-	-- Alt+`: open, it writes the search in Advanced syntax (the terminal reads that key itself); closed, nothing (0.57.0;
-	-- it opened as ` did from 0.54.3). Only on a free key, never taking another action's.
+	-- Alt+`: open, it writes the search in Advanced syntax (the terminal reads that key itself); closed, nothing (it
+	-- opened as ` did from 0.54.3). Only on a free key, never taking another action's.
 	if not ns.db.bindingAdvancedOnce then
 		ns.db.bindingAdvancedOnce = true
 		local action = GetBindingAction("ALT-`")
@@ -451,16 +449,15 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 
 --- A list that costs a lot to read again (warmDirty = seconds: @stored, one item info per recorded item) and is in use
 --- (built, not freed) is read again that long after it changed, out of combat with the terminal closed, not inside the
---- next keystroke's frame (review, 0.48.6). Its last-used time stays as it was: an unused list is still freed.
---- That long after the LAST change, not the first: a stream of them (selling greys, emptying a mailbox, looting a run of
---- mobs) is read once it's over (0.50.7, review: read every ~3 s while they kept coming).
+--- next keystroke's frame. Its last-used time stays as it was: an unused list is still freed. That long after the LAST
+--- change, not the first: a stream of them (selling greys, emptying a mailbox, looting a run of mobs) is read once it's
+--- over.
 local Warm
 local function WarmLater(p)
 	if ns.OnDirty then ns.OnDirty(p) end -- (the terminal open on its rows: searched again in the background, UI.lua)
 	Warm(p)
 end
--- (the reading put off: not another change, so not searched again for it; review, 0.51.25: in combat it was, every
--- warmDirty seconds)
+-- (the reading put off: not another change, so not searched again for it)
 Warm = function(p)
 	if not p.warmDirty or not p._entries then return end
 	p._warmAsked = GetTime()
@@ -512,7 +509,7 @@ local function Watched(event)
 end
 
 eventFrame:SetScript("OnEvent", function(_, event, arg1)
-	-- (a list watching ADDON_LOADED or PLAYER_LOGIN is told too: those two returned before the watchers; review, 0.48.6)
+	-- (a list watching ADDON_LOADED or PLAYER_LOGIN is told too: those two returned before the watchers)
 	if event == "ADDON_LOADED" or event == "PLAYER_LOGIN" then Watched(event) end
 	if event == "ADDON_LOADED" then
 		if arg1 ~= ADDON then return end
@@ -524,8 +521,6 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
 			end
 		end
 		ns.db = TerminalDB
-		-- (0.54.1: one mode, Simple, a line with Advanced syntax running in Advanced mode that once: Advanced for good, kept
-		-- from before, dropped; the Advanced row's question with it; 0.54.3: the history's Advanced-only marks)
 		TerminalDB.easyMode, TerminalDB.advancedAsked, TerminalDB.historyAdv = nil, nil, nil
 		return
 	elseif event == "PLAYER_LOGIN" then
@@ -611,9 +606,8 @@ function ns:StartPrewarm(delay)
 	C_Timer.After(delay or 10, tick)
 end
 
--- Big lists nobody searched for a while are freed, and rebuilt when next wanted.
--- (and data some part keeps of its own, let go after a while unused: `ns.idleHolds`, functions(now) that do it;
--- Questie's what-NPCs-sell index, 1.0.50)
+-- Big lists nobody searched for a while are freed, and rebuilt when next wanted. (and data some part keeps of its own,
+-- let go after a while unused: `ns.idleHolds`, functions(now) that do it; Questie's what-NPCs-sell index)
 ns.idleHolds = ns.idleHolds or {}
 function ns:DropIdle(now)
 	now = now or GetTime()
@@ -625,7 +619,7 @@ function ns:DropIdle(now)
 			p._entries, p._dirty = nil, true
 			if p.onDrop then pcall(p.onDrop) end
 			ns.entriesGen = ns.entriesGen + 1
-			-- (a list made from this one keeps no hold on its rows: @bank's on @stored's; release review, 0.63.0)
+			-- (a list made from this one keeps no hold on its rows: @bank's on @stored's)
 			for _, f in pairs(self.providers) do if f.follows == p.id then f._followed = nil end end
 		end
 	end

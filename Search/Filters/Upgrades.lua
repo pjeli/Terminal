@@ -1,6 +1,6 @@
 local ns = select(2, ...)
 
--- is:upgrade: gear that suits you now, weighed against what you wear (Core.lua's KEYS.is asks F.GearFit()).
+-- is:upgrade: gear that suits you now, weighed against what you wear (Core.lua's KEYS.is asks F.GearFit).
 
 local F = ns.Filters
 local P = F._
@@ -10,25 +10,23 @@ local Secret = ns.Secret
 
 -- is:upgrade (Simple mode: "upgrades", "helm upgrades"): gear you can equip now (its required level is yours or lower,
 -- and the game says you can use it: class, armour and weapon kind), not worn already, and better than what you wear
--- there (0.43.8). Better = more of what your class wants: the item's stats weighed for your class (F.WEIGHTS, a rough
--- Pawn-like scale: a warrior's strength, a mage's intellect and spell power, a weapon's damage per second), against
--- the piece you wear there (the weaker of two rings or trinkets; a two-hander against your main and off hand
--- together). When either side has no stats to weigh (most trinkets, plain white gear) or they aren't loaded yet:
--- a higher item level. Nothing worn there: within GEAR_EMPTY of your level. (0.41.28-0.43.7 only asked for an item
--- level within 5 of your weakest piece: lots of "upgrades" that weren't.)
+-- there. Better = more of what your class wants: the item's stats weighed for your class (F.WEIGHTS, a rough Pawn-like
+-- scale: a warrior's strength, a mage's intellect and spell power, a weapon's damage per second), against the piece you
+-- wear there (the weaker of two rings or trinkets; a two-hander against your main and off hand together). When either
+-- side has no stats to weigh (most trinkets, plain white gear) or they aren't loaded yet: a higher item level. Nothing
+-- worn there: within GEAR_EMPTY of your level. (0.41.28-0.43.7 only asked for an item level within 5 of your weakest
+-- piece: lots of "upgrades" that weren't.)
 F.GEAR_EMPTY, F.GEAR_ASK = 10, 40
--- Only gear for about your level (0.51.8, the player: "upgrades" listed far too much, a level 30's old greens beaten by
--- anything from Ragefire Chasm on): its required level at most GEAR_NEAR below yours (gear needing none: its item
--- level). Shirts and tabards never: they have nothing to weigh, and an empty shirt slot took any.
+-- Only gear for about your level: its required level at most GEAR_NEAR below yours (gear needing none: its item level).
+-- Shirts and tabards never: they have nothing to weigh, and an empty shirt slot took any.
 F.GEAR_NEAR = 6
 local NEVER = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
 
 -- what a stat key is (ITEM_MOD_STRENGTH_SHORT -> "str"): the first part of the key that matches, in this order (not
--- HEALTH_REGEN: hp5 isn't mp5; review, 0.53.6). Spells' hit and crit and a druid's feral attack power are their own
--- (0.56.14: a warrior's weights counted a caster's +1% spell hit as hit, a feral staff's attack power in forms as his)
+-- HEALTH_REGEN: hp5 isn't mp5). Spells' hit and crit and a druid's feral attack power are their own
 local STAT_KINDS = {
 	-- (a school's spell damage, "+12 Frost Spell Damage": its own, weighed for the trees that cast it; first, so a name
-	-- with SPELL_DAMAGE in it is read as its school too; 0.65.11)
+	-- with SPELL_DAMAGE in it is read as its school too)
 	{ "FIRE_DAMAGE", "fire" }, { "FROST_DAMAGE", "frost" }, { "ARCANE_DAMAGE", "arcane" }, { "NATURE_DAMAGE", "nature" },
 	{ "SHADOW_DAMAGE", "shadow" }, { "HOLY_DAMAGE", "holy" },
 	{ "FERAL_ATTACK_POWER", "feralap" }, { "RANGED_ATTACK_POWER", "rap" }, { "ATTACK_POWER", "ap" }, { "STRENGTH", "str" },
@@ -37,7 +35,7 @@ local STAT_KINDS = {
 	{ "SPELL_HIT", "spellhit" }, { "SPELL_CRIT", "spellcrit" },
 	{ "CRIT", "crit" }, { "HIT", "hit" }, { "HASTE", "haste" }, { "MANA_REGEN", "mp5" }, { "POWER_REGEN0", "mp5" },
 	{ "DAMAGE_PER_SECOND", "dps" }, { "RESISTANCE0", "armor" }, { "DEFENSE", "def" }, { "DODGE", "dodge" },
-	-- (a shield's block value is points, its block chance per cent: apart, 0.65.11: 30 block value counted as 30% block)
+	-- (a shield's block value is points, its block chance per cent: apart)
 	{ "PARRY", "parry" }, { "BLOCK_VALUE", "blockv" }, { "BLOCK", "block" },
 }
 local statKind = {}
@@ -53,15 +51,15 @@ local function StatKind(key)
 	return k or nil
 end
 
--- How much each stat is worth, by talent tree (0.65.11, the player: "our own single role profile, split by talent tree
--- (.weights fury vs .weights arms), a single simplified stat weight scale good enough for 1-60"). Terminal's own scale:
--- the tree's main stat is 1, the rest rounded to what a player can read at a glance. Hit, crit, dodge, parry and block
--- chance are per 1% (as WoW Forever's gear gives them), defense per skill point, the rest per point. Percent stats are
--- worth more the higher you are (1% hit is about 3 Strength at 20, 12 at 60): one scale for every level sets them for
--- the levels gear changes most, the 30s and 40s. Weighed from how the stats work (2 attack power per Strength for the
--- plate and mail melee, a weapon's DPS about 14 attack power, Agility's crit and armor) and checked against what the
--- wowsims Forever simulations make of them; on Forever, healing is its own stat (spell damage doesn't heal) and a
--- feral's weapon DPS counts in forms.
+-- How much each stat is worth, by talent tree ("our own single role profile, split by talent tree (.weights fury vs
+-- .weights arms), a single simplified stat weight scale good enough for 1-60"). Terminal's own scale: the tree's main
+-- stat is 1, the rest rounded to what a player can read at a glance. Hit, crit, dodge, parry and block chance are per
+-- 1% (as WoW Forever's gear gives them), defense per skill point, the rest per point. Percent stats are worth more the
+-- higher you are (1% hit is about 3 Strength at 20, 12 at 60): one scale for every level sets them for the levels gear
+-- changes most, the 30s and 40s. Weighed from how the stats work (2 attack power per Strength for the plate and mail
+-- melee, a weapon's DPS about 14 attack power, Agility's crit and armor) and checked against what the wowsims Forever
+-- simulations make of them; on Forever, healing is its own stat (spell damage doesn't heal) and a feral's weapon DPS
+-- counts in forms.
 local GENERIC = { str = 0.6, agi = 0.6, int = 0.6, spi = 0.3, sta = 0.5, ap = 0.3, rap = 0.2, sp = 0.4, heal = 0.3,
 	crit = 3, hit = 3, spellhit = 3, spellcrit = 3, haste = 2, mp5 = 0.5, dps = 2, rdps = 1, armor = 0.01, def = 0.3,
 	dodge = 1, parry = 1, block = 0.5, blockv = 0.05 }
@@ -151,8 +149,8 @@ F.WEIGHTS.DEATHKNIGHT, F.WEIGHTS.MONK, F.WEIGHTS.DEMONHUNTER = F.WEIGHTS.WARRIOR
 F.WEIGHTS.EVOKER = F.WEIGHTS.MAGE
 F.WEIGHTS.GENERIC = GENERIC
 
--- Roles (0.54.1, a player's ask: "How does the addon score upgrades? Can I control it?"): .weights picks one tree (or
--- your own weights), kept per character; none picked, the class's levelling tree above.
+-- Roles: .weights picks one tree (or your own weights), kept per character; none picked, the class's levelling tree
+-- above.
 local L = ns.L
 F.ROLE_SAY = { arms = L["Arms"], fury = L["Fury"], protection = L["Protection"], holy = L["Holy"],
 	retribution = L["Retribution"], beastmastery = L["Beast Mastery"], marksmanship = L["Marksmanship"],
@@ -214,10 +212,9 @@ local function MyClass()
 end
 
 ----------------------------------------------------------------------
--- Your own weights (0.65.8, the player: "let's add custom weights; and support for the Pawn scale strings"): .weights
--- set str=2 agi=1 sta=0.5, or a Pawn scale string; a role of their own ("custom") beside your class's, picked when set,
--- kept per character. Weighed scaled so their most wanted stat is 1, as the class's are (a clear upgrade gains at least
--- one point of your main stat: F.UPGRADE_MIN_ABS); said as typed.
+-- Your own weights: .weights set str=2 agi=1 sta=0.5, or a Pawn scale string; a role of their own ("custom") beside
+-- your class's, picked when set, kept per character. Weighed scaled so their most wanted stat is 1, as the class's are
+-- (a clear upgrade gains at least one point of your main stat: F.UPGRADE_MIN_ABS); said as typed.
 ----------------------------------------------------------------------
 -- the words a stat may be typed as (.weights set)
 F.STAT_WORDS = { str = "str", strength = "str", agi = "agi", agility = "agi", sta = "sta", stamina = "sta", int = "int",
@@ -317,8 +314,8 @@ end
 
 -- (scaled, made once per weights kept: the worn gear's values are kept per weights table)
 local scaled = setmetatable({}, { __mode = "k" })
--- the main stats: what a scale is scaled by (not 1% hit, which Pawn and the simulations weigh at 10 to 25 Strength: a scale
--- whose hit is 1 made +3 Strength no upgrade at all; 0.65.11)
+-- the main stats: what a scale is scaled by (not 1% hit, which Pawn and the simulations weigh at 10 to 25 Strength: a
+-- scale whose hit is 1 made +3 Strength no upgrade at all)
 local MAIN_STATS = { "str", "agi", "int", "spi", "sta" }
 --- Weights scaled so their main stat (the most of Strength, Agility, Intellect, Spirit or Stamina; else of spell damage,
 --- healing, attack power; else the most wanted of any) is 1, as the trees' own are.
@@ -357,8 +354,8 @@ function F.MyRoles()
 	local db, key = ns.db, F._MyName and F._MyName()
 	local saved = db and key and type(db.upgradeRoles) == "table" and db.upgradeRoles[key]
 	if type(saved) ~= "table" then return nil end
-	-- (one role at a time, 0.65.9, the player: "only let .weights define one role; easiest on the computation too";
-	-- several kept from before: the first of them that's still a role of yours)
+	-- (one role at a time, "only let .weights define one role; easiest on the computation too"; several kept from
+	-- before: the first of them that's still a role of yours)
 	local mine = {}
 	for _, r in ipairs(RolesOf(MyClass())) do mine[r[1]] = true end
 	-- (a role kept before 0.65.11, "healer", "tank": the tree that plays it now)
@@ -377,9 +374,9 @@ function F.SetRoles(ids)
 	db.upgradeRoles[key] = (ids and ids[1]) and { ids[1] } or nil
 end
 
--- Your talents pick the tree when you haven't (0.66.2, the player): the one holding most of your points, by the talent
--- window's tab name (English: "Feral Combat" is feral, the cat; .weights bear for a bear), else its place in the window
--- (the trees' order, the classic one). A tie, or no points yet: the class's levelling tree.
+-- Your talents pick the tree when you haven't: the one holding most of your points, by the talent window's tab name
+-- (English: "Feral Combat" is feral, the cat; .weights bear for a bear), else its place in the window (the trees'
+-- order, the classic one). A tie, or no points yet: the class's levelling tree.
 local TAB_ORDER = { DRUID = { "balance", "feral", "restoration" } }
 --- The tree id for the talent window's tab `name` (the `index`th) of `class`, or nil.
 function F.TreeOfTab(name, index, class)
@@ -469,9 +466,9 @@ function F.KindsValue(kinds, w)
 	return any and v or nil
 end
 --- What an item's stats by kind are worth to you: weighed; 0 when it has stats but none of them are ones you want; nil
---- when it has none to weigh (then item levels decide). 0.56.14, the player: a warrior was offered Snake Hoop
---- (Intellect, Spell Power) over rings of Strength and Agility: stats none of which were wanted were taken as unknown,
---- and its higher item level made it an upgrade (an empty slot took any such item too).
+--- when it has none to weigh (then item levels decide). a warrior was offered Snake Hoop (Intellect, Spell Power) over
+--- rings of Strength and Agility: stats none of which were wanted were taken as unknown, and its higher item level made
+--- it an upgrade (an empty slot took any such item too).
 -- (what every piece has, not a stat a class picks it for: a plain weapon's damage or a white helm's armour, unweighed,
 -- leave item levels to decide; release review: a healer's weights have no dps, and a wand was never an upgrade)
 local PLAIN = { dps = true, rdps = true, armor = true } -- (a wand's or bow's too: 0.65.11)
@@ -482,15 +479,15 @@ function F.Worth(kinds, w)
 	end
 	return v
 end
--- A clear upgrade (0.52.7, the player: "pretty clear upgrades over what I'm wearing now; only slight trade-offs"): what it
--- gives up, weighed, at most F.UPGRADE_LOSS of what it gains (+3 Strength for -2 Agility is one; +1 Strength +2 Stamina
--- for -2 Agility isn't), and what it adds at least F.UPGRADE_MIN of what you wear there is worth (at least
--- F.UPGRADE_MIN_ABS: one point of your main stat). Only item levels known: at least F.LEVEL_CLEAR above.
+-- A clear upgrade: what it gives up, weighed, at most F.UPGRADE_LOSS of what it gains (+3 Strength for -2 Agility is
+-- one; +1 Strength +2 Stamina for -2 Agility isn't), and what it adds at least F.UPGRADE_MIN of what you wear there is
+-- worth (at least F.UPGRADE_MIN_ABS: one point of your main stat). Only item levels known: at least F.LEVEL_CLEAR
+-- above.
 F.UPGRADE_LOSS, F.UPGRADE_MIN, F.UPGRADE_MIN_ABS, F.LEVEL_CLEAR = 0.5, 0.05, 1, 2
--- Hit over the cap counts for nothing (0.66.3, the player: "weights that know your hit cap"): your hit chance now, from
--- gear and talents as the game says it, against the chance to miss: a mob of your level below 60 (5% melee and ranged,
--- 3% spells: a spell always keeps 1% to miss), a boss three levels above at 60 (9%, 16%). An item's hit counts only up to the cap, after the piece it
--- replaces gives its own up. The game not saying (or keeping it secret): hit counts in full, as before.
+-- Hit over the cap counts for nothing: your hit chance now, from gear and talents as the game says it, against the
+-- chance to miss: a mob of your level below 60 (5% melee and ranged, 3% spells: a spell always keeps 1% to miss), a
+-- boss three levels above at 60 (9%, 16%). An item's hit counts only up to the cap, after the piece it replaces gives
+-- its own up. The game not saying (or keeping it secret): hit counts in full, as before.
 F.HIT_CAP = { hit = 5, spellhit = 3 } -- (spells always keep 1% to miss: 3 of a same-level mob's 4; review)
 F.HIT_CAP_60 = { hit = 9, spellhit = 16 }
 F.HIT_FNS = { hit = "GetHitModifier", spellhit = "GetSpellHitModifier" }
@@ -543,13 +540,12 @@ function F.ClearGain(mine, worn, w)
 	return net, capped
 end
 
---- What you wear in each equipment slot (1-18), read once per filter: item levels, their weighed stats, and their
---- stats by kind (kinds[slot]).
---- Kept while you wear the same (by the links, which a new piece or enchant changes) and the weights are the same: the
---- search's filter is made on every keystroke (review, 0.53.6: 18 slots' stats and item levels read each time). Only
---- once every piece was read whole (an item the client is still loading is read again next time).
+--- What you wear in each equipment slot (1-18), read once per filter: item levels, their weighed stats, and their stats
+--- by kind (kinds[slot]). Kept while you wear the same (by the links, which a new piece or enchant changes) and the
+--- weights are the same: the search's filter is made on every keystroke. Only once every piece was read whole (an item
+--- the client is still loading is read again next time).
 -- (one per weights table: with two roles picked each judged its own, and a single kept copy was read again for each,
--- every keystroke; 0.56.14)
+-- every keystroke)
 local wornKept = {}
 -- (the slots whose pieces always have stats: armor has armor, a weapon damage; a shirt, neck, ring or trinket can have none)
 F.ALWAYS_STATS = { [1] = true, [3] = true, [5] = true, [6] = true, [7] = true, [8] = true, [9] = true, [10] = true,
@@ -645,16 +641,16 @@ local function WornGear(w)
 	return levels, values, kinds, locs, names, ids
 end
 
--- What is:upgrade has read of each item, kept for the session (0.51.7): { slot type, required level, item level, usable
--- by you, -, -, how it binds (GetItemInfo's bindType); kinds = its stats by kind (nil: not read yet) }. The
--- client lets go of items it loaded a while ago (AtlasLoot's name pump asks for thousands): a row it no longer had was
--- left out ("not loaded": a loot row) or asked for again, so the same search said 18 upgrades in Dungeon loot and
--- then listed 8, and changed again with each step in and out. Read again whenever the client has the item (what you
--- can use changes as you learn to wear mail); used as it was when it doesn't.
--- Kept between sessions too (0.51.13, the player's ask; ns.ItemStore "facts", by item id): after a /reload, items
--- the game hasn't sent again are judged as before, and items it has aren't read again. The record, one string:
--- "slot type;required level;item level;binding;str=7,sta=4;Grom+,Jaina-" (the last: usable by each of your characters
--- it was asked for). A change to this record or to the stat kinds (STAT_KINDS) needs ItemStore's S.VERSION raised. A row's own copy with a random suffix ("of the Monkey") is kept for the session only.
+-- What is:upgrade has read of each item, kept for the session: { slot type, required level, item level, usable by you,
+-- -, -, how it binds (GetItemInfo's bindType); kinds = its stats by kind (nil: not read yet) }. The client lets go of
+-- items it loaded a while ago (AtlasLoot's name pump asks for thousands): a row it no longer had was left out ("not
+-- loaded": a loot row) or asked for again, so the same search said 18 upgrades in Dungeon loot and then listed 8, and
+-- changed again with each step in and out. Read again whenever the client has the item (what you can use changes as you
+-- learn to wear mail); used as it was when it doesn't. Kept between sessions too (ns.ItemStore "facts", by item id):
+-- after a /reload, items the game hasn't sent again are judged as before, and items it has aren't read again. The
+-- record, one string: "slot type;required level;item level;binding;str=7,sta=4;Grom+,Jaina-" (the last: usable by each
+-- of your characters it was asked for). A change to this record or to the stat kinds (STAT_KINDS) needs ItemStore's
+-- S.VERSION raised. A row's own copy with a random suffix ("of the Monkey") is kept for the session only.
 local fit = {}
 F.fitGen = 0 -- (raised whenever what upgrades were judged by is forgotten: F.FitKey)
 F.ClearFit = function() fit = {}; wornKept = {}; F.fitGen = F.fitGen + 1; if ns.ItemStore then ns.ItemStore.Clear("facts") end end
@@ -665,7 +661,7 @@ function F.FitKey()
 	local set = F.MyWeightSets()[1]
 	local _, worn = WornLinks()
 	-- (your hit as its numbers: the table HitNow makes was a new one each time, its address in the key, so the key was
-	-- never the same twice and vendor upgrades were judged again on every keystroke; 1.0.87, review)
+	-- never the same twice and vendor upgrades were judged again on every keystroke)
 	local hit, kinds = {}, {}
 	for kind in pairs(F.HitNow()) do kinds[#kinds + 1] = kind end
 	table.sort(kinds)
@@ -679,18 +675,18 @@ F._fit = function() return fit end -- (tests)
 --- Is something known of this item, kept this session or from another (is:upgrade can judge it without the game)?
 function F.Known(id) return fit[id] ~= nil or (ns.ItemStore ~= nil and ns.ItemStore.Get("facts", id) ~= nil) end
 
--- How much each upgrade the last search found beats what you wear (0.51.14, the player's ask: the best first, and the
--- tooltip saying why): row -> { gain, kinds (its stats), worn (what it replaces: its stats), loc, ilvl, wLvl, empty }.
--- gain: weighed stats over the replaced piece's, else item levels over its; nothing worn there: its own worth.
+-- How much each upgrade the last search found beats what you wear: row -> { gain, kinds (its stats), worn (what it
+-- replaces: its stats), loc, ilvl, wLvl, empty }. gain: weighed stats over the replaced piece's, else item levels over
+-- its; nothing worn there: its own worth.
 local gains = setmetatable({}, { __mode = "k" })
 function F.GainOf(e) return gains[e] end
 --- A view of a row made after the search (a quest's, Rewards.lua) says why as its row does.
 function F.SetGain(e, g) gains[e] = g end
 
---- Who "usable by you" is kept for: this character (by name). Not the class (review, 0.51.25): one hunter wears mail
---- from 40, another not yet; weapon skills are each one's own. (Names have no ; , + or -.)
+--- Who "usable by you" is kept for: this character (by name). Not the class: one hunter wears mail from 40, another not
+--- yet; weapon skills are each one's own. (Names have no ; , + or -.)
 local function MyName()
-	-- (with its surname where characters have one: "Plamen Warr" and "Plamen Mage" are two. Review, 0.53.6)
+	-- (with its surname where characters have one: "Plamen Warr" and "Plamen Mage" are two.)
 	local ok, name = pcall(ns.CharacterName)
 	if not (ok and type(name) == "string" and name ~= "" and not name:find("[;,%+%-@]")) then return nil end
 	-- (and the realm, its letters only: two of the same name on two realms aren't one)
@@ -717,7 +713,7 @@ local function Decode(rec, class)
 	local loc, need, ilvl, bind, stats, can = rec:match("^([^;]*);([^;]*);([^;]*);([^;]*);([^;]*);([^;]*)$")
 	if not loc or not SLOTS[loc] then return nil end
 	local kinds = {}
-	for k, v in stats:gmatch("([%a%d]+)=([%-%d%.]+)") do kinds[k] = tonumber(v) end -- (mp5 too: review, 0.51.25)
+	for k, v in stats:gmatch("([%a%d]+)=([%-%d%.]+)") do kinds[k] = tonumber(v) end -- (mp5 too: review)
 	local mine = class and ("," .. can):match("," .. Escaped(class) .. "([%+%-])")
 	return { loc, tonumber(need), tonumber(ilvl), mine == "+" or (mine ~= "-" and nil), nil, nil, tonumber(bind),
 		kinds = kinds, kept = rec }
@@ -751,7 +747,7 @@ GearFitWith = function(weights, role)
 	local worn, wornValue, wornKinds, wornLocs, wornNames, wornIds = WornGear(weights)
 	hitNow = F.HitNow() -- (your hit chance now: hit past the cap counts for nothing)
 	-- a one-hander replaces a weapon: the main hand, and the off hand only when it holds one (dual wielding); a shield
-	-- or an off-hand item stays (0.51.17, the player: a mace was weighed against main hand and shield together)
+	-- or an off-hand item stays
 	local offWeapon = not (wornLocs[17] == "INVTYPE_SHIELD" or wornLocs[17] == "INVTYPE_HOLDABLE")
 	F.fitMade = true -- (this search weighs upgrades: their tooltips compare them, F.UpgradeItem)
 	local asked = 0 -- (items asked of the server by this filter: a few at a time, F.GEAR_ASK per search)
@@ -759,15 +755,13 @@ GearFitWith = function(weights, role)
 	local cached = C_Item and C_Item.IsItemDataCachedByID
 	local LootPlace = ns.Integrations and ns.Integrations.LootPlace
 	local class = MyName() -- (this character: who "usable" is kept for)
-	-- (1.0.5, the player's ask: OneForAll installed, its gear value decides, Providers/Integrations/OneForAll/Gear.lua; your roles
-	-- picked in .weights: Terminal's own)
 	local OAG = ns.OneForAllGear and ns.OneForAllGear.Judge()
 	local Fit
 	local probes = {} -- item id -> a row of its own, for a quest's rewards
-	-- a quest (Questie's, your log's): one of its rewards is an upgrade (0.51.15, the player's ask; Rewards.lua knows
-	-- what each quest rewards): the best of them, by name
+	-- a quest (Questie's, your log's): one of its rewards is an upgrade (Rewards.lua knows what each quest rewards):
+	-- the best of them, by name
 	local function QuestFit(e)
-		gains[e] = nil -- (a gain from an earlier search isn't this one's: review, 0.51.25)
+		gains[e] = nil -- (a gain from an earlier search isn't this one's: review)
 		local QR = ns.QuestRewards
 		local qid = QR and QR.QuestIdOf and QR.QuestIdOf(e)
 		local items = qid and QR.RewardsOf and QR.RewardsOf(qid)
@@ -790,7 +784,7 @@ GearFitWith = function(weights, role)
 	end
 	Fit = function(e)
 		if e.kind == "questie" or e.kind == "quests" then return QuestFit(e) end
-		gains[e] = nil -- (a gain from an earlier search isn't this one's: review, 0.51.25)
+		gains[e] = nil -- (a gain from an earlier search isn't this one's: review)
 		if e.slotId then return false end -- (worn already)
 		local id = ItemOf(e)
 		if not id then return false end
@@ -800,10 +794,10 @@ GearFitWith = function(weights, role)
 			if ok and type(loc) == "string" and not SLOTS[loc] then return false end
 		end
 		local key = StatKey(e)
-		-- (one you wear already: not an upgrade, though it beats your other ring, trinket or weapon; 0.52.7, the player)
+		-- (one you wear already: not an upgrade, though it beats your other ring, trinket or weapon)
 		if wornIds[key] then return false end
-		-- only what you can get (0.51.9, the player: Naxxramas gear, engineers' trinkets and cosmetic helms for a level 30
-		-- warrior): AtlasLoot's dungeons you can enter (not raids, professions, PvP, factions, collections or events)
+		-- only what you can get: AtlasLoot's dungeons you can enter (not raids, professions, PvP, factions, collections
+		-- or events)
 		if e.kind == "loot" then
 			local place = LootPlace and LootPlace(e)
 			if place and (place.kind ~= "dungeon" or (me and place.enter and place.enter > me)) then return false end
@@ -817,11 +811,9 @@ GearFitWith = function(weights, role)
 		if not live then
 			-- an item the client hasn't got (or no longer has): as read when it had it
 			if not f then
-				-- never read: not one for now. AtlasLoot's thousands of items are never asked for from here (its own name
-				-- pump does that, a batch at a time); others a few per search, in the background: the search isn't run
-				-- again for them (0.51.9, the player: Simple mode's "upgrades", which looks at your alts' bags too, was
-				-- searched again every second or so while they came in, where "@loot is:upgrade" stood still; they're
-				-- in the next search)
+				-- never read: not one for now. AtlasLoot's thousands of items are never asked for from here (its own
+				-- name pump does that, a batch at a time); others a few per search, in the background: the search isn't
+				-- run again for them
 				if e.kind == "loot" or asked >= F.GEAR_ASK then return false end
 				asked = asked + 1
 				if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
@@ -848,9 +840,8 @@ GearFitWith = function(weights, role)
 			if not yours then return false end
 		end
 		local slots = SLOTS[loc]
-		-- a one-hander goes in the main hand only for a class that can't dual-wield (0.50.7, review: an empty off hand made
-		-- every usable one-hander an upgrade for a mage, a priest)
-		-- (a two-hander worn: against it once, not as two weapons; review, 0.51.25)
+		-- a one-hander goes in the main hand only for a class that can't dual-wield (a two-hander worn: against it
+		-- once, not as two weapons)
 		if loc == "INVTYPE_WEAPON" and (ns.Safe(_G.CanDualWield) == false or not offWeapon or wornValue.twoHand) then
 			slots = MAIN_ONLY
 		end
@@ -872,10 +863,10 @@ GearFitWith = function(weights, role)
 			end
 		end
 		if not f[4] then return false end
-		-- OneForAll's verdict: up (by how many percent) or new; down, the same or worn: not one. Not asked of a copy with a
-		-- random suffix ("of the Monkey": it judges the bare item, without the suffix's stats) nor of one the client hasn't
-		-- got (it would ask the server for it, every loot row of a search): Terminal's own judgement then, and when it
-		-- can't say (review, 1.0.13)
+		-- OneForAll's verdict: up (by how many percent) or new; down, the same or worn: not one. Not asked of a copy
+		-- with a random suffix ("of the Monkey": it judges the bare item, without the suffix's stats) nor of one the
+		-- client hasn't got (it would ask the server for it, every loot row of a search): Terminal's own judgement
+		-- then, and when it can't say
 		if OAG and live and key == id then
 			local kind, pct = OAG.Change(id)
 			if kind == "up" or kind == "new" then
@@ -927,8 +918,8 @@ GearFitWith = function(weights, role)
 				-- (nothing you want on it: not one, even for an empty slot)
 				local worth = F.Worth(f.kinds, weights)
 				if worth == 0 then return false end
-				-- (its stats' worth; none to weigh: after those, by item level, not item levels against stat points: an empty
-				-- trinket slot's every trinket went above real upgrades; review, 0.51.25)
+				-- (its stats' worth; none to weigh: after those, by item level, not item levels against stat points: an
+				-- empty trinket slot's every trinket went above real upgrades)
 				gains[e] = { gain = worth or ilvl / 100, kinds = f.kinds, loc = loc, ilvl = ilvl, empty = true,
 					role = role, byLevel = worth == nil or nil }
 			end
@@ -965,8 +956,8 @@ GearFitWith = function(weights, role)
 			up, g = true, { gain = ilvl - wLvl, loc = loc, ilvl = ilvl, wLvl = wLvl, byLevel = true }
 		end
 		if not up then return false end
-		-- two slots: against each piece it beats, by name; one it doesn't beat isn't said (0.51.19, the player's ask);
-		-- sorted by the bigger gain. None beaten: not an upgrade.
+		-- two slots: against each piece it beats, by name; one it doesn't beat isn't said; sorted by the bigger gain.
+		-- None beaten: not an upgrade.
 		if multi then
 			local vs = {}
 			for _, slot in ipairs(slots) do
@@ -1012,7 +1003,7 @@ function F.UpgradeItem(e)
 end
 
 ----------------------------------------------------------------------
--- .weights: how upgrades are judged, and the roles they're judged for (0.54.1, a player's ask)
+-- .weights: how upgrades are judged, and the roles they're judged for
 ----------------------------------------------------------------------
 
 --- A weights table as words, the most wanted first: "agi 1, str 0.9, crit 0.8".
@@ -1084,7 +1075,7 @@ ns:RegisterCommand("weights", {
 				F.SetRoles(nil)
 				lines[#lines + 1] = L["Upgrades: judged for the tree your talent points are in again."]
 			elseif first == "set" then
-				-- (0.65.8) your own: .weights set str=2 agi=1 sta=0.5
+				-- your own: .weights set str=2 agi=1 sta=0.5
 				local w, bad = F.ParseWeights(rest)
 				if #bad > 0 or not w then
 					return { (#bad > 0 and L["Not a stat and its weight: %s"]:format(table.concat(bad, " ")) or L["Which stats? .weights set str=2 agi=1 sta=0.5"]),
@@ -1095,7 +1086,7 @@ ns:RegisterCommand("weights", {
 				F.SetRoles({ "custom" })
 				lines[#lines + 1] = L["Upgrades: judged by your own weights: %s"]:format(F.WeightsText(w, 30))
 			elseif first == "pawn" or args:find("^%(%s*[Pp][Aa][Ww][Nn]") then
-				-- (0.65.8) a Pawn scale string: typed after it, or pasted in a window (they're often longer than the prompt
+				-- a Pawn scale string: typed after it, or pasted in a window (they're often longer than the prompt
 				-- takes)
 				local text = first == "pawn" and restRaw or args
 				if text == "" then
@@ -1119,7 +1110,7 @@ ns:RegisterCommand("weights", {
 				if #bad > 0 then
 					return { L["Not a role of your class: %s. Yours: %s"]:format(table.concat(bad, ", "), table.concat(names, ", ")) }
 				end
-				-- (one role at a time, 0.65.9)
+				-- (one role at a time)
 				if #ids > 1 then return { L["One role at a time: .weights %s. Yours: %s"]:format(ids[1], table.concat(names, ", ")) } end
 				F.SetRoles(ids)
 				lines[#lines + 1] = L["Upgrades: judged for %s."]:format(F.ROLE_SAY[ids[1]] or ids[1])
@@ -1153,7 +1144,7 @@ ns:RegisterCommand("weights", {
 		lines[#lines + 1] = L[".weights <tree> picks one (.weights %s); .weights all goes back to the tree your talent points are in (none spent: your class's levelling tree)."]:format(
 			(F.ROLES[class or ""] and F.ROLES[class][1] and F.ROLES[class][1][1]) or "arms")
 		lines[#lines + 1] = "  " .. L["Hit, crit, dodge, parry and block per 1%; defense per point of skill; the rest per point."]
-		-- (the hit cap: what you have now against it; 0.66.3)
+		-- (the hit cap: what you have now against it)
 		local h = F.HitNow()
 		local function Pct(v) return (("%.1f"):format(v):gsub("%.0$", "")) end
 		if h.hit then

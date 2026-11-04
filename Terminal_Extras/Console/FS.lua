@@ -489,7 +489,7 @@ function FS.GlobPattern(glob)
 				out[#out + 1] = "[" .. Lower(set) .. "]"
 				i = j
 			else out[#out + 1] = "%[" end
-		elseif c == "_" then out[#out + 1] = "[_ ]" -- (a _ stands for a space, as a name typed does; 1.0.88, review)
+		elseif c == "_" then out[#out + 1] = "[_ ]" -- (a _ stands for a space, as a name typed does)
 		elseif c:match("%p") then out[#out + 1] = "%" .. c
 		else out[#out + 1] = Lower(c) end
 		i = i + 1
@@ -962,10 +962,9 @@ local function QuestieDB()
 end
 FS.HasQuestie = function() return QuestieDB() ~= nil end
 
---- Has the search's index of what NPCs sell (QuestieQuests.lua's I.BuildNpcItems: one read for both, 1.0.50) read,
---- again when the idle sweep let it go (review, 1.0.72: an NPC not asked for before then said it sold nothing).
---- `step(i, n)` is called every so often (the shell's: it may wait a frame; never inside a pcall here). False without
---- Questie.
+--- Has the search's index of what NPCs sell (QuestieQuests.lua's I.BuildNpcItems: one read for both) read, again when
+--- the idle sweep let it go. `step(i, n)` is called every so often (the shell's: it may wait a frame; never inside a
+--- pcall here). False without Questie.
 function FS.BuildSold(step)
 	if FS.sold and I and I.NpcItemsReady and I.NpcItemsReady() then return true end
 	local DB = QuestieDB()
@@ -1126,7 +1125,7 @@ local function ZoneText(e)
 	return (FS.Clean(z):gsub("%s+", "_"))
 end
 
---- How far a row is from `here` (I.Here()), in whole yards, or nil.
+--- How far a row is from `here` (I.Here), in whole yards, or nil.
 function FS.Yards(e, here)
 	if not (here and I and I.RowYards) then return nil end
 	local ok, d = pcall(I.RowYards, e, here)
@@ -1249,9 +1248,9 @@ end
 
 -- each: the lists it fills (provider ids; or a function giving them, when that changes), its addons' names (the first
 -- one said in /etc/fstab when none is loaded), and which of them is in use now (nil: none). Lists Terminal fills itself
--- (items, spells, flight paths, entrances...) aren't mounts.
--- (/loot: AtlasLoot's, with OneForAll's planner's rows in it; without AtlasLoot, OneForAll's alone, so on its mount.
--- 1.0.43, the player's ask: /etc/fstab said "# AtlasLootClassic /loot ... not installed" while /loot was OneForAll's)
+-- (items, spells, flight paths, entrances...) aren't mounts. (/loot: AtlasLoot's, with OneForAll's planner's rows in
+-- it; without AtlasLoot, OneForAll's alone, so on its mount. /etc/fstab said "# AtlasLootClassic /loot ... not
+-- installed" while /loot was OneForAll's)
 local function OneForAllLoot()
 	local G = ns.OneForAllGear
 	return G ~= nil and G.on and not (I and I.loot and I.loot.on) and ns.providers.loot ~= nil
@@ -1264,7 +1263,7 @@ FS.MOUNTS = {
 	{ type = "attune", lists = { "attune" }, names = { "Attune" },
 		source = function()
 			if I and I.attune and I.attune.on then return "Attune" end
-			return ns.Attune and ns.Attune.fallback and "OneForAll" or nil -- (1.0.7: OneForAll's keys, without Attune)
+			return ns.Attune and ns.Attune.fallback and "OneForAll" or nil
 		end },
 	{ type = "bags", lists = { "stored", "bank" }, names = { "Syndicator", "BagBrother" },
 		source = function() return ns.Stored and ns.Stored.Source() end },
@@ -1273,7 +1272,6 @@ FS.MOUNTS = {
 			local p = ns.providers.training
 			if p then return p.fromTrainerSpells and "TrainerSpells" or "WhatsTraining" end
 		end },
-	-- (1.0.1-1.0.5: OneForAll - Forever's lists, Providers/Integrations/OneForAll/)
 	{ type = "oneforall", lists = function()
 			local t = { "book", "itemset", "transport" }
 			if OneForAllLoot() then t[#t + 1] = "loot" end
@@ -1373,7 +1371,7 @@ function FS.Mounts()
 			-- (AtlasLoot's rows wait for their names from the server: those are its not-yet-used part)
 			if m.type == "atlasloot" and I and I.loot and I.loot.on then
 				local waiting = I.LootWaiting and I.LootWaiting() or 0
-				-- (and OneForAll's planner's rows beside AtlasLoot's: the list's own count when made; review, 1.0.38)
+				-- (and OneForAll's planner's rows beside AtlasLoot's: the list's own count when made)
 				size = math.max(size or 0, #I.loot.rows)
 				used = size - waiting
 				if waiting > 0 then opts[#opts + 1] = "names-pending" end

@@ -25,10 +25,10 @@ local PASS_KEYS = {
 	LMETA = true, RMETA = true, LWIN = true, RWIN = true, PRINTSCREEN = true,
 }
 
--- (0.45.19, the player: Ctrl+S should still toggle sound, Ctrl+M music...) the game's own actions that don't touch what
--- Terminal does: a key chord bound to one of these still goes to the game while the terminal is open. Not targeting,
--- casting, moving, windows, or anything that hides the UI. (Ctrl+R, the frame rate, was one until 0.63.6: it's the
--- history search's now, the terminal's own; .atop's window still passes it on.)
+-- the game's own actions that don't touch what Terminal does: a key chord bound to one of these still goes to the game
+-- while the terminal is open. Not targeting, casting, moving, windows, or anything that hides the UI. (Ctrl+R, the
+-- frame rate, was one until 0.63.6: it's the history search's now, the terminal's own; .atop's window still passes it
+-- on.)
 UI.PASS_ACTIONS = {
 	TOGGLEFPS = true, TOGGLESOUND = true, TOGGLEMUSIC = true, TOGGLEAMBIENCE = true, MASTERVOLUMEUP = true,
 	MASTERVOLUMEDOWN = true, SCREENSHOT = true, TOGGLEGRAPHICSSETTINGS = true, TOGGLESELFHIGHLIGHT = true,
@@ -73,8 +73,7 @@ function UI:EnterKeys()
 	if self.clipHint then self.clipHint = nil; self:SetStatus() end
 	self.keys = true
 	self.anchor = nil
-	-- (the game's text box's caret, where it was moved there: the drawn prompt's own follows only text changes; 0.63.7,
-	-- review: back from combat the caret jumped to the end)
+	-- (the game's text box's caret, where it was moved there: the drawn prompt's own follows only text changes)
 	if edit.HasFocus and edit:HasFocus() and edit.GetCursorPosition then
 		local p = edit:GetCursorPosition()
 		if type(p) == "number" then self.cursor = p end
@@ -143,18 +142,17 @@ UI.KeyTypes = Types -- (tests)
 -- Terminal's own binding commands (Bindings.xml) and what each runs
 local OWN_ACTIONS = { TERMINAL_TOGGLE = "Toggle", TERMINAL_FUZZY = "FuzzyOnce", TERMINAL_ADVANCED_ONCE = "AdvancedOnce" }
 
---- (0.49.2, review: ".bind CTRL-SPACE" opened the terminal, and Ctrl+Space then did nothing in it: the terminal holds the
---- keyboard, so the game's binding never fires) The key chord is bound to one of Terminal's own commands: which one, else
---- nil. Not ` or another key the terminal's bound to alone (TickKey's: Tab+` and Alt+` too), not Enter (running a
---- result), not a plain key that types (it types). Alt with a key whose chord has no binding: the key without Alt (the
---- game hands it that binding too), so Alt+Ctrl+Space is Alt+` when Ctrl+Space is the terminal's (0.65.1).
+--- The key chord is bound to one of Terminal's own commands: which one, else nil. Not ` or another key the terminal's
+--- bound to alone (TickKey's: Tab+` and Alt+` too), not Enter (running a result), not a plain key that types (it
+--- types). Alt with a key whose chord has no binding: the key without Alt (the game hands it that binding too), so
+--- Alt+Ctrl+Space is Alt+` when Ctrl+Space is the terminal's.
 function UI.OwnBinding(key)
 	if type(key) ~= "string" or ns.IsTickKey(key) or key == "ENTER" or key == "NUMPADENTER" or not GetBindingAction then return nil end
 	local chord, alt, ctrl, _, meta = Chord(key)
 	if not (alt or ctrl or meta) and Types(key) then return nil end
 	local ok, action = pcall(GetBindingAction, chord)
 	-- (only the terminal's key: Alt+ it is Alt+`; and never a key that types with Ctrl and Alt, which is AltGr typing
-	-- on many layouts: AltGr+Q types @; 0.65.1 review)
+	-- on many layouts: AltGr+Q types @)
 	if alt and ok and (action == nil or action == "") and not (ctrl and (#key == 1 or key:find("[\128-\255]"))) then
 		local ok2, a2 = pcall(GetBindingAction, (chord:gsub("ALT%-", "", 1)))
 		if ok2 and a2 == "TERMINAL_TOGGLE" then action = a2 end
@@ -174,7 +172,7 @@ local function CheckChar(key)
 	local edit = UI.edit
 	-- OnChar should follow this key; if it never does, this client can't do key capture. (Only a key that types: a
 	-- function key pressed before anything was typed switched to the plain text box for good. And only one that surely
-	-- types at once (0.49.2, review): a dead key first in a session (´ then e for é) switched to it for the session.)
+	-- types at once: a dead key first in a session (´ then e for é) switched to it for the session.)
 	if UI.charChecked or not SureChar(key) then return end
 	UI.pendingChar = key
 	C_Timer.After(0, function()
@@ -223,8 +221,7 @@ rep:SetScript("OnUpdate", function(self, elapsed)
 		return
 	end
 	self.wait = REPEAT_RATE
-	-- (Ctrl and Shift as they are now: let go of Ctrl while Backspace is held and it deletes letters again, not words;
-	-- 1.0.85, review)
+	-- (Ctrl and Shift as they are now: let go of Ctrl while Backspace is held and it deletes letters again, not words)
 	if IsControlKeyDown then self.ctrl = IsControlKeyDown() and true or false end
 	if IsShiftKeyDown then self.shift = IsShiftKeyDown() and true or false end
 	EditKey(self.key, self.ctrl, self.shift)
@@ -241,19 +238,19 @@ local function KeysDown(self, key)
 		self:SetPropagateKeyboardInput(true)
 		return
 	end
-	-- (0.49.2, review) a key bound to one of Terminal's own commands (".bind CTRL-SPACE", the fuzzy-finding key): run here,
-	-- as the game's binding would, before Terminal's own chords (Ctrl+Space's) take it; never passed on (it would open
-	-- the terminal again)
+	-- a key bound to one of Terminal's own commands (".bind CTRL-SPACE", the fuzzy-finding key): run here, as the
+	-- game's binding would, before Terminal's own chords (Ctrl+Space's) take it; never passed on (it would open the
+	-- terminal again)
 	local own = UI.OwnBinding(key)
 	if own then
 		self:SetPropagateKeyboardInput(false)
 		ns:Trace(("key %s: Terminal's %s"):format(key, own))
-		-- (the terminal's own key, bound with a modifier: what ` does in it, Tab+ and Alt+ too; 0.65.1)
+		-- (the terminal's own key, bound with a modifier: what ` does in it, Tab+ and Alt+ too)
 		if own == "TERMINAL_TOGGLE" then UI.TickKey() else UI[OWN_ACTIONS[own]](UI) end
 		return
 	end
-	-- (0.55.13, the player) Alt+F, Alt+S, Alt+G: the bar's Filter, Sort and Group menus, to pick from with the keys; and
-	-- a bar menu open from the keys takes them (Bar.lua). Before the game's keys: the bar is showing, they're its
+	-- Alt+F, Alt+S, Alt+G: the bar's Filter, Sort and Group menus, to pick from with the keys; and a bar menu open from
+	-- the keys takes them (Bar.lua). Before the game's keys: the bar is showing, they're its
 	local B = ns.Bar
 	if B and B.MenuKey(self, key) then return end
 	if B and IsAltKeyDown and IsAltKeyDown() and not IsControlKeyDown() and B.ALT_KEYS[key] and B.KeyOpen(B.ALT_KEYS[key]) then
@@ -261,7 +258,7 @@ local function KeysDown(self, key)
 		B.SwallowAltChar(key) -- (the character the client types for it after the key: not typed)
 		return
 	end
-	-- (Ctrl+R: the history search, the terminal's own (ListKey); not passed on to the game's frame rate. 0.63.6, the player)
+	-- (Ctrl+R: the history search, the terminal's own (ListKey); not passed on to the game's frame rate.)
 	local ctrlR = key == "R" and IsControlKeyDown and IsControlKeyDown() and not (IsAltKeyDown and IsAltKeyDown())
 	local game, action = UI.GameKey(key)
 	if game and not ctrlR then
@@ -273,10 +270,8 @@ local function KeysDown(self, key)
 	if key == "TAB" then
 		UI.tabHeld = GetTime()
 		-- Tab still held from the press that opened the terminal (its repeats): not a Tab of its own. Unless the client
-		-- tells Tab is down now (IsKeyDown, a plain true): then its "not held" as the toggle key opened the terminal was
-		-- true too, and this is a Tab of its own (0.49.2, review: ` then Tab within a second was swallowed, and its
-		-- key-up turned to fuzzy finding)
-		-- (Ctrl+Tab never is: the next tab; review, 0.53.6)
+		-- tells Tab is down now (IsKeyDown, a plain true): then its "not held" as the toggle key opened the terminal
+		-- was true too, and this is a Tab of its own (Ctrl+Tab never is: the next tab)
 		if UI.openedByToggle and GetTime() - UI.openedByToggle < TAB_LATE and not UI:TabToldDown() and not IsControlKeyDown() then
 			self:SetPropagateKeyboardInput(false)
 			return
@@ -305,7 +300,7 @@ local function KeysDown(self, key)
 	end
 	if key == "ENTER" or key == "NUMPADENTER" then
 		-- (">>> say": the one line the game presses holds every result, so a search still going is finished first, as
-		-- ">>> party" and the menu's "All N" lines do; review, 0.48.6: only the first frame's rows went)
+		-- ">>> party" and the menu's "All N" lines do)
 		local to = UI.sendTo
 		if to and to.all and to.cmd and ns.Share.Restricted(to) and not UI:FinishSearch(UI.SEND_FINISH_MS) then
 			self:SetPropagateKeyboardInput(false)
@@ -314,8 +309,7 @@ local function KeysDown(self, key)
 		end
 		-- something armed for this Enter (Shift+Enter or a click in the game's text box, a click on a row with no click
 		-- route, a line of the mouse menu) on the row still selected: Enter presses that, as the footer says. Else it's
-		-- stale, and Enter works its press out afresh. (0.49.2, review: it always worked it out again, from Shift held
-		-- now and without the menu's own line: the armed "link in chat" ran the plain open, the menu's Open sent it)
+		-- stale, and Enter works its press out afresh.
 		local sel, armed = UI.results[UI.sel], UI.armedEntry
 		if armed and not (sel and UI.SameRow(sel, armed)) then
 			UI:Disarm()
@@ -360,7 +354,7 @@ local function Cursor(text)
 	return UI.ClampCursor(c, text)
 end
 --- The caret now, in the drawn prompt or the game's text box (UI.cursor is stale in the box: it follows text changes
---- only; review, 0.53.6: a tab, F1 and combat kept an old caret).
+--- only).
 function UI.CursorNow() return Cursor(UI.edit and UI.edit:GetText() or "") end
 
 --- The keys Terminal does alike in the drawn prompt and the real text box (combat, the clipboard): F1 the keys window,
@@ -429,8 +423,8 @@ do
 		elseif not shift and not ctrl and c >= #text and UI:AcceptCompletion() then
 			return -- at the end: take the suggestion
 		elseif shift and not ctrl and c >= #text and EasyOn() and not UI.fzf and not UI:SuggestionText() and UI.results[UI.sel] then
-			-- Simple mode: what can be done with it (the result's text would be Advanced syntax). Opened once: held, the key's
-			-- repeat built the menu again 22 times a second (1.0.85, review)
+			-- Simple mode: what can be done with it (the result's text would be Advanced syntax). Opened once: held,
+			-- the key's repeat built the menu again 22 times a second
 			StopRepeat()
 			UI:ShowRowMenu(UI.sel, true)
 			return
@@ -441,10 +435,10 @@ do
 		end
 	end
 
-	--- Tab, one rule in every mode (0.45.20): it completes, like a shell (the faint text after the cursor; Simple mode's
-	--- category row: picks it), and with nothing to complete goes to the next result; Shift+Tab the previous one. The
-	--- pick list ("@", "q:") goes round. Back is Shift+Left's (Simple mode's Tab in a category no longer goes back to
-	--- all of them). The game's own text box (combat, the clipboard) runs it too (UI.TabKey).
+	--- Tab, one rule in every mode: it completes, like a shell (the faint text after the cursor; Simple mode's category
+	--- row: picks it), and with nothing to complete goes to the next result; Shift+Tab the previous one. The pick list
+	--- ("@", "q:") goes round. Back is Shift+Left's (Simple mode's Tab in a category no longer goes back to all of
+	--- them). The game's own text box (combat, the clipboard) runs it too (UI.TabKey).
 	local function TabKey(shift)
 		if UI.fzf or UI.histSearch then
 			UI:Move(shift and -1 or 1) -- (pure fuzzy finding, Ctrl+R: nothing to complete)
@@ -502,8 +496,8 @@ do
 			-- one left of it)
 			if c < #text then UI:SetQuery(text:sub(1, c) .. text:sub((ctrl and NextWord(text, c) or NextPos(text, c)) + 1), c) end
 		elseif key == "LEFT" and shift and not ctrl and UI:GoBack() then
-			-- Shift+Left goes back (0.45.17, the player: the one key for it): the search a step left, a category picked;
-			-- the held key does nothing more until let go. Nothing to go back to: it selects, as before
+			-- Shift+Left goes back: the search a step left, a category picked; the held key does nothing more until let
+			-- go. Nothing to go back to: it selects, as before
 			StopRepeat()
 			UI.backHeld = GetTime()
 		elseif key == "LEFT" then
@@ -532,10 +526,9 @@ do
 		elseif ListKey(key, ctrl and not IsAltKeyDown()) then
 			return
 		elseif (ctrl and not IsAltKeyDown()) or (IsMetaKeyDown and IsMetaKeyDown()) then
-			-- (Ctrl with Alt is AltGr, typing: Polish ą ć ń, Czech and Hungarian @ |; Terminal has no Ctrl+Alt keys. 0.49.2,
-			-- review: AltGr+A selected all, AltGr+C opened the clipboard box, AltGr+W deleted a word)
-			-- (a Mac's Cmd is Ctrl here: Cmd+A, Cmd+C, Cmd+V; review, 0.48.6: Cmd+V as the first key typed a stray "v" and,
-			-- no typed character following it, switched to the plain text box for the session)
+			-- (Ctrl with Alt is AltGr, typing: Polish ą ć ń, Czech and Hungarian @ |; Terminal has no Ctrl+Alt keys.
+			-- AltGr+A selected all, AltGr+C opened the clipboard box, AltGr+W deleted a word) (a Mac's Cmd is Ctrl
+			-- here: Cmd+A, Cmd+C, Cmd+V)
 			if key == "A" then
 				UI.anchor = 0; UI.cursor = #text; UI:UpdateCaret() -- select all
 			elseif key == "V" or key == "C" then

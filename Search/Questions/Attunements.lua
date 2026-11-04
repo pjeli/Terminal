@@ -1,7 +1,7 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Attune's attunements in searches (0.50.2; the rows themselves: Providers/Integrations/Attune.lua):
+-- Attune's attunements in searches (the rows themselves: Providers/Integrations/Attune.lua):
 --
 --   molten core > steps          an attunement's steps, first to last, each line of quests in turn ("steps for mc",
 --                                "how do i get into mc", "how do i get attuned to onyxia")
@@ -205,7 +205,7 @@ function Q.NamesStep(t)
 			end
 		end
 	end
-	local st = " " .. t -- (once, not per step name: hundreds, every keystroke; review, 0.57.7)
+	local st = " " .. t -- (once, not per step name: hundreds, every keystroke)
 	for _, n in ipairs(stepNames) do
 		if n:find(st, 1, true) then return true end
 	end
@@ -398,6 +398,6 @@ end
 function Q.ToAdvanced(q)
 	if q.steps then return q.steps .. " > steps " end
 	-- (words: the answer takes the attunements they name, their steps' text only when none; a search's words take both,
-	-- "mc" Onyxia's too. Kept as said; 0.63.7, review. A list is Q.Line's)
+	-- "mc" Onyxia's too. Kept as said. A list is Q.Line's)
 	return nil
 end

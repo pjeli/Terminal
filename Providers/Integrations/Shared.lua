@@ -36,10 +36,10 @@ I._ = {}
 local Safe = ns.Safe -- (Util.lua)
 local L = ns.L
 
--- An integration Terminal can't use as it is (0.57.1, the author's call: "give output when an integration fails and what
--- to expect"): its addon is there, but not in the shape Terminal reads (a new version moved its data, or starting it
--- failed). Said once a session in chat, naming what's unavailable ("Questie's data isn't what Terminal expects (a new
--- version?): @npc and @questie are unavailable."); .integrations lists it. Each part of an addon is said on its own.
+-- An integration Terminal can't use as it is: its addon is there, but not in the shape Terminal reads (a new version
+-- moved its data, or starting it failed). Said once a session in chat, naming what's unavailable ("Questie's data isn't
+-- what Terminal expects (a new version?): @npc and @questie are unavailable."); .integrations lists it. Each part of an
+-- addon is said on its own.
 I.failed = {} -- addon name -> { { what, why }, ... }
 --- `name`: the addon as players know it; `what`: what goes missing, a sentence ("@npc and @questie are unavailable.");
 --- `why`: for the .debug trace (what was found instead).
@@ -73,10 +73,9 @@ local function WaypointLink()
 end
 I._.AddOnVersion, I._.WaypointLink = AddOnVersion, WaypointLink
 
---- NPC names, a slice at a time so the game doesn't stall while Questie's database is read.
---- Work through n items a few milliseconds per frame (SLICE_MS), however long each takes, so
---- indexing never stalls a frame; then done(). A failing item is skipped and traced. The time
---- taken goes to the trace (.debug log).
+--- NPC names, a slice at a time so the game doesn't stall while Questie's database is read. Work through n items a few
+--- milliseconds per frame (SLICE_MS), however long each takes, so indexing never stalls a frame; then done. A failing
+--- item is skipped and traced. The time taken goes to the trace (.debug log).
 local SLICE_MS = 5
 local function Now() return _G.debugprofilestop and _G.debugprofilestop() or (GetTime() * 1000) end
 local function RunSliced(what, n, each, done)

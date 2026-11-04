@@ -41,8 +41,7 @@ local function Str(v)
 	return v
 end
 
--- (a field or a value that is a number all through, "0", " 3.5 ": awk's "strnum", a number in a test; 1.0.88, review:
--- `seq 0 3 | awk '$1'` printed the 0)
+-- (a field or a value that is a number all through, "0", " 3.5 ": awk's "strnum", a number in a test)
 local function WhollyNum(v)
 	return type(v) == "string" and (v:match("^%s*[%+%-]?%d*%.?%d+%s*$") or v:match("^%s*[%+%-]?%d*%.?%d+[eE][%+%-]?%d+%s*$")) ~= nil
 end
@@ -55,8 +54,7 @@ end
 
 local function Compare(a, b, op)
 	local x, y
-	-- (a variable never set, or a field the line hasn't, is 0 beside a number: `n==0` with n unset; 1.0.88, review:
-	-- compared as "" and "0")
+	-- (a variable never set, or a field the line hasn't, is 0 beside a number: `n==0` with n unset)
 	if (a == nil or a == "") and type(b) == "number" then a = 0 elseif (b == nil or b == "") and type(a) == "number" then b = 0 end
 	if LooksNum(a) and LooksNum(b) then x, y = Num(a), Num(b) else x, y = Str(a), Str(b) end
 	if op == "<" then return x < y elseif op == "<=" then return x <= y elseif op == ">" then return x > y
@@ -657,8 +655,8 @@ end
 -- Running it
 ----------------------------------------------------------------------
 
---- Runs a compiled program over lines. `opts`: fs (the -F separator), vars (-v), out(line), check() (between lines:
---- the shell's, it may yield). The status (0, or 2 and err(text) on an error).
+--- Runs a compiled program over lines. `opts`: fs (the -F separator), vars (-v), out(line), check (between lines: the
+--- shell's, it may yield). The status (0, or 2 and err(text) on an error).
 function AWK.Run(prog, lines, opts)
 	local R = { vars = {}, NR = 0 }
 	for k, v in pairs(opts.vars or {}) do R.vars[k] = v end

@@ -37,7 +37,7 @@ A.ALLOW = { npc = true, questie = true, loot = true, mailbox = true, forge = tru
 A.YOURS = { learned = true, unlearned = true, known = true, unknown = true, missing = true }
 
 -- the chat events heard: the setting that lets them be answered, and the chat type the answer goes to (`instance`:
--- never in a battleground, where the instance group is strangers; 0.68.6, the player's call)
+-- never in a battleground, where the instance group is strangers)
 A.CHANNELS = {
 	CHAT_MSG_GUILD = { set = "guild", chat = "GUILD" },
 	CHAT_MSG_PARTY = { set = "group", chat = "PARTY" }, CHAT_MSG_PARTY_LEADER = { set = "group", chat = "PARTY" },
@@ -53,9 +53,7 @@ local SAID = { guild = L["guild"], group = L["group"], whisper = L["whisper"] }
 -- Reading a question
 ----------------------------------------------------------------------
 
---- The text as words: a link's name ("[Thunderfury]" -> "Thunderfury"), the game's other codes and "|" left out. (0.68.5,
---- review: a linked item was searched as its codes, and "nothing found for ..." echoed the question cut at 60 bytes,
---- half a link: a broken link in a line sent.)
+--- The text as words: a link's name ("[Thunderfury]" -> "Thunderfury"), the game's other codes and "|" left out.
 function A.Clean(text)
 	text = tostring(text or ""):gsub("|H.-|h%[?(.-)%]?|h", "%1"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
 	return (text:gsub("|T.-|t", ""):gsub("|A.-|a", ""):gsub("|", ""))
@@ -181,8 +179,7 @@ function A.Asker(sender, guid)
 		end
 	end
 	if Safe(_G.IsInGuild) and _G.GetGuildRosterInfo then
-		-- (the name before the realm first: the whole comparison only for those, not for each of a thousand members;
-		-- 0.68.5, review)
+		-- (the name before the realm first: the whole comparison only for those, not for each of a thousand members)
 		local short = ns.Lower(tostring(sender or ""):match("^[^-]*"))
 		for i = 1, Num(Safe(_G.GetNumGuildMembers)) or 0 do
 			local n, _, _, level, _, zone, _, _, _, _, class, _, _, _, _, _, g = Safe(_G.GetGuildRosterInfo, i)
@@ -222,8 +219,8 @@ end
 A.FRESH = { "aggregate", "place", "category", "categoryAuto", "action", "sendTo", "overviewWinner", "lastExtra", "lastScan",
 	"lastFzf", "lastOverview", "lastSearchNarrowed", "typedPicks", "showRecent", "showField", "histSearch", "fzf",
 	"pipeTrail", "args", "searchedText", "whyQ", "secondLook", "ungrouped", "dataRetry", "noPosition",
-	-- (what a search clears as it starts, Scan.ResetFlags: cleared in the view, read through to the terminal's: its last
-	-- search's "close spellings only" made the answer's overview relaxed; 0.68.5, review)
+	-- (what a search clears as it starts, Scan.ResetFlags: cleared in the view, read through to the terminal's: its
+	-- last search's "close spellings only" made the answer's overview relaxed)
 	"closeSpellings", "softRelaxed", "linkedGuess", "linked", "answerNote", "weightsNote", "flightNote", "missingNote",
 	"calcAnswered" }
 local FRESH = {}
@@ -275,9 +272,9 @@ function A.Rows(question, asker)
 	-- (whatever happens in it, you're you again after: an error left in would have measured your "nearest" from Bob)
 	local adv
 	local ok, out = pcall(function()
-		-- (the question as Alt+` writes it: what the chat line says the rows are reads that, as the terminal's >>> does;
-		-- given the words as typed, "nearest innkeeper" was headed "Nearest", "nearest mailbox" "Mailbox nearest";
-		-- 0.68.12, review)
+		-- (the question as Alt+` writes it: what the chat line says the rows are reads that, as the terminal's >>>
+		-- does; given the words as typed, "nearest innkeeper" was headed "Nearest", "nearest mailbox" "Mailbox
+		-- nearest")
 		adv = E and E.ToAdvanced and E.ToAdvanced(text) or nil
 		local res = OneSearch(text)
 		local found = Allowed(res)
@@ -356,9 +353,9 @@ end
 local Inst = {}
 Inst.__index = Inst
 
---- A client over `env`: me() (your GUID), now(), after(s, f), random() (0-1), send(text, chat, target),
---- addon(msg, chat, target), print(line), locked(), combat(), setting(name), asker(sender, guid), answer(q, asker)
---- -> line, busy; locale(); battleground() (in one: its instance chat isn't answered).
+--- A client over `env`: me (your GUID), now, after(s, f), random (0-1), send(text, chat, target), addon(msg, chat,
+--- target), print(line), locked, combat, setting(name), asker(sender, guid), answer(q, asker) -> line, busy; locale;
+--- battleground (in one: its instance chat isn't answered).
 function A.New(env)
 	return setmetatable({ env = env, claims = {}, rivals = {}, lastAsker = {}, lastSame = {}, sent = {}, queue = {},
 		told = {}, log = {} }, Inst)
@@ -376,7 +373,7 @@ function Inst:Log(who, q, why)
 	local log = self.log
 	table.insert(log, 1, { who = who, q = q, why = why })
 	for i = #log, A.LOG_MAX + 1, -1 do log[i] = nil end
-	ns:Trace(("ask: someone asked %q: %s"):format(tostring(q), why)) -- (not who: .report copies traces; review, 1.0.19)
+	ns:Trace(("ask: someone asked %q: %s"):format(tostring(q), why)) -- (not who: .report copies traces)
 end
 
 -- (claims older than CLAIM_KEEP forgotten, and askers and questions past their gaps: a long session's guild chat
@@ -504,7 +501,7 @@ function Inst:OnChat(event, text, sender, guid)
 	local asker = env.asker(sender, guid)
 	if ch.chat == "WHISPER" and not (asker and asker.trusted) then self:Log(sender, q, "stranger") return end
 	-- (counted when heard, whoever answers it: a second question before the first's answer, or after another
-	-- Terminal's, waits its turn as well; 0.68.5, review)
+	-- Terminal's, waits its turn as well)
 	self.lastAsker[key], self.lastSame[id] = now, now
 	local job = { id = id, q = q, asker = asker or { name = Ambig(sender) }, chat = ch.chat, set = ch.set, sender = sender,
 		asked = now, target = ch.chat == "WHISPER" and sender or nil }
@@ -591,7 +588,7 @@ do
 	f:SetScript("OnEvent", function(_, event, ...)
 		local ok, err
 		if event == "CHAT_MSG_ADDON" then
-			-- (every addon's hidden messages come here, a raid's boss timers too: the others' left at once; 0.68.5, review)
+			-- (every addon's hidden messages come here, a raid's boss timers too: the others' left at once)
 			local prefix, msg = ...
 			if Str(prefix) ~= A.PREFIX then return end
 			ok, err = pcall(A.live.OnAddon, A.live, A.PREFIX, Str(msg))

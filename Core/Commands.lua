@@ -16,7 +16,7 @@ ns:RegisterCommand("help", {
 		local want = ns.Lower(tostring(args or "")):gsub("%s+", "")
 		local full = want == "advanced" or want == "all" or want == "syntax"
 		-- (` said as the terminal's key, whichever it is: Util.lua's KeyHint; only Terminal's own lines, never what a
-		-- command prints of the game's or a player's text; 0.65.1 review)
+		-- command prints of the game's or a player's text)
 		local function Hinted(lines) for i, l in ipairs(lines) do lines[i] = ns.KeyHint(l) end return lines end
 		if not full and ns.Easy and ns.Easy.On() then return Hinted(ns.Easy.HelpLines()) end
 		local lines = { L["Terminal commands:"] }
@@ -91,8 +91,7 @@ ns:RegisterCommand("kinds", {
 ns:RegisterCommand("reload", {
 	desc = L["Reload the UI"],
 	aliases = { "rl" },
-	-- (not a protected call: run from here, no game press needed; 0.50.7, review: command rows can carry one now, see
-	-- UI:CommandEntries and the /slash aliases)
+	-- (not a protected call: run from here, no game press needed)
 	run = function()
 		local reload = (C_UI and C_UI.Reload) or ReloadUI
 		if reload then reload() end
@@ -123,8 +122,6 @@ ns:RegisterCommand("bind", {
 	end,
 })
 
--- (0.65.12, the player: .xp, .history, .durability, .mail, .combatlog and .lockouts went, their lists searched as
--- anything is; what they kept besides is here: an alt dropped everywhere, the history and the combat log forgotten)
 local function AltNames()
 	local seen, out = {}, {}
 	for _, m in ipairs({ ns.Mail, ns.Experience, ns.Lockouts }) do
@@ -279,8 +276,8 @@ ns:RegisterCommand("mem", {
 	end,
 })
 
--- The share shell, .share (.ssh too), is Terminal: Share's (an addon of its own, 0.58.1): this stands in for it while
--- that addon is off, and says how to turn it on. Terminal: Share loads after Terminal and registers the real one over it.
+-- The share shell, .share (.ssh too), is Terminal: Share's (an addon of its own): this stands in for it while that
+-- addon is off, and says how to turn it on. Terminal: Share loads after Terminal and registers the real one over it.
 ns:RegisterCommand("share", {
 	aliases = { "ssh" },
 	desc = L["The share shell: share your bags with friends (needs Terminal: Share, on in the AddOn list)"],

@@ -11,9 +11,9 @@ local function AddOnVersion(name) return I._.AddOnVersion(name) end -- (Shared.l
 -- At login each integration whose addon is there starts; .integrations says what was found
 ----------------------------------------------------------------------
 
---- Each on its own: one failing (another version of its addon, a table missing) leaves the others to start (review,
---- 0.53.6), and .debug log says which.
--- what each one starting with an error leaves out, said in chat (I.Failed; 0.57.1)
+--- Each on its own: one failing (another version of its addon, a table missing) leaves the others to start, and .debug
+--- log says which.
+-- what each one starting with an error leaves out, said in chat (I.Failed)
 I.LOST = {
 	AtlasLoot = { "AtlasLoot", L["@loot (its loot tables) is unavailable."] },
 	Questie = { "Questie", L["@npc and @questie are unavailable."] },
@@ -91,7 +91,7 @@ ns:RegisterCommand("integrations", {
 		local found = src == "QuestieDB" and L["QuestieDB found (without Questie)"] or L["found"]
 		lines[#lines + 1] = "  Questie: " .. (npc.on
 			and (npc.list and L["%s. %d NPCs (@npc), %s quests (@questie)"]:format(found, #npc.list, qdb.list and #qdb.list or L["indexing"])
-				-- (the NPC list freed while unused: nothing is indexing; review, 0.48.6)
+				-- (the NPC list freed while unused: nothing is indexing)
 				or (not npc.busy and npc.count and L["%s. %d NPCs (@npc: read again when next searched), %s quests (@questie)"]:format(found,
 					npc.count, qdb.list and #qdb.list or L["indexing"]))
 				or (QuestieReady() and L["%s, indexing NPCs..."]:format(found) or L["found, waiting for Questie to finish loading"]))
@@ -110,13 +110,13 @@ ns:RegisterCommand("integrations", {
 	end,
 })
 ----------------------------------------------------------------------
--- Reaching for an addon that isn't there (0.50.2, the player's ask): @questie, @npc, @loot, @attune, @stored, their chains
--- (> chain, > steps), filters (reward:, sells:) and plain words (an NPC's role in Simple mode, "loot", "attunements",
--- "how do i get into") say in an extra footer line which addon to install for it. Nothing changes in the search itself.
+-- Reaching for an addon that isn't there: @questie, @npc, @loot, @attune, @stored, their chains (> chain, > steps),
+-- filters (reward:, sells:) and plain words (an NPC's role in Simple mode, "loot", "attunements", "how do i get into")
+-- say in an extra footer line which addon to install for it. Nothing changes in the search itself.
 ----------------------------------------------------------------------
 
 I.ADDONS = {
-	-- (TrainerSpells' trainers as @npc without Questie: Questie still missing for every other NPC; 0.57.1)
+	-- (TrainerSpells' trainers as @npc without Questie: Questie still missing for every other NPC)
 	{ name = "Questie", missing = function()
 			local p = ns.providers.npc
 			return not (ns.providers.questie or (p and not p.trainersOnly))
@@ -125,29 +125,25 @@ I.ADDONS = {
 			mailbox = true, mailboxes = true, forge = true, forges = true, anvil = true, anvils = true,
 			cookingfire = true, cookingfires = true, moonwell = true, moonwells = true },
 		keys = { reward = true, rewards = true, sells = true, sold = true } },
-	-- (AtlasLoot's own: OneForAll registers a @loot of its planner's gear without it; review, 1.0.38)
+	-- (AtlasLoot's own: OneForAll registers a @loot of its planner's gear without it)
 	{ name = "AtlasLoot", missing = function() return not (I.loot and I.loot.on) end,
 		kinds = { loot = true, atlasloot = true, al = true } },
 	{ name = "Attune", also = "OneForAll", missing = function() return not ns.providers.attune end,
 		kinds = { attune = true, attunes = true, attunement = true, attunements = true },
 		words = { attunements = true, attuned = true } },
-	-- (0.53.7: @training and its questions; an old What's Training, without the API Terminal reads: "Update")
-	-- (0.57.4: or TrainerSpells, which makes @training too: either one, never both expected; the hint names both)
 	{ name = "WhatsTraining", label = "What's Training", also = "TrainerSpells", missing = function() return not ns.providers.training end,
 		outdated = function() return ns.WhatsTraining and ns.WhatsTraining.Loaded() and not ns.WhatsTraining.Api() end,
 		kinds = { training = true, train = true, trainable = true, whatstraining = true },
 		words = { training = true, trainable = true } },
-	-- (0.56.1: every class's spells and weapon masters are What's Training's catalog, WT_API.GetCatalog: "druid spells",
-	-- "upcoming spells"; an older What's Training, without it: "Update")
 	{ name = "WhatsTrainingCatalog", label = "What's Training", also = "TrainerSpells", kinds = {},
-		-- (TrainerSpells' class spells do too, 0.57.1: then nothing's missing)
+		-- (TrainerSpells' class spells do too)
 		missing = function()
 			local CS = ns.ClassSpells
 			return not (CS and ((CS.Api and CS.Api()) or (CS.FromTrainerSpells and CS.FromTrainerSpells())))
 		end,
 		outdated = function() return ns.WhatsTraining and ns.WhatsTraining.Loaded() and true or false end },
-	-- (0.50.6, the player: your alts' bags and banks, @stored, come from Syndicator or BagBrother (Bagnon's): said only
-	-- with neither detected, naming both. Simple mode's "bank" is the banker: no word of its own)
+	-- (your alts' bags and banks, @stored, come from Syndicator or BagBrother (Bagnon's): said only with neither
+	-- detected, naming both. Simple mode's "bank" is the banker: no word of its own)
 	{ name = "Syndicator", also = "BagBrother", missing = function()
 			local S = ns.Stored
 			return not (S and ((S.SyndicatorAPI and S.SyndicatorAPI()) or (S.BrotherBags and S.BrotherBags())
@@ -158,21 +154,15 @@ I.ADDONS = {
 		keys = { on = true, who = true },
 		values = { ["in:bank"] = true, ["in:guild"] = true } },
 }
--- (0.62.0: auction house prices, AuctionValues.lua: its filters and fields say to install it)
 I.ADDONS[#I.ADDONS + 1] = { name = "Auctionator", missing = function() return not (ns.Auctionator and ns.Auctionator.On()) end,
 	kinds = {}, words = { auctionable = true, undercut = true }, values = { ["is:auctionable"] = true, ["is:undercut"] = true,
 	["sort:ahvalue"] = true, ["sort:ah"] = true, ["sort:ahprice"] = true, ["sort:market"] = true } }
--- (1.0.1: the Library Books, OneForAll's)
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.book end,
 	kinds = { book = true, books = true, librarybook = true, librarybooks = true, library = true }, words = { library = true } }
--- (1.0.2: a hunter's pet abilities and beasts to tame, OneForAll's; only a hunter's: another class with OneForAll isn't told
--- to install it. In @spell and @npc since 1.0.37: no kind of their own)
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ((ns.HunterPets and ns.HunterPets.on) or (ns.OneForAll and ns.OneForAll.Loaded())) end,
 	kinds = {}, words = { tame = true, tameable = true }, values = { ["is:tameable"] = true, ["is:ability"] = true } }
--- (1.0.3: item sets and their pieces, OneForAll's armory; its reputation rewards are questions, 1.0.11)
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.itemset end,
 	kinds = { itemset = true, itemsets = true, tierset = true, tiersets = true, setpiece = true, setpieces = true } }
--- (1.0.4: the boats, zeppelins and the tram, OneForAll's)
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.transport end,
 	kinds = { transport = true, transports = true, boat = true, boats = true, ship = true, ships = true,
 		zeppelin = true, zeppelins = true, tram = true }, words = { zeppelin = true } }

@@ -2,8 +2,8 @@ local ns = select(2, ...)
 local L = ns.L
 
 -- Durability (@durability, @dura, @repaircost; Simple mode: "durability", "repair cost", "what needs repair", "broken
--- gear", under Character; 0.50.3, the player's ask): every piece you wear that wears down, and the damaged ones in your
--- bags, lowest first, each with its durability and what repairing it costs; a row on top with the whole bill.
+-- gear", under Character): every piece you wear that wears down, and the damaged ones in your bags, lowest first, each
+-- with its durability and what repairing it costs; a row on top with the whole bill.
 --
 -- What a repair costs is the game's own figure, the one a repair vendor's tooltip shows (the item's tooltip data,
 -- repairCost), before any discount your reputation with the vendor's faction gives. A client that doesn't give it to
@@ -63,7 +63,7 @@ local function Cost(slot, bag, bagSlot)
 end
 
 -- (a piece's repair cost, kept by what it depends on: the item and how worn it is. The list is made again after every
--- loot (BAG_UPDATE_DELAYED), and each made asked the tooltip API for every damaged piece; review, 0.53.6)
+-- loot (BAG_UPDATE_DELAYED), and each made asked the tooltip API for every damaged piece)
 local costs, costCount = {}, 0
 local function CostOf(link, cur, max, slot, bag, bagSlot)
 	local key = tostring(link) .. ":" .. cur .. ":" .. max
@@ -77,9 +77,8 @@ local function CostOf(link, cur, max, slot, bag, bagSlot)
 end
 DU.CostOf = CostOf -- (tests)
 
--- Names the client hasn't loaded yet (a link reads "[]" until then: 0.50.3, the player's screenshot showed "Item #270003"):
--- asked for, and the list made again once they're in, or after 10 s (Util.lua's ns.NameWait; review, 0.53.6: this copy
--- never gave up, a name that never came kept the events listened to all session)
+-- Names the client hasn't loaded yet (a link reads "[]" until then: 0.50.3, the player's screenshot showed "Item
+-- #270003"): asked for, and the list made again once they're in, or after 10 s (Util.lua's ns.NameWait)
 local nameWait = ns.NameWait("durability")
 DU.nameFrame = nameWait.frame -- (tests)
 
@@ -238,8 +237,7 @@ local function Row(d)
 	local where = d.slotText or L["in your bags"]
 	local state = d.cur == 0 and L["broken"] or (d.pct .. "%")
 	local plainCost = (d.cost and d.cost > 0) and L["repair %s"]:format(Money(d.cost, true)) or nil
-	-- (short, the row's width is the list's: the points are in the tooltip, the game's own; 0.50.3, the player's screenshot:
-	-- "repair..." cut off. Coins as text: a row draws no icons in its words)
+	-- (short, the row's width is the list's: the points are in the tooltip, the game's own)
 	e.detail = ns.Detail(PctHex(d.pct) .. state .. "|r", where, (d.cost and d.cost > 0) and Money(d.cost, true) or nil)
 	e.plainDetail = table.concat({ state, ("%d/%d"):format(d.cur, d.max), plainCost }, ", ")
 	e.text = table.concat({ "durability repair", ns.Lower(where), d.cur == 0 and "broken" or "", d.cur < d.max and "damaged" or "",
@@ -266,7 +264,7 @@ local function TotalRow(rows)
 		name = v and L["Repair all: about %s"]:format(Money(v.cost, true)) or L["Repair all"]
 		plain = name
 	else
-		-- (coins as text: a row's name draws no icons, "3|TInterface\MoneyFrame..." showed; 0.50.3, the player's screenshot)
+		-- (coins as text: a row's name draws no icons, "3|TInterface\MoneyFrame..." showed)
 		name = L["Repair all: %s"]:format(Money(cost, true))
 		plain = name
 	end
@@ -354,9 +352,8 @@ function DU.OnMerchant()
 	local cost = Num(Safe(_G.GetRepairAllCost))
 	if not cost then return end
 	if type(ns.db.repairVendor) ~= "table" or ns.db.repairVendor.cost then ns.db.repairVendor = {} end -- (0.50.3's first shape)
-	-- what it asks against the game's own figures: the discount your reputation with its faction gives (0.50.3, the player:
-	-- 3s 43c listed, the vendor asked 3s 9c: 10% off at honored). Kept until the next vendor says otherwise; a vendor
-	-- with nothing to repair says nothing about it.
+	-- what it asks against the game's own figures: the discount your reputation with its faction gives. Kept until the
+	-- next vendor says otherwise; a vendor with nothing to repair says nothing about it.
 	local before = ns.db.repairVendor[key]
 	local ratio = type(before) == "table" and before.ratio or nil
 	local sum, known = 0, true
@@ -373,8 +370,7 @@ function DU.OnMerchant()
 	ns:Changed("durability")
 end
 function DU.OnEvent(event)
-	-- (a merchant who repairs: any other's window isn't a repair vendor's, whose total stands for the bill; review, 0.57.7:
-	-- a food vendor showed the last repair vendor's stale total as exact)
+	-- (a merchant who repairs: any other's window isn't a repair vendor's, whose total stands for the bill)
 	if event == "MERCHANT_SHOW" then atVendor = Safe(_G.CanMerchantRepair) == true; DU.OnMerchant()
 	elseif event == "MERCHANT_CLOSED" then atVendor = false
 	elseif atVendor then DU.OnMerchant() end
@@ -389,7 +385,7 @@ ev:SetScript("OnEvent", function(_, event) DU.OnEvent(event) end)
 local FILL = {}
 for w in ([[my me i is are do does did what whats which how much many the a an of to for on all show list check see it its
 	will would gear items item equipment armor armour stuff things need needs needed low lowest worn]]):gmatch("%a+") do FILL[w] = true end
--- ("low durability", "lowest durability", 0.61.0: the list is lowest first already)
+-- ("low durability", "lowest durability")
 local COST = { cost = true, costs = true, bill = true, price = true, much = true, pay = true }
 local THINGS = { gear = true, item = true, items = true, equipment = true, armor = true, armour = true, stuff = true }
 

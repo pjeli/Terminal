@@ -8,7 +8,7 @@ ns.UI = UI
 
 local FOOTER_H = 26 -- one line: the result count on the left, key hints on the right
 UI.FOOTER_H = FOOTER_H
-local ONCE_LABEL = L["Advanced"] -- (Alt+`: this run is Advanced, Simple again once it closes; 0.55.17, the player: not "Advanced, this time")
+local ONCE_LABEL = L["Advanced"] -- (Alt+`: this run is Advanced, Simple again once it closes)
 UI.ONCE_LABEL = ONCE_LABEL
 local function EasyOn() return ns.Easy ~= nil and ns.Easy.On() end
 UI.EasyOn = EasyOn
@@ -122,23 +122,21 @@ do
 		frame:SetScript("OnMouseWheel", function(_, delta) UI:Scroll(delta) end)
 		frame:SetScript("OnHide", function(self)
 			if UI.drag then UI:DragStop(self) end -- (closed while dragged: the lines go, the place it had is kept)
-			-- (closed by the game, not by UI:Hide, which kept it already, before Alt+`'s or Tab+`'s run ended; review,
-			-- 0.57.7: UI.closing is false again by the time UI:Hide hides the frame, so it was kept twice, the second time
-			-- Advanced syntax or fuzzy text)
+			-- (closed by the game, not by UI:Hide, which kept it already, before Alt+`'s or Tab+`'s run ended)
 			if not UI.searchKept then UI:KeepLastSearch() end
 			UI.searchKept = nil
 			-- (the tab shown kept as it is: closed by the game, not by UI:Hide, which kept it before its run's mode ended)
 			if not UI.tabKept and ns.Tabs then ns.Tabs.SaveCurrent() end
 			UI.tabKept = nil
-			UI.histSearch = nil -- (Ctrl+R ends with it, closed by the game too; 0.63.7, review)
+			UI.histSearch = nil -- (Ctrl+R ends with it, closed by the game too)
 			UI:EndAdvancedOnce()
 			UI:EndFuzzy()
 			if ns.Bar then ns.Bar.Reset() end -- (closed by the game: the bar's picks and its menu go too, as UI:Hide does)
-			-- (a line's "| group by", ">> party": read again from the line when it's searched; kept, a search made while
-			-- closed, UI:Search from a tab kept up to date or another addon, summed its rows up; 0.55.18, review)
+			-- (a line's "| group by", ">> party": read again from the line when it's searched; kept, a search made
+			-- while closed, UI:Search from a tab kept up to date or another addon, summed its rows up)
 			UI.aggregate, UI.sendTo, UI.typedGroup, UI.barGroupIgnored, UI.ungrouped = nil, nil, nil, nil, nil
 			UI.openedByToggle, UI.tabHeld = nil, nil
-			if ns.Tour then ns.Tour.Stop() end -- (hidden by the game, Esc's game menu: the tour and its card go too; review, 0.51.25)
+			if ns.Tour then ns.Tour.Stop() end -- (hidden by the game, Esc's game menu: the tour and its card go too)
 			if ns.Pipes and ns.Pipes.ClearSteps then ns.Pipes.ClearSteps() end -- (a chain's rows: not kept while closed)
 			UI:MotionReset()
 			UI:HideTooltip()
@@ -153,8 +151,8 @@ do
 					UI:HideRowMenu()
 				end
 			end)
-			-- (hidden with the interface, UIParent hidden by a cinematic: the frame still says it's shown, but the keyboard
-			-- went above; closed for real, or it came back drawn without taking keys; review, 0.57.7)
+			-- (hidden with the interface, UIParent hidden by a cinematic: the frame still says it's shown, but the
+			-- keyboard went above; closed for real, or it came back drawn without taking keys)
 			if self:IsShown() then self:Hide() end
 		end)
 		frame:SetScript("OnKeyDown", function(self, key)
@@ -246,7 +244,7 @@ do
 				UI:UpdateCaret()
 			end
 		end)
-		-- (.tour's keys here too: clicked into the box, or in combat, Enter went to the row; review, 0.51.25)
+		-- (.tour's keys here too: clicked into the box, or in combat, Enter went to the row)
 		edit:SetScript("OnEnterPressed", function()
 			if ns.Tour and ns.Tour.Key("ENTER", IsShiftKeyDown()) then return end
 			UI:Activate(nil, { keepOpen = IsControlKeyDown(), secondary = IsShiftKeyDown() })
@@ -279,8 +277,8 @@ do
 			if ns.Tour and key ~= "ENTER" and key ~= "ESCAPE" and key ~= "NUMPADENTER" and key ~= "LEFT" then
 				ns.Tour.Key(key, IsShiftKeyDown())
 			end
-			-- Shift+Left goes back here too, as the footer says (combat, the clipboard: the player, "the footer would say
-			-- shift+left: back but nothing would happen"; 1.0.33). A frame later: the box moves its own caret with the key
+			-- Shift+Left goes back here too, as the footer says (combat, the clipboard: the player, "the footer would
+			-- say shift+left: back but nothing would happen"). A frame later: the box moves its own caret with the key
 			-- first, then the search a step left replaces its text. Its held repeats go nowhere, as the drawn prompt's.
 			if key == "LEFT" and IsShiftKeyDown() and not IsControlKeyDown() and UI:CanGoBack() then
 				if not (UI.backHeld and GetTime() - UI.backHeld < UI.BACK_HOLD) then
@@ -294,7 +292,7 @@ do
 			elseif IsControlKeyDown() and not IsAltKeyDown() and ns.Tabs and ns.Tabs.Key(key, IsShiftKeyDown()) then
 				return -- (tabs: Tabs.lua)
 			else
-				UI.ListKey(key, IsControlKeyDown() and not IsAltKeyDown()) -- (Ctrl with Alt: AltGr, typing; 0.49.2, review)
+				UI.ListKey(key, IsControlKeyDown() and not IsAltKeyDown()) -- (Ctrl with Alt: AltGr, typing)
 			end
 		end)
 	end
@@ -321,7 +319,7 @@ do
 		hit:Hide()
 		hit:SetScript("OnMouseDown", function(_, button) if button == nil or button == "LeftButton" then UI:PressPrompt() end end)
 		hit:SetScript("OnMouseUp", function() UI:ReleasePrompt() end)
-		-- (the pointer on a line of Advanced syntax: it said in plain words; 0.66.9, the player: "the explain")
+		-- (the pointer on a line of Advanced syntax: it said in plain words)
 		local function ExplainTip(self)
 			local text = edit and edit:GetText() or ""
 			local E = ns.Easy
@@ -369,8 +367,8 @@ do
 			d:SetPoint("CENTER", busy, "CENTER", math.cos(a) * 7, math.sin(a) * 7)
 			busy.dots[i] = d
 		end
-		-- what's still loading, on mouse-over: the game's tooltip, but while .zen fades the interface (GameTooltip with it:
-		-- nothing showed) a tooltip of Terminal's own, which .zen keeps up (Z.OWN; 0.49.2, review)
+		-- what's still loading, on mouse-over: the game's tooltip, but while .zen fades the interface (GameTooltip with
+		-- it: nothing showed) a tooltip of Terminal's own, which .zen keeps up (Z.OWN)
 		local tip
 		local function Tip()
 			if not (ns.Zen and ns.Zen.active) then return GameTooltip end
@@ -484,7 +482,7 @@ do
 			b.detail:SetJustifyH("RIGHT")
 			b.detail:SetWordWrap(false)
 			-- a row that says how far ("133 yd  Teaches it"): the distance in a column of its own at the detail's left,
-			-- after a slot for the selected row's arrow (List.lua FillRow, NavTick: every row's lines up, 0.45.18)
+			-- after a slot for the selected row's arrow (List.lua FillRow, NavTick: every row's lines up)
 			b.dist = b:CreateFontString(nil, "OVERLAY")
 			b.dist:SetFontObject(Theme.fonts.small)
 			b.dist:SetJustifyH("LEFT")
@@ -568,7 +566,6 @@ end
 --- The footer's line, the result count and the key hints, placed for the font size.
 local function ApplyFooterLayout(t)
 	-- footer: one line (hints that don't fit are left out, see FitHints); a second under it while UI.footExtra shows
-	-- (0.50.6, the player's screenshot: it was above the status, and read as the main line)
 	local baseH = math.max(FOOTER_H, t.fontSize + 12)
 	local lineH = t.fontSize + 8
 	local footerH, statusY = baseH, baseH / 2
@@ -749,11 +746,9 @@ end
 --- Open (closing counts as closed: the fade-out is only for the eye).
 function UI:IsShown() return frame and frame:IsShown() and not self.closing or false end
 
---- The search to bring back with Down on the next open (only a search: not a .command or /slash). From UI:Hide, and from
---- the frame's OnHide: a window the game opened can close the terminal first (0.50.7, review: Down then brought back an
---- older search).
---- What the prompt says, and its caret: in Ctrl+R's history search, what it said before (the search is a step of its
---- own; 0.63.7, review: closing in it kept the history's filter as your last search, a tab's text, the text closed on).
+--- The search to bring back with Down on the next open (only a search: not a .command or /slash). From UI:Hide, and
+--- from the frame's OnHide: a window the game opened can close the terminal first. What the prompt says, and its caret:
+--- in Ctrl+R's history search, what it said before (the search is a step of its own).
 function UI:PromptNow()
 	local hs = self.histSearch
 	if hs then return hs.saved or "", hs.cursor or #(hs.saved or "") end
@@ -772,17 +767,16 @@ function UI:KeepLastSearch()
 	end
 end
 
--- Closed and opened again within UI.REOPEN_KEEP s (0.52.10, the player's ask): what was typed is back, the caret where
--- it was. Not after something was run (Enter: UI.ran), only after closing it (the key, a click elsewhere): Esc
--- (UI:Dismiss) closes it and lets go of the text too (0.52.11, the player's ask).
+-- Closed and opened again within UI.REOPEN_KEEP s: what was typed is back, the caret where it was. Not after something
+-- was run (Enter: UI.ran), only after closing it (the key, a click elsewhere): Esc (UI:Dismiss) closes it and lets go
+-- of the text too.
 UI.REOPEN_KEEP = 5
 function UI:Hide()
 	-- (closed on "Nothing has that": what was typed is kept for .missed; DidYouMean.lua)
 	if ns.DidYouMean and frame and frame:IsShown() then ns.DidYouMean.NoteClosed(UI.results) end
 	self:HideRowMenu()
 	if ns.Bar then ns.Bar.Reset() end -- (Simple mode's bar: what it picked lasts while the terminal is open)
-	-- (what the line's "| group by" and ">> party" said: read again when it's searched next; 0.55.18, review: a search
-	-- made while closed, UI:Search, summed its rows up as the last line did)
+	-- (what the line's "| group by" and ">> party" said: read again when it's searched next)
 	self.aggregate, self.sendTo, self.typedGroup, self.barGroupIgnored, self.ungrouped = nil, nil, nil, nil, nil
 	self:HideCatcher() -- (also when the game closed the terminal first: no catcher left over an empty spot)
 	UI.HideNav()
@@ -795,7 +789,7 @@ function UI:Hide()
 	self.searchKept = true -- (OnHide doesn't keep it again)
 	do
 		-- (the caret where it was: the drawn prompt's, else the game's text box's own; and the mode it was in: Advanced
-		-- for this run (Alt+`) comes back as Advanced, 0.52.14, the player. Ctrl+R: what was typed before it)
+		-- for this run (Alt+`) comes back as Advanced. Ctrl+R: what was typed before it)
 		local typed, cursor = self:PromptNow()
 		local ran = self.ran and GetTime() - self.ran < 2
 		local E = ns.Easy
@@ -842,8 +836,8 @@ function UI:HideNow()
 end
 
 ----------------------------------------------------------------------
--- Moving the terminal (0.45.19, the player's ask): dragged, it snaps to a grid and lines show the screen's middles
--- (the one it sits on lights up); Shift held: no snapping. Saved by its top-left corner (it grows downward).
+-- Moving the terminal: dragged, it snaps to a grid and lines show the screen's middles (the one it sits on lights up);
+-- Shift held: no snapping. Saved by its top-left corner (it grows downward).
 ----------------------------------------------------------------------
 UI.GRID = 16 -- the grid's step (the terminal's own units), its lines running through the screen's middles
 UI.GRID_DRAWN = 4 -- every 4th line drawn (faint): every step of the grid would be a mesh
@@ -879,8 +873,7 @@ do
 		return (UIParent:GetWidth() or 0) * r, (UIParent:GetHeight() or 0) * r
 	end
 
-	-- line i of the guides: made once, then re-placed (0.50.7, review: a new frame of ~50 lines was made for every new
-	-- screen size or scale, the old one only hidden)
+	-- line i of the guides: made once, then re-placed
 	local function Line(g, i, x, y, w, h, a, r, gg, b)
 		local t = g.lines[i]
 		if not t then t = g:CreateTexture(nil, "OVERLAY"); g.lines[i] = t end
@@ -992,14 +985,14 @@ function UI:Open(text, opts)
 	self.histSearch = nil -- (never carried into a new run)
 	-- (tabs: opened with no text of its own (nil: the key, the options' button; "" is an empty prompt asked for, Alt+`,
 	-- Tab+`, the tour), the tab you were on comes back, in its mode; Tabs.lua. Opened with a text of its own (a chat
-	-- link, /term words), the run is "foreign": it shows that text, and the tab stays as it was. Review, 0.53.6)
+	-- link, /term words), the run is "foreign": it shows that text, and the tab stays as it was.)
 	local tab = text == nil and ns.Tabs and ns.Tabs.ForOpen() or nil
 	if tab then text, opts = tab.text, tab end
 	if opts and opts.foreign ~= nil then self.tabForeign = opts.foreign or nil
 	else self.tabForeign = (not tab and text ~= nil and ns.Tabs and ns.Tabs.On()) or nil end
-	-- (0.49.2, review) one of Terminal's apps up (.atop, .changelog, F1's keys, the games): it goes, as the terminal goes
-	-- when an app opens (Panel.Opening). Opened over one (/term, its own key, a chat link, the options' button), both took
-	-- the keyboard and Esc closed only one. (F1's Esc closes its window before bringing the terminal back: K.Back.)
+	-- one of Terminal's apps up (.atop, .changelog, F1's keys, the games): it goes, as the terminal goes when an app
+	-- opens (Panel.Opening). Opened over one (/term, its own key, a chat link, the options' button), both took the
+	-- keyboard and Esc closed only one. (F1's Esc closes its window before bringing the terminal back: K.Back.)
 	if ns.Panel and ns.Panel.Registered then
 		-- (an app in a .console pane isn't closed: the console steps out, hiding it until .console brings it back)
 		local keeps = ns.Panel.Keeps
@@ -1027,7 +1020,7 @@ function UI:Open(text, opts)
 	self.category, self.categoryAuto = opts and UI.CategoryId(opts.category) or nil, nil
 	if ns.Easy then ns.Easy.NextExample() end -- (another example in the empty prompt each time)
 	self.showRecent, self.recalled = nil, nil
-	self.popTarget = nil -- (a row to select from a search stopped by closing: not this one's; 0.50.7, review)
+	self.popTarget = nil -- (a row to select from a search stopped by closing: not this one's)
 	-- the last search's rows are gone before the frame shows: it opened at their height and only
 	-- then collapsed to the bare prompt, seen for a moment on every reopen (and reopened while
 	-- still fading out, the fading rows go at once too)
@@ -1107,8 +1100,7 @@ function UI:Toggle(typed)
 		end
 		self:Open(text)
 		if text and type(cursor) == "number" then self.cursor = math.min(cursor, #text); self:UpdateCaret() end
-		-- the toggle key's ` can still come as a typed character after the press that opened it: not typed (0.52.14, the
-		-- player: a reopened prompt got a ` on the end)
+		-- the toggle key's ` can still come as a typed character after the press that opened it: not typed
 		if self.DropTick then self.DropTick(edit:GetText()) end
 	end
 	self.openedByToggle = GetTime() -- (Tab let go just after, nothing typed: it was Tab+`, TabReleased)

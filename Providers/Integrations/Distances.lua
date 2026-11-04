@@ -76,10 +76,9 @@ local function Spot(ui, c)
 	return cont and { cont = cont, x = x, y = y } or nil
 end
 
--- An NPC inside a dungeon (0.51.18, the player's ask): Questie keeps its spawns under the dungeon's area, with no spot
--- in the world (often { -1, -1 }); the dungeon's entrances stand for them: their spots are the NPC's for how far and
--- which way, and its rows say which dungeon it's in. id -> the dungeon's name (false: it's out in the world too, or
--- not in one).
+-- An NPC inside a dungeon: Questie keeps its spawns under the dungeon's area, with no spot in the world (often { -1, -1
+-- }); the dungeon's entrances stand for them: their spots are the NPC's for how far and which way, and its rows say
+-- which dungeon it's in. id -> the dungeon's name (false: it's out in the world too, or not in one).
 local npcDungeon, npcDungeonCount = {}, 0
 --- The entrances of a dungeon area as { ui, { x%, y% } } pairs, or nil when the area isn't a dungeon's.
 local function Entrances(area)
@@ -99,7 +98,7 @@ function I.NpcDungeon(id)
 	if d ~= nil then return d or nil end
 	d = false
 	local DB = QDB()
-	if not DB then return nil end -- (Questie not ready yet: nothing kept, asked again; 1.0.84, review: "none" for the session)
+	if not DB then return nil end -- (Questie not ready yet: nothing kept, asked again)
 	local spawns = DB and Safe(DB.QueryNPCSingle, id, "spawns")
 	if type(spawns) == "table" then
 		local name, world
@@ -125,14 +124,13 @@ end
 
 -- each NPC's spawns in world yards, worked out once: id -> flat { cont, x, y, cont, x, y... } (false: none)
 local npcSpots, npcSpotCount = {}, 0
--- (forgotten all at once past this. 0.50.7, review: 6000 was under WoW Forever's 11.7k NPCs, so a broad "@npc
--- sort:distance" filled it, emptied it and filled it again in one search, and again on every keystroke; ~4.5 MB at its cap)
+-- (forgotten all at once past this. 6000 was under WoW Forever's 11.7k NPCs, so a broad "@npc sort:distance" filled it,
+-- emptied it and filled it again in one search, and again on every keystroke; ~4.5 MB at its cap)
 local NPC_SPOTS_MAX = 13000
 I._.NPC_SPOTS_MAX = NPC_SPOTS_MAX -- (tests)
 --- Each spawn in Questie's spawns by area, in world yards: fn(cont, x, y, ui, c, door, area) (c: Questie's { x%, y% };
---- door: true for a dungeon's entrance, which stands for its spawns, as Questie's map shows them; 0.51.18). `noDoors`:
---- the spawns themselves (objects). One walk for every list that reads spawns (review, 0.53.6: NpcSpots and
---- NearestSpawn had a copy each and had drifted apart once, 0.51.25; Objects two more).
+--- door: true for a dungeon's entrance, which stands for its spawns, as Questie's map shows them). `noDoors`: the
+--- spawns themselves (objects). One walk for every list that reads spawns.
 local function EachSpot(spawns, fn, noDoors)
 	if type(spawns) ~= "table" then return end
 	for area, list in pairs(spawns) do
@@ -160,7 +158,7 @@ local function NpcSpots(id)
 	if t ~= nil then return t or nil end
 	t = false
 	local DB = QDB()
-	if not DB then return nil end -- (Questie not ready yet: nothing kept, asked again; 1.0.84, review)
+	if not DB then return nil end -- (Questie not ready yet: nothing kept, asked again)
 	EachSpot(DB and Safe(DB.QueryNPCSingle, id, "spawns"), function(cont, x, y)
 		if cont then
 			t = t or {}
@@ -198,9 +196,9 @@ local function NpcDistance(id, here)
 end
 I.NpcDistance = NpcDistance
 
---- The spawn NpcDistance finds (its nearest on your continent), as Questie gives it: the map it's on and its { x%, y% };
---- nil when none is on your continent. `spawns` = Questie's spawns by area. (0.49.2, review: Questie.lua's NpcLocation,
---- where Enter shows the NPC and pins it, took the first area pairs() gave: the row said 10 yd, Enter showed another zone.)
+--- The spawn NpcDistance finds (its nearest on your continent), as Questie gives it: the map it's on and its { x%, y%
+--- }; nil when none is on your continent. `spawns` = Questie's spawns by area. (Questie.lua's NpcLocation, where Enter
+--- shows the NPC and pins it, took the first area pairs gave: the row said 10 yd, Enter showed another zone.)
 local function NearestSpawn(spawns, here)
 	if not (here and type(spawns) == "table") then return nil end
 	local best, bui, bc, bdoor
@@ -285,9 +283,8 @@ I._.Spot, I._.NearestSpawn = Spot, NearestSpawn
 I._.ResetDistances = function() xforms, npcSpots, npcSpotCount, npcDungeon, npcDungeonCount = {}, {}, 0, {}, 0 end
 I._.ResetZoneNames = function() zoneNames = {} end -- (tests that name their own maps)
 
---- A row's view saying how far it is: "N yd  <rest>", scored closest first (sort:distance, "nearest mailbox"; one copy,
---- review 0.53.6: Search.lua's and Objects.lua's).
---- far: scored the farthest first (sort:-distance, "farthest innkeeper"; 0.65.7), under any row's own score (those with
+--- A row's view saying how far it is: "N yd  <rest>", scored closest first (sort:distance, "nearest mailbox"; one
+--- copy). far: scored the farthest first (sort:-distance, "farthest innkeeper"), under any row's own score (those with
 --- no distance known, as if infinitely far, before them).
 I.FAR_BASE = -1e7
 function I.NearView(e, d, rest, far)

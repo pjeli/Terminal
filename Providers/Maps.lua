@@ -7,20 +7,18 @@ local L = ns.L
 -- reliably on this client, so they're left out (flight paths and instance entrances have lists
 -- of their own, from known spots: Integrations/Flights.lua, Integrations/Entrances.lua).
 --
--- Enter (or a click) runs a macro pressed by the game itself (see Secure.lua): one game call,
--- C_Map.OpenWorldMap(id). The game answers it with WORLD_MAP_OPEN, and the map's own code opens
--- the map (or switches the open one) to the place. Nothing in the macro touches the map's Lua:
--- WorldMapFrame:SetMapID leaves the map's zone written by whoever called it, and the map's pins,
--- rebuilt from it later (often in combat), then fail as that caller's. From Terminal's code that
--- was Terminal; from a /run line it is "*** ForceTaint_Strong ***", the game's name for code a
--- /run or /script line runs (0.46.0: Button:SetPassThroughButtons() x14 in combat, after a few
--- NPCs shown on the map). Afterwards Terminal only places the waypoint (a C call) and reads who
--- wrote the map's zone, for .debug log (M.MapWriter).
+-- Enter (or a click) runs a macro pressed by the game itself (see Secure.lua): one game call, C_Map.OpenWorldMap(id).
+-- The game answers it with WORLD_MAP_OPEN, and the map's own code opens the map (or switches the open one) to the
+-- place. Nothing in the macro touches the map's Lua: WorldMapFrame:SetMapID leaves the map's zone written by whoever
+-- called it, and the map's pins, rebuilt from it later (often in combat), then fail as that caller's. From Terminal's
+-- code that was Terminal; from a /run line it is "*** ForceTaint_Strong ***", the game's name for code a /run or
+-- /script line runs (Button:SetPassThroughButtons x14 in combat, after a few NPCs shown on the map). Afterwards
+-- Terminal only places the waypoint (a C call) and reads who wrote the map's zone, for .debug log (M.MapWriter).
 
 local M = {}
 ns.Maps = M
 
---- A map row's key: "map:<uiMapID>" (Zones' zone rows are counted as these: review, 0.53.6).
+--- A map row's key: "map:<uiMapID>" (Zones' zone rows are counted as these: review).
 function M.Key(mapID) return "map:" .. tostring(mapID) end
 
 local TYPES = { [2] = "Continent", [3] = "Zone" } -- the only kinds listed
@@ -43,9 +41,6 @@ end
 
 M.SECURE = { macro = MapMacro, binding = "TOGGLEWORLDMAP", buttons = { "MiniMapWorldMapButton", "WorldMapMicroButton" } }
 
--- (0.49.2, review: an NPC Questie knows no spot for, or a quest an object or item starts, still pressed the map key: the
--- map opened on your own zone, then the after-step said Questie has no location for it. With no place there's nothing
--- to press, and the row's own action says so.)
 local NO_PLACE = { macro = MapMacro }
 --- The map spec for a row whose place is worked out when read (an NPC's, a quest giver's): M.SECURE when it has one.
 function M.SecureFor(e) return M.Target(e) and M.SECURE or NO_PLACE end
@@ -93,8 +88,6 @@ end
 local function Place(e)
 	local had = HasPin()
 	local pos = e.pos or (had and { x = 0.5, y = 0.5 }) or nil
-	-- (0.49.2, review: the pin was cleared before asking whether the place takes one: Enter on "@map Kalimdor", a
-	-- continent, lost your quest's waypoint without a word. Now it's only cleared when the new one can be set.)
 	if not (pos and CanPin(e.mapID, pos)) then return nil end
 	if had and C_Map.ClearUserWaypoint then pcall(C_Map.ClearUserWaypoint) end
 	if Waypoint(e.mapID, pos) then return had and "moved" or "set" end
@@ -133,8 +126,6 @@ local function ShowAfter(e)
 end
 
 -- No press could be set up: the map shown already is pointed at; else the place pinned and where to open it said.
--- (0.50.7, review: it opened the map from Terminal's own code, which taints the map's state: no window is opened that way,
--- even as a last resort, as Panels' and the quest log's fallbacks say)
 local function Direct(e)
 	if InCombatLockdown() then
 		-- the map's pins are protected in combat: touching it would only be blocked
@@ -184,14 +175,14 @@ local function PinOnly(e)
 		-- a zone has no spot of its own: it only moves a waypoint that is already set
 		ns:Print(L["A zone only moves a waypoint you already have; set one on the map first."])
 	else
-		-- (a continent: no waypoint goes there, and the one you have stays; 0.49.2)
+		-- (a continent: no waypoint goes there, and the one you have stays)
 		ns:Print(L["Can't set a waypoint there."])
 	end
 end
 
---- Shift+Enter's verb for a place (Simple.lua's footer and row menu), as PinOnly will do it: "set waypoint" at a spot of
---- its own, "move waypoint" for a zone while you have one, nothing when nothing would be set (no waypoint to move, or a
---- map that takes none). (0.49.2, review: a zone said "set waypoint" with none set, and then set nothing.)
+--- Shift+Enter's verb for a place (Simple.lua's footer and row menu), as PinOnly will do it: "set waypoint" at a spot
+--- of its own, "move waypoint" for a zone while you have one, nothing when nothing would be set (no waypoint to move,
+--- or a map that takes none).
 function M.PinVerb(e)
 	local mapID = e.mapID
 	if mapID and C_Map and C_Map.CanSetUserWaypointOnMap and not Safe(C_Map.CanSetUserWaypointOnMap, mapID) then return nil end

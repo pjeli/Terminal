@@ -3,8 +3,8 @@ local L = ns.L
 
 -- the key bindings' names (Options > Keybindings), in the player's language (the translations are in by now)
 BINDING_HEADER_TERMINAL = "Terminal"
-BINDING_NAME_TERMINAL_TOGGLE = L["Toggle Terminal"] -- (Terminal is its name: capitalised, 0.46.12)
-BINDING_NAME_TERMINAL_ADVANCED_ONCE = L["Open Terminal, or write its search in Advanced syntax"] -- (closed: as Toggle does, 0.54.3)
+BINDING_NAME_TERMINAL_TOGGLE = L["Toggle Terminal"] -- (Terminal is its name: capitalised)
+BINDING_NAME_TERMINAL_ADVANCED_ONCE = L["Open Terminal, or write its search in Advanced syntax"] -- (closed: as Toggle does)
 BINDING_NAME_TERMINAL_FUZZY = L["Fuzzy find, this time (every list, by name only)"]
 BINDING_NAME_TERMINAL_SLASH = L["Open Terminal on a slash command (/)"]
 
@@ -57,7 +57,7 @@ local function UpperTwoByte(a, b)
 end
 
 --- The text with its first letter a capital, in every client language ns.Lower folds ("équipement" -> "Équipement").
---- (string.upper and "%l" know ASCII only: review, 0.53.6.)
+--- (string.upper and "%l" know ASCII only: review.)
 function ns.UpperFirst(s)
 	s = tostring(s or "")
 	if s:find("^%l") then return (s:gsub("^%l", string.upper)) end
@@ -67,14 +67,14 @@ function ns.UpperFirst(s)
 end
 
 --- Every word with a capital first letter ("östliche pestländer" -> "Östliche Pestländer"; not "öStliche PestläNder",
---- as an ASCII-only %a made of it: review, 0.53.6).
+--- as an ASCII-only %a made of it: review).
 function ns.Titled(s)
 	return (tostring(s or ""):gsub("%S+", ns.UpperFirst))
 end
 
 --- A format string of the game's ("%s receives loot: %sx%d.") as an anchored pattern, and for each capture the format
 --- argument it is ("%2$s" in some languages swaps them). One copy: the loot log's, the group's quest replies' and the
---- mail's subjects and chat lines had one each, two of them without "%2$s" (review, 0.53.6).
+--- mail's subjects and chat lines had one each, two of them without "%2$s".
 local PATTERN_MAGIC = { ["("] = true, [")"] = true, ["."] = true, ["+"] = true, ["-"] = true, ["*"] = true, ["?"] = true,
 	["["] = true, ["]"] = true, ["^"] = true, ["$"] = true, ["%"] = true }
 function ns.FormatPattern(fmt)
@@ -115,10 +115,8 @@ local NOT_WORDS = { ["not"] = true, no = true, without = true, except = true }
 --- ("what's" -> "whats"), the rest of the punctuation as spaces. nil when it can't be one: Advanced syntax (@kinds,
 --- key:value, chains, sums, a .command or /slash), a word the search reads as "not" ("-cod", "!dead"), or a "not" word
 --- the question doesn't read itself (`allow`: the ones it does, { without = true }). Every question reads its line
---- through this (review, 0.53.6: 19 copies, two of them; "party -dead", "party not dead" and "mail not cod" listed the
---- very thing left out).
--- (the last line read, per `allow`: every question asks of the same line on a keystroke, ~29 times; 0.63.7, review:
--- a sixth of a plain search's time)
+--- through this.
+-- (the last line read, per `allow`: every question asks of the same line on a keystroke, ~29 times)
 local qtLast, NO_ALLOW = setmetatable({}, { __mode = "k" }), {}
 function ns.QuestionText(text, allow)
 	if type(text) ~= "string" then return nil end

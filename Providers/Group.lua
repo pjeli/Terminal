@@ -228,8 +228,7 @@ local function BuffMacro(e)
 	return ("/cast [@%s] %s"):format(GR.UnitOf(e), e.buffWith)
 end
 local TARGET_SPEC, BUFF_SPEC = { macro = TargetMacro }, { macro = BuffMacro }
--- (no press set up: in combat, or out of it when the press couldn't be armed; 0.50.7, review: "In combat" was said
--- either way)
+-- (no press set up: in combat, or out of it when the press couldn't be armed)
 local function InCombat() return InCombatLockdown and InCombatLockdown() and true or false end
 local function NoTarget(e)
 	ns:Print((InCombat() and L["In combat: target %s from your party or raid frames."] or L["Couldn't target %s from here: use your party or raid frames."])
@@ -383,8 +382,8 @@ local function Row(m, expected, raidInfo)
 	}
 end
 
--- Whether a raid unit is you. UnitIsUnit's answer is secret where unit comparison is restricted: never compared, the GUIDs
--- then (0.50.7, review: compared as it came, an error there, and the list stayed empty)
+-- Whether a raid unit is you. UnitIsUnit's answer is secret where unit comparison is restricted: never compared, the
+-- GUIDs then
 local function IsMe(u)
 	if u == "player" then return true end
 	local v = Bool(Safe(UnitIsUnit, u, "player"))
@@ -433,8 +432,6 @@ end
 
 --- What the game hides right now, in words: "Range and buffs hidden by the game right now (in combat)"; nil when
 --- nothing is.
--- (0.49.2, review: whole sentences, not "%s hidden ..." filled with "range", "buffs" and "and": a translation can make
--- its words agree, and a first letter outside ASCII was never made upper case)
 local HIDDEN = {
 	["r"] = L["Range hidden by the game right now"], ["b"] = L["Buffs hidden by the game right now"],
 	["o"] = L["Roles hidden by the game right now"], ["rb"] = L["Range and buffs hidden by the game right now"],
@@ -458,9 +455,9 @@ ns:RegisterProvider("group", {
 	aliases = { "group", "party", "members" }, -- (@raid is the raids' entrances: Entrances.lua)
 	explicit = true, -- (only with @group, Simple mode's Group category, or asked in words)
 	refreshOnOpen = true, -- (range and buffs move all the time: read afresh on every open)
-	-- (no per-unit events: UNIT_AURA, UNIT_HEALTH, UNIT_FLAGS and UNIT_CONNECTION fire for every unit, nameplates and all,
-	-- hundreds a second in a fight, and each dirtied the list, so a search while typing read the whole group again
-	-- about once a second: 4 ms and 1.3 MB of garbage in a 40-man raid. 0.47.0 review)
+	-- (no per-unit events: UNIT_AURA, UNIT_HEALTH, UNIT_FLAGS and UNIT_CONNECTION fire for every unit, nameplates and
+	-- all, hundreds a second in a fight, and each dirtied the list, so a search while typing read the whole group again
+	-- about once a second: 4 ms and 1.3 MB of garbage in a 40-man raid.)
 	events = { "GROUP_ROSTER_UPDATE", "PLAYER_ROLES_ASSIGNED", "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST",
 		"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "ADDON_RESTRICTION_STATE_CHANGED" },
 	guard = 1,
@@ -482,7 +479,7 @@ ns:RegisterProvider("group", {
 local ASK = {}
 for w in ([[who whos is are the my our in not has have does do any anyone someone everyone which what of a an me i to
 	with still out show list find get got there theres left any here our all their them it its please and or]]):gmatch("%a+") do ASK[w] = true end
--- ("and", "or": "tanks and healers" is both roles, either of them; 1.0.78: "and" was a name looked for, nobody had it)
+-- ("and", "or": "tanks and healers" is both roles, either of them)
 local SUBJECT = { group = true, party = true, raid = true, members = true, member = true, groupmates = true, team = true }
 local CUE = { dead = "dead", died = "dead", dying = "dead", ghost = "dead", ghosts = "dead", offline = "offline",
 	disconnected = "offline", dc = "offline", dced = "offline", range = "far", far = "far", oor = "far", outofrange = "far",
@@ -490,11 +487,10 @@ local CUE = { dead = "dead", died = "dead", dying = "dead", ghost = "dead", ghos
 	unbuffed = "missing", tank = "tank", tanks = "tank", healer = "healer",
 	healers = "healer", heals = "healer", healing = "healer", dps = "dps", damage = "dps", inrange = "near" }
 
---- The question: { dead, offline, far, near, missing = { families }, buffWords = { other buff names }, roles = { ROLE }, words },
---- or nil when the line isn't about the group. About the group: a group word or "who" (or "unbuffed") and a cue; or,
---- without one, a missing word with what's missing named ("missing buffs", "needs fortitude", "missing consumables").
---- "buff" and "consumables" alone are no cue (0.47.0 review: "food buff", "agility buff", "consumables" were answered
---- as group questions, and typing "consecration" flashed the group up at "cons").
+--- The question: { dead, offline, far, near, missing = { families }, buffWords = { other buff names }, roles = { ROLE
+--- }, words }, or nil when the line isn't about the group. About the group: a group word or "who" (or "unbuffed") and a
+--- cue; or, without one, a missing word with what's missing named ("missing buffs", "needs fortitude", "missing
+--- consumables"). "buff" and "consumables" alone are no cue.
 local BUFF_WORDS = { buff = true, buffs = true }
 local NAME_FILLER = { of = true, the = true, protection = true } -- (left out of a buff's name looked for)
 --- Is this word a group buff's or a consumable's word, or a word of a buff's name ("kings": Blessing of Kings)?
@@ -518,7 +514,7 @@ function GR.Question(text)
 		elseif SUBJECT[w] then subject = true
 		elseif CUE[w] then
 			-- (after other words, "without" is Simple mode's "not": "cloak without stamina", "food without spirit" are
-			-- searches, never "Needs Fortitude, cloak"; 0.49.2, review)
+			-- searches, never "Needs Fortitude, cloak")
 			if not (w == "without" and #rest > 0) then cues[CUE[w]] = true end
 			if w == "unbuffed" then subject, named = true, true end
 		elseif w == "who" or w == "whos" then who = true
@@ -531,7 +527,7 @@ function GR.Question(text)
 	if not next(cues) then return nil end
 	if not (subject or who) and not (cues.missing and named) then return nil end
 	-- (no group word nor "who": every other word must name a buff or consumable; an item, slot or type word makes it a
-	-- search: "cloak needs stamina"; 0.49.2, review)
+	-- search: "cloak needs stamina")
 	if not (subject or who) then
 		for _, w in ipairs(rest) do if not BuffWord(w) then return nil end end
 	end
@@ -557,7 +553,6 @@ function GR.Question(text)
 			end
 		end
 		-- one blessing named ("blessing of kings", "greater blessing of might"): that buff by name, not every Blessing
-		-- (0.50.7, review: "blessing" took the whole family, so a member with Might but no Kings wasn't listed)
 		if #q.buffWords > 0 then
 			for i = #q.missing, 1, -1 do
 				if q.missing[i] == "blessing" then
@@ -652,8 +647,7 @@ end
 function GR.None() return {} end
 
 --- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@group is:dead sort:list",
---- "@group missing:fortitude sort:list"; several roles are any of them, "tanks and healers": is:tank|healer (1.0.78:
---- written is:tank is:healer, both at once, it found nobody).
+--- "@group missing:fortitude sort:list"; several roles are any of them, "tanks and healers": is:tank|healer.
 function GR.Line(q)
 	local parts = { "@group" }
 	if q.dead then parts[#parts + 1] = "is:dead" end

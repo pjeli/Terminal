@@ -625,7 +625,7 @@ local function Build()
 	overlaySub:SetPoint("CENTER", 0, -11)
 	livesText = Text(frame, 11, "RIGHT")
 	livesText:SetPoint("BOTTOMRIGHT", -12, 9)
-	-- (the keys cut short before the level and lives, not over them: a longer language's; review, 0.49.17)
+	-- (the keys cut short before the level and lives, not over them: a longer language's)
 	footer = ns.Game.Footer(frame, "", livesText)
 	LR.frame, LR.footer = frame, footer
 end

@@ -17,7 +17,7 @@ ns.Gold = G
 
 local Safe, Num, Str = ns.Safe, ns.Num, ns.Str
 
--- (the number and money texts are everyone's: Util.lua's ns.Thousands and ns.Money; review, 0.53.6)
+-- (the number and money texts are everyone's: Util.lua's ns.Thousands and ns.Money)
 G.Thousands, G.Text = ns.Thousands, ns.Money
 
 ----------------------------------------------------------------------
@@ -62,9 +62,9 @@ local function ReadSyndicator(A, add)
 	for _, full in ipairs(A.GetAllGuilds and A.GetAllGuilds() or {}) do
 		local g = A.GetByGuildFullName(full)
 		local d = type(g) == "table" and type(g.details) == "table" and g.details or nil
-		-- (guilds' gold is shown only when turned on for them, as Baganator's summary does)
-		-- (a guild's realm as Syndicator keeps it: `realm`, as the game names it; the realms' list is normalized names, no
-		-- spaces or dashes. Review, 1.0.20: read as realmNormalized, which guilds don't have, no guild ever showed)
+		-- (guilds' gold is shown only when turned on for them, as Baganator's summary does) (a guild's realm as
+		-- Syndicator keeps it: `realm`, as the game names it; the realms' list is normalized names, no spaces or
+		-- dashes. Review)
 		local gRealm = d and (d.realmNormalized or (type(d.realm) == "string" and (d.realm:gsub("[%s%-]", ""))))
 		if d and realms[gRealm or ""] and type(d.show) == "table" and d.show.gold and (not faction or d.faction == faction) then
 			add({ key = "g:" .. full, who = Name({ character = d.guild, realmNormalized = gRealm }, full),

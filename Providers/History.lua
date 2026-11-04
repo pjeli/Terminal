@@ -1,10 +1,9 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- The lines you ran from the prompt. Up arrow on an empty prompt walks back through them
--- (UI:Up / UI:Down); "history" (or Ctrl+R) lists them and .forget history forgets them. (0.63.6, the player: "like a real shell")
--- Ctrl+R searches them (UI/Modes.lua's history search), @history lists them, and "history" asks for them in plain
--- words; each says when it last ran (db.historyAt).
+-- The lines you ran from the prompt. Up arrow on an empty prompt walks back through them (UI:Up / UI:Down); "history"
+-- (or Ctrl+R) lists them and .forget history forgets them. Ctrl+R searches them (UI/Modes.lua's history search),
+-- @history lists them, and "history" asks for them in plain words; each says when it last ran (db.historyAt).
 
 local MAX_HISTORY = 50
 
@@ -27,7 +26,7 @@ function ns:RecordHistory(line)
 	ns:Changed("history")
 end
 
---- When a line from the history last ran (time()), or nil (kept before 0.63.6).
+--- When a line from the history last ran (time), or nil (kept before 0.63.6).
 function ns:HistoryAt(line)
 	local at = self.db and self.db.historyAt
 	return type(at) == "table" and at[line] or nil
@@ -44,7 +43,7 @@ end
 --- Find a terminal command by name or alias (in registration order, so a shared alias always
 --- finds the same one).
 
---- Forget what you ran: `.forget history` (0.65.12: .history is gone; "history" and Ctrl+R list it).
+--- Forget what you ran: `.forget history`.
 function ns.ClearHistory()
 	local h = ns.db and ns.db.history or {}
 	for k = #h, 1, -1 do h[k] = nil end
@@ -53,7 +52,7 @@ function ns.ClearHistory()
 end
 
 ----------------------------------------------------------------------
--- @history, and "history" in plain words (0.63.6)
+-- @history, and "history" in plain words
 ----------------------------------------------------------------------
 
 local H = {}
@@ -73,7 +72,7 @@ function H.Rows()
 	for i, line in ipairs(ns:HistoryLines()) do
 		local at = ns:HistoryAt(line)
 		out[#out + 1] = {
-			key = line, name = line, line = line, histPos = i, icon = H.ICON, at = at, -- (at: since:today; 0.66.8)
+			key = line, name = line, line = line, histPos = i, icon = H.ICON, at = at, -- (at: since:today)
 			detail = at and ns.Ago(math.max(0, time() - at)) or nil,
 			activate = SearchAgain, staysOpen = true,
 		}
@@ -86,7 +85,7 @@ ns:RegisterProvider("history", {
 	color = "ff9fd8c8", -- (a pale teal: no other list has it)
 	aliases = { "history", "hist", "ran" },
 	explicit = true, -- (only asked for: @history, "history", Ctrl+R)
-	refreshOnOpen = 60, -- (each row's "when it ran" kept true: made again on an open a minute on; 0.63.7, review)
+	refreshOnOpen = 60, -- (each row's "when it ran" kept true: made again on an open a minute on)
 	collect = function() return H.Rows() end,
 })
 

@@ -3,16 +3,15 @@ local ns = _G.Terminal
 if not ns then return end
 local L = ns.L
 
--- .atop: the terminal turns into atop, "AddOn top": a small btop (the Linux system monitor) for your addons. A CPU graph
--- of all addons over time, memory, frame rate and latency, and a list of addons by CPU and memory
--- with little bars, searchable by typing. Tab changes the sort, Up/Down move, Esc or ` closes.
--- Enter (or a click) on an addon profiles it: the graphs follow that addon alone (its CPU per frame, scaled to its
--- own peak; its memory and how fast it grows), and the list gives way to the profiler's numbers for it beside all
--- addons' (recent, session, peak, last frame, in combat; frames over 1/5/10/50/100/500/1000 ms). Up/Down step to the
--- next addon; Esc, Enter or Backspace go back to the list.
--- Left/Right switch the list's CPU % between each addon's share of all addons' time (relative: "Questie is most of
--- it") and its share of a frame (absolute: "Questie takes 1.2% of every frame"; its bar full at B.ABS_FULL of a frame);
--- the choice is kept (0.52.2, the player's ask).
+-- .atop: the terminal turns into atop, "AddOn top": a small btop (the Linux system monitor) for your addons. A CPU
+-- graph of all addons over time, memory, frame rate and latency, and a list of addons by CPU and memory with little
+-- bars, searchable by typing. Tab changes the sort, Up/Down move, Esc or ` closes. Enter (or a click) on an addon
+-- profiles it: the graphs follow that addon alone (its CPU per frame, scaled to its own peak; its memory and how fast
+-- it grows), and the list gives way to the profiler's numbers for it beside all addons' (recent, session, peak, last
+-- frame, in combat; frames over 1/5/10/50/100/500/1000 ms). Up/Down step to the next addon; Esc, Enter or Backspace go
+-- back to the list. Left/Right switch the list's CPU % between each addon's share of all addons' time (relative:
+-- "Questie is most of it") and its share of a frame (absolute: "Questie takes 1.2% of every frame"; its bar full at
+-- B.ABS_FULL of a frame); the choice is kept.
 --
 -- CPU comes from the game's own profiler (C_AddOnProfiler: each addon's recent time per frame);
 -- memory from GetAddOnMemoryUsage, refreshed every few seconds (asking for it is costly). The panel
@@ -92,12 +91,12 @@ local function ReadAddons()
 		local name, title = C_AddOns.GetAddOnInfo(i)
 		if name and (not isLoaded or isLoaded(i)) then
 			local a = byName[name] or { name = name, cpu = 0, mem = 0, shownCpu = 0, shownMem = 0 }
-			if a.rawTitle ~= (title or name) then -- (its texts made again only when its title changes: review, 0.53.6)
+			if a.rawTitle ~= (title or name) then -- (its texts made again only when its title changes: review)
 				a.rawTitle = title or name
 				local plain = ns.Plain and ns.Plain(title or name) or (title or name)
 				a.title = plain ~= "" and plain or name
-				-- (what's matched: its title and folder name, and that same text lowercased: the fuzzy score takes the two as
-				-- one text; 0.50.7, review: given the title alone and the longer lowercase, it read past its end)
+				-- (what's matched: its title and folder name, and that same text lowercased: the fuzzy score takes the
+				-- two as one text)
 				a.htitle = a.title .. " " .. name
 				a.ltitle = ns.Lower(a.htitle)
 			end
@@ -207,8 +206,7 @@ B.Matches = Matches -- (tests)
 
 function B.Refilter()
 	local q = ns.Lower(state.filter)
-	-- (the selected addon stays selected as the list re-sorts every sample, as profiling's Up/Down follow it by name;
-	-- review, 0.48.6: Enter profiled whichever addon had moved under the highlight. Typing starts at the top: `fresh`)
+	-- (the selected addon stays selected as the list re-sorts every sample, as profiling's Up/Down follow it by name)
 	local was = not state.fresh and shown and shown[state.sel] or nil
 	state.fresh = nil
 	shown = {}
@@ -489,7 +487,7 @@ function B.DrawBars(k)
 		scale = math.max(scale, 0.001)
 	end
 	-- (only the newest column glides: the others are values already shown, moved one to the left, so they're placed at
-	-- once; each sample set every column gliding, the graph never settled while open. Review, 0.53.6)
+	-- once; each sample set every column gliding, the graph never settled while open.)
 	for i, bar in ipairs(graph) do
 		local v = (src[#src - (GRAPH_COLS - i)] or 0) / scale
 		local f, moved = Ease(bar, v, i < GRAPH_COLS and 1 or k)
@@ -555,7 +553,7 @@ local function DrawTitles(t, fa)
 	memText2:SetText(L["peak %s"]:format(MB(B.memPeak or 0)))
 	memText3:SetText(ns.name .. " " .. MB(mine))
 	-- (the box titles change only with the addon looked at, and their widths with the window: set then, not twice a
-	-- second; review, 0.53.6)
+	-- second)
 	local th = Theme.Get()
 	local titlesFor = table.concat({ fa and fa.name or "", tostring(frame.cpuBox:GetWidth()), tostring(frame.procBox:GetWidth()),
 		tostring(th.font), tostring(th.fontSize) }, ":")
@@ -730,7 +728,6 @@ local GAME_KEYS = {
 
 --- A key pressed in atop: those above and the game's own chords the terminal passes on too (Ctrl+R the frame rate,
 --- Ctrl+S sound, the volume, the screenshot key: UI.GameKey) go on to the game; any other key is atop's (B.Key).
---- (0.49.2, review: atop kept every key, Print Screen and Ctrl+R did nothing while it showed; it never opens in combat)
 function B.KeyDown(self, key)
 	local UI = ns.UI
 	local game = GAME_KEYS[key] or (UI and UI.GameKey and UI.GameKey(key)) or false
@@ -762,7 +759,7 @@ function B.Open()
 	B.since = B.since or GetTime()
 	ReadAddons()
 	-- each addon's own history starts again (a gap while closed would read as one long step), and all addons' graphs
-	-- too (0.49.2, review: reopened an hour later, the old samples sat beside the new as if no time had passed)
+	-- too
 	for _, a in ipairs(addons) do a.hist, a.memHist, a.memAt = nil, nil, nil end
 	hist, memHist = {}, {}
 	SampleMem(); SampleCpu()

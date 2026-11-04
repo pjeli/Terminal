@@ -53,7 +53,7 @@ local function Known()
 			known[name] = { tonumber(cat), help }
 			knownOrder[#knownOrder + 1] = name
 		end
-		ns.CVAR_LIST = nil -- (read: its text not kept for the session; review, 0.53.6)
+		ns.CVAR_LIST = nil -- (read: its text not kept for the session)
 	end
 	return known, knownOrder
 end
@@ -165,14 +165,14 @@ ns:RegisterProvider("cvars", {
 				}
 				Fill(e, value, default)
 				out[#out + 1] = e
-				byName[ns.Lower(name)] = e -- (a CVar's name is any case: CVAR_UPDATE may spell it otherwise; review, 0.53.6)
+				byName[ns.Lower(name)] = e -- (a CVar's name is any case: CVAR_UPDATE may spell it otherwise)
 			end
 		end
 		ns:Trace(("cvars: %s: %d names (the game's own call %s), %d settings this client has"):format(from, #names, ok and "ok" or "failed", #out))
 		emptyNote = nil
 		if #out == 0 then
-			-- the list can come back empty early on: ask again on the next search, and say what happened (a note on top,
-			-- as other lists say they're empty: not a row of the list, counted or picked; review, 0.53.6)
+			-- the list can come back empty early on: ask again on the next search, and say what happened (a note on
+			-- top, as other lists say they're empty: not a row of the list, counted or picked)
 			C_Timer.After(1, function() ns:Changed("cvars") end) -- (the note goes once it's read: an open list too)
 			emptyNote = (from == "Terminal's list" and L["%d names from Terminal's list, none with a value"]
 				or L["%d names from the game's list, none with a value"]):format(#names)
@@ -198,6 +198,6 @@ cvarWatch:SetScript("OnEvent", function(_, _, name)
 	if value ~= e.value or default ~= e.default then
 		Fill(e, value, default)
 		ns.entriesGen = ns.entriesGen + 1 -- (searches narrowed from the last one see the new value)
-		if ns.OnDirty then ns.OnDirty(p) end -- (an open list shows it: its row, not the list read again; review, 0.53.6)
+		if ns.OnDirty then ns.OnDirty(p) end -- (an open list shows it: its row, not the list read again)
 	end
 end)

@@ -103,8 +103,8 @@ S.game = game
 -- Drawing
 ----------------------------------------------------------------------
 
--- each body cell's texture, placed once when the cell is new: a move adds a head and drops a tail, so only those two are
--- placed and shown (every segment was placed again on every move, up to 16 a second; review, 0.53.6)
+-- each body cell's texture, placed once when the cell is new: a move adds a head and drops a tail, so only those two
+-- are placed and shown (every segment was placed again on every move, up to 16 a second)
 local placed, spare = {}, {} -- cell -> its texture; textures of cells gone, for the next new ones
 S.placed = placed -- (tests)
 
@@ -213,7 +213,7 @@ local function Style()
 end
 
 --- What the guild is told: "[Terminal] Snake: 23 points (a new best)." (a new best only when it is one: filling the
---- board again ties the best; review, 0.49.17)
+--- board again ties the best)
 function S.Brag()
 	return L["[Terminal] Snake: %d points%s."]
 		:format(game.score, game.newBest and (" " .. L["(a new best)"]) or "")

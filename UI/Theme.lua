@@ -41,12 +41,12 @@ T.DEFAULTS = {
 	animations = "smooth", -- how the terminal moves: a style from T.ANIMATIONS, or "off" (everything snaps)
 	cursor = "blinking-line", -- the text cursor: blinking or solid, a line or a box
 	blinkRate = 0.8, -- blinks per second
-	zenDim = 0.55, -- .zen: how dark the screen behind the terminal gets (0.51.1, the player's ask)
+	zenDim = 0.55, -- .zen: how dark the screen behind the terminal gets
 	autoScan = true, -- index professions quietly after login
 	mailWarn = true, -- say at login when mail with something in it runs out soon (Mail.lua)
 	syntax = true, -- colour what's typed: @kinds, filters, .commands, /slash commands
 	suggest = true, -- a faint "try: ..." example in the empty prompt (off: it stays empty)
-	slashKey = false, -- the / key opens Terminal on a slash command (SlashKey.lua; off unless turned on, 0.56.14)
+	slashKey = false, -- the / key opens Terminal on a slash command (SlashKey.lua; off unless turned on)
 	fzfGlow = "breathe", -- fuzzy finding's glow round the prompt: T.FZF_GLOW_ORDER
 	fzfColor = false, -- its colour (false: the theme's selection colour)
 	v = 4, -- theme defaults version (see T.Get)
@@ -222,7 +222,7 @@ function T.Get()
 		end
 		t.v = 3
 	end
-	-- v4 (0.56.14, the author's call): the / key off unless turned on; the test builds before had it on for everyone
+	-- v4: the / key off unless turned on; the test builds before had it on for everyone
 	if t.v == 3 then
 		t.slashKey = nil
 		t.v = 4
@@ -345,9 +345,8 @@ local function SetFace(f, size)
 	if not ok or res == false then pcall(f.SetFont, f, T.FONTS.friz, size, "") end
 end
 
--- The apps' texts (Panel.Text) at a size of their own: one font object per size, on the chosen font like the
--- terminal's own (ApplyFonts keeps them on it). (0.49.2, review: each text set its font face once, when made, so after
--- .set font an app kept the old face, and F1's rows made later took the new one: two faces in one window)
+-- The apps' texts (Panel.Text) at a size of their own: one font object per size, on the chosen font like the terminal's
+-- own (ApplyFonts keeps them on it).
 local sized = {}
 
 --- The font object for the apps' texts at `size`, made on first use (a copy of the input font: its colour and shadow).
@@ -438,8 +437,6 @@ function T.Set(key, raw, quiet)
 	end
 	local was = t[key]
 	t[key] = v
-	-- (0.49.2, review: any set made it Custom, even of the value it had: a colour swatch opened and cancelled. A change
-	-- names the theme the colours now are, as T.Import does: the picker's Cancel puts the theme back too)
 	if PRESET_KEYS[key] and v ~= was then t.preset = T.MatchPreset(t) end
 	if not quiet then T.Changed() end
 	return true, v

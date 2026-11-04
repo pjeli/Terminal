@@ -2,12 +2,12 @@ local ns = select(2, ...)
 local L = ns.L
 local H = ns.Highlight
 
--- Talents: every talent in your tree, taken or not, searchable by name or tree, opened in
--- the talent window with its node highlighted. Forever's talents are a C_Traits tree split
--- into the classic three tabs (the same way ClassicUIForever reads it).
--- Other classes' talents (0.44.7) are listed too, below your own (`_rank`): read once through the game's "view a
--- loadout" config (C_ClassTalents.InitializeViewLoadout: what the talent window shows a shared build with, C calls),
--- kept in the saved variables per game build. Enter shows the talent's Wowhead page; class:mage narrows to a class.
+-- Talents: every talent in your tree, taken or not, searchable by name or tree, opened in the talent window with its
+-- node highlighted. Forever's talents are a C_Traits tree split into the classic three tabs (the same way
+-- ClassicUIForever reads it). Other classes' talents are listed too, below your own (`_rank`): read once through the
+-- game's "view a loadout" config (C_ClassTalents.InitializeViewLoadout: what the talent window shows a shared build
+-- with, C calls), kept in the saved variables per game build. Enter shows the talent's Wowhead page; class:mage narrows
+-- to a class.
 
 local TL = {}
 ns.Talents = TL
@@ -33,9 +33,7 @@ end
 
 local Usable = ns.Usable
 
---- The frame a known window's talents are in: PlayerSpellsFrame's talents tab (0.49.2, review: on this client the
---- spellbook and the talents are both tabs of PlayerSpellsFrame, and the window showing its spellbook counted as the
---- talents open: Enter pressed nothing and found no node), else the window itself.
+--- The frame a known window's talents are in: PlayerSpellsFrame's talents tab, else the window itself.
 local function RootOf(name)
 	local f = _G[name]
 	if name == "PlayerSpellsFrame" and type(f) == "table" then
@@ -131,8 +129,7 @@ function TL.Highlight(nodeID, tabName, tabIndex)
 end
 
 -- Only used when neither the keybinding nor a micro button is available: the talents showing, the node is pointed at;
--- else said. (0.49.2, review: no PlayerSpellsUtil.OpenToClassTalentsTab / ToggleTalentFrame from Terminal's code here
--- any more: the window then held what it wrote. Said instead, as Spells' and Currency's fallbacks do)
+-- else said.
 local function OpenFallback(e)
 	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(tostring(e.name))) return end
 	if TL.IsOpen() then return TL.Highlight(e.nodeID, e.tab, e.tabIndex) end
@@ -194,8 +191,7 @@ local function ReadNodes(configID, treeID, tabs, order)
 end
 
 --- Points spent in each of your trees, in the talent window's order: { { name = "Fury", index = 2, points = 31 } ... },
---- or nil when the tree can't be read. Kept until a talent changes (the list's events; 0.66.2: upgrades judged for the
---- tree your points are in).
+--- or nil when the tree can't be read. Kept until a talent changes (the list's events).
 local pointsKept, noneUntil
 TL.NONE_KEEP = 10 -- (seconds "none spent" stands: maybe read before the game had them, at login; else every upgrades search
 -- of a character under level 10 read the whole tree again; review)
@@ -238,7 +234,7 @@ TL.OTHER_RANK = -1.5 -- (below your own class's among equal matches: class:mage 
 TL.PLAYABLE = { WARRIOR = true, PALADIN = true, HUNTER = true, ROGUE = true, PRIEST = true, SHAMAN = true, MAGE = true,
 	WARLOCK = true, DRUID = true }
 TL.RETRY = 10 -- (s: read skipped in combat or with a talent window open, asked again this long after)
-TL.CACHE_FORMAT = 2 -- (2, 0.54.5: copies without the druids, read before the class ids went up to 11, read again)
+TL.CACHE_FORMAT = 2 -- (2)
 TL.MAX_CLASS_ID = 13 -- (Evoker's: the highest class id there is)
 TL.otherRows = {} -- classFile -> the rows last made for it, and what they were made from (the talents list's collect)
 
@@ -325,9 +321,8 @@ function TL.OtherClasses()
 		if (InCombatLockdown and InCombatLockdown()) or TL.IsOpen() then ReadLater() return {}, {} end
 		local level = (GetMaxLevelForPlayerExpansion and GetMaxLevelForPlayerExpansion()) or 60
 		local classes, names, read = {}, {}, 0
-		-- (every class id up to the highest there is: GetNumClasses is how many classes the game has, the highest id only on
-		-- retail. WoW Forever's nine stop at 9 while the Druid is 11, so druids were never read; 0.54.5, the player: "druid
-		-- talents" found nothing. An id the client has no class for may answer with another's: each class read once)
+		-- (every class id up to the highest there is: GetNumClasses is how many classes the game has, the highest id
+		-- only on retail. WoW Forever's nine stop at 9 while the Druid is 11, so druids were never read)
 		local okN, n = pcall(GetNumClasses or function() return 0 end)
 		for id = 1, math.max((okN and tonumber(n)) or 0, TL.MAX_CLASS_ID) do
 			local okC, name, file, cid = pcall(GetClassInfo, id)
@@ -355,10 +350,9 @@ function TL.OtherClasses()
 end
 
 ----------------------------------------------------------------------
--- What a talent does: its spell's description (0.54.1, a player's ask: "healing talents", "shaman crit talents",
--- "druid regen talents" found nothing, a talent's name being all there was to find). Read once its spell's data is in,
--- kept per game build (lowercase, db.talentDesc); the ones not in yet are asked for in the background, a few at a time,
--- and the list made again once some arrive.
+-- What a talent does: its spell's description. Read once its spell's data is in, kept per game build (lowercase,
+-- db.talentDesc); the ones not in yet are asked for in the background, a few at a time, and the list made again once
+-- some arrive.
 ----------------------------------------------------------------------
 
 TL.DESC_ASK = 100 -- (spells asked to load each time the list is made; the rest the next time)
@@ -433,10 +427,9 @@ local function TalentLink(e) return e.spellID and C_Spell and C_Spell.GetSpellLi
 local function LinkTalent(e) ns.LinkInChat(TalentLink(e)) end
 local TALENT_CHATBOX = ns.ChatBoxSpec(TalentLink)
 
--- Other classes' rows are compact (0.44.16: ~800 full tables of 20 fields each came to ~1.2 MB, kept all session): a row
--- holds its name, key, rank, lowercase name and text, and its saved talent (`_r` = { nodeID, name, spellID, tab,
--- tabIndex, maxRanks, icon }); its class's metatable has the rest, worked out when read (seven raw fields: `_score`
--- still fits without the table growing).
+-- Other classes' rows are compact: a row holds its name, key, rank, lowercase name and text, and its saved talent (`_r`
+-- = { nodeID, name, spellID, tab, tabIndex, maxRanks, icon }); its class's metatable has the rest, worked out when read
+-- (seven raw fields: `_score` still fits without the table growing).
 local function OtherTab(t)
 	local tab = rawget(t, "_r")[4]
 	return tab ~= "" and tab or nil
@@ -550,8 +543,7 @@ ns:RegisterProvider("talents", {
 	end,
 })
 
--- .talentdebug : what Terminal sees of the open talent window, for bug reports.
--- (.debug talents, for bug reports; 0.65.12: it was .talentdebug)
+-- .talentdebug : what Terminal sees of the open talent window, for bug reports. (.debug talents, for bug reports)
 if ns.Debug and ns.Debug.PARTS then
 	ns.Debug.PARTS["talents"] = function()
 			local lines = { "Talent debug (open the talent window first):" }

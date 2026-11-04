@@ -1,13 +1,12 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Saved data in two files (0.67.7, a player's report: Terminal.lua in SavedVariables was large). TerminalDB
--- (Terminal.lua) keeps the settings, tabs, picks and search history; everything Terminal records or learns as you play
--- (logs, item and loot indexes, alts' mail, recipes...) is in TerminalCacheDB (TerminalCache.lua), which can be deleted
--- whole without losing a setting. ns.db is TerminalDB with the cache keys passed through to TerminalCacheDB (a
--- metatable: the code reading ns.db.lootLog didn't change), and a save from before the split is moved over at load.
--- What's kept between sessions is the player's to choose (.saved keep), and the big tables are written packed: rows
--- as lines of tab-separated fields, read back at load (Pack/Unpack below).
+-- Saved data in two files. TerminalDB (Terminal.lua) keeps the settings, tabs, picks and search history; everything
+-- Terminal records or learns as you play (logs, item and loot indexes, alts' mail, recipes...) is in TerminalCacheDB
+-- (TerminalCache.lua), which can be deleted whole without losing a setting. ns.db is TerminalDB with the cache keys
+-- passed through to TerminalCacheDB (a metatable: the code reading ns.db.lootLog didn't change), and a save from before
+-- the split is moved over at load. What's kept between sessions is the player's to choose (.saved keep), and the big
+-- tables are written packed: rows as lines of tab-separated fields, read back at load (Pack/Unpack below).
 local SV = {}
 ns.Saved = SV
 
@@ -19,8 +18,7 @@ SV.GROUPS = {
 		levels = { off = 0, small = 2000, normal = 4000, large = 12000 }, default = "normal", unit = L["items"] },
 	{ name = "atlasloot", keys = { "lootCache" }, label = L["AtlasLoot's index"], rebuilt = true,
 		levels = { off = 0, on = 1 }, default = "on" },
-	-- (small: the talents without their descriptions, most of the group's size, read from the game again each session;
-	-- 0.68.3, the player's call)
+	-- (small: the talents without their descriptions, most of the group's size, read from the game again each session)
 	{ name = "talents", keys = { "talentCache", "talentDesc" }, label = L["every class's talents"], rebuilt = true, lists = { "talents" },
 		levels = { off = 0, small = 1, on = 2 }, default = "on", notes = { small = L["without their descriptions"] } },
 	{ name = "objects", keys = { "objectIndex" }, label = L["Questie's mailboxes and objects"], rebuilt = true, lists = { "mailbox", "forge", "anvil", "cookingfire", "moonwell" },
@@ -415,7 +413,7 @@ function SV.Load()
 			if SV.KEY[k] then cache[k] = v else rawset(t, k, v) end
 		end,
 	})
-	-- (the level picked read from this file: ns.db is set only once Load returns; 1.0.83, review: always "normal")
+	-- (the level picked read from this file: ns.db is set only once Load returns)
 	if ns.ItemStore then ns.ItemStore.UseLimit(SV.Limit("items", db)) end
 	return db
 end

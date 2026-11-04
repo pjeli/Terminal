@@ -1,8 +1,7 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Auctionator (0.62.0, the player's ask: "support for Auctionator if detected ... into the existing @auction kinds, as
--- well as taking auction house values into items ... a suggestion to go place items on the AH and expected values").
+-- Auctionator.
 --
 -- Read through its public API only (Auctionator.API.v1, for other addons), at run time, while it's installed: the
 -- price its last scan of the auction house saw, and when it changes. Nothing of Auctionator's is copied into Terminal
@@ -304,7 +303,6 @@ for _, s in ipairs({ "what should i auction", "what should i sell on the ah", "w
 	"what should i put on the ah", "what can i put on the ah", "what is worth auctioning", "whats worth auctioning",
 	"what sells on the ah", "sell on the ah", "post on the ah" }) do POST[s] = true end
 
--- (0.62.1, the player: "by default we can assume bags / @items but it is worth it to allow inclusion of bank or alts")
 -- where to look, said after the question: "... in my bank", "... on my alts", "... everywhere", "... bags and bank"
 local SCOPE_FILL = { ["in"] = true, on = true, from = true, my = true, the = true, ["and"] = true, plus = true, with = true,
 	including = true, include = true, also = true, too = true, all = true, characters = true, character = true, of = true }
@@ -458,8 +456,8 @@ end
 --- As Advanced syntax: your bags' @item, your bank's @bank, else @stored (your alts and banks).
 function Q.ToAdvanced(q)
 	local pl = (q and q.places) or { bags = true }
-	-- (your alts', everywhere: the answer counts only those holders, @stored every one of each item, yours too; no Advanced
-	-- line finds the same: kept as said. 0.63.7, review)
+	-- (your alts', everywhere: the answer counts only those holders, @stored every one of each item, yours too; no
+	-- Advanced line finds the same: kept as said.)
 	if pl.alts or pl.all then return nil end
 	-- (your bags are @item, your bank @bank, your alts' @stored; together, each list named)
 	local kinds = {}
@@ -503,10 +501,10 @@ function AN.ValueQuestion(text)
 end
 
 ----------------------------------------------------------------------
--- The cheapest upgrades on the auction house (0.66.13, the player): "ah upgrades", "cheapest upgrades on the ah",
--- "upgrades on the auction house": bind-on-equip items from AtlasLoot that are clear upgrades for you, at Auctionator's
--- last-scanned price, the most gain per gold first ("+12 for 3g 40s"). Only what showed in its last scan; each row says
--- when it was seen when that's days ago.
+-- The cheapest upgrades on the auction house: "ah upgrades", "cheapest upgrades on the ah", "upgrades on the auction
+-- house": bind-on-equip items from AtlasLoot that are clear upgrades for you, at Auctionator's last-scanned price, the
+-- most gain per gold first ("+12 for 3g 40s"). Only what showed in its last scan; each row says when it was seen when
+-- that's days ago.
 ----------------------------------------------------------------------
 local AHU = {}
 AN.Upgrades = AHU

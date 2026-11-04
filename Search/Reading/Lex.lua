@@ -21,8 +21,8 @@ local Lower = ns.Lower
 --- Is this word Advanced mode's syntax (an @kind, a key:value filter, >>), or a | or > standing alone? (Simple.lua's
 --- E.IsAdvancedWord is this.)
 function Lex.IsAdvanced(w)
-	-- (a ">" standing alone is a chain's link: Simple mode says chains in words, "mats for x", 0.45.13)
-	-- (a "|" standing alone too: Advanced mode's "| sum value", 0.52.13)
+	-- (a ">" standing alone is a chain's link: Simple mode says chains in words, "mats for x") (a "|" standing alone
+	-- too: Advanced mode's "| sum value")
 	if w == ">" or w == "|" or w:sub(1, 1) == "@" or w:sub(1, 2) == ">>" then return true end
 	-- "-q:poor", "!is:boe", "q:rare|epic", "boe|slot:head": a key:value in any part (plain -word / a|b are Simple's too)
 	for part in w:gmatch("[^|&]+") do
@@ -45,10 +45,9 @@ local function Token(toks, line, s, e, value, class, unclosed)
 		open = unclosed or nil, i = #toks + 1 }
 end
 
---- The line split at its spaces, a "quoted phrase" kept whole: Scan.Words' rules (0.52.13), with positions.
---- A word that starts with a quote is a phrase (and what follows its closing quote, up to a space, a word of its own:
---- "a b"c); a quote inside a word joins the phrase to it, quote marks off (in:"elwynn forest"); an open quote runs to
---- the end.
+--- The line split at its spaces, a "quoted phrase" kept whole: Scan.Words' rules, with positions. A word that starts
+--- with a quote is a phrase (and what follows its closing quote, up to a space, a word of its own: "a b"c); a quote
+--- inside a word joins the phrase to it, quote marks off (in:"elwynn forest"); an open quote runs to the end.
 local function SplitSpaces(line)
 	local toks = {}
 	local i, n = 1, #line

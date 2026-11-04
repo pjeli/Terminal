@@ -136,14 +136,13 @@ end
 local function Lasts(e) return e.finish ~= nil and Mins(e.finish) > Mins(e.start) end
 CA.Lasts = Lasts
 
---- When it is, in a few words, with the times the calendar's own tooltip gives (0.49.14, the player's ask: a holiday
---- said only its day, the Stranglethorn fishing tournament not its hours): "today 20:00", "Sunday 14:00 - 16:00",
+--- When it is, in a few words, with the times the calendar's own tooltip gives: "today 20:00", "Sunday 14:00 - 16:00",
 --- "until Sunday 23:59", "Sunday 10:00 - Sunday, November 1".
 function CA.When(e, today)
 	local td, nowMin = Today()
 	today = today or td or 0
 	if e.multi then
-		-- (under way: started by now, not just today; review, 0.49.17: one starting tonight said "until" all day)
+		-- (under way: started by now, not just today)
 		if Mins(e.start) <= (nowMin or today * 1440) then return L["until %s"]:format(DayWord(e.finish, today) .. " " .. Clock(e.finish)) end
 		return DayWord(e.start, today) .. " " .. Clock(e.start) .. " - " .. DayWord(e.finish, today)
 	end
@@ -543,8 +542,7 @@ local ON = { on = true, happening = true, coming = true, upcoming = true, planne
 -- what asks about one by name: "when is the darkmoon faire", "next darkmoon faire", "upcoming holidays"
 local CUE = { when = true, next = true, upcoming = true }
 
--- every word is in one row (its name or words): "hallows" finds Hallow's End. (0.49.2, review: the words are in
--- `_ltext` once the list is made, ns:GetEntries moving `text` there; only the names were searched)
+-- every word is in one row (its name or words): "hallows" finds Hallow's End.
 local function Has(e, w)
 	local hay = rawget(e, "_calHay")
 	if not hay then
@@ -641,7 +639,7 @@ local SPAN_SAID = { today = L["today"], tomorrow = L["tomorrow"], week = L["this
 	weekend = L["this weekend"], month = L["this month"], nextmonth = L["next month"] }
 
 --- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@calendar is:holiday when:week
---- darkmoon sort:list". (0.49.2, review: every span is kept, not only today's)
+--- darkmoon sort:list".
 function CA.Line(q)
 	local parts = { "@calendar" }
 	if q.holiday then parts[#parts + 1] = "is:holiday" end

@@ -1,8 +1,7 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Quests by what they reward, and the quests that lead up to one (0.49.16, the player's ask: "outlaw saber quest" listed
--- the Baron Aquanis quest, not the one whose reward is the Outlaw Sabre).
+-- Quests by what they reward, and the quests that lead up to one.
 --
 -- - Simple mode: "outlaw sabre quest", "quest for outlaw sabre", "which quest rewards outlaw sabre": the quests whose
 --   reward is that item (a close spelling counts: saber, sabre). Only when the words name a quest reward and no quest is
@@ -43,8 +42,8 @@ end
 --- Is the index being read now (a slice at a time)?
 function QR.Building() return building end
 
---- Reads them, a slice at a time (every Questie item once: 15-20 thousand on WoW Forever; review, 0.49.17: read at once
---- in the first keystroke that asked, a hitch). Started once Questie's quests are indexed, or when first asked.
+--- Reads them, a slice at a time (every Questie item once: 15-20 thousand on WoW Forever). Started once Questie's
+--- quests are indexed, or when first asked.
 function QR.Build()
 	if index or building then return end
 	local db = DB()
@@ -96,7 +95,7 @@ function QR.RewardsOf(qid)
 end
 
 -- a word typed: at the start of one of the name's words ("sab" is in Outlaw Sabre, "low" isn't in Glowing Wand). The
--- word's pattern, made once per search (0.50.7, review: made again for every item of the index, per word)
+-- word's pattern, made once per search
 local function StartPattern(tk) return "%f[%w\128-\255]" .. tk:gsub("%p", "%%%0") end
 
 QR.CLOSE_LEN = 5 -- (a word this long or longer may be a close spelling of the name's: "saber", Sabre)
@@ -129,13 +128,12 @@ end
 --- every word at the start of one of the name's words, else (two words or more) every word there or a close spelling of
 --- one ("outlaw saber": Outlaw Sabre; only words of CLOSE_LEN letters or more). `oneClose`: one word may be a close
 --- spelling too (reward:saber, typed on purpose). `typing`: the last word is still being typed (no space after it): no
---- close spelling of it is looked for (every new letter was a pass over the whole index, 50-150 ms; review, 0.57.7).
---- { entry }, best first; {} when none. The last answer is kept (asked again as the search refreshes, and by Alt+`).
+--- close spelling of it is looked for (every new letter was a pass over the whole index, 50-150 ms). { entry }, best
+--- first; {} when none. The last answer is kept (asked again as the search refreshes, and by Alt+`).
 function QR.Items(tokens, oneClose, typing)
 	local idx = QR.Index()
 	if not idx then
-		-- (still being read, a slice at a time: the search asks again once it's in; 0.50.7, review: nothing was found and
-		-- nothing asked again, a chain's empty answer kept)
+		-- (still being read, a slice at a time: the search asks again once it's in)
 		if building and #tokens > 0 then
 			if ns.Filters then ns.Filters.loading = true end
 			if ns.Pipes then ns.Pipes.loading = true end
@@ -149,8 +147,7 @@ function QR.Items(tokens, oneClose, typing)
 	local exact, typed = {}, {}
 	local pats = {}
 	for k, tk in ipairs(tokens) do pats[k] = StartPattern(tk) end
-	-- (a word typed on, or one more: what has them is among what had the words before; 0.63.7, review: every letter
-	-- was a pass over the whole index, ~13 ms a keystroke)
+	-- (a word typed on, or one more: what has them is among what had the words before)
 	local pool = idx
 	local last = QR.lastPool
 	if last and last.idx == idx and QR.Grew(last.tokens, tokens) then pool = last.items end
@@ -212,7 +209,7 @@ QR.MAX_ITEMS = 10 -- (items whose quests are listed: "sword" would name hundreds
 local ForYou -- (below)
 
 --- The quest ids rewarding those items (each once, in the items' order): those your race and class can take, or every
---- one when none fits (review, 0.49.17: the Horde's quest, and its chain, were listed to a human); and each one's item.
+--- one when none fits; and each one's item.
 local function QuestsOf(items)
 	local out, seen = {}, {}
 	for k, it in ipairs(items) do
@@ -250,22 +247,21 @@ if Fk and Fk.KEYS then
 	-- reward:<item>: the quests whose reward is that item (its name, part of it, or a close spelling; _ for a space)
 	Fk.KEYS.reward = function(v)
 		if v == "" then return nil end
-		-- reward:bag, reward:quiver, reward:ammo_pouch: any bag (quiver, ammo pouch) as a reward (0.65.3)
+		-- reward:bag, reward:quiver, reward:ammo_pouch: any bag (quiver, ammo pouch) as a reward
 		local kind = QR.KIND_WORDS[(v:gsub("_", " "))]
 		if kind then
 			local set
 			return function(e)
 				local id = QuestIdOf(e)
 				if not id then return false end
-				-- (the reward index still being read: said, so the search is made again once it's in; 1.0.79: an early
-				-- search stayed empty, as the question didn't)
+				-- (the reward index still being read: said, so the search is made again once it's in)
 				if not QR.Index() and QR.Building() and ns.Filters then ns.Filters.loading = true end
 				if not set then set = QR.KindQuests(kind) end
 				return set[id] ~= nil
 			end
 		end
 		local tokens = {}
-		-- (apostrophes left out, as the names are: "agamaggan's_clutch"; 0.50.7, review)
+		-- (apostrophes left out, as the names are: "agamaggan's_clutch")
 		for w in v:gsub("_", " "):gsub("'", ""):gmatch("%S+") do tokens[#tokens + 1] = w end
 		local set -- (looked up on the first quest row, then kept for the search)
 		return function(e)
@@ -279,7 +275,7 @@ if Fk and Fk.KEYS then
 		end
 	end
 	Fk.KEYS.rewards = Fk.KEYS.reward -- (.filters' line and which lists it judges: Filters/Others.lua, with sells:)
-	-- slots:>=10: a bag's slots (0.66.5: "bags with at least 10 slots"); a quest's, the bag it rewards
+	-- slots:>=10: a bag's slots; a quest's, the bag it rewards
 	Fk.KEYS.slots = function(v)
 		local r = ns.Filters.Range(v)
 		return r and function(e) return r(QR.SlotsOfRow(e)) end
@@ -309,8 +305,6 @@ end
 ----------------------------------------------------------------------
 
 -- the words a question about a quest's reward is made of, besides the item's name
--- (review, 0.49.17: "quests near me" was the quests rewarding a Bear Shawl, "quests in my zone" a Bone Ring: the little
--- words of a question about quests aren't an item's; words under 3 letters never are)
 local QUEST = { quest = true, quests = true }
 local FILLER = {}
 for w in ([[quest quests reward rewards rewarded rewarding gives give gave for that which what whats where wheres the a an
@@ -389,9 +383,9 @@ function QR.Answer(q)
 end
 
 ----------------------------------------------------------------------
--- Upgrades from quests (0.51.15, the player's ask): "quest upgrades", "upgrade quests", "quests with upgrades": the
--- quests near your level you can still take whose reward is an upgrade for you (is:upgrade on each reward), the
--- biggest first, each saying what it rewards and how far its giver is (with the arrow when it's selected).
+-- Upgrades from quests: "quest upgrades", "upgrade quests", "quests with upgrades": the quests near your level you can
+-- still take whose reward is an upgrade for you (is:upgrade on each reward), the biggest first, each saying what it
+-- rewards and how far its giver is (with the arrow when it's selected).
 ----------------------------------------------------------------------
 
 local UPG = { upgrade = true, upgrades = true }
@@ -489,9 +483,8 @@ end
 
 
 ----------------------------------------------------------------------
--- Upgrades you can buy (0.66.12, the player: "interesting; can't think of many NPC sold items that are upgrades, but not
--- impossible"): "upgrades i can buy", "vendor upgrades": the friendly vendors whose stock (Questie's) holds a clear
--- upgrade for you, nearest first, each saying what and how much it gains, and a standing it needs (the item's own
+-- Upgrades you can buy: "upgrades i can buy", "vendor upgrades": the friendly vendors whose stock (Questie's) holds a
+-- clear upgrade for you, nearest first, each saying what and how much it gains, and a standing it needs (the item's own
 -- tooltip says "Requires Timbermaw Hold - Honored"). Enter points at the vendor. Advanced: @npc sells:upgrade.
 -- Reputation quartermasters, PvP vendors, limited-stock items, vendor blues at low levels, bags and quivers.
 ----------------------------------------------------------------------
@@ -668,10 +661,10 @@ end
 function QR.BuyToAdvanced() return "@npc sells:upgrade faction:friendly sort:distance " end
 
 ----------------------------------------------------------------------
--- Bags (0.65.3, the player's ask: "quests that reward bags"; some notable ones): "quests that reward bags", "bag
--- quests", "which quests give a bag"; quivers and ammo pouches too. The quests whose reward is one, that you can still
--- take (your race and class, not done), the most slots first. A reward is a bag by the item's class (the game knows it
--- for every item at once); its slots are its tooltip's ("16 Slot Bag"), once the game has the item.
+-- Bags: "quests that reward bags", "bag quests", "which quests give a bag"; quivers and ammo pouches too. The quests
+-- whose reward is one, that you can still take (your race and class, not done), the most slots first. A reward is a bag
+-- by the item's class (the game knows it for every item at once); its slots are its tooltip's ("16 Slot Bag"), once the
+-- game has the item.
 ----------------------------------------------------------------------
 
 local CONTAINER, QUIVER_CLASS = 1, 11 -- (Enum.ItemClass: Container, Quiver; a quiver's subclass 2, an ammo pouch's 3)
@@ -818,7 +811,7 @@ function QR.KindOfWord(w)
 	return k and QR.KIND_WORDS[(v:gsub("_", " "))] or nil
 end
 
--- (a quest search for bags, or sorted by slots: List.lua's FillRow says which bag and its slots; 0.65.6, the player)
+-- (a quest search for bags, or sorted by slots: List.lua's FillRow says which bag and its slots)
 ns.FIELD_DETAIL = ns.FIELD_DETAIL or {}
 ns.FIELD_DETAIL.slots = function(e) return QR.BagDetail(e) end
 
@@ -887,7 +880,7 @@ end
 --- Alt+`: the same in Advanced mode ("@questie reward:outlaw_sabre").
 function QR.ToAdvanced(q)
 	local first = q.items[1]
-	-- (the name as reward: matches it: apostrophes left out; 0.50.7, review)
+	-- (the name as reward: matches it: apostrophes left out)
 	local name = (#q.items == 1 or first.ln == table.concat(q.words, " ")) and first.m or table.concat(q.words, " ")
 	return "@questie reward:" .. name:gsub(" ", "_") .. " "
 end
@@ -917,15 +910,14 @@ local function Has(mask, n)
 	return math.floor(mask / 2 ^ (n - 1)) % 2 == 1
 end
 
--- can you take this quest: your race and class (Questie's requiredRaces / requiredClasses bits)?
--- (your race and class, read once: they don't change in a session; review, 0.53.6: asked for every reward quest, thousands
--- a refresh)
+-- can you take this quest: your race and class (Questie's requiredRaces / requiredClasses bits)? (your race and class,
+-- read once: they don't change in a session)
 local myRace, myClass, myFaction
 local factionOk = {} -- quest id -> its givers are your faction's (kept: a character's faction doesn't change)
 
---- Is a quest given by your side (0.65.3, the player: "make sure the quests are allowed by my race and faction")? Many
---- quests name no race at all; their giver says whose they are (Questie's friendlyToFaction: "A", "H", "AH"). One an
---- NPC of yours gives (or any of them), or an object or an item: yes; only the other side's NPCs: no; not known: yes.
+--- Is a quest given by your side? Many quests name no race at all; their giver says whose they are (Questie's
+--- friendlyToFaction: "A", "H", "AH"). One an NPC of yours gives (or any of them), or an object or an item: yes; only
+--- the other side's NPCs: no; not known: yes.
 local function YourSide(db, id)
 	local known = factionOk[id]
 	if known ~= nil then return known end
@@ -968,8 +960,7 @@ end
 
 --- The quests that lead up to this one, first to last, ending with it: { quest ids }. Every one of preQuestGroup; of
 --- preQuestSingle the one you can take (else the first). With OneForAll, first the prerequisites it knows of a dungeon
---- quest that Questie doesn't list (1.0.8: 22 quests of its 117 chains; its optional lead-ins left out, they don't
---- block it).
+--- quest that Questie doesn't list.
 function QR.Chain(id)
 	local db = DB()
 	if not db then return { id } end
@@ -992,8 +983,7 @@ function QR.Chain(id)
 	return out
 end
 
--- (how it was found says which quest it comes before: two chains sharing a quest each keep it, and their steps whole;
--- review, 0.49.17)
+-- (how it was found says which quest it comes before: two chains sharing a quest each keep it, and their steps whole)
 local function ChainView(row, i, n, last, before)
 	local d = row.detail
 	local say = last and L["the quest itself"] or L["step %d of %d"]:format(i, n)
@@ -1002,8 +992,8 @@ local function ChainView(row, i, n, last, before)
 end
 
 if ns.RegisterRelation then
-	-- "the defias brotherhood > rewards", "what does the defias brotherhood give": what a quest rewards, Questie's (1.0.52,
-	-- the reach audit); a faction's quartermaster's rewards are this link's too (OneForAll, Armory.lua)
+	-- "the defias brotherhood > rewards", "what does the defias brotherhood give": what a quest rewards, Questie's; a
+	-- faction's quartermaster's rewards are this link's too (OneForAll, Armory.lua)
 	ns:RegisterRelation("rewards", {
 		aliases = { "reward", "gives", "questrewards" },
 		desc = L["what a quest rewards (Questie)"],
@@ -1069,10 +1059,10 @@ if ns.RegisterRelation then
 end
 
 ----------------------------------------------------------------------
--- Quests by the reputation they give (1.0.63, the reach audit): QuestieDB's quest field 26, reputationReward, a list of
--- { factionId, value } pairs (classicQuestFixes.lua writes {{factionIDs.HORDE, 50}}); a value can be negative (an
--- opposing faction's loss), only gains count. repreward:<faction> on quest rows, their tooltip's lines, and "quests for
--- stormwind rep", "how do i get exalted with timbermaw".
+-- Quests by the reputation they give: QuestieDB's quest field 26, reputationReward, a list of { factionId, value }
+-- pairs (classicQuestFixes.lua writes {{factionIDs.HORDE, 50}}); a value can be negative (an opposing faction's loss),
+-- only gains count. repreward:<faction> on quest rows, their tooltip's lines, and "quests for stormwind rep", "how do i
+-- get exalted with timbermaw".
 ----------------------------------------------------------------------
 
 local repOf, repCount = {}, 0 -- quest id -> its { { fid, value } } gains (false: none)
@@ -1084,7 +1074,7 @@ function QR.RepRewards(id)
 	-- (a QuestieDB not in the shape expected gives nothing, never an error: asked from every quest tooltip)
 	local okDB, db = pcall(DB)
 	db = okDB and db or nil
-	-- (Questie not ready yet, right after login: nothing kept, asked again later; review, 1.0.69)
+	-- (Questie not ready yet, right after login: nothing kept, asked again later)
 	if not (db and db.QueryQuestSingle) then return nil end
 	local raw = Safe(db.QueryQuestSingle, id, "reputationReward")
 	local out
@@ -1118,10 +1108,9 @@ function QR.FactionName(fid)
 	factionNames[fid] = n or false
 	return n
 end
---- The faction ids whose name has these words (lowercase): your reputations', and OneForAll's factions.
---- The factions Questie's quests name (what they give, what they need), with the game's names: the ones you haven't
---- met are in no reputation list (review, 1.0.69: "quests for ravenholdt rep" found nothing). Made once, when
---- Questie's quests are in.
+--- The faction ids whose name has these words (lowercase): your reputations', and OneForAll's factions. The factions
+--- Questie's quests name (what they give, what they need), with the game's names: the ones you haven't met are in no
+--- reputation list. Made once, when Questie's quests are in.
 local questFactions
 function QR.QuestFactions()
 	if questFactions then return questFactions end
@@ -1147,7 +1136,7 @@ function QR.QuestFactions()
 end
 function QR.ForgetQuestFactions() questFactions = nil end -- (tests)
 --- (each word the start of one of the name's words, three letters or more: "quests for s rep" named Stormwind and
---- Darnassus; review, 1.0.69)
+--- Darnassus)
 function QR.FactionsNamed(words)
 	local out, any = {}, false
 	for _, w in ipairs(words) do if #w < 3 then return nil end end
@@ -1244,17 +1233,17 @@ function RQ.Answer(q)
 	ns.ScoreInOrder(rows)
 	return rows, title
 end
--- (its own answer: ranked by the reputation the faction asked for gives, which no sort knows; Alt+` lists the same quests,
--- the ones you can take: is:foryou, 1.0.79)
+-- (its own answer: ranked by the reputation the faction asked for gives, which no sort knows; Alt+` lists the same
+-- quests, the ones you can take: is:foryou)
 function RQ.ToAdvanced(q) return "@questie repreward:" .. (q.said:gsub("%s+", "_")) .. " is:foryou -is:done " end
 
 ----------------------------------------------------------------------
--- What a quest needs (1.0.64, the reach audit), QuestieDB's quest fields as its questMeta.lua says them: requiredSkill (18)
--- { skillLineId, value }, requiredMinRep (19) { factionId, value } (reputation points: Honored 9000, Revered 21000,
--- Exalted 42000), specialFlags (24) a bitmask (1: repeatable), questFlags (23) a bitmask (4096: daily). Read defensively:
--- anything not in that shape is nothing. Filters skill:<profession>, is:repeatable, is:daily; the tooltip says it; "quests
--- here" and "quests near me" leave out what you can't take yet; "tailoring quests", "daily quests", "quests that need
--- honored with stormwind".
+-- What a quest needs, QuestieDB's quest fields as its questMeta.lua says them: requiredSkill (18) { skillLineId, value
+-- }, requiredMinRep (19) { factionId, value } (reputation points: Honored 9000, Revered 21000, Exalted 42000),
+-- specialFlags (24) a bitmask (1: repeatable), questFlags (23) a bitmask (4096: daily). Read defensively: anything not
+-- in that shape is nothing. Filters skill:<profession>, is:repeatable, is:daily; the tooltip says it; "quests here" and
+-- "quests near me" leave out what you can't take yet; "tailoring quests", "daily quests", "quests that need honored
+-- with stormwind".
 ----------------------------------------------------------------------
 
 local needOf, needCount = {}, 0
@@ -1267,7 +1256,7 @@ function QR.Requires(id)
 	if kept ~= nil then return kept or nil end
 	local okDB, db = pcall(DB)
 	db = okDB and db or nil
-	if not (db and db.QueryQuestSingle) then return nil end -- (not ready: nothing kept; review, 1.0.69)
+	if not (db and db.QueryQuestSingle) then return nil end -- (not ready: nothing kept)
 	local out
 	do
 		local skill = Pair(Safe(db.QueryQuestSingle, id, "requiredSkill"))
@@ -1346,7 +1335,7 @@ function QR.RequiresSaid(id)
 		local fname = QR.FactionName(r.rep[1]) or tostring(r.rep[1])
 		local points = QR.MyRep(r.rep[1])
 		local mine = QR.StandingOfValue(points)
-		-- (a need that isn't a standing's start, Darkmoon's 5500: the points too, so a red line says why; review, 1.0.69)
+		-- (a need that isn't a standing's start, Darkmoon's 5500: the points too, so a red line says why)
 		local floor = false
 		for _, f in ipairs(REP_FLOOR) do if f[1] == r.rep[2] then floor = true end end
 		local have = mine and ns.StandingName(mine) or nil
@@ -1369,7 +1358,7 @@ if Fk and Fk.KEYS then
 			return function(e) local id = QuestIdOf(e) local r = id and QR.Requires(id) return r ~= nil and r.skill ~= nil end
 		end
 		local pr = P and P.ProfOfName and P.ProfOfName(want)
-		local squashed = want:gsub(" ", "") -- ("skill:first_a": the start of firstaid; review, 1.0.69)
+		local squashed = want:gsub(" ", "") -- ("skill:first_a": the start of firstaid)
 		if not pr and P and P.AL_PROFS and #squashed >= 3 then
 			for _, x in pairs(P.AL_PROFS) do if x[1]:sub(1, #squashed) == squashed then pr = x break end end
 		end
@@ -1433,7 +1422,7 @@ function QN.Answer(q)
 	if not db then return { ns.NoteRow(L["Needs Questie: it knows every quest and where it starts"]) }, title end
 	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
 	-- (every match, then those you can take first, the lowest level first, then cut: the first 50 by id were the
-	-- answer; review, 1.0.69)
+	-- answer)
 	local found = {}
 	local qp = ns.providers.questie
 	local memo = {}
@@ -1477,8 +1466,7 @@ function QN.None()
 end
 
 if Fk and Fk.IS then
-	-- is:foryou: a quest your race, class and side may take; is:cantake: and whose needs you meet (1.0.79: "quests here",
-	-- "tailoring quests" kept to them, their Alt+` didn't)
+	-- is:foryou: a quest your race, class and side may take; is:cantake: and whose needs you meet
 	Fk.IS.foryou = function(e) local id = QuestIdOf(e) return id ~= nil and QR.ForYou(id) end
 	Fk.IS.cantake = function(e) local id = QuestIdOf(e) return id ~= nil and QR.ForYou(id) and QR.MeetsRequires(id) end
 	-- is:itemstart: a quest an item starts (Questie's startedBy, its items; "quests that start from an item")

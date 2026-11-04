@@ -47,8 +47,6 @@ end
 
 local SlotText = ns.SlotText -- (the game's own slot names: Util.lua)
 
--- (0.49.2, review: an item the client hasn't loaded had no name: "Slot: item 12345". Its data is asked for and the list
--- said this long after, once, with whatever names have come by then)
 local NAME_WAIT = 1
 
 --- The set's items, one line each, for chat. `again`: the second try, after asking for the names it lacked.
@@ -65,7 +63,7 @@ local function SayItems(e, again)
 		local itemID = ids[slot]
 		if type(itemID) == "number" and itemID > 0 then
 			local link
-			if C_Item.GetItemInfo then link = select(2, C_Item.GetItemInfo(itemID)) end -- (not `x and f()`: one value)
+			if C_Item.GetItemInfo then link = select(2, C_Item.GetItemInfo(itemID)) end -- (not `x and f`: one value)
 			local name = link or (C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID))
 			if not name and not again and C_Item.RequestLoadItemDataByID then
 				asked = pcall(C_Item.RequestLoadItemDataByID, itemID) or asked

@@ -39,14 +39,13 @@ function ns.Join(sep, ...)
 	return table.concat(out, sep)
 end
 
---- A row's detail from its parts (nil and "" left out), joined as every list's are: "Lv 20  ·  Elwynn Forest  ·  grey"
---- (review, 0.48.6: a dozen lists joined theirs with two spaces). Not the distance in front ("80 yd  ..."), which the
---- list reads, nor Items' "x5  Backpack".
+--- A row's detail from its parts (nil and "" left out), joined as every list's are: "Lv 20  ·  Elwynn Forest  ·  grey".
+--- Not the distance in front ("80 yd  ..."), which the list reads, nor Items' "x5  Backpack".
 ns.DETAIL_SEP = "  ·  "
 function ns.Detail(...) return ns.Join(ns.DETAIL_SEP, ...) end
 
 --- A tooltip's key hints, each on a line of its own: "Enter: show on map    Shift+Enter: set waypoint" (the four spaces
---- every language's text keeps between them) is two lines (0.54.3, the player: cleaner than one wrapped line).
+--- every language's text keeps between them) is two lines.
 function ns.KeyHints(t, text, r, g, b)
 	if type(text) ~= "string" then return end
 	for part in (text:gsub("%s%s%s%s+", "\n") .. "\n"):gmatch("([^\n]*)\n") do
@@ -56,7 +55,7 @@ end
 
 --- A row's detail with how far it is said first: "80 yd  Sells it". Always the English "N yd": the list reads it back
 --- into its distance column (List.lua FillRow, translated there) and keeps it up to date as you walk; the rest is
---- `nearRest` (review, 0.53.6: "quest upgrades" wrote the translated "%.0f m", and lost the column on German clients).
+--- `nearRest`.
 function ns.NearDetail(d, rest)
 	return ("%.0f yd"):format(d) .. ((rest and rest ~= "") and ("  " .. rest) or "")
 end
@@ -68,7 +67,7 @@ function ns.ScoreInOrder(rows)
 end
 
 --- A list's rows ranked by their own order, kept among equally good matches (the rank is under 1, a score's tie-break):
---- `scale` (0.5 by default) how much it may count. Returns them. (Review, 0.53.6: these two loops had 15 and 13 copies.)
+--- `scale` (0.5 by default) how much it may count. Returns them.
 function ns.RankInOrder(rows, scale)
 	local n, k = #rows, scale or 0.5
 	for i, e in ipairs(rows) do e._rank = (n - i + 1) / (n + 1) * k end
@@ -107,9 +106,9 @@ function ns.FrameName(f)
 	return ok and type(n) == "string" and n or nil
 end
 
---- The texts a row shows: its own GetText (when it has one and it's a string), then every FontString
---- region's text, in that order. Each caller compares them in its own way. A secret text is left out (comparing it
---- errors: the row counted as no match whatever its other texts said; review, 0.53.6), as is an empty one.
+--- The texts a row shows: its own GetText (when it has one and it's a string), then every FontString region's text, in
+--- that order. Each caller compares them in its own way. A secret text is left out (comparing it errors: the row
+--- counted as no match whatever its other texts said), as is an empty one.
 function ns.FrameTexts(f)
 	local texts = {}
 	if f.GetText then
@@ -127,7 +126,7 @@ end
 
 --- Does a row show exactly `name` (its own text or one of its FontStrings; `prefix`: or a text starting with it,
 --- "Swords 150/300")? Secret texts never compared (FrameTexts). One test for the lists that point at their row in a
---- game window (review, 0.53.6: Skills, Reputation and Equipment sets had a copy each, comparing raw texts).
+--- game window.
 function ns.HasText(f, name, prefix)
 	if type(name) ~= "string" or name == "" then return false end
 	for _, t in ipairs(ns.FrameTexts(f)) do
@@ -136,9 +135,9 @@ function ns.HasText(f, name, prefix)
 	return false
 end
 
--- An item's quality, kept once the game has said it (0.51.9, the player: rows went white again after F5): the game
--- lets go of items it loaded a while ago, and asked again for one it no longer has it says nothing. Kept between
--- sessions too (ItemStore.lua, 0.51.13): after a /reload the loot list has its colours from the first search.
+-- An item's quality, kept once the game has said it: the game lets go of items it loaded a while ago, and asked again
+-- for one it no longer has it says nothing. Kept between sessions too (ItemStore.lua): after a /reload the loot list
+-- has its colours from the first search.
 local qualityOf = {}
 local function Keep(id, q)
 	if qualityOf[id] == q then return end
@@ -179,10 +178,10 @@ function ns.ClassHex(class)
 	return ("|cff%02x%02x%02x"):format(math.floor((c.r or 1) * 255), math.floor((c.g or 1) * 255), math.floor((c.b or 1) * 255))
 end
 
---- Every row of a list whose headers can be collapsed (reputations, skills): collapsed headers are
---- expanded for the read and collapsed again afterwards, last first (indexes shift as headers close).
---- Game state only; no window is touched. api: count(), row(i) -> { name, header, ... } or nil,
---- collapsed(row), expand(i), collapse(i); guard: at most this many rows looked at while expanding.
+--- Every row of a list whose headers can be collapsed (reputations, skills): collapsed headers are expanded for the
+--- read and collapsed again afterwards, last first (indexes shift as headers close). Game state only; no window is
+--- touched. api: count, row(i) -> { name, header, ... } or nil, collapsed(row), expand(i), collapse(i); guard: at most
+--- this many rows looked at while expanding.
 function ns.ReadExpanded(api, guard)
 	local opened = {}
 	local i, n = 1, 0
@@ -191,7 +190,7 @@ function ns.ReadExpanded(api, guard)
 		if r and r.header and r.name and api.collapsed(r) then
 			api.expand(i)
 			opened[#opened + 1] = r.name
-			ns.firedOwn = true -- (the list's own events come from this: Core drops them, and only then; review, 0.48.6)
+			ns.firedOwn = true -- (the list's own events come from this: Core drops them, and only then)
 		end
 		i, n = i + 1, n + 1
 	end
@@ -222,9 +221,9 @@ function ns.ScrollBoxTo(box, pred)
 	end))
 end
 
---- Once `o.frame()` gives a showing frame: `o.find(frame)` its row; not there, `o.scroll(frame)` once
---- (the row may be further down the list) and look again; then `o.show(row)` (default: the
---- highlight). o.tries looks a tenth of a second apart; o.fail() when none found.
+--- Once `o.frame` gives a showing frame: `o.find(frame)` its row; not there, `o.scroll(frame)` once (the row may be
+--- further down the list) and look again; then `o.show(row)` (default: the highlight). o.tries looks a tenth of a
+--- second apart; o.fail when none found.
 function ns.PointAtRow(o)
 	local H = ns.Highlight
 	local scrolled = false
@@ -254,8 +253,8 @@ function ns.SlotText(slot)
 end
 
 --- What you wear, slot by slot over `names` (the game's slot names, "HeadSlot"...): for each slot with an item,
---- slotName, slotId, link, slotText (where it's worn as the game says it: "Finger", "Off Hand"), itemID. A slot name this
---- client doesn't know is left out. (One walk: @items' and @durability's each had one; review, 0.53.6.)
+--- slotName, slotId, link, slotText (where it's worn as the game says it: "Finger", "Off Hand"), itemID. A slot name
+--- this client doesn't know is left out. (One walk: @items' and @durability's each had one.)
 function ns.WornSlots(names)
 	local i = 0
 	return function()
@@ -277,8 +276,8 @@ function ns.WornSlots(names)
 	end
 end
 
---- How long is left, said one way everywhere (the mail's days, a cooldown's seconds): "3 days", "1 day", "5 h",
---- "20 min", "35 s". (The collections' cooldowns said "4m", the mail "20 min": review, 0.53.6.)
+--- How long is left, said one way everywhere (the mail's days, a cooldown's seconds): "3 days", "1 day", "5 h", "20
+--- min", "35 s". (The collections' cooldowns said "4m", the mail "20 min": review.)
 function ns.Left(seconds)
 	local s = math.max(0, tonumber(seconds) or 0)
 	if s >= 2 * 86400 then return L["%d days"]:format(math.floor(s / 86400)) end
@@ -339,10 +338,9 @@ function ns.Cut(s, n)
 end
 
 --- The game's way to send a chat line (C_ChatInfo's, else the old global), and whether chat is held back from addons
---- now (in combat in an instance). One copy: Share's lines and the games' scores to the guild had one each (review, 0.53.6).
+--- now (in combat in an instance). One copy: Share's lines and the games' scores to the guild had one each.
 function ns.ChatSender() return (C_ChatInfo and C_ChatInfo.SendChatMessage) or _G.SendChatMessage end
---- A text as a Lua pattern that matches it as it is: its magic characters escaped. One copy (0.69.9, review: the
---- phrasings, the effect texts' stems and the bar's word cuts had one each).
+--- A text as a Lua pattern that matches it as it is: its magic characters escaped. One copy.
 function ns.EscapePattern(s) return (tostring(s or ""):gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0")) end
 
 --- A line that carries a secret (Terminal: Share's ".share join <group> <code>", and a password typed out of habit,
@@ -351,11 +349,11 @@ function ns.EscapePattern(s) return (tostring(s or ""):gsub("[%^%$%(%)%%%.%[%]%*
 function ns.SecretLine(text)
 	if type(text) ~= "string" then return false end
 	local l = ns.Lower(text)
-	-- (a code anywhere in it, however the console runs it: "/bin/share join TS1-...", "true && share join ...", "echo TS1-...
-	-- | xargs share join"; review, 1.0.17)
+	-- (a code anywhere in it, however the console runs it: "/bin/share join TS1-...", "true && share join ...", "echo
+	-- TS1-... | xargs share join")
 	if l:find("ts[1il]%-%w%w%w%w%w") then return true end
-	-- (typed without its dashes, or with spaces: SSH.ReadCode reads "TS1ABCDE..." and "TS1 ABCDE ..." too; a word starting
-	-- "ts1" followed by 20 letters or digits once spaces and dashes are squashed. Review, 1.0.32)
+	-- (typed without its dashes, or with spaces: SSH.ReadCode reads "TS1ABCDE..." and "TS1 ABCDE ..." too; a word
+	-- starting "ts1" followed by 20 letters or digits once spaces and dashes are squashed.)
 	local at = 1
 	while true do
 		local s = l:find("ts[1il]", at)
@@ -367,16 +365,16 @@ function ns.SecretLine(text)
 		at = s + 1
 	end
 	-- (any "." line: the command search finds .share by a shortened or misspelt name too, ".shar pw ...", ".hare pass
-	-- ...", so a command line whose next word is a password word is one whatever its first. Review, 0.58.16)
+	-- ...", so a command line whose next word is a password word is one whatever its first.)
 	local rest = l:match("^%s*%.%s*%S+%s+(.*)$") or l:match("^%s*share%s+(.*)$") or l:match("^%s*ssh%s+(.*)$")
 	if not rest then return false end
-	-- (".share join <group> <password>": a group's password, 0.59.0)
-	-- (any "join ...": a password typed without its group is still a password; 0.59.0, review)
+	-- (".share join <group> <password>": a group's password) (any "join ...": a password typed without its group is
+	-- still a password)
 	return rest:find("^pass") ~= nil or rest:find("^pw%s") ~= nil or rest == "pw" or rest:find("^join%s+%S") ~= nil
 end
 
---- The line as the prompt shows it: a secret line's code or password as *s, a * a byte (so every place in it is where it
---- was: the caret, a selection). Anything else as it is. (0.58.6, the player: "incase anyone is streaming")
+--- The line as the prompt shows it: a secret line's code or password as *s, a * a byte (so every place in it is where
+--- it was: the caret, a selection). Anything else as it is.
 function ns.MaskSecret(text)
 	if not ns.SecretLine(text) then return text end
 	local head, rest
@@ -410,7 +408,7 @@ function ns.StandingName(n)
 end
 
 --- ns.db[name] as a table (made when it isn't one), or nil before the saved variables are there. (Mail's and
---- MissingRecipes' copies: review, 0.53.6.)
+--- MissingRecipes' copies: review.)
 function ns.DbTable(name)
 	local db = ns.db
 	if not db then return nil end
@@ -424,8 +422,8 @@ function ns.Usable(f)
 end
 
 --- The windows on screen (UIParent's children) whose name holds `word` (plain), not Terminal's own and not one `skip`
---- says no to: { { frame, name } } in the game's order. (The quest log's and the talents' finders had one each: review,
---- 0.53.6.)
+--- says no to: { { frame, name } } in the game's order. (The quest log's and the talents' finders had one each:
+--- review.)
 function ns.VisibleWindows(word, skip)
 	local out = {}
 	for _, f in ipairs({ UIParent:GetChildren() }) do
@@ -438,16 +436,16 @@ function ns.VisibleWindows(word, skip)
 end
 
 --- The game's call `method` of the table `ctable` (C_Reputation...), else the old global one (`global`, or `method`),
---- guarded: its results, or nothing. Looked up at each call (the skills' and reputations' wrappers: review, 0.53.6).
+--- guarded: its results, or nothing. Looked up at each call (the skills' and reputations' wrappers: review).
 function ns.ApiCall(ctable, method, global, ...)
 	local C = _G[ctable]
 	local fn = type(C) == "table" and C[method] or nil
 	return ns.Safe(fn or _G[global or method], ...)
 end
 
--- Small helpers several lists had a copy of each (0.52.15: one each, here)
+-- Small helpers several lists had a copy of each
 
---- The clock's time in seconds (time()), or 0.
+--- The clock's time in seconds (time), or 0.
 function ns.Now() return (_G.time and _G.time()) or 0 end
 
 --- This character's GUID: the key its saved records are kept under.
@@ -484,7 +482,7 @@ end
 
 
 --- An item's link as the game makes it ("|cff...|Hitem:..|h[Name]|h|r"), or nil while the client doesn't have it (and
---- for a secret one). One copy: the tooltip's and the chat lines' (review, 0.53.6).
+--- for a secret one). One copy: the tooltip's and the chat lines'.
 function ns.ItemLink(id)
 	local get = C_Item and C_Item.GetItemInfo
 	if not (get and id) then return nil end
@@ -492,8 +490,8 @@ function ns.ItemLink(id)
 	return ok and type(link) == "string" and not ns.Secret(link) and link:find("|H", 1, true) and link or nil
 end
 
---- The enchant an item link (or item string, "item:1234:1897:...", BagBrother's "1234:1897:...") carries: its id, 0
---- for none, or nil when there's no link to read (0.64.2: is:enchanted).
+--- The enchant an item link (or item string, "item:1234:1897:...", BagBrother's "1234:1897:...") carries: its id, 0 for
+--- none, or nil when there's no link to read.
 function ns.LinkEnchant(link)
 	if type(link) ~= "string" or ns.Secret(link) then return nil end
 	local ench = link:match("item:%-?%d+:(%-?%d*)") or link:match("^%d+:(%-?%d*)")
@@ -507,11 +505,10 @@ function ns.LinkName(link)
 	return ns.Str(link:match("|h%[(.-)%]|h"))
 end
 
--- Item names the game hasn't loaded yet (right after login an item's info can come without its name: a link reads "[]").
--- One wait per list (ns.NameWait(id)): `w.Name(id, link, given)` gives the name now, or asks for it (twice at most:
--- some never come) and gives nil; once every name asked for is in, or after ns.NAME_GIVE_UP s, the list is marked
--- changed (ns:Changed). The game's events are listened to only while names are awaited. (Review, 0.53.6: Items, Stored
--- and Durability each had a copy, and they had drifted: Durability never gave up, Stored missed ITEM_DATA_LOAD_RESULT.)
+-- Item names the game hasn't loaded yet (right after login an item's info can come without its name: a link reads
+-- "[]"). One wait per list (ns.NameWait(id)): `w.Name(id, link, given)` gives the name now, or asks for it (twice at
+-- most: some never come) and gives nil; once every name asked for is in, or after ns.NAME_GIVE_UP s, the list is marked
+-- changed (ns:Changed). The game's events are listened to only while names are awaited.
 ns.NAME_GIVE_UP = 10
 local NAME_EVENTS = { "GET_ITEM_INFO_RECEIVED", "ITEM_DATA_LOAD_RESULT" }
 function ns.NameWait(listId)
@@ -640,8 +637,7 @@ end
 
 --- Is this key press (as the game names the key: "`", "^", "SPACE") the terminal's own: ` always; a symbol key bound to
 --- the terminal by itself; or the chord held now when that's bound to it (Ctrl+Space, F9), so in an app (the changelog,
---- a game) it closes as ` does rather than reaching the game's binding (0.65.1 review: a footer said "Esc or Ctrl+Space
---- quit", and Ctrl+Space went to the game).
+--- a game) it closes as ` does rather than reaching the game's binding.
 function ns.IsTickKey(key)
 	if key == "`" then return true end
 	if type(key) ~= "string" or key == "" then return false end
@@ -697,9 +693,9 @@ function ns.KeyLabel(binding)
 	return table.concat(parts, "+")
 end
 
---- What a hint calls the terminal's key: ` while ` is one of them, with a modifier or not (` itself always closes the open
---- terminal; 0.65.1 review: "CTRL-`" alone made "Ctrl+Ctrl+`"), or none is bound; else the first that does what ` does
---- in it ("^", "Ctrl+Space", "F9"), never a key that types (Numpad5, a letter: they type in the prompt).
+--- What a hint calls the terminal's key: ` while ` is one of them, with a modifier or not (` itself always closes the
+--- open terminal), or none is bound; else the first that does what ` does in it ("^", "Ctrl+Space", "F9"), never a key
+--- that types (Numpad5, a letter: they type in the prompt).
 function ns.ToggleLabel()
 	local keys = ns.ToggleBindings()
 	for _, k in ipairs(keys) do if Base(k) == "`" then return "`" end end
@@ -711,7 +707,7 @@ function ns.ToggleLabel()
 end
 
 --- A hint with ` in it says the terminal's key instead ("Esc or ` close" -> "Esc or ^ close"); as it is when that's `.
---- A modifier the key has already is said once: "Ctrl+`" -> "Ctrl+Space", not "Ctrl+Ctrl+Space" (0.65.1 review).
+--- A modifier the key has already is said once: "Ctrl+`" -> "Ctrl+Space", not "Ctrl+Ctrl+Space".
 function ns.KeyHint(s)
 	if type(s) ~= "string" or ns.Secret(s) or not s:find("`", 1, true) then return s end
 	local label = ns.ToggleLabel()

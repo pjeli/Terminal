@@ -427,7 +427,7 @@ end
 
 --- Your profession's spells a trainer teaches (not its ranks) that you don't know: { { id, name, icon, skill, cost },
 --- ... }, skill first (Providers/MissingRecipes.lua lists them with the recipes your windows list: a window not opened
---- yet, its trainer's still are). pr: Professions.PlayerProfessions()'s.
+--- yet, its trainer's still are). pr: Professions.PlayerProfessions's.
 function TS.Unknown(pr)
 	local sp = Split(pr)
 	local out = {}
@@ -769,7 +769,7 @@ local function SetupTrainerSpells()
 	TS.HunterPetData()
 	TS.WarlockPetData()
 	-- its trainers as @npc only with no Questie (Questie knows every NPC, these among them; it takes @npc if it comes):
-	-- with Questie they aren't made at all (review, 0.57.7: some 570 rows kept for nothing)
+	-- with Questie they aren't made at all
 	local trainers = not ns.providers.npc and TS.TrainerRows()
 	if trainers then
 		ns:RegisterProvider("npc", {

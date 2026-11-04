@@ -21,8 +21,8 @@ E.WORDS = {
 	ready = "is:ready", passive = "is:passive", capped = "is:capped", unplaced = "is:unplaced",
 	done = "is:done", completed = "is:done", finished = "is:done", earned = "is:done",
 	todo = "is:todo", unfinished = "is:todo", unearned = "is:todo",
-	undone = "-is:done", uncompleted = "-is:done", incomplete = "-is:done", -- ("undone quests"; 1.0.46)
-	-- ("flight paths i don't know", "... i don't have", "... i haven't got": not learned; 1.0.54, the reach audit)
+	undone = "-is:done", uncompleted = "-is:done", incomplete = "-is:done", -- ("undone quests")
+	-- ("flight paths i don't know", "... i don't have", "... i haven't got": not learned)
 	["dont know"] = "is:unlearned", ["don't know"] = "is:unlearned", ["dont have"] = "is:unlearned", ["don't have"] = "is:unlearned",
 	["havent got"] = "is:unlearned", ["haven't got"] = "is:unlearned", ["havent learned"] = "is:unlearned",
 	["haven't learned"] = "is:unlearned", ["dont own"] = "is:unlearned", ["don't own"] = "is:unlearned",
@@ -37,9 +37,9 @@ E.WORDS = {
 	["weapon damage"] = "stat:weapondamage",
 	-- gear that suits you: your level, your class, near what you wear there or better (strict: HARD_WORDS)
 	upgrade = "is:upgrade", upgrades = "is:upgrade",
-	-- where loot comes from (1.0.25): "raid loot", "dungeon gear". (Not "from quests", "from reputation", "quest gear":
-	-- review, 1.0.35, they took lines about other things, "rewards from quests", "reputation from quests", "gear from
-	-- quests", and found nothing; without OneForAll no loot comes from a quest)
+	-- where loot comes from: "raid loot", "dungeon gear". (Not "from quests", "from reputation", "quest gear": review,
+	-- 1.0.35, they took lines about other things, "rewards from quests", "reputation from quests", "gear from quests",
+	-- and found nothing; without OneForAll no loot comes from a quest)
 	["raid loot"] = "source:raid", ["raid gear"] = "source:raid", ["dungeon loot"] = "source:dungeon",
 	["dungeon gear"] = "source:dungeon", ["crafted gear"] = "source:crafted", ["reputation gear"] = "source:reputation",
 	-- recipes that still give skill (orange and yellow; strict: HARD_WORDS)
@@ -63,7 +63,7 @@ E.WORDS = {
 	repair = "is:repair", repairs = "is:repair", inn = "is:inn", bank = "is:bank", flight = "is:flight",
 	fp = "is:flight", ah = "is:auctioneer", auction = "is:auctioneer", stable = "is:stablemaster",
 	vendor = "is:vendor", vendors = "is:vendor", trainer = "is:trainer", trainers = "is:trainer",
-	merchant = "is:vendor", merchants = "is:vendor", -- (0.56.10, the player: "merchant")
+	merchant = "is:vendor", merchants = "is:vendor",
 	innkeeper = "is:innkeeper", banker = "is:banker", auctioneer = "is:auctioneer",
 	flightmaster = "is:flightmaster", stablemaster = "is:stablemaster", questgiver = "is:questgiver",
 	-- (and their plurals, and the two-word spellings: "nearest innkeepers" matched names with an s in them, "nearest
@@ -72,8 +72,8 @@ E.WORDS = {
 	auctioneers = "is:auctioneer", flightmasters = "is:flightmaster",
 	["flight masters"] = "is:flightmaster", stablemasters = "is:stablemaster", ["stable master"] = "is:stablemaster",
 	["stable masters"] = "is:stablemaster", questgivers = "is:questgiver", ["quest giver"] = "is:questgiver",
-	["quest givers"] = "is:questgiver", ["auction house"] = "is:auctioneer", ["auction houses"] = "is:auctioneer", -- ("nearest auction house": the House of Nobles; 0.68.11)
-	-- (two words: "nearest spirit healer"; a graveyard is where one stands; 0.50.5)
+	["quest givers"] = "is:questgiver", ["auction house"] = "is:auctioneer", ["auction houses"] = "is:auctioneer", -- ("nearest auction house": the House of Nobles)
+	-- (two words: "nearest spirit healer"; a graveyard is where one stands)
 	["spirit healer"] = "is:spirithealer", ["spirit healers"] = "is:spirithealer", ["spirit guide"] = "is:spirithealer",
 	graveyard = "is:spirithealer", graveyards = "is:spirithealer",
 	-- PvP NPCs: only the real ones ("nearby battlemaster", "nearest pvp vendor", "honor vendor")
@@ -163,7 +163,7 @@ function E.GameWords()
 			if ok then Add(name, "type:" .. word) end
 		end
 	end
-	-- stats by the game's own names ("Ausdauer", "Angriffskraft": "Ausdauer Essen" is "stamina food"; 0.69.4)
+	-- stats by the game's own names ("Ausdauer", "Angriffskraft": "Ausdauer Essen" is "stamina food")
 	if F and F.STATS and F.StatGameNames then
 		for _, w in ipairs(F.STATS) do
 			for _, name in ipairs(F.StatGameNames(w)) do Add(name, "stat:" .. w) end
@@ -215,9 +215,9 @@ E.PHRASES = {
 	{ "where to get %s", L["phrases: where to get %s"], "sources" },
 	{ "nearest %s", L["phrases: nearest %s"] },
 	{ "where %s", L["phrases: where is %s"] },
-	-- (0.69.2, the player: question words in the client's language) Simple mode's questions as each language asks them.
-	-- A phrasing with no %s is the whole question; words typed after it follow it ("meine Auktionen verkauft" = "my
-	-- auctions verkauft": the question's own little words, dates, filters, as after the English)
+	-- Simple mode's questions as each language asks them. A phrasing with no %s is the whole question; words typed
+	-- after it follow it ("meine Auktionen verkauft" = "my auctions verkauft": the question's own little words, dates,
+	-- filters, as after the English)
 	{ "what should i do", L["phrases: what should i do"] },
 	{ "quests to turn in", L["phrases: quests to turn in"] },
 	{ "quests here", L["phrases: quests here"] },
@@ -370,8 +370,7 @@ function E.English(text)
 end
 
 -- "where to learn tailoring", "who teaches mining", "where to learn warrior": a profession's or a class's trainers, the
--- nearest first, as "tailoring trainer" lists them; not a recipe or a spell, whose chain says where (0.68.16: they said
--- "Nothing called "tailoring" in your bags...")
+-- nearest first, as "tailoring trainer" lists them; not a recipe or a spell, whose chain says where
 local LEARN_LEADS = { "where to learn ", "where do i learn ", "where can i learn ", "how to learn ", "how do i learn ",
 	"who teaches ", "where to train ", "where do i train ", "where can i train ", "who trains " }
 --- Simple mode: the line asking where to learn a profession or a class, as "<it> trainer"; else nil.
@@ -420,13 +419,13 @@ E.HARD_WORDS = { unplaced = true, upgrade = true, upgrades = true, skillup = tru
 E.STOP = { a = true, an = true, the = true, of = true, from = true, ["in"] = true, at = true, on = true, with = true,
 	that = true, which = true, gives = true, give = true, giving = true, ["for"] = true, by = true, to = true, ["and"] = true,
 	drops = true, dropped = true, drop = true, my = true, some = true, any = true, show = true, find = true, me = true,
-	is = true, are = true, please = true, pls = true, -- ("nearest mailbox please"; 0.68.11, review)
-	entrance = true, entrances = true, -- ("deadmines entrance", "nearest dungeon entrance": the dungeon; 0.68.11, review)
-	-- (a number's unit said after it: "cooldown under 10 seconds", "range over 20 yards"; 0.68.8)
+	is = true, are = true, please = true, pls = true, -- ("nearest mailbox please")
+	entrance = true, entrances = true, -- ("deadmines entrance", "nearest dungeon entrance": the dungeon)
+	-- (a number's unit said after it: "cooldown under 10 seconds", "range over 20 yards")
 	sec = true, secs = true, second = true, seconds = true }
 --- The client language's own sentence words, translated ("words: sentence words", | between them: "der", "mit",
---- "gibt"...): left out of a Simple search as the English ones are ("Essen, das Ausdauer gibt"; 0.69.6). Run at load, and
---- by the tests.
+--- "gibt"...): left out of a Simple search as the English ones are ("Essen, das Ausdauer gibt"). Run at load, and by
+--- the tests.
 function E.AddSentenceWords()
 	local said = L["words: sentence words"]
 	if type(said) ~= "string" or said:find("^words: ") then return end
@@ -462,7 +461,7 @@ local function NameHas(e, w)
 end
 
 --- A strict everyday word's filter ("upgrades": is:upgrade), made now (F.GearFit reads your level and gear when made),
---- or nil for any other word. `lw`: lowercase. (Easy.Word and Search.lua's Parse alike; review, 0.53.6.)
+--- or nil for any other word. `lw`: lowercase. (Easy.Word and Search.lua's Parse alike.)
 function E.Strict(lw)
 	return E.HARD_WORDS[lw] and ns.Filters and ns.Filters.Parse(E.WORDS[lw]) or nil
 end
@@ -502,7 +501,7 @@ end
 E.ACTIONS = {
 	use = { label = L["Use"], map = { items = "s", toys = "p", camp = "s" } },
 	cast = { label = L["Cast"], map = { spells = "s" } },
-	-- (spells too: "summon voidwalker", "summon imp" are a warlock's spells, cast on Enter; 0.50.7, review: nothing found)
+	-- (spells too: "summon voidwalker", "summon imp" are a warlock's spells, cast on Enter)
 	summon = { label = L["Summon"], map = { mounts = "p", pets = "p", spells = "s" } },
 	mount = { label = L["Summon"], map = { mounts = "p" } },
 	ride = { label = L["Summon"], map = { mounts = "p" } },
@@ -518,7 +517,7 @@ E.ACTIONS = {
 	nearest = { label = L["Nearest"], map = { npc = "p" }, nearest = true },
 	closest = { label = L["Nearest"], map = { npc = "p" }, nearest = true },
 	nearby = { label = L["Nearest"], map = { npc = "p" }, nearest = true },
-	-- (the other way round: "farthest innkeeper", sort:-distance; 0.65.7, the player)
+	-- (the other way round: "farthest innkeeper", sort:-distance)
 	farthest = { label = L["Farthest"], map = { npc = "p" }, nearest = true, far = true },
 	furthest = { label = L["Farthest"], map = { npc = "p" }, nearest = true, far = true },
 	who = { label = L["Who"], map = { who = "p" } },
@@ -552,11 +551,11 @@ end
 --- The action a search's first word names, or nil (only with another word after it, or an everyday word).
 function E.Action(word) return E.On() and (E.ACTIONS[word] or E.NearTypo(word)) or nil end
 
--- Words naming a kind of thing (0.68.14, the player's call): "hogger quest", "npcs in westfall", "linen recipes" search
--- that category (Query.lua's Scan.KindWord); `kind`: the one list of it the word names ("mounts")
+-- Words naming a kind of thing: "hogger quest", "npcs in westfall", "linen recipes" search that category (Query.lua's
+-- Scan.KindWord); `kind`: the one list of it the word names ("mounts")
 E.KIND_WORDS = { quest = { cat = "quests" }, quests = { cat = "quests" }, npc = { cat = "npcs" }, npcs = { cat = "npcs" },
 	mob = { cat = "npcs" }, mobs = { cat = "npcs" }, creature = { cat = "npcs" }, creatures = { cat = "npcs" },
-	spawn = { cat = "npcs" }, spawns = { cat = "npcs" }, -- ("rare spawns in westfall"; 1.0.62)
+	spawn = { cat = "npcs" }, spawns = { cat = "npcs" }, -- ("rare spawns in westfall")
 	item = { cat = "items" }, items = { cat = "items" }, spell = { cat = "spells" }, spells = { cat = "spells" },
 	ability = { cat = "spells" }, abilities = { cat = "spells" }, recipe = { cat = "crafting" }, recipes = { cat = "crafting" },
 	mount = { cat = "collections", kind = "mounts" }, mounts = { cat = "collections", kind = "mounts" },
@@ -567,12 +566,11 @@ E.KIND_WORDS = { quest = { cat = "quests" }, quests = { cat = "quests" }, npc = 
 local KIND_LABELS = { "quests", "npcs", "items", "spells", "crafting", "collections" }
 local kindLabels
 
--- Every list's own names are kind words too (1.0.45, the player's ask: "macros", "my addons", "guild online", "slash
--- commands" found rows named so, or nothing): its id, label (the client's language's, as registered) and aliases, each
+-- Every list's own names are kind words too: its id, label (the client's language's, as registered) and aliases, each
 -- with a plural; built from the lists themselves, so OneForAll's and other addons' are named too. Not the words of a
 -- list that mean something else as well (a window's parts, a log, a zone, a tree, a key; KIND_DENY), nor a sentence's
--- little words or an action's; an everyday word (bank, mail, gear) only as yours: "my bank", "linen in my bank" (`mine`).
--- An entry: { ids = { [list id] = true }, mine, filter = Advanced spec added (bags: in:bags) }.
+-- little words or an action's; an everyday word (bank, mail, gear) only as yours: "my bank", "linen in my bank"
+-- (`mine`). An entry: { ids = { [list id] = true }, mine, filter = Advanced spec added (bags: in:bags) }.
 local KIND_DENY = {}
 for w in ([[log q ui window frame panel token tokens set sets outfit outfits tree key group party members zone zones place
 	location continent body event events theme themes drop dropped drops looted deaths crits combat everywhere storage
@@ -583,7 +581,7 @@ for w in ([[log q ui window frame panel token tokens set sets outfit outfits tre
 	shared stored syndicator bagnon terminal gmember allspells classabilities classspell classspells spellbook n mob
 	vendor ach achieve flight flights fp taxi corpse dura repaircost lockout raidinfo inbox letters
 	mybank ability abilities skill skills weaponskill]]):gmatch("%S+") do KIND_DENY[w] = true end
--- (your bags: your items in them; 1.0.45)
+-- (your bags: your items in them)
 local KIND_FILTER = { bag = "in:bags", bags = "in:bags", inventory = "in:bags" }
 -- (words that are a list's and an ordinary word's, "gold map", "10 slot bag", "gear for next level": the list only as
 -- yours, "my gold", "my bags", "my gear")
@@ -680,16 +678,16 @@ E.AdvancedPart = AdvancedPart -- (Search.lua's printed query)
 --- "enchanting trainer": with trainer said, a profession among the words (or the start of one: "enchant", "blacksmith")
 --- or a class ("mage trainer") is what they teach, trainer:enchanting, not a word in their name or title: the
 --- Journeyman Enchanter's title has "enchant", not "enchanting", so "nearest enchanting trainer" found nothing while
---- "nearest enchant trainer" did (0.49.8, the player's ask; Master Mage has no "trainer"). "first aid" is two words;
---- "pet trainer" and "hunter pet trainer" are the pet trainers, trainer:pet (0.49.10: the hunter's words were left to
---- match, and matched nothing); "demon trainer" and "warlock pet trainer" the warlocks' Demon Trainers, trainer:demon
---- (0.49.11); "pet trainer" alone your class's: a warlock's Demon Trainers, anyone else's the pet trainers (0.49.12). Gives the words left and the filters' text, or the words and nil. A search that names
---- one is a nearest search (0.49.9: "blacksmithing trainer" alone).
+--- "nearest enchant trainer" did (Master Mage has no "trainer"). "first aid" is two words; "pet trainer" and "hunter
+--- pet trainer" are the pet trainers, trainer:pet; "demon trainer" and "warlock pet trainer" the warlocks' Demon
+--- Trainers, trainer:demon; "pet trainer" alone your class's: a warlock's Demon Trainers, anyone else's the pet
+--- trainers. Gives the words left and the filters' text, or the words and nil. A search that names one is a nearest
+--- search.
 function E.TrainerProfs(words, trainerSaid)
 	local F = ns.Filters
 	local ProfNamed = trainerSaid and F and F.ProfNamed
 	if not ProfNamed then return words, nil end
-	-- (two words that are one class, not one of the game's here: left as words; review, 0.49.17)
+	-- (two words that are one class, not one of the game's here: left as words)
 	for k, w in ipairs(words) do
 		if (w == "demon" and words[k + 1] == "hunter") or (w == "death" and words[k + 1] == "knight") then return words, nil end
 	end
@@ -706,17 +704,16 @@ function E.TrainerProfs(words, trainerSaid)
 		local SAID = { pet = true, pets = true, hunter = true, hunters = true, demon = true, demons = true, warlock = true, warlocks = true }
 		local kept = {}
 		for _, w in ipairs(words) do if not SAID[w] then kept[#kept + 1] = w end end
-		-- ("pet trainer" alone: your class's, the game's class token being the same in every language)
-		-- (a !t question: the asker's class, Core/Ask.lua)
-		-- (an asker whose class isn't known: none, not yours; 0.68.5, review)
+		-- ("pet trainer" alone: your class's, the game's class token being the same in every language) (a !t question:
+		-- the asker's class, Core/Ask.lua) (an asker whose class isn't known: none, not yours)
 		local cls
 		if ns.Asker then cls = ns.Asker.class else cls = UnitClass and select(2, UnitClass("player")) end
 		if not (demon or warlock or hunter) and cls == "WARLOCK" then warlock = true end
 		return kept, { (demon or warlock) and "trainer:demon" or "trainer:pet" }
 	end
-	-- (0.61.0) "my", "class", "weapon(s)", "master(s)" name no one: set aside while the profession, class or weapon is
-	-- looked for ("my mining trainer", "fist weapons trainer": trainer:mining, trainer:fist); with none named, "class
-	-- trainer" / "my trainer" is your class's (trainer:class) and "weapon trainer" / "weapon master" the weapon masters
+	-- "my", "class", "weapon(s)", "master(s)" name no one: set aside while the profession, class or weapon is looked
+	-- for ("my mining trainer", "fist weapons trainer": trainer:mining, trainer:fist); with none named, "class trainer"
+	-- / "my trainer" is your class's (trainer:class) and "weapon trainer" / "weapon master" the weapon masters
 	local weaponSaid = false
 	for _, w in ipairs(words) do if w == "weapon" or w == "weapons" then weaponSaid = true end end
 	-- ("master" is set aside only with "weapon": "master leatherworking trainer" keeps it, a word of the search)
@@ -725,7 +722,7 @@ function E.TrainerProfs(words, trainerSaid)
 	for k, w in ipairs(words) do
 		local aid = w == "aid" and words[k - 1] == "first" -- (said with "first": taken with it)
 		local prof = not aid and (w ~= "first" or words[k + 1] == "aid") and ProfNamed(w) or nil
-		-- (first aid by name only: "firs" isn't it; review, 0.49.17)
+		-- (first aid by name only: "firs" isn't it)
 		if (prof == "firstaid" or prof == "first aid") and w ~= "firstaid" and not (w == "first" and words[k + 1] == "aid") then
 			prof = nil
 		end
@@ -742,13 +739,12 @@ function E.TrainerProfs(words, trainerSaid)
 	end
 	if not specs then
 		if weaponSaid then specs = { "is:weaponmaster" }
-		-- ("my trainer", "class trainer": your class's; "my riding trainer" names another one: a search, as before;
-		-- release review, 0.63.0)
+		-- ("my trainer", "class trainer": your class's; "my riding trainer" names another one: a search, as before)
 		elseif (aside.class or aside.my) and #kept == 0 then specs = { "trainer:class" }
 		else return words, nil end
 		return kept, specs
 	end
-	-- (several said: any of them, "mining herbalism trainer"; review, 0.49.17: both at once matched no one)
+	-- (several said: any of them, "mining herbalism trainer")
 	if #specs > 1 then specs = { table.concat(specs, "|") } end
 	return kept, specs
 end

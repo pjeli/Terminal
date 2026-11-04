@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.0.91", when = "in testing",
+		v = "1.0.92", when = "in testing",
 		items = {
 			"With OneForAll: @book lists the Library Books, where each is and which you've turned in; \"books i still need\", \"nearest library book\".",
 			"With OneForAll, for hunters: @spell has your pet's abilities (each rank, learned or not, Enter: who teaches it; is:ability), @npc says which beasts you can tame (is:tameable); \"where to learn bite 4\", \"tameable cats\", \"rare pets\".",
@@ -170,10 +170,10 @@ ns:RegisterCommand("changelog", {
 	run = function() CL.Open() end,
 })
 
---- After an update (0.69.11, the player's ask): the first login on a new version says so, once, in one line: how many
---- things the version's entry lists and where to read them. A fresh install says nothing (its first open offers the
---- tour). The version seen is kept (db.versionSeen); one who used Terminal before that was kept (0.69 and before) counts
---- as updating, so the release that brings this says it too.
+--- After an update: the first login on a new version says so, once, in one line: how many things the version's entry
+--- lists and where to read them. A fresh install says nothing (its first open offers the tour). The version seen is
+--- kept (db.versionSeen); one who used Terminal before that was kept (0.69 and before) counts as updating, so the
+--- release that brings this says it too.
 function CL.Announce()
 	local db = ns.db
 	local now = ns.version

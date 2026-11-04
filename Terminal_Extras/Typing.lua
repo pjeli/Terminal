@@ -13,10 +13,10 @@ local L = ns.L
 --
 -- Every key is the test's while it shows (letters must not walk you around), except the F-keys and Print Screen; it
 -- doesn't open in combat and closes when combat starts. The words are Terminal's own list: everyday English and a few
--- of Azeroth's; or, once you've read books in the game (a shelf's book, a plaque, a note you find: Apps/Extras.lua keeps
--- their pages in db.lore), runs of a few words from one of them, in no order, so typing is reading lore too: which book
--- it was is said with the result (0.48.2, the player's ask). Only letters (accents dropped) and apostrophes are typed: a
--- book in Russian or Chinese leaves too few words, and Terminal's list is used.
+-- of Azeroth's; or, once you've read books in the game (a shelf's book, a plaque, a note you find: Apps/Extras.lua
+-- keeps their pages in db.lore), runs of a few words from one of them, in no order, so typing is reading lore too:
+-- which book it was is said with the result. Only letters (accents dropped) and apostrophes are typed: a book in
+-- Russian or Chinese leaves too few words, and Terminal's list is used.
 
 local TY = {}
 ns.Typing = TY
@@ -85,7 +85,7 @@ function TY.LoreWords(text)
 	local out = {}
 	if type(text) ~= "string" then return out end
 	-- (only as much as the words kept can come from: a long book's every page was folded and lowercased for its first
-	-- BOOK_WORDS words; review, 0.53.6)
+	-- BOOK_WORDS words)
 	text = text:sub(1, TY.BOOK_WORDS * 12)
 	local s = text:gsub("\195[\128-\191]", function(c) return FOLD[c] or c end):gsub("\197[\146\147]", "oe")
 	s = s:gsub("[%-/]", " "):lower()
@@ -132,9 +132,8 @@ function TY.Books()
 	return out
 end
 
---- A book for this test (another than the last when there are two or more), or nil when none has enough words. Only
---- the book picked is read for its words (review, 0.57.7: every book read was, the first test of a session, a freeze
---- with hundreds of them): picked among those with letters enough for them, until one has.
+--- A book for this test (another than the last when there are two or more), or nil when none has enough words. Only the
+--- book picked is read for its words: picked among those with letters enough for them, until one has.
 function TY.PickBook()
 	local lore = ns.db and type(ns.db.lore) == "table" and ns.db.lore or {}
 	local list = {}
@@ -231,7 +230,7 @@ function TY.Char(c)
 	end
 	-- a letter with an accent as the words have it (é -> e, ß -> ss); any other letter not in the words (another
 	-- alphabet) a wrong key, shown as "?": the typed text was byte by byte, a letter of two bytes counted twice and
-	-- Backspace left half of one (review, 0.53.6)
+	-- Backspace left half of one
 	if #c > 1 then c = FOLD[c] or "?" end
 	for k = 1, #c do
 		local ch = c:sub(k, k)
@@ -308,7 +307,7 @@ function TY.Finish()
 end
 
 --- Ten times a second while the clock runs: only the seconds left drawn, when they change (the whole test was laid out
---- and painted again each time; review, 0.53.6); everything at the end.
+--- and painted again each time); everything at the end.
 local shownLeft
 function TY.Tick()
 	if not game.start or game.over then return end
@@ -321,8 +320,8 @@ function TY.Tick()
 	end
 end
 
---- What the guild is told: "[Terminal] 72 wpm, 96% accuracy on a 30 s typing test." (the [Terminal]
---- banner is the memo: no CurseForge line, 0.49.5, nor a question, 0.49.6: the player's ask)
+--- What the guild is told: "[Terminal] 72 wpm, 96% accuracy on a 30 s typing test." (the [Terminal] banner is the memo:
+--- no CurseForge line, 0.49.5, nor a question)
 function TY.Brag(r)
 	r = r or game.result
 	if not r then return nil end
@@ -447,7 +446,7 @@ function TY.Draw()
 		loreText:SetText(game.book and L["Words from the book: %s"]:format((game.book.title:gsub("|", "||")))
 			or (not any and L["Read a book in the game (on a shelf, a plaque, a note you find) and its words turn up here"]) or "")
 		result:Show(); resultSub:Show(); loreText:Show()
-		footer:SetText(ns.Game.OverKeys(r.wpm, game.sent)) -- (the games' own: 0 wpm offers no telling; review, 0.49.17)
+		footer:SetText(ns.Game.OverKeys(r.wpm, game.sent)) -- (the games' own: 0 wpm offers no telling)
 	else
 		local left = game.start and math.max(0, game.duration - (TY.clock() - game.start)) or game.duration
 		shownLeft = math.ceil(left)
@@ -508,9 +507,8 @@ local function Style()
 	caret:SetColorTexture(ar, ag, ab, 1)
 end
 
--- keys the game keeps even here (a screenshot of your score, the F-keys)
--- (and the game's own chords, Ctrl+R, Ctrl+S, Ctrl+M..., as .atop and the terminal pass them: UI.GameKey. 0.50.7,
--- review: swallowed here)
+-- keys the game keeps even here (a screenshot of your score, the F-keys) (and the game's own chords, Ctrl+R, Ctrl+S,
+-- Ctrl+M..., as .atop and the terminal pass them: UI.GameKey. swallowed here)
 local function GameKey(key)
 	if key == "PRINTSCREEN" or (type(key) == "string" and key:find("^F%d+$") ~= nil) then return true end
 	local UI = ns.UI

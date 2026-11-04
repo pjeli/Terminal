@@ -2,9 +2,9 @@ local ns = select(2, ...)
 local L = ns.L
 
 -- Your corpse (@corpse, @body; Simple mode: "where is my body", "my corpse", "corpse run", "where did i die", under
--- Places; 0.50.5, the player's ask): while you're dead, where your body lies, how far and which way (the arrow on the
--- row turns with you), and the nearest spirit healers (Questie's NPCs: "nearest spirit healer" works on its own too,
--- @npc is:spirithealer). Enter opens the map on it with a pin, Shift+Enter only pins it.
+-- Places): while you're dead, where your body lies, how far and which way (the arrow on the row turns with you), and
+-- the nearest spirit healers (Questie's NPCs: "nearest spirit healer" works on its own too, @npc is:spirithealer).
+-- Enter opens the map on it with a pin, Shift+Enter only pins it.
 --
 -- Where it is is the game's own answer (C_DeathInfo.GetCorpseMapPosition), asked of the map you're on and, when that
 -- one doesn't say, the maps above it (a corpse in the next zone is on the continent's map). Inside an instance the
@@ -104,11 +104,10 @@ C.NOTE = L["Your corpse"]
 
 local NoteRow = ns.NoteRow
 
--- the nearest spirit healers (Questie's NPCs), each as a nearest view
--- (the spirit healers among the NPC list, kept per list: the answer is asked on every keystroke of "corpse", and each
--- walked every NPC through the role test; only how far each is is worked out again. Review, 0.53.6)
--- (by the list, weakly: a list freed as unused (ns:DropIdle) isn't kept alive for this; 0.63.7, review: 5000 NPC rows
--- held after @npc was freed)
+-- the nearest spirit healers (Questie's NPCs), each as a nearest view (the spirit healers among the NPC list, kept per
+-- list: the answer is asked on every keystroke of "corpse", and each walked every NPC through the role test; only how
+-- far each is is worked out again.) (by the list, weakly: a list freed as unused (ns:DropIdle) isn't kept alive for
+-- this)
 local healersOf = setmetatable({}, { __mode = "k" })
 local function Healers(here)
 	local p = ns.providers.npc

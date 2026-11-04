@@ -34,12 +34,11 @@ local function HideComparisons(t)
 	end
 end
 
--- An upgrade's comparison (0.52.3, the player's ask: "use the in-game comparison logic rather than our own"; 0.52.5:
--- in Terminal's own tooltip, not the game's "Equipped" tooltips beside it): what the game would compare the item with
--- (C_TooltipComparison.GetItemComparisonInfo: the piece you wear there; both rings, both trinkets; both hands for a
--- two-hander) and its stat changes as the game words them (GetItemComparisonDelta: "+5 Strength", "-4 Agility"), a
--- part for each piece, named. Whether it's an upgrade at all stays Terminal's (Upgrades.lua: your class's stats
--- weighed). Neither call is kept from addons, in combat or out, and nothing of the game's interface is shown.
+-- An upgrade's comparison: what the game would compare the item with (C_TooltipComparison.GetItemComparisonInfo: the
+-- piece you wear there; both rings, both trinkets; both hands for a two-hander) and its stat changes as the game words
+-- them (GetItemComparisonDelta: "+5 Strength", "-4 Agility"), a part for each piece, named. Whether it's an upgrade at
+-- all stays Terminal's (Upgrades.lua: your class's stats weighed). Neither call is kept from addons, in combat or out,
+-- and nothing of the game's interface is shown.
 local function ItemName(item)
 	local key = item.guid or item.hyperlink
 	local ok, name = pcall(C_Item.GetItemNameByID, key)
@@ -143,14 +142,12 @@ function UI:UpdateTooltip()
 	local e = UI:IsShown() and UI.results[UI.sel] or nil
 	-- the row menu is up: no tooltip (both sit beside the terminal, on top of each other); nor while the pointer is on
 	-- the bar's send button, whose own says what it does (Bar.lua)
-	-- (0.58.10, the player: "make sure the tooltips don't overlap": nor while a prompt badge's pop-out is up, which
-	-- takes this place; Prompt.lua)
 	if UI:MenuShown() or (ns.Bar and ns.Bar.tipUp) or UI.badgeTipUp then e = nil end
 	-- the same row still selected and its tooltip still up: nothing to redraw (only kept beside the
 	-- terminal, which may have been dragged)
 	if e and t.entry == e and t:IsShown() then PlaceTip(t) return end
-	-- (the same row with nothing to show: worked out once, not on every keystroke and every frame of a spread search;
-	-- review, 0.53.6. Redraw and ForgetTooltip clear it)
+	-- (the same row with nothing to show: worked out once, not on every keystroke and every frame of a spread search.
+	-- Redraw and ForgetTooltip clear it)
 	if e and t.noneFor == e then return end
 	t.noneFor = nil
 	t:Hide()
@@ -168,8 +165,7 @@ function UI:UpdateTooltip()
 	if type(link) == "string" and link:find("|Htrade:", 1, true) then link = nil end
 	UI.PrefetchTips() -- (the spells of the rows on screen asked for now: their tooltips are ready when you get to them)
 	if not (link or e.tip or e.tooltip) then
-		-- (0.46.15, the player: right after a /reload no talent showed a tooltip at all until the terminal was opened
-		-- again: a spell the client hasn't loaded gives no link yet) asked for, and drawn once it's in
+		-- asked for, and drawn once it's in
 		UI.WaitForTipData(t, e, nil)
 		t.noneFor = e -- (nothing yet: its data arriving draws it, Redraw)
 		return
@@ -189,19 +185,19 @@ function UI:UpdateTooltip()
 		shown = true
 	end
 	if shown then
-		-- an upgrade the search weighed (0.51.14): said so, and the game's comparison beside it (Compare, above); a
-		-- quest's: the reward that is one, compared. The item not loaded yet: waited for, then drawn again with it.
+		-- an upgrade the search weighed: said so, and the game's comparison beside it (Compare, above); a quest's: the
+		-- reward that is one, compared. The item not loaded yet: waited for, then drawn again with it.
 		local F = ns.Filters
 		local cmpID, rewardName
-		if F and F.UpgradeItem then cmpID, rewardName = F.UpgradeItem(e) end -- (both: "a and f()" keeps only the first)
+		if F and F.UpgradeItem then cmpID, rewardName = F.UpgradeItem(e) end -- (both: "a and f" keeps only the first)
 		-- (a row of a search that weighed upgrades whose verdict a background search has since dropped (it judged the
 		-- same row again: the item let go meanwhile, or found otherwise), still on screen till F5: compared all the
-		-- same; 0.52.8, the player: "sometimes not showing the delta")
+		-- same)
 		if not cmpID and F and F.fitMade and not e.slotId and Wearable(e.itemID) then cmpID = tonumber(e.itemID) end
 		local cmpLink
 		if cmpID then
 			cmpLink = (rewardName and ItemLink(cmpID)) or (type(link) == "string" and link:find("item:", 1, true) and link) or ItemLink(cmpID)
-			-- (no "an upgrade" line: the list is of upgrades already; 0.52.6, the player. A quest: which reward it is)
+			-- (no "an upgrade" line: the list is of upgrades already. A quest: which reward it is)
 			if rewardName then
 				t:AddLine(" ")
 				t:AddLine(ItemName({ hyperlink = cmpLink }) or rewardName, 1, 0.82, 0, true)
@@ -221,21 +217,21 @@ function UI:UpdateTooltip()
 				end
 			end
 		end
-		-- the role it's an upgrade for (.weights: several picked; 0.54.1)
+		-- the role it's an upgrade for (.weights: several picked)
 		local g = F and F.fitMade and F.GainOf and F.GainOf(e)
 		if g and g.role and F.MyRoles and F.MyRoles() then
 			t:AddLine(L["An upgrade for: %s"]:format(F.ROLE_SAY[g.role] or g.role), 0.25, 1, 0.25)
 		end
-		-- (its hit past your cap counted for nothing: said, as the game's comparison shows it all; 0.66.3)
+		-- (its hit past your cap counted for nothing: said, as the game's comparison shows it all)
 		if g and g.capped then
 			t:AddLine(L["Hit past your cap counts for nothing here"], 0.6, 0.6, 0.6, true)
 		end
-		-- (judged by item level, one of them having no stats to weigh or not loaded: said, as the stats shown don't decide it;
-		-- 0.56.14)
+		-- (judged by item level, one of them having no stats to weigh or not loaded: said, as the stats shown don't
+		-- decide it)
 		if g and (g.byLevel or (g.vs and g.vs[1] and g.vs[1].byLevel)) then
 			t:AddLine(L["Judged by item level: one of them has no stats to compare, or they aren't loaded yet"], 0.6, 0.6, 0.6, true)
 		end
-		-- a spell's id (0.54.1, a player's ask): spells, talents, What's Training's spells
+		-- a spell's id: spells, talents, What's Training's spells
 		local sid = ns.SpellIds and ns.SpellIds.Of(e)
 		if sid then t:AddLine(L["Spell ID: %d"]:format(sid), 0.6, 0.6, 0.6) end
 		t.entry = e
@@ -249,12 +245,11 @@ end
 -- An item the client hasn't loaded yet shows "Retrieving item information" and the tooltip never redraws itself (it
 -- stayed so until you moved away and back). Its data arriving (GET_ITEM_INFO_RECEIVED / ITEM_DATA_LOAD_RESULT for that
 -- id) redraws it; the server may drop an ask, so it's asked again every TIP_RETRY s, TIP_TRIES times. An item the
--- server says it doesn't have isn't asked for again for TIP_FAILED s (it answered at once, and every answer redrew
--- and asked again: an ask a few times a second while the row stayed selected).
--- A spell is the same (0.46.15, the player: another class's talent showed only "Improved Frostbolt  Passive" until
--- you moved away and back): its data or its text not in yet (C_Spell.IsSpellDataCached false, or an empty
--- C_Spell.GetSpellDescription) is asked for (RequestLoadSpellData) and the tooltip drawn again once it is
--- (SPELL_DATA_LOAD_RESULT / SPELL_TEXT_UPDATE for that spell, or the same retries).
+-- server says it doesn't have isn't asked for again for TIP_FAILED s (it answered at once, and every answer redrew and
+-- asked again: an ask a few times a second while the row stayed selected). A spell is the same: its data or its text
+-- not in yet (C_Spell.IsSpellDataCached false, or an empty C_Spell.GetSpellDescription) is asked for
+-- (RequestLoadSpellData) and the tooltip drawn again once it is (SPELL_DATA_LOAD_RESULT / SPELL_TEXT_UPDATE for that
+-- spell, or the same retries).
 UI.TIP_RETRY, UI.TIP_TRIES, UI.TIP_FAILED = 0.6, 8, 60
 do
 	local waiter, waitGen, listening = nil, 0, nil
@@ -363,7 +358,7 @@ do
 		waitGen = waitGen + 1
 		UI.StopTipWait(t)
 		local kind, id = DataOfTip(e, link)
-		-- (the row's own loaded, the item its comparison needs not: that one waited for; 0.52.3)
+		-- (the row's own loaded, the item its comparison needs not: that one waited for)
 		if (not id or Loaded(kind, id)) and compareID and not ItemCached(compareID) then kind, id = "item", compareID end
 		if not id or Loaded(kind, id) then return end
 		if failed[kind .. ":" .. id] and Now() - failed[kind .. ":" .. id] < UI.TIP_FAILED then return end
@@ -423,7 +418,7 @@ end
 
 --- The tooltip put away with the terminal (Hide, the frame's OnHide): hidden, nothing kept as shown.
 function UI:HideTooltip()
-	-- (noneFor too: a row whose data hadn't come yet stayed "nothing to show" after a close and reopen; 1.0.85, review)
+	-- (noneFor too: a row whose data hadn't come yet stayed "nothing to show" after a close and reopen)
 	if tip then tip:Hide(); tip.entry, tip.noneFor = nil, nil; HideComparisons(tip) end
 	UI.StopTipWait(tip)
 end

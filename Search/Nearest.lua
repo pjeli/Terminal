@@ -32,8 +32,7 @@ function Scan.RoleFriendly(softWords, strictWords)
 	return nil
 end
 
---- "nearest mailbox in moonglade" with none there: the line naming the place (0.68.16: it said "Nothing has that. Check
---- the spelling", as for a word nothing has). Nil when no place was said.
+--- "nearest mailbox in moonglade" with none there: the line naming the place. Nil when no place was said.
 function Scan.NoneThere()
 	local place = UI.place
 	local name = place and (place.name or place.key)
@@ -86,7 +85,7 @@ end
 --- scored closest first.
 local function NearView(e, d, far)
 	local rest = rawget(e, "distNote") or (rawget(e, "wcont") and e.zone) or e.sub
-	-- (an NPC in a dungeon: how far its entrance is, and which dungeon; 0.51.18)
+	-- (an NPC in a dungeon: how far its entrance is, and which dungeon)
 	local inside = e.kind == "npc" and e.inDungeon
 	if inside then rest = (rest and (rest .. ns.DETAIL_SEP) or "") .. L["in %s"]:format(inside) end
 	return ns.Integrations.NearView(e, d, rest, far)
@@ -136,11 +135,11 @@ end
 --- order they came. Every row's distance is measured (I.RowYards: no table made), but only the MAX_RESULTS closest get
 --- a view: a search keeps no more (SortAndTrim), and none of these rows brings a quest along (LinkQuests: NPCs and
 --- spots carry none). Pauses with the search, showing the closest so far.
--- (far: sort:-distance, the farthest first (0.65.7, the player): the heap keeps the farthest, by their yards turned
--- negative; the rows with no distance are as if infinitely far, so before them: the views are scored under every row's
--- own score (I.NearView), not those rows made views of their own (0.65.x review: a table per unknown row, thousands)
--- (all: every row with a distance a view, none trimmed: distance only breaks another field's ties, sort:level,distance,
--- and the rows that field puts first can be far; review: the level-10 innkeepers 2000 yards off were dropped)
+-- (far: sort:-distance, the farthest first: the heap keeps the farthest, by their yards turned negative; the rows with
+-- no distance are as if infinitely far, so before them: the views are scored under every row's own score (I.NearView),
+-- not those rows made views of their own (0.65.x review: a table per unknown row, thousands) (all: every row with a
+-- distance a view, none trimmed: distance only breaks another field's ties, sort:level,distance, and the rows that
+-- field puts first can be far; review: the level-10 innkeepers 2000 yards off were dropped)
 function Scan.NearestViews(out, here, sortNear, overBudget, far, all)
 	local yards, max = ns.Integrations.RowYards, all and math.huge or MAX_RESULTS
 	local function Key(d) return far and -d or d end
@@ -209,11 +208,10 @@ function Scan.NpcOnly(kinds)
 	return any
 end
 
---- A list of NPCs alone, sorted nearest first by default (0.56.10, the player: "all NPC lists should be sorted by
---- nearest by default", trainers, merchants, reagent vendors). What was typed still counts first (release review: 120
---- nearer NPCs whose names had hogger's letters left Hogger out): an NPC named it, then those whose names have every
---- word, then the rest (a title's word, "reagent"); within each, the closest first, those with no place known last.
---- Only the best `limit` are kept (as many as the search keeps), each a view saying how far.
+--- A list of NPCs alone, sorted nearest first by default. What was typed still counts first (release review: 120 nearer
+--- NPCs whose names had hogger's letters left Hogger out): an NPC named it, then those whose names have every word,
+--- then the rest (a title's word, "reagent"); within each, the closest first, those with no place known last. Only the
+--- best `limit` are kept (as many as the search keeps), each a view saying how far.
 local function NearBand(e, tokens, n, joined)
 	if n == 0 then return 0 end
 	local ln = rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)) or ""
@@ -270,9 +268,9 @@ end
 
 function Scan.Nearest(self, q, out)
 	local sortNear, here, overBudget = q.sortNear, q.here, q.overBudget
-	-- ("farthest innkeeper", sort:-distance: the farthest first, those with no distance known before them; 0.65.7)
-	-- (a word said, "nearest" or "farthest", decides over the bar's: 0.65.x review)
-	-- (implied, a role alone: "innkeeper" is the nearest innkeeper unless the bar turns it round)
+	-- ("farthest innkeeper", sort:-distance: the farthest first, those with no distance known before them) (a word
+	-- said, "nearest" or "farthest", decides over the bar's: 0.65.x review) (implied, a role alone: "innkeeper" is the
+	-- nearest innkeeper unless the bar turns it round)
 	local far
 	if q.act and q.act.nearest and q.actWord then far = q.act.far or nil else far = q.sortFar end
 	-- a list of NPCs alone, no sort asked for: the nearest first (Scan.NearDefault); not where nothing's known of where
@@ -297,13 +295,13 @@ function Scan.Nearest(self, q, out)
 		local keep = sortNear or q.keepFar or far
 		local matched = out
 		out = Scan.NearestViews(out, here, keep, overBudget, far, sortNear and q.sortField ~= nil)
-		-- (a place said on another continent, "bank in the barrens" from Ironforge: its own, no distance; 0.68.16)
+		-- (a place said on another continent, "bank in the barrens" from Ironforge: its own, no distance)
 		if #out == 0 and not keep and self.place and #matched > 0 then
 			q.here = here
 			return matched
 		end
 		if #out == 0 and not keep then
-			-- (TrainerSpells' trainers as @npc, no Questie: only trainers are known; 0.57.1)
+			-- (TrainerSpells' trainers as @npc, no Questie: only trainers are known)
 			local p = ns.providers.npc
 			return out, PseudoEntries({ (p and p.trainersOnly) and EASY_TRAINERS_ONLY or Scan.NoneThere() or EASY_NONE_NEAR })
 		end

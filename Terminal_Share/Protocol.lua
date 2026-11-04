@@ -4,20 +4,19 @@ local ns = _G.Terminal
 if not ns or not ns.Crypto then return end
 local L = ns.L
 
--- The share shell, .ssh (0.58.1): friends' Terminals talk to each other. Two friends in the same group see each other's bags
--- in their searches ("linen cloth": what you carry, your alts, and Bob 20, Ann 15). docs/SHARE.md has the design.
+-- The share shell, .ssh: friends' Terminals talk to each other. Two friends in the same group see each other's bags in
+-- their searches ("linen cloth": what you carry, your alts, and Bob 20, Ann 15). docs/SHARE.md has the design.
 --
--- Who's heard: a character on your friend list, a guild member, a Battle.net friend's character. Every other message
--- is ignored, unanswered. The sender is the server's word (a whisper's sender, the guild channel, a Battle.net game
--- account), never the message's.
--- A group's secret is a code Terminal makes (120 random bits), handed to a friend by invite once they say yes, or given
--- by hand (.share code). Never sent otherwise: each side proves it holds the group's key, made from the code, with an
--- HMAC over both nonces and both names (Crypto.lua). Codes only (0.69.5, the player: "Codes Only for the WoW
--- Forever release"): a typed password could be guessed at home by anyone in the guild, against the hellos' marks.
--- Groups (0.59.0): each a code of its own and what you share in it; a group's name is only yours (a friend may call
--- it something else; .share rename). Each friend sees from you what you share in the groups you have in common.
--- What friends send lives here, in memory, and nowhere else: gone on /reload, logout, goodbye, 30 minutes of silence,
--- or once they're no longer a friend or guild member. Nothing of it is ever in ns.db.
+-- Who's heard: a character on your friend list, a guild member, a Battle.net friend's character. Every other message is
+-- ignored, unanswered. The sender is the server's word (a whisper's sender, the guild channel, a Battle.net game
+-- account), never the message's. A group's secret is a code Terminal makes (120 random bits), handed to a friend by
+-- invite once they say yes, or given by hand (.share code). Never sent otherwise: each side proves it holds the group's
+-- key, made from the code, with an HMAC over both nonces and both names (Crypto.lua). Codes only: a typed password
+-- could be guessed at home by anyone in the guild, against the hellos' marks. Groups: each a code of its own and what
+-- you share in it; a group's name is only yours (a friend may call it something else; .share rename). Each friend sees
+-- from you what you share in the groups you have in common. What friends send lives here, in memory, and nowhere else:
+-- gone on /reload, logout, goodbye, 30 minutes of silence, or once they're no longer a friend or guild member. Nothing
+-- of it is ever in ns.db.
 --
 -- SSH.Endpoint(env) is the protocol, with the game reached only through `env` (the tests run two, talking to each
 -- other): this file. SSH.game is this client's, its env made of the game's calls: Share.lua (0.69.8, split off).
@@ -50,7 +49,7 @@ SSH.PING_EVERY = 600       -- s: "still here"
 SSH.IDLE_DROP = 1800       -- s of silence and a friend's items go
 SSH.RECHECK = 60           -- s: are they still a friend?
 SSH.WAIT_KEEP = 600        -- s a "wants to connect" is shown
-SSH.NOANSWER_KEEP = 30     -- s a "no answer" is shown, then forgotten (0.58.11, the player; 0.58.15: sooner)
+SSH.NOANSWER_KEEP = 30     -- s a "no answer" is shown, then forgotten
 SSH.BURST, SSH.RATE = 6, 1 -- the send queue: this many at once, then one a second (the game allows 10, then 1/s)
 SSH.RETRY_TICK = 60        -- s: who to say hello to again is looked at
 SSH.RETRY_EVERY = 600      -- s: a friend who didn't answer is said hello to again after this, then twice it... (8x at most)
@@ -81,9 +80,8 @@ local function ValidClaim(s)
 	return type(s) == "string" and #s <= 80 and s:find("^[^,%s@]+@[^,%s@]*$") ~= nil
 end
 
---- Does a claim ("bob@realm") name the character the server says sent it ("Bob", "Bob-Realm", "Plamen Warr")?
---- `myRealm` (as SSH.Claim writes it): the server writes a sender on your realm without one, so "Bob" is bob@<yours>
---- only (review, 0.58.16: bob@<any realm>, another friend's record taken over).
+--- Does a claim ("bob@realm") name the character the server says sent it ("Bob", "Bob-Realm", "Plamen Warr")? `myRealm`
+--- (as SSH.Claim writes it): the server writes a sender on your realm without one, so "Bob" is bob@<yours> only.
 function SSH.ClaimIs(claim, sender, myRealm)
 	local name, realm = tostring(claim or ""):match("^(.-)@(.*)$")
 	if not name or name == "" then return false end
@@ -119,7 +117,7 @@ SSH.To36 = To36
 --   places  "Bob/b,Bobalt/k,/w"
 --   items   "id:place.count,place.count;id:..." (all base 36; place counted from 0)
 --   gold    base 36, or empty
---   mode    what they share ("limited", "all"...), a fourth part (0.58.4: .ssh says it beside their name)
+--   mode    what they share ("limited", "all"...), a fourth part
 SSH.WHERE = { b = true, k = true, m = true, v = true, w = true }
 
 --- A snapshot of one character's bags (`counts`: { [itemID] = count }).
@@ -193,8 +191,8 @@ end
 
 SSH.NAME_MAX = 48 -- (bytes of a place's name a friend sends: a character's name and realm, with room)
 
---- A place's name as a friend sent it, safe to show: no "|" (the game's escapes: a texture, a link, a colour), no control
---- characters, at most NAME_MAX bytes, cut between two letters (0.63.7, review: shown as sent, in rows and tooltips).
+--- A place's name as a friend sent it, safe to show: no "|" (the game's escapes: a texture, a link, a colour), no
+--- control characters, at most NAME_MAX bytes, cut between two letters.
 function SSH.SafeName(who)
 	who = tostring(who or ""):gsub("[|%c]", "")
 	if #who > SSH.NAME_MAX then
@@ -297,15 +295,15 @@ SSH.Mac = Mac
 --- A group's name as typed, made plain ("Raid-Team" -> "raid-team"), or nil when it can't be one.
 function SSH.GroupName(s)
 	s = Lower(tostring(s or ""))
-	-- (letters of any language: a character of several bytes counted once; review, 0.59.0)
+	-- (letters of any language: a character of several bytes counted once)
 	if s == "" or #(s:gsub("[\128-\191]", "")) > SSH.GROUP_LEN or not s:find("^[%w_%-\128-\255]+$") then return nil end
 	return s
 end
 
---- A group's mark in a hello (0.59.0, the player: "hide the group name"): 8 hex characters of an HMAC under the group's
---- key, over the session and the character saying it. Only who has the key can make it or tell which group it is; it
---- names no group, and it's another every session (a guildmate can't tell your groups apart, or the same group from one
---- login to the next). A wrong key makes another mark: the groups just aren't in common ("no answer").
+--- A group's mark in a hello: 8 hex characters of an HMAC under the group's key, over the session and the character
+--- saying it. Only who has the key can make it or tell which group it is; it names no group, and it's another every
+--- session (a guildmate can't tell your groups apart, or the same group from one login to the next). A wrong key makes
+--- another mark: the groups just aren't in common ("no answer").
 function SSH.Mark(key, sess, claim)
 	return C.Hex(C.HMAC(key, "M|" .. tostring(sess) .. "|" .. tostring(claim))):sub(1, 8)
 end
@@ -324,7 +322,7 @@ function SSH.Union(modes)
 end
 
 ----------------------------------------------------------------------
--- Codes (0.69.5): a group's secret made by Terminal, not typed
+-- Codes: a group's secret made by Terminal, not typed
 ----------------------------------------------------------------------
 -- A typed password is something a guildmate can guess at home against your hellos' marks; a code is 120 random bits,
 -- which nobody can. "TS1-" and 25 characters of Crockford's base 32 (no I, L, O or U; I and L typed read as 1, O as 0),
@@ -394,21 +392,21 @@ function SSH.KeyOfCode(code) return C.HMAC(SSH.CODE_SALT, code) end
 -- An endpoint: the protocol
 ----------------------------------------------------------------------
 -- env:
---   now()                     seconds
---   claim()                   your claim ("plamen-warr@realm")
+--   now                     seconds
+--   claim                   your claim ("plamen-warr@realm")
 --   send(route, text)         0 sent, 3/8 throttled (try again), 11 chat locked, else failed
 --   eligible(route, peer)     the sender's name to show when it's a friend, guild member or Battle.net friend's
 --                             character (a guild channel message: a guild member who isn't you), else nil
 --   matches(claim, route)     the claim names the route's sender
 --   items(mode)               the snapshot you share (SSH.Encode's shape) for a mode: "all", "limited", "mats",
 --                             "consumables" (for a friend: the modes of the groups you have in common, together)
---   locked()                  the game locks chat messaging now
---   changed()                 a friend's items changed (the list is made again)
+--   locked                  the game locks chat messaging now
+--   changed                 a friend's items changed (the list is made again)
 --   say(text)                 a line in your chat window
---   nonce()                   16 hex characters, never the same twice
---   broadcast()               { routes } a hello goes to: the guild channel, friends, Battle.net friends' characters
+--   nonce                   16 hex characters, never the same twice
+--   broadcast               { routes } a hello goes to: the guild channel, friends, Battle.net friends' characters
 --   proven(claim, route)      (optional) a way just proven for that claim
---   offered()                 (optional) an invite came in, or went (the badge, the prompt's suggestion)
+--   offered                 (optional) an invite came in, or went (the badge, the prompt's suggestion)
 --   joined(name, key, mode, code)  (optional) a group joined by an invite: remember it
 -- route: { kind = "whisper", target = "Bob-Realm" } | { kind = "guild", target = sender } | { kind = "bn", id = n,
 --   name = character, bnetID = account id }
@@ -422,7 +420,7 @@ function SSH.Endpoint(env)
 		markCache = {}, invites = {}, offers = {} }, E)
 end
 
--- Two records (0.58.3; in game, 0.58.2: connected, "items: 0" on both sides):
+-- Two records:
 --   peers[routeKey]  a way to reach someone and its handshake: whisper "w:name" (the name as the server writes it,
 --                    your own realm dropped: "Bob-Realm", "Bob" and the guild channel's "Bob" are one way), or
 --                    Battle.net "b:<game account>". A friend can have several up at once (a guildmate who's also on
@@ -578,8 +576,7 @@ end
 function E:LeaveGroup(name, rejoining)
 	local g = self.groups[name]
 	if not g then return false end
-	-- (the last group left: everyone said goodbye to, as .share off does, the queue kept for it. Review, 0.59.0: the
-	-- goodbyes queued here were then dropped with the queue)
+	-- (the last group left: everyone said goodbye to, as .share off does, the queue kept for it. Review)
 	local others = false
 	for n in pairs(self.groups) do if n ~= name then others = true end end
 	if not others and not rejoining then
@@ -610,7 +607,7 @@ function E:LeaveGroup(name, rejoining)
 end
 
 ----------------------------------------------------------------------
--- Invites (0.69.5): a group's secret handed to a friend, only once they say yes
+-- Invites: a group's secret handed to a friend, only once they say yes
 ----------------------------------------------------------------------
 -- A -> B   5N id,group        an invite to a group (its name as A calls it; nothing secret)
 -- B -> A   5J id              yes (only to the invite B heard, from the character it came from)
@@ -619,7 +616,7 @@ end
 -- Whispers or Battle.net game data only (the guild channel carries hellos only). Each needs the sender to be someone
 -- you'd hear (a friend, a guild member, a Battle.net friend's character), the server's word for who sent it. An
 -- invite waits INVITE_KEEP, then it's gone on both sides. Then the code's key: hellos, marks made from it, proofs.
--- No kick and no new code pushed to a group (the player, 0.69.5: "consider this a rare case and probably better
+-- No kick and no new code pushed to a group ("consider this a rare case and probably better
 -- to just force users to start over with a trust set"): a group has no owner, so anyone in it could push one at
 -- everyone. To leave someone out, friends start a new group and invite whom they trust.
 
@@ -671,8 +668,7 @@ function E:Invites()
 end
 
 --- Whether an invite is waiting either way (yours, or one to you), the ones that ran out dropped first: the badge
---- shows, and the ticker runs, while one is (0.69.7 review: with no group the ticker never ran, so an invite to you
---- never ran out and the badge kept showing it).
+--- shows, and the ticker runs, while one is.
 function E:InvitesWaiting()
 	local now = self:Now()
 	for id, inv in pairs(self.invites) do if now - inv.at >= SSH.INVITE_KEEP then self.invites[id] = nil end end
@@ -700,7 +696,7 @@ function E:Offer(name)
 	end
 	if (name == nil or name == "") and n ~= 1 then return nil, n end
 	-- (the name as given first; a shorter one only when it's one person's: "ann" with invites from Ann and Ann Evil is
-	-- Ann's, and with Ann Zed's and Ann Abe's it's asked whose. Review, 1.0.17: the last one heard won)
+	-- Ann's, and with Ann Zed's and Ann Abe's it's asked whose. Review)
 	found = found or exact or (#loose == 1 and loose[1]) or nil
 	if found then return found[2], found[1] end
 	return nil, n
@@ -727,11 +723,11 @@ end
 --- of that name with another secret.
 function E:FreeLabel(label, key)
 	label = SSH.GroupName(label) or SSH.DEFAULT_GROUP
-	-- (a group you're in with that secret already: that one, not a second name for it, whose leave would drop the
-	-- other with it; review, 1.0.17)
+	-- (a group you're in with that secret already: that one, not a second name for it, whose leave would drop the other
+	-- with it)
 	for n, h in pairs(self.groups) do if h.key == key then return n end end
-	-- (a name .share takes as a word of its own, "all", "off", "leave": numbered, so ".share all" stays the mode for every
-	-- group, not this one's; an invite could name its group so. Review, 1.0.17)
+	-- (a name .share takes as a word of its own, "all", "off", "leave": numbered, so ".share all" stays the mode for
+	-- every group, not this one's; an invite could name its group so.)
 	local reserved = SSH.RESERVED and SSH.RESERVED[label]
 	local g = self.groups[label]
 	if not reserved and not g then return label end
@@ -753,7 +749,7 @@ end
 
 --- Queue a message (sent at once when the queue lets it). `tag` lets a newer one take an older's place ("data:claim").
 --- `f`: a friend's items (counted while they wait: f.queued; friends take turns). `peer`: a handshake's, its time
---- started when it's sent (review, 0.58.16: started when queued, thirty hellos behind each other timed out unsent).
+--- started when it's sent.
 function E:Send(route, text, tag, f, peer)
 	if tag then
 		for i = #self.queue, 1, -1 do
@@ -765,11 +761,10 @@ function E:Send(route, text, tag, f, peer)
 	if peer then peer.queuedMsg = m end -- (not timed out while it waits)
 	local at = #self.queue + 1
 	if not tag or tag:sub(1, 5) == "ping:" then
-		-- (a ping too: 0.60.0 review, behind a big first sync to others, friends who had theirs heard nothing for half an
-		-- hour and dropped you)
-		-- (a handshake goes before any friend's items still waiting: it has HANDSHAKE_TIMEOUT to be answered. An answer,
-		-- C A K, before hellos too: a login's hellos to every friend, most not running Terminal, and an answer waited
-		-- behind them past the other side's timeout, never connecting. 0.60.0 review)
+		-- (a ping too: 0.60.0 review, behind a big first sync to others, friends who had theirs heard nothing for half
+		-- an hour and dropped you) (a handshake goes before any friend's items still waiting: it has HANDSHAKE_TIMEOUT
+		-- to be answered. An answer, C A K, before hellos too: a login's hellos to every friend, most not running
+		-- Terminal, and an answer waited behind them past the other side's timeout, never connecting.)
 		local hello = text:sub(2, 2) == "H"
 		for i, q in ipairs(self.queue) do
 			if (q.tag and q.tag:sub(1, 5) == "data:") or (not hello and not q.tag and q.text:sub(2, 2) == "H") then at = i break end
@@ -789,8 +784,7 @@ function E:Unqueue(i)
 	return m
 end
 
---- The next message out: in order, but of friends' items the friend with the fewest pieces left first (review,
---- 0.58.16: a small update waited behind another friend's hundred pieces, and went stale there). A big snapshot
+--- The next message out: in order, but of friends' items the friend with the fewest pieces left first. A big snapshot
 --- still goes one friend at a time: each has theirs as soon as can be.
 function E:NextOut()
 	local q = self.queue
@@ -861,7 +855,7 @@ function E:Session()
 	return self.sess
 end
 
---- Say hello: to everyone broadcast() names, or to one route.
+--- Say hello: to everyone broadcast names, or to one route.
 function E:Hello(route)
 	if not self:On() then return false end
 	local now = self:Now()
@@ -901,9 +895,8 @@ function E:Tried(k, now)
 	t.n, t.at = t.n + 1, now
 end
 
---- Hello again, now and then, to who isn't connected (review, 0.58.16: a hello lost, heard in a dungeon while chat was
---- locked, or a friend list not read yet at login, and nobody ever tried again): after RETRY_EVERY, then twice that...
---- up to 8 times it; a friend never tried yet (online since), at once. Connected ones hear the guild's and let it be.
+--- Hello again, now and then, to who isn't connected: after RETRY_EVERY, then twice that... up to 8 times it; a friend
+--- never tried yet (online since), at once. Connected ones hear the guild's and let it be.
 function E:Retry(now)
 	for _, r in ipairs(self.env.broadcast() or {}) do
 		local k = r.kind == "guild" and "guild" or self:Key(r)
@@ -928,14 +921,12 @@ function E:Up(p)
 		self.friends[p.claim] = f
 	end
 	-- (proven again, the same way and the same session of theirs, a group joined say: what's under way goes on, and
-	-- only what changed is sent. Review, 0.59.0: every friend was sent everything whole again, both ways, for a group
-	-- joined that most weren't in. Anything else, a new way or they /reloaded: from nothing, whole)
+	-- only what changed is sent. Review)
 	local same = not new and f.key == p.key and p.sess ~= nil and p.sess ~= "" and f.sess == p.sess
 	if not same then p.pieces, p.got, p.inKey, f.ver = {}, 0, nil, nil end
 	f.name, f.route, f.key, f.last, f.sess = p.name or f.name, p.route, p.key, now, p.sess
 	if self.env.proven then pcall(self.env.proven, p.claim, p.route) end -- (the game's: a Battle.net claim kept by its account)
-	-- (the groups you have in common: the ones proven on this way, the one you send by. Review, 0.59.0: every way's
-	-- together, and a way proven in one group got what another way's group shares)
+	-- (the groups you have in common: the ones proven on this way, the one you send by. Review)
 	local groups = {}
 	for n in pairs(p.groups or {}) do if self.groups[n] then groups[n] = true end end
 	f.groups = groups
@@ -953,8 +944,8 @@ function E:Up(p)
 	if new then
 		self.env.changed()
 		-- (new here: what they share asked for whole. They may have you still, the same session, and send only what
-		-- changes, which would never come. 0.60.0 review: dropped after 30 minutes' silence, connected again, and their
-		-- items never came back. "R n": not sent again if they already did since connecting)
+		-- changes, which would never come. dropped after 30 minutes' silence, connected again, and their items never
+		-- came back. "R n": not sent again if they already did since connecting)
 		self:Send(p.route, SSH.V .. "R n")
 	end
 end
@@ -968,7 +959,7 @@ function E:Drop(f, why)
 	for k, p in pairs(self.peers) do
 		if p.claim == f.claim then self.peers[k] = nil end
 	end
-	-- (what was still waiting to go to them: not sent after a goodbye. Review, 0.59.0: a hundred pieces went on after it)
+	-- (what was still waiting to go to them: not sent after a goodbye. Review)
 	local ping = "ping:" .. f.claim
 	for i = #self.queue, 1, -1 do
 		local m = self.queue[i]
@@ -988,7 +979,7 @@ function E:Snapshot(mode, fresh)
 	if fresh or not s then
 		local snap = self.env.items(mode) or {}
 		snap.mode = mode
-		if mode ~= "all" then snap.gold = nil end -- (gold only with all, whatever items() gave)
+		if mode ~= "all" then snap.gold = nil end -- (gold only with all, whatever items gave)
 		local parts = SSH.EncodeParts(snap)
 		s = { text = SSH.Join(parts), parts = parts }
 		self.snaps[mode] = s
@@ -1002,8 +993,7 @@ function E:Share(f, force)
 	local now = self:Now()
 	local tag = "data:" .. f.claim .. ":"
 	if (f.queued or 0) > 0 then
-		-- (one still going out: the next waits for its last piece, then goes as what changed since. Review, 0.58.16: it
-		-- was dropped for a whole new one at the back of the queue, and a big snapshot to six friends never ended)
+		-- (one still going out: the next waits for its last piece, then goes as what changed since. Review)
 		if not force then f.owed = true return end
 		for i = #self.queue, 1, -1 do
 			local t = self.queue[i].tag
@@ -1014,8 +1004,8 @@ function E:Share(f, force)
 	local last = math.max(f.sentAt or 0, f.doneAt or 0)
 	if not force and f.sentAt and now - last < SSH.SEND_GAP then f.owed = true return end
 	local mode = self:ModeFor(f)
-	-- (as made since the last change: E:Changed starts them again. 0.60.0 review: made again whole for every friend
-	-- connecting, 50 ms each at login with 2000 items)
+	-- (as made since the last change: E:Changed starts them again. made again whole for every friend connecting, 50 ms
+	-- each at login with 2000 items)
 	local text, parts = self:Snapshot(mode)
 	if not force and text == f.sentText then f.owed = nil return end
 	-- only what changed, when they have the last one whole and it's the same places and mode: "2U ver,base,i,n,..."
@@ -1038,7 +1028,7 @@ function E:Share(f, force)
 		f.sentParts = nil
 	end
 	local pieces = {}
-	-- (each piece ends on a whole character: a name's "á" isn't cut in two, which the game may not send. 0.60.0 review)
+	-- (each piece ends on a whole character: a name's "á" isn't cut in two, which the game may not send.)
 	local at, len = 1, #payload
 	repeat
 		local stop = math.min(at + SSH.CHUNK - 1, len)
@@ -1077,7 +1067,7 @@ end
 function E:Changed()
 	self.snaps = {}
 	-- (a burst of them, selling greys, looting a run of mobs: the first sent now, the rest owed, sent by the tick a
-	-- second on. 0.60.0 review: what you share was made again every bag event, 91 times selling 30 greys)
+	-- second on. what you share was made again every bag event, 91 times selling 30 greys)
 	local now = self:Now()
 	if self.changedAt and now - self.changedAt < 1 then
 		for _, f in pairs(self.friends) do f.owed = true end
@@ -1092,8 +1082,8 @@ function E:Receive(route, text)
 	if type(text) ~= "string" or #text > 255 then return end
 	local v, letter, rest = text:match("^(%d)(%u) ?(.*)$")
 	if not v then return end
-	-- (the guild channel carries hellos only; everything else goes by whisper. 0.60.0 review: a guild member's "4P" there
-	-- raised an error and said hello to the whole guild, every time)
+	-- (the guild channel carries hellos only; everything else goes by whisper. a guild member's "4P" there raised an
+	-- error and said hello to the whole guild, every time)
 	if route.kind == "guild" and letter ~= "H" then return end
 	local p = self:Peer(route)
 	if v ~= SSH.V then
@@ -1127,13 +1117,13 @@ function E:Receive(route, text)
 			return
 		end
 		-- (the guild channel's hello from a friend connected, the same session of theirs and the same groups: one to
-		-- others, let be. Review, 0.58.16: answered, it broke the connection until it was made again. A hello to you
-		-- alone is always answered: they dropped you, whatever you think; another group joined is proven too)
+		-- others, let be. answered, it broke the connection until it was made again. A hello to you alone is always
+		-- answered: they dropped you, whatever you think; another group joined is proven too)
 		local commonText = NamesOf(common)
 		if route.kind == "guild" and p and p.state == "up" and p.claim == claim and sess ~= "" and p.sess == sess
 			and p.common == commonText then return end
-		-- (the same hello again while you challenge it, sent late from a busy queue: your challenge again, the same nonce,
-		-- so their proof of it still fits. Review, 0.59.0: a new nonce, and their proof of the first was ignored)
+		-- (the same hello again while you challenge it, sent late from a busy queue: your challenge again, the same
+		-- nonce, so their proof of it still fits. Review)
 		if p and p.state == "challenged" and p.nA == nA and p.claim == claim and p.nB then
 			if not p.reChallenged or now - p.reChallenged >= SSH.HELLO_GAP then
 				p.reChallenged = now
@@ -1153,7 +1143,7 @@ function E:Receive(route, text)
 			-- already on its way still fits)
 			if not (p and p.state == "hello") then
 				p = self:Peer(route, true)
-				if p.state == "up" then p.wasUp = true end -- (review, 0.59.0)
+				if p.state == "up" then p.wasUp = true end
 				p.state, p.nA, p.since = "hello", self.lastBroadcast, now
 			end
 			if p.nA and (not p.resent or now - p.resent >= SSH.HELLO_GAP) then
@@ -1196,8 +1186,7 @@ function E:Receive(route, text)
 			if not (at and now - at < SSH.HANDSHAKE_TIMEOUT) then return end
 			if p and p.state == "proved" and p.nB == nB then return end -- (the same answer twice)
 			p = self:Peer(route, true)
-			-- (connected already: answered all the same, they're waiting on it. Review, 0.58.16: let be, their side
-			-- gave up on the connection)
+			-- (connected already: answered all the same, they're waiting on it. Review)
 			if p.state == "up" and p.claim == claim then p.wasUp = true end
 			p.state, p.nA = "hello", nA
 		end
@@ -1304,7 +1293,7 @@ function E:Receive(route, text)
 		local k = self:Key(route)
 		local old = self.offers[k]
 		self.offers[k] = { id = id, group = label, name = name, route = Reply(route), at = now }
-		-- (once a minute per person whatever the group: a new name each time said one line a second; 1.0.89, review)
+		-- (once a minute per person whatever the group: a new name each time said one line a second)
 		if not (old and now - (old.saidAt or 0) < SSH.INVITE_SAY_GAP) then
 			self.offers[k].saidAt = now
 			self.env.say(L["Share: %s invites you to share bags in the group %s. Type .share accept %s to join (or .share decline %s)"]:format(name, label, name, name))
@@ -1341,7 +1330,7 @@ function E:Receive(route, text)
 		if not label or (not self.groups[label] and n >= SSH.MAX_GROUPS) then
 			self.env.say(L["Share: you're in %d groups already; .share leave one, then ask %s to invite you again"]:format(SSH.MAX_GROUPS, name))
 		elseif self.groups[label] and self.groups[label].key == key then
-			-- (in it already, by that name or another: said so, not "joined as"; review, 1.0.32)
+			-- (in it already, by that name or another: said so, not "joined as")
 			self.env.say(L["Share: you're in %s with that code already"]:format(label))
 		else
 			self:JoinSecret(label, key, code)
@@ -1436,8 +1425,7 @@ function E:Tick()
 		end
 	end
 	for k, p in pairs(self.peers) do
-		-- (a snapshot with a piece that never came: asked for whole, as a delta built on one we lack is; 1.0.89, review:
-		-- kept waiting until their bags changed again)
+		-- (a snapshot with a piece that never came: asked for whole, as a delta built on one we lack is)
 		if p.inKey and now - (p.piecesAt or now) >= SSH.PIECES_WAIT then
 			p.pieces, p.got, p.inKey, p.piecesAt = {}, 0, nil, nil
 			local f = self.friends[p.claim]
@@ -1455,7 +1443,7 @@ function E:Tick()
 		elseif p.state == "noanswer" and now - (p.noAnswer or now) >= SSH.NOANSWER_KEEP then
 			self.peers[k] = nil -- (no answer for a while: not said any more; a hello from them starts again)
 		elseif p.state == "mismatch" and now - (p.mismatch or now) >= SSH.NOANSWER_KEEP then
-			self.peers[k] = nil -- (the same: tried again in time, they may have typed it again. 0.60.0 review: kept for good)
+			self.peers[k] = nil -- (the same: tried again in time, they may have typed it again. kept for good)
 		end
 	end
 	for k, w in pairs(self.waiting) do
@@ -1491,8 +1479,7 @@ function E:Off()
 	self.groupGen = self.groupGen + 1
 	self.tried, self.retryAt = {}, nil
 	-- (the goodbyes through the queue: what the game says wait to goes a second later, the ticker kept until they're
-	-- all gone. Review, 0.58.16: sent straight, past ten friends or in chat lockdown some were lost, and those friends
-	-- showed your bags half an hour on)
+	-- all gone. Review)
 	for _, r in ipairs(byes) do self:Send(r, SSH.V .. "B") end
 	if had then self.env.changed() end
 end

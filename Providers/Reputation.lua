@@ -178,13 +178,13 @@ ns:RegisterProvider("reputation", {
 				}
 			end
 		end
-		-- (1.0.27, the player: "@reputation shows only Orgrimmar") what quartermasters sell, OneForAll's, with the factions:
-		-- @reputation is:reward lists them, is:canbuy those your standing allows, sort:standing, Group by faction
+		-- what quartermasters sell, OneForAll's, with the factions: @reputation is:reward lists them, is:canbuy those
+		-- your standing allows, sort:standing, Group by faction
 		local AR = ns.Armory
 		if AR and AR.Rewards and AR.Factions and AR.Factions() then
 			for _, r in ipairs(AR.Rewards()) do out[#out + 1] = r end
 		end
-		-- (1.0.28, the player's ask) AtlasLoot's faction loot too, by the standing it needs; an item OneForAll lists once
+		-- AtlasLoot's faction loot too, by the standing it needs; an item OneForAll lists once
 		local I = ns.Integrations
 		if I and I.FactionLoot then
 			local mine, have = {}, {}

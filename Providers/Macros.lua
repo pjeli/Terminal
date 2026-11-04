@@ -39,14 +39,14 @@ local function ShowMacroText(e)
 end
 
 local function OneLine(body)
-	-- (#show and #showtooltip, any case, as the game takes them; review, 0.53.6)
+	-- (#show and #showtooltip, any case, as the game takes them)
 	local line = body:gsub("^#[Ss][Hh][Oo][Ww]%a*[^\n]*\n?", ""):gsub("\n.*", "")
 	if line == "" then line = body:gsub("\n.*", "") end
 	return (line:gsub("|", "||"))
 end
 
--- the account's macros take the first slots, the character's come after them (the game's number; review, 0.53.6)
--- (read when the list is made: the macro window's code may set it later than this file loads)
+-- the account's macros take the first slots, the character's come after them (the game's number) (read when the list is
+-- made: the macro window's code may set it later than this file loads)
 local ACCOUNT_SLOTS = 120
 
 ns:RegisterProvider("macros", {

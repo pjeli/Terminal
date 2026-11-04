@@ -12,9 +12,8 @@ local EASY_NONE, PseudoEntries, QUESTION_MARK = Scan.EASY_NONE, Scan.PseudoEntri
 local Score = ns.Score
 local NO_POS, TEXT_SCORE, FreqBonus = Score.NO_POS, Score.TEXT_SCORE, Score.FreqBonus
 
--- Ranking the categories (0.56.11, the player: "reagent" listed NPCs last, under a keybinding named Toggle Reagent Bag,
--- when three dozen reagent vendors matched). A category's best match decides, as before; Questie's lists are scored
--- as a row would be (HintScore: they were all given the lowest score, a match in some text), and then:
+-- Ranking the categories. A category's best match decides, as before; Questie's lists are scored as a row would be
+-- (HintScore: they were all given the lowest score, a match in some text), and then:
 local ROLE_MIN, ROLE_BONUS = 3, 2.0 -- a word that is the title of several NPCs names a job (Reagent Vendor): those are wanted
 local BREADTH, BREADTH_MAX = 0.15, 0.75 -- more matches, a little higher (by log2 of the count): close best matches told apart
 local PICK_BONUS, PICK_MAX = 1.0, 3 -- each time the category was picked for these words (db.catPicks), up to three times
@@ -123,8 +122,8 @@ function Scan.Typed(text)
 	return t
 end
 
--- A category of several lists: which of them had matches, after its name, as the results' kind column names them
--- (0.48.4, the player: "Game  World Map +3 more" didn't say the 3 were keybindings), the most matches first.
+-- A category of several lists: which of them had matches, after its name, as the results' kind column names them, the
+-- most matches first.
 local KINDS_SHOWN = 3
 local function KindsNote(c, counts)
 	local loaded, found = 0, {}
@@ -158,10 +157,10 @@ local function CategoryRow(c, best, bestScore, count, counts, hinted)
 	}
 end
 
--- The clear winner (0.48.4, the player's ask): a row named exactly what was typed ("world map", "hearthstone"; a
--- leading "the", or a command's "/" or ".", not needed), shown above the categories to act on at once. Only when every
--- such row is in one category, and there are no more than WINNER_MAX of them (your bags' Hearthstone and the one on an
--- alt: one thing); names in two categories (Mining, the profession and the skill) are for the categories to tell apart.
+-- The clear winner: a row named exactly what was typed ("world map", "hearthstone"; a leading "the", or a command's "/"
+-- or ".", not needed), shown above the categories to act on at once. Only when every such row is in one category, and
+-- there are no more than WINNER_MAX of them (your bags' Hearthstone and the one on an alt: one thing); names in two
+-- categories (Mining, the profession and the skill) are for the categories to tell apart.
 local WINNER_MAX = 2
 local function ExactName(name, want)
 	if type(name) ~= "string" then return false end
@@ -175,8 +174,8 @@ local function ExactName(name, want)
 	if n == w + 4 then return name:sub(1, 4) == "the " and name:sub(5) == want end
 	return false
 end
--- (one item in two categories is one thing still: AtlasLoot's faction loot is a Loot row and a reputation reward, the same
--- item, Enter on either opens AtlasLoot on it; review, 1.0.38: "arcane mantle of the dawn" went straight to it no more)
+-- (one item in two categories is one thing still: AtlasLoot's faction loot is a Loot row and a reputation reward, the
+-- same item, Enter on either opens AtlasLoot on it)
 local function Winner(exacts, cats)
 	if cats < 2 or #exacts == 0 or #exacts > WINNER_MAX then return nil end
 	local best
@@ -199,7 +198,7 @@ Scan.Winner = Winner -- (tests)
 --- categoryAuto; q.kinds, q.easyCat) and its rows in q.matched when they're all here (none of them only counted).
 --- noAuto: the category rows even when there's one (a picked category that had nothing: Scan.Search's fallback).
 -- A list only searched when asked for (Scan.Parse's q.also, "is:unknown": the recipes you don't know) and the category
--- its rows show in, in Simple mode (0.55.18, review: typed there, it found nothing).
+-- its rows show in, in Simple mode.
 Scan.ALSO_CATEGORY = { missing = "crafting" }
 
 function Scan.Overview(self, q, noAuto)
@@ -221,8 +220,8 @@ function Scan.Overview(self, q, noAuto)
 	local hardOther = q.hard and #q.hard > (q.strictWords and #q.strictWords or 0) or nil
 	local nameWords = OverviewNameWords(tokens, hardOther, q.softWords, q.strictWords)
 	local namesOk = #nameWords > 0 and not hardOther and not self.place
-	-- a word that is exactly a name is never a typo (0.68.15, the player's call): nothing in these lists, but Questie
-	-- knows a name with the words ("linken": the NPC Linken, not Linen Cloth by a close spelling; "lairn", "spike")
+	-- a word that is exactly a name is never a typo: nothing in these lists, but Questie knows a name with the words
+	-- ("linken": the NPC Linken, not Linen Cloth by a close spelling; "lairn", "spike")
 	local named = false
 	if #out == 0 and namesOk then
 		local ob = oq.overBudget
@@ -242,8 +241,8 @@ function Scan.Overview(self, q, noAuto)
 	local loggedNames = {} -- (your quest log's matches: Questie's name count has them too)
 	local overBudget = q.overBudget
 	local Ez, BY_ID = ns.Easy, ns.Easy.BY_ID
-	-- (a kind's category once, when it doesn't hang on the row: ~1.7 µs a match was a third of a 100k overview; each row's
-	-- kind read once, not through its metatable three times. 0.63.7, review)
+	-- (a kind's category once, when it doesn't hang on the row: ~1.7 µs a match was a third of a 100k overview; each
+	-- row's kind read once, not through its metatable three times.)
 	local fixed = {}
 	local function AddRow(e)
 		local kind = e.kind
@@ -310,8 +309,8 @@ function Scan.Overview(self, q, noAuto)
 		end
 	end
 	-- nothing anywhere, not even by a close spelling of the lists above: a close spelling of a name only Questie knows
-	-- ("mountain buzzaard", "marshal dughn": Advanced's @npc found them, Simple mode nothing; 0.68.15, the player's call).
-	-- Their lists read whole, only now (an empty result, the search sliced as ever).
+	-- ("mountain buzzaard", "marshal dughn": Advanced's @npc found them, Simple mode nothing). Their lists read whole,
+	-- only now (an empty result, the search sliced as ever).
 	local nearNamed = false
 	if #order == 0 and namesOk and not empty and not self.softRelaxed and #hinting > 0 then
 		local kq = {}
@@ -363,8 +362,8 @@ function Scan.Overview(self, q, noAuto)
 	end
 	table.sort(rows, function(a, b) return a._score > b._score end)
 	if #rows == 0 then
-		-- (0.56.2, the player: "Did you mean...?") the phrases closest to it, under the note; the note keeps what was
-		-- typed, for .missed when the terminal closes on it (DidYouMean.lua)
+		-- the phrases closest to it, under the note; the note keeps what was typed, for .missed when the terminal
+		-- closes on it (DidYouMean.lua)
 		local none = PseudoEntries({ EASY_NONE })
 		none[1].missedText = q.text
 		local DYM = ns.DidYouMean
@@ -387,14 +386,13 @@ function Scan.Overview(self, q, noAuto)
 		return nil
 	end
 	-- copying every result ("linen to csv"): every category's rows, not the categories themselves (release review: the
-	-- CSV had a line per category); summed up too, "q:rare type:sword | group by dungeon" (0.55.12, the player's
-	-- screenshot: the categories were grouped, none has a dungeon: 0 results)
+	-- CSV had a line per category); summed up too, "q:rare type:sword | group by dungeon"
 	local summing = ns.Aggregate and ns.Aggregate.Summing(self.aggregate)
 	if not noAuto and ((self.sendTo and self.sendTo.copy and self.sendTo.all) or summing) then
 		q.kinds = {}
 		for _, b in ipairs(order) do for k in pairs(ns.Easy.Kinds(b.c.id) or {}) do q.kinds[k] = true end end
-		-- (the rows found already, the lists only counted by name searched after: not every list read a second time, which
-		-- also took the overview's narrowing away; 0.55.18, review: two full passes a keystroke)
+		-- (the rows found already, the lists only counted by name searched after: not every list read a second time,
+		-- which also took the overview's narrowing away)
 		local cats = {}
 		for _, b in ipairs(order) do cats[b.c] = true end
 		q.matched = out

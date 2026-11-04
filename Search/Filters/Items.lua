@@ -13,10 +13,9 @@ local Generations, Keep, Kept, Forget = P.Generations, P.Keep, P.Kept, P.Forget
 -- how many items each cache below keeps in a generation (two generations: P.Generations)
 local CACHE_MAX = P.CACHE_MAX
 
--- An item the client hasn't loaded: asking its info makes the client fetch it from the server (review, 0.48.6:
--- "epic", "q:rare", "boe" asked for every AtlasLoot row on every keystroke, thousands at once, and the rows it said
--- nothing of were left out for good). At most F.ITEM_ASK such asks per search; past that nothing is asked, and both
--- ways F.loading is set: the search runs again once they're in (UI:RetryWhenLoaded), asking for the next ones.
+-- An item the client hasn't loaded: asking its info makes the client fetch it from the server. At most F.ITEM_ASK such
+-- asks per search; past that nothing is asked, and both ways F.loading is set: the search runs again once they're in
+-- (UI:RetryWhenLoaded), asking for the next ones.
 F.ITEM_ASK = 40
 local asksLeft = F.ITEM_ASK
 function F.ResetAsks() asksLeft = F.ITEM_ASK end
@@ -138,8 +137,8 @@ local stats = Generations(CACHE_MAX)
 local statNames = {} -- stat key (ITEM_MOD_STAMINA_SHORT) -> { its shown name, lowercase (false: none); the key, lowercase }
 --- The key an item row's stats are kept under (and its own link, if it has one): the item id, or with a row's own link
 --- with a random suffix, "of the Monkey", the id and the suffix (that copy's stats; under the id alone every copy got
---- the first one read, an AtlasLoot base link's had none; 0.49.2, review). nil: not an item.
---- An item's key by its link: the id, or with a random suffix ("of the Monkey") "id:suffix" (that copy's own stats).
+--- the first one read, an AtlasLoot base link's had none). nil: not an item. An item's key by its link: the id, or with
+--- a random suffix ("of the Monkey") "id:suffix" (that copy's own stats).
 local function ItemKey(id, link)
 	local suffix = type(link) == "string" and link:match("|Hitem:%-?%d+:[^:|]*:[^:|]*:[^:|]*:[^:|]*:[^:|]*:(%-?%d+)")
 	return (suffix and suffix ~= "0") and (id .. ":" .. suffix) or id
@@ -148,8 +147,7 @@ P.ItemKey = ItemKey
 local function StatKey(e)
 	local id = ItemOf(e)
 	if not id then return nil end
-	-- (the row's own link only: a loot row's is made on each read, "item:<id>", which has no suffix anyway; review,
-	-- 0.53.6: a new string per row per keystroke, twice per row for is:upgrade)
+	-- (the row's own link only: a loot row's is made on each read, "item:<id>", which has no suffix anyway)
 	local link = e.itemID and rawget(e, "link")
 	local own = type(link) == "string" and link:find("|H", 1, true) and link
 	return own and ItemKey(id, own) or id, id, own
@@ -169,14 +167,13 @@ local function Stats(e)
 	if not (get and info) then return nil end -- (not known to the client yet: asked again next time)
 	local ok, t = pcall(get, link)
 	if not (ok and type(t) == "table") then
-		-- no stats: the item has none only when the client has it; else they're still coming (0.51.7: kept as none,
-		-- is:upgrade judged it by item level alone until the cache moved on, then by its stats: counts that changed)
+		-- no stats: the item has none only when the client has it; else they're still coming
 		local cached = C_Item and C_Item.IsItemDataCachedByID
 		if cached and type(id) == "number" then
 			local okC, yes = pcall(cached, id)
 			if okC and yes == false then
-				-- (the client let go of it since its info was kept: asked again, and the search runs again once it's in,
-				-- as for its info; review, 0.53.6: the row was left out with nothing asked)
+				-- (the client let go of it since its info was kept: asked again, and the search runs again once it's
+				-- in, as for its info)
 				if MayAsk(id) and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
 				return nil
 			end
@@ -201,7 +198,7 @@ local STAT_WORDS = {
 	frost = "RESISTANCE4", shadow = "RESISTANCE5", arcane = "RESISTANCE6",
 	-- weapon damage: no item stat has it (StatIs never matches it); sharpening stones, weightstones: their effect text
 	weapondamage = "WEAPON_DAMAGE", wdmg = "WEAPON_DAMAGE", weapon_damage = "WEAPON_DAMAGE",
-	-- (.weights' words, Upgrades.lua's F.STAT_WORDS: stat:spellhit found nothing; 1.0.86, review)
+	-- (.weights' words, Upgrades.lua's F.STAT_WORDS: stat:spellhit found nothing)
 	spellhit = "SPELLHIT", spellcrit = "SPELLCRIT", feralap = "FERAL_ATTACK_POWER", spelldamage = "SPELL_POWER",
 	blockvalue = "BLOCK_VALUE", blockv = "BLOCK_VALUE",
 }
@@ -209,15 +206,14 @@ F.STATS = { "stamina", "strength", "agility", "intellect", "spirit", "armor", "a
 	"crit", "hit", "haste", "dodge", "parry", "block", "defense", "mp5", "dps", "fire", "frost",
 	"nature", "shadow", "arcane", "holy", "weapondamage" }
 
--- a stat word's part, where the part alone also names other stats in the game's keys (review, 0.53.6: mp5 found
--- HEALTH_REGEN, hp5; healing found HEALTH; ap ranged attack power, which has its own word; sp missed the older
--- SPELL_DAMAGE_DONE). Upgrades.lua's STAT_KINDS tells them apart the same way.
+-- a stat word's part, where the part alone also names other stats in the game's keys. Upgrades.lua's STAT_KINDS tells
+-- them apart the same way.
 local KEY_PARTS = {
 	REGEN = { "MANA_REGEN", "POWER_REGEN0" }, HEAL = { "HEALING" }, SPELL_POWER = { "SPELL_POWER", "SPELL_DAMAGE" },
 	ATTACK_POWER = { "MOD_ATTACK_POWER", "FERAL_ATTACK_POWER" },
 	SPELLHIT = { "HIT_SPELL", "SPELL_HIT" }, SPELLCRIT = { "CRIT_SPELL", "SPELL_CRIT" },
 }
--- (every part's list made once: StatIs made a table per stat per row per keystroke; 1.0.86, review)
+-- (every part's list made once: StatIs made a table per stat per row per keystroke)
 for _, part in pairs(STAT_WORDS) do if not KEY_PARTS[part] then KEY_PARTS[part] = { part } end end
 --- Does this stat key (ITEM_MOD_STAMINA_SHORT) answer to the typed word?
 local function StatIs(key, word)
@@ -321,8 +317,8 @@ local function IsConsumable(id) local c = ClassID(id); return c == nil or c == C
 local TRADEGOODS = Enum and Enum.ItemClass and Enum.ItemClass.Tradegoods or 7
 local function IsConsumableOrGoods(id) local c = ClassID(id); return c == nil or c == CONSUMABLE or c == TRADEGOODS end
 
--- What an item is, by the game's numbers (0.47.12): GetItemInfoInstant's class and subclass, the same in every language.
--- type: took only the names (the client's own: "One-Handed Swords", "Einhandschwerter"), so "sword" and Simple mode's
+-- What an item is, by the game's numbers: GetItemInfoInstant's class and subclass, the same in every language. type:
+-- took only the names (the client's own: "One-Handed Swords", "Einhandschwerter"), so "sword" and Simple mode's
 -- everyday words found nothing in another client's language. Each English word: its class * 100 + subclass numbers
 -- (Enum.ItemWeaponSubclass, Enum.ItemArmorSubclass, the consumables'); a whole class by CLASS_WORDS.
 local TYPE_IDS = {
@@ -427,7 +423,7 @@ local function EffectNames(word)
 	local names = {}
 	for _, g in ipairs(F.StatGameNames(word)) do names[#names + 1] = Stemmed(g) end
 	-- (weapon damage has no name of its own in the game: on another client, the game's words for weapon and for damage,
-	-- both in the text, say it: "den Schaden einer Waffe", "les dégâts d'une arme", "урон оружия", "武器伤害"; 0.69.6)
+	-- both in the text, say it: "den Schaden einer Waffe", "les dégâts d'une arme", "урон оружия", "武器伤害")
 	if part == "WEAPON_DAMAGE" then
 		local lang = ns.LOCALE
 		local weapon, damage = _G.WEAPON, _G.DAMAGE
@@ -525,11 +521,11 @@ local SLOT_ALIAS = {
 }
 -- an item slot type's own letters for a slot word the game's name may not have (Two-Hand: 2hweapon)
 local SLOT_LOC = { ["two-hand"] = "2hweapon", ["off hand"] = "offhand", ["main hand"] = "mainhand", ["one-hand"] = "invtype_weapon" }
--- (0.47.12) slot words whose item slot types don't hold them: matched by the English client's names only, so "back",
--- "hands" and "chest" found nothing in another language (INVTYPE_CLOAK is "Rücken" there)
+-- slot words whose item slot types don't hold them: matched by the English client's names only, so "back", "hands" and
+-- "chest" found nothing in another language (INVTYPE_CLOAK is "Rücken" there)
 local SLOT_TOKENS = { back = { invtype_cloak = true }, hands = { invtype_hand = true }, chest = { invtype_robe = true },
 	["off hand"] = { invtype_holdable = true }, ranged = { invtype_rangedright = true, invtype_thrown = true },
-	shirt = { invtype_body = true }, shirts = { invtype_body = true } } -- (shirt: INVTYPE_BODY; review, 0.53.6)
+	shirt = { invtype_body = true }, shirts = { invtype_body = true } } -- (shirt: INVTYPE_BODY)
 -- how enchants name the slot they go on
 local ENCHANT_WORDS = {
 	wrist = { "bracer", "wrist" }, feet = { "boots", "boot", "feet" }, hands = { "gloves", "glove", "hands" },
@@ -612,16 +608,16 @@ local BIND_QUEST = Enum and Enum.ItemBind and Enum.ItemBind.Quest or 4
 
 local function Soulbound(e) return e.itemID ~= nil and e.bound == true end
 
---- Enchanted gear (0.64.2, the player's ask: "is:enchanted for gear in bags and bank"): rows of yours know whether a copy
---- is enchanted or not (enchanted / unenchanted: Items.lua, Stored.lua; one row per item, so two copies answer both);
---- else the row's link says. is:unenchanted: gear without one (-is:enchanted would take in cloth and potions too).
+--- Enchanted gear: rows of yours know whether a copy is enchanted or not (enchanted / unenchanted: Items.lua,
+--- Stored.lua; one row per item, so two copies answer both); else the row's link says. is:unenchanted: gear without one
+--- (-is:enchanted would take in cloth and potions too).
 local function Enchanted(e)
 	if not e.itemID then return false end
 	if e.enchanted ~= nil or e.unenchanted ~= nil then return e.enchanted == true end
 	local ench = ns.LinkEnchant(e.link)
 	return ench ~= nil and ench ~= 0
 end
--- (the slots an enchant goes on: not a shirt, tabard, neck, ring, trinket, held off-hand, relic or thrown; review, 0.64.3)
+-- (the slots an enchant goes on: not a shirt, tabard, neck, ring, trinket, held off-hand, relic or thrown)
 local ENCHANTABLE = { INVTYPE_HEAD = true, INVTYPE_SHOULDER = true, INVTYPE_CHEST = true, INVTYPE_ROBE = true,
 	INVTYPE_LEGS = true, INVTYPE_FEET = true, INVTYPE_WRIST = true, INVTYPE_HAND = true, INVTYPE_CLOAK = true,
 	INVTYPE_WEAPON = true, INVTYPE_2HWEAPON = true, INVTYPE_WEAPONMAINHAND = true, INVTYPE_WEAPONOFFHAND = true,
@@ -670,8 +666,7 @@ KEYS.ilvl = function(v)
 end
 KEYS.itemlevel = KEYS.ilvl
 
--- value:>1g: what the row sells to a vendor for (a stack: all of it), as sort:value and | sum value count it (0.66.5:
--- "items worth more than 1g" in plain words)
+-- value:>1g: what the row sells to a vendor for (a stack: all of it), as sort:value and | sum value count it
 KEYS.value = function(v)
 	local r = F.MoneyRange(v)
 	return r and function(e)

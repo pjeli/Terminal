@@ -1,8 +1,8 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Your own commands (0.50.4, the player's ask): .alias <name> <what it runs> makes .<name> a command of yours, kept for
--- every character (TerminalDB.commandAliases: a new name, nothing of the old .alias kept). What it runs:
+-- Your own commands: .alias <name> <what it runs> makes .<name> a command of yours, kept for every character
+-- (TerminalDB.commandAliases: a new name, nothing of the old .alias kept). What it runs:
 --
 --   a search or a question   .alias rep durability            .rep: the terminal shows "durability"
 --                            .alias mcs molten core > steps   (any search, Simple or Advanced, a chain, a question)
@@ -58,10 +58,10 @@ end
 local function ShowSearch(line)
 	local UI = ns.UI
 	if not UI then return end
-	-- (Advanced syntax in Simple mode, "@durability is:damaged": searched as typed, Simple mode kept; 0.55.9)
+	-- (Advanced syntax in Simple mode, "@durability is:damaged": searched as typed, Simple mode kept)
 	local open = UI:IsShown()
 	if not open then UI:Open("") end
-	-- (the bar's picks were for the line the alias ran from: kept with the step, Shift+Left brings them back; 0.55.18)
+	-- (the bar's picks were for the line the alias ran from: kept with the step, Shift+Left brings them back)
 	local B = ns.Bar
 	local saved = B and B.Save()
 	if B then B.Reset() end
@@ -75,14 +75,12 @@ local function Taken(name)
 end
 
 --- What an alias runs once the aliases it names are followed: ".h" with h = ".heal" and heal = "/cast Flash Heal" is
---- "/cast Flash Heal" (0.50.7, review: run through .heal's own command, a slash line went out from Terminal's code,
---- tainted, not pressed by the game). Terminal's own commands, and loops past MAX_DEPTH, stay as they are.
+--- "/cast Flash Heal". Terminal's own commands, and loops past MAX_DEPTH, stay as they are.
 function A.Resolve(text, n)
 	n = n or 0
 	if Kind(text) ~= "dot" or n >= A.MAX_DEPTH then return text end
 	local word, rest = text:match("^%.(%S+)%s*(.-)$")
-	-- (the store's names are lowercase, as A.Set keeps them: ".Heal" names heal too; review, 0.53.6: it missed, and ran
-	-- .heal's /cast from Terminal's code, the tainted path 0.50.7 closed)
+	-- (the store's names are lowercase, as A.Set keeps them: ".Heal" names heal too)
 	local target = word and (Store() or {})[ns.Lower(word)]
 	if type(target) ~= "string" or Taken(word) then return text end
 	return A.Resolve(A.Expand(target, rest), n + 1)
@@ -105,7 +103,7 @@ local function Define(name, original)
 		-- the chat box by Terminal, as the slash rows' own fallback)
 		def.secure = { macro = function() return A.Expand(text, ns.UI and ns.UI.args) end }
 		def.isOpen = ns.Never
-		-- (its command only: "/w Bob hi" names someone; 1.0.83, review)
+		-- (its command only: "/w Bob hi" names someone)
 		def.after = function() ns:Trace("alias: the game ran " .. (A.Expand(text, ns.UI and ns.UI.args):match("^%S*") or "")) end
 		def.run = function(args) if ns.RunSlash then ns.RunSlash(A.Expand(text, args)) end end
 	end

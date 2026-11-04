@@ -5,8 +5,8 @@ local L = ns.L
 -- out of Pipes.lua (now Steps/Chains.lua, the ">" chains) as it was.
 
 ----------------------------------------------------------------------
--- Summing up (0.52.13, the player's ask): Advanced mode's "|" standing alone ends the search; what follows works on
--- every row it found (not only the 100 a list shows), as a shell's pipe:
+-- Summing up: Advanced mode's "|" standing alone ends the search; what follows works on every row it found (not only
+-- the 100 a list shows), as a shell's pipe:
 --
 --   in:bags | sum value             what all of it would sell for at a vendor: one row
 --   @quest | group zone             a row per zone with how many are there, the most first ("group by zone" too)
@@ -14,8 +14,8 @@ local L = ns.L
 --   in:bags | sum value by quality  a total per quality (and all of them on top); "| avg ilvl by slot"
 --   @quest | zone:"Elwynn Forest"   only the rows with that (a group's Enter writes it: Shift+Left goes back)
 --
--- Steps chain: "in:bags | q:rare | sum value". The words are fields (ns.Aggregate.FIELDS); a row without one is
--- left out of a sum, and of the groups (0.53.4: no "no zone" group).
+-- Steps chain: "in:bags | q:rare | sum value". The words are fields (ns.Aggregate.FIELDS); a row without one is left
+-- out of a sum, and of the groups.
 ----------------------------------------------------------------------
 
 local A = {}
@@ -47,11 +47,10 @@ function A.Progress(e)
 	end
 end
 
---- A loot row's boss, place and the place's kind ("dungeon", "raid", "world": AtlasLoot's World Bosses; nil: not
---- known, an index from before 0.51.9)
---- ("Edwin VanCleef  The Deadmines": two spaces between them, Loot.lua's GroupText). Only a dungeon's or a raid's:
---- AtlasLoot's other tables (battlegrounds, professions, factions, PvP...) are no instance and their pages no boss
---- (0.53.1, the player: "count by dungeon" listed Arathi Basin and Leatherworking).
+--- A loot row's boss, place and the place's kind ("dungeon", "raid", "world": AtlasLoot's World Bosses; nil: not known,
+--- an index from before 0.51.9) ("Edwin VanCleef  The Deadmines": two spaces between them, Loot.lua's GroupText). Only
+--- a dungeon's or a raid's: AtlasLoot's other tables (battlegrounds, professions, factions, PvP...) are no instance and
+--- their pages no boss.
 local function LootParts(e)
 	if e.kind ~= "loot" then return nil end
 	local I = ns.Integrations
@@ -64,8 +63,7 @@ local function LootParts(e)
 	return Str(boss), Str(place), kind
 end
 
---- A loot row's place when it's of this kind (0.53.3, the player: "by raid" listed dungeons, "by dungeon" raids;
---- "by instance" is either).
+--- A loot row's place when it's of this kind.
 local function PlaceOfKind(want)
 	return function(e)
 		local _, place, kind = LootParts(e)
@@ -129,22 +127,22 @@ A.FIELDS = {
 	ilvl = { label = L["item level"], num = function(e) local i = Info(e); return i and Num(i.ilvl) end, order = true },
 	count = { label = L["count"], num = function(e) return Count(e) or 1 end },
 	-- (how far along, 0 to 1: an achievement's criteria ("3/10"), a quest's objectives in your log ("Gnoll Paw: 3/8");
-	-- sort:progress, the closest to done first; 1.0.59, the reach audit)
+	-- sort:progress, the closest to done first)
 	progress = { label = ns.Lower(L["Progress"]), num = function(e) return A.Progress(e) end },
-	-- (sort:grey: your quest log's grey quests first, then by level, as "quests to drop" lists them; 1.0.78)
+	-- (sort:grey: your quest log's grey quests first, then by level, as "quests to drop" lists them)
 	grey = { label = ns.Lower(L["Grey first"]), num = function(e) if e.kind ~= "quests" then return nil end return e.grey and 0 or 1 end },
-	-- (a recipe's profession, its own: Smelting's are Mining's; sort:need's tie, "| group by prof"; 1.0.79)
+	-- (a recipe's profession, its own: Smelting's are Mining's; sort:need's tie, "| group by prof")
 	prof = { label = ns.Lower(L["Profession"]), text = function(e) local n = rawget(e, "profName") or e.profName return n and tostring(n) or nil end },
-	-- (sort:need: the skill a recipe to learn needs, the least first; 1.0.79)
+	-- (sort:need: the skill a recipe to learn needs, the least first)
 	need = { label = ns.Lower(L["Skill needed"]), num = function(e) local n = rawget(e, "need") if n == nil then n = e.need end return tonumber(n) end },
-	-- (how far, where it was worked out: the rows of a search sorted by distance; sort:level,distance. 0.66.16)
+	-- (how far, where it was worked out: the rows of a search sorted by distance; sort:level,distance.)
 	distance = { label = L["distance"], num = function(e) return Num(rawget(e, "_dist")) end },
-	-- (an attunement's steps, line by line as Attune's tree reads them: sort:line; 0.55.21)
+	-- (an attunement's steps, line by line as Attune's tree reads them: sort:line)
 	line = { label = L["line"], num = function(e) return e.stepRec and e.stepIndex or nil end },
-	-- (who has it: a friend's, Terminal: Share's @shared rows; the bar's Group and Sort, sort:owner; 0.58.6)
+	-- (who has it: a friend's, Terminal: Share's @shared rows; the bar's Group and Sort, sort:owner)
 	owner = { label = L["owner"], text = function(e) return Str(rawget(e, "owner")) end },
-	-- (a reputation's: its faction (a reward's, its quartermaster's) and its standing (a reward's: the one it needs); the
-	-- bar's Group and Sort, sort:standing; 1.0.27, the player's ask)
+	-- (a reputation's: its faction (a reward's, its quartermaster's) and its standing (a reward's: the one it needs);
+	-- the bar's Group and Sort, sort:standing)
 	faction = { label = L["faction"], text = function(e)
 		if e.kind ~= "reputation" then return nil end
 		return Str(e.repReward and e.faction or e.name)
@@ -154,7 +152,7 @@ A.FIELDS = {
 			local n = f.num(e)
 			return n and (ns.StandingName(n) or tostring(n)) or nil -- (Util.lua)
 		end, order = true },
-	-- (the combat log's hits: sort:damage; 0.55.7)
+	-- (the combat log's hits: sort:damage)
 	damage = { label = L["damage"], num = function(e) return e.kind == "combatlog" and Num(e.amount) or nil end },
 	price = { label = L["price"], money = true, num = function(e) local i = Info(e); return i and Num(i.sell) end },
 	value = { label = L["value"], money = true, num = function(e)
@@ -171,8 +169,8 @@ A.ALIASES = { q = "quality", lvl = "level", itemlevel = "ilvl", ["in"] = "zone",
 A.ORDER = { "value", "price", "count", "kind", "owner", "faction", "standing", "zone", "instance", "dungeon", "raid", "boss", "quality", "type", "subtype", "slot", "level", "ilvl" }
 A.OPS = { count = "count", group = "group", sum = "sum", total = "sum", avg = "avg", average = "avg", mean = "avg" }
 A.FIRST_WORDS = { first = true, top = true, head = true }
--- Comparing two searches (0.66.10, the player): "| except @bank" leaves out what the other search finds, "| also
--- @stored" adds it. "Recipes my alts know that I don't", "mats on my alts but not on me".
+-- Comparing two searches: "| except @bank" leaves out what the other search finds, "| also @stored" adds it. "Recipes
+-- my alts know that I don't", "mats on my alts but not on me".
 A.EXCEPT_WORDS = { except = true, minus = true, without = true }
 A.ALSO_WORDS = { also = true, plus = true, union = true }
 A.FIRST_MAX = 100 -- (a search lists 100 at most)
@@ -228,11 +226,10 @@ local function ParseStep(step)
 		local exact = value:match('^"(.*)"?$')
 		value = (exact or value):gsub('"', ""):gsub("^%s+", ""):gsub("%s+$", "")
 		if value == "" then return { bad = L["say what %s to keep: %s:\"...\""]:format(field, field) } end
-		-- (a number: kept by its range, as the filters read one; review, 0.53.6: "| lvl:20-30" kept nothing, "| lvl:2"
-		-- kept level 25 as "2" is in "25")
+		-- (a number: kept by its range, as the filters read one)
 		local fd = A.FIELDS[f]
 		if fd.num and not fd.text then
-			-- (money read as the value: filter reads it, "| value:>1g"; 1.0.86, review: "a number or a range")
+			-- (money read as the value: filter reads it, "| value:>1g")
 			local Fs = ns.Filters
 			local test = Fs and ((fd.money and Fs.MoneyRange and Fs.MoneyRange(value)) or (Fs.Range and Fs.Range(value)))
 			if not test then return { bad = L["a number or a range: %s:20-30"]:format(field) } end
@@ -242,13 +239,13 @@ local function ParseStep(step)
 	end
 	local ws = {}
 	for w in step:gmatch("%S+") do ws[#ws + 1] = ns.Lower(w) end
-	-- "| except @bank", "| also @stored": another search, its rows left out or added (0.66.10)
+	-- "| except @bank", "| also @stored": another search, its rows left out or added
 	if A.EXCEPT_WORDS[ws[1] or ""] or A.ALSO_WORDS[ws[1] or ""] then
 		local other = step:match("^%S+%s+(.-)%s*$")
 		if not other or other == "" then return { bad = L["what to compare with: | except @bank, | also @stored"] } end
 		return { other = other, except = A.EXCEPT_WORDS[ws[1]] and true or nil }
 	end
-	-- "| first 3": the first three, in the search's order (0.66.7, the player: "the 3 nearest mailboxes")
+	-- "| first 3": the first three, in the search's order
 	if A.FIRST_WORDS[ws[1] or ""] then
 		local n = tonumber(ws[2] or "")
 		if not ws[2] then return { bad = "" } end
@@ -342,7 +339,7 @@ local function TextOf(name, e)
 	return n and tostring(n) or nil
 end
 
--- (a field's text lowercased once per text, not once per row: thousands of rows share a few zones; 1.0.87, review)
+-- (a field's text lowercased once per text, not once per row: thousands of rows share a few zones)
 local plainLower, plainN = {}, 0
 local function PlainLower(t)
 	local v = plainLower[t]
@@ -513,9 +510,8 @@ local function Said(r)
 	return r
 end
 
---- What a group's Enter writes: the search with the group's own filter added, as you'd type it (0.53.1, the player: the
---- filters work without a "|", so "@loot q:rare", not "@loot | quality:\"Rare\""); a field no filter says the same of
---- (kind, slot, a name with quote marks in it) keeps its rows by a step, "| slot:\"Finger\"".
+--- What a group's Enter writes: the search with the group's own filter added, as you'd type it; a field no filter says
+--- the same of (kind, slot, a name with quote marks in it) keeps its rows by a step, "| slot:\"Finger\"".
 local DrillTo
 local FILTER_OF = {
 	quality = function(g, f) local q = f.num(g.sample) return q and ns.Filters.QUALITIES and ns.Filters.QUALITIES[q + 1] and ("q:" .. ns.Filters.QUALITIES[q + 1]) end,
@@ -536,12 +532,11 @@ DrillTo = function(spec, by, g)
 	local word = make and make({ text = text, sample = g.sample }, A.FIELDS[by])
 	local steps = {}
 	for _, st in ipairs(spec.keepSteps or {}) do steps[#steps + 1] = " | " .. st end
-	-- (a space after the filter: the caret right after a key:value would list its values to pick, not the rows)
-	-- (after the steps too: the caret after "| q:rare" listed q:'s values; review, 0.53.6)
-	-- (the line has it already: not written twice; 0.55.10, the player's screenshot had in:"Winterspring" seven times)
+	-- (a space after the filter: the caret right after a key:value would list its values to pick, not the rows) (after
+	-- the steps too: the caret after "| q:rare" listed q:'s values) (the line has it already: not written twice;
+	-- 0.55.10, the player's screenshot had in:"Winterspring" seven times)
 	local q = spec.query:gsub("%s+$", "")
-	-- (0.61.5, the player: "@questie Death", grouped by zone, Enter on Deathknell left "Death" in the line beside
-	-- in:"Deathknell": typed to find the group, not to narrow its rows) the plain words the group's name has go
+	-- the plain words the group's name has go
 	if word then q = A.DropNamed(q, text) end
 	if word and (" " .. q .. " "):find(" " .. word .. " ", 1, true) then return q .. table.concat(steps) .. " " end
 	if word then return q .. " " .. word .. table.concat(steps) .. " " end
@@ -552,7 +547,7 @@ end
 --- not @kinds, key:value filters, quoted phrases, -words or a word after "not"; an "or" before a word taken goes too.
 function A.DropNamed(line, name)
 	-- (a word starts the group's name, or one of its words: "death" Deathknell, "glades" Tirisfal Glades; not "ring" in
-	-- Winterspring: the search matches at word starts too; release review, 0.63.0)
+	-- Winterspring: the search matches at word starts too)
 	local lname = " " .. ns.Lower(ns.Plain(tostring(name or ""))):gsub("[%s%p]+", " ")
 	local E = ns.Easy
 	local OR = (E and E.OR_WORDS) or { ["or"] = true }
@@ -621,11 +616,10 @@ local function Drill(e)
 end
 
 --- The rows the search found, put through the steps: the kept rows (only "where" steps), or the summed-up rows. Rows
---- whose item data isn't in yet ask for it and the search runs again (Filters.loading: UI:RetryWhenLoaded).
---- `base`: the text before the summing step (a group's Enter keeps its rows: base | field:"value").
---- Do the steps change what the search gives (sum it up, or keep some of its rows)? Then the search hands over every
---- match, untrimmed and with no close spellings, and A.Apply sorts and trims what's kept (review, 0.53.6: a keeping
---- step alone ran over the best 100: "| zone:\"Cap Cove\"" listed 9 of a group's 30).
+--- whose item data isn't in yet ask for it and the search runs again (Filters.loading: UI:RetryWhenLoaded). `base`: the
+--- text before the summing step (a group's Enter keeps its rows: base | field:"value"). Do the steps change what the
+--- search gives (sum it up, or keep some of its rows)? Then the search hands over every match, untrimmed and with no
+--- close spellings, and A.Apply sorts and trims what's kept.
 function A.Summing(spec)
 	return spec ~= nil and not spec.bad and (spec.last ~= nil or #(spec.wheres or {}) > 0)
 end
@@ -666,8 +660,8 @@ function A.Apply(spec, res, base)
 			rows = kept
 		end
 		if not s then
-			-- (the search's own order kept, its lines (a heading, a note) dropped; none kept: its note saying why stays,
-			-- "3 nearest mailboxes in moonglade" listed nothing at all; 0.68.16)
+			-- (the search's own order kept, its lines (a heading, a note) dropped; none kept: its note saying why
+			-- stays, "3 nearest mailboxes in moonglade" listed nothing at all)
 			if #rows == 0 then
 				local notes = {}
 				for _, e in ipairs(res or {}) do if e.noActivate and not e.lead then notes[#notes + 1] = e end end
@@ -687,8 +681,8 @@ function A.Apply(spec, res, base)
 	-- one total ("sum value") or one per group ("group zone", "sum value by zone")
 	local groups, order = {}, {}
 	local total, have = 0, 0
-	local texts -- (each row's group, read once: a zone is a Questie lookup per NPC row; review, 0.53.6)
-	if s.by then -- (by raid: the raids' rows alone, no "no raid" group; by slot: what has one; 0.53.4, the player)
+	local texts -- (each row's group, read once: a zone is a Questie lookup per NPC row)
+	if s.by then -- (by raid: the raids' rows alone, no "no raid" group; by slot: what has one)
 		local kept = {}
 		texts = {}
 		for _, e in ipairs(rows) do
@@ -757,7 +751,7 @@ function A.Apply(spec, res, base)
 		local name = g.text
 		if s.by == "quality" and g.text then
 			local _, hex = QualityName(byField.num(g.sample))
-			if hex then name = hex .. g.text .. "|r" end -- (0.52.14, the player's screenshot: "|c" put before it showed)
+			if hex then name = hex .. g.text .. "|r" end
 		end
 		local detail, copyDetail = ResultsN(g.n), nil
 		if f then

@@ -7,7 +7,7 @@ local L = ns.L
 -- "quotes", \ escapes, globs, | pipes, ; && ||, > and >> into /tmp, # comments, !! and !N), each command is one of the
 -- shell's own (ls, cd, cat, grep, find, sort, uniq...) or any of Terminal's (.snake, .wowamp, .atop..., with or without
 -- the dot), and every stage hands the next its lines. The console (Console.lua) runs a line in a coroutine and gives
--- the shell a frame's time at a time: `sh:Check()` yields when that's spent, `sh:Sleep(s)` waits; a test runs a line
+-- the shell a frame's time at a time: `sh:Check` yields when that's spent, `sh:Sleep(s)` waits; a test runs a line
 -- straight through (`sh.yieldable` unset).
 
 local FS = ns.ConsoleFS
@@ -67,7 +67,7 @@ function SH.Lex(line)
 					quoted = true
 					i = i + 2
 				elseif c == '"' then
-					-- (a backslash in double quotes escapes " \ $ `, as bash's; 1.0.88, review: echo "a\"b" left a quote open)
+					-- (a backslash in double quotes escapes " \ $ `, as bash's)
 					quoted = true
 					local j, closed = i + 1, false
 					while j <= n do
@@ -152,8 +152,8 @@ end
 local Session = {}
 Session.__index = Session
 
---- A new session. `opts`: print(line), clear(), ui (the console's: Split, ClosePane, Layout, Panes, Kill...),
---- history (a list shared between sessions).
+--- A new session. `opts`: print(line), clear, ui (the console's: Split, ClosePane, Layout, Panes, Kill...), history (a
+--- list shared between sessions).
 function SH.Session(opts)
 	opts = opts or {}
 	local sh = setmetatable({
@@ -203,7 +203,7 @@ function Session:Remember(line)
 	local h = self.history
 	if line:match("^%s") or line == "" then return end -- (a line starting with a space isn't kept, as bash's ignorespace)
 	if SH.Secret(line) then return end
-	if SH.SharedLine(line, self.cwd) then return end -- (a friend's folder named in it: not kept; review, 1.0.32)
+	if SH.SharedLine(line, self.cwd) then return end -- (a friend's folder named in it: not kept)
 	if h[#h] ~= line then h[#h + 1] = line end
 	while #h > SH.HISTORY_MAX do table.remove(h, 1) end
 end
@@ -328,7 +328,7 @@ FS.Commands = SH.AllCommands
 --- nil and the error.
 function SH.Opts(args, spec, long, numbers)
 	local takes, flag = {}, {}
-	for letter, colon in spec:gmatch("(%w)(:?)") do -- (ls -1 too; 1.0.88, review)
+	for letter, colon in spec:gmatch("(%w)(:?)") do -- (ls -1 too)
 		if colon == ":" then takes[letter] = true else flag[letter] = true end
 	end
 	local opts, rest, i = {}, {}, 1
@@ -416,8 +416,7 @@ local function RegexToLua(re)
 end
 
 --- Splits a regular expression at its top-level "|" (and "\|", as grep's basic syntax writes it), and spells out a
---- group of alternatives ("lin(en|t)" -> "linen", "lint"; 1.0.88, review: split inside the group, each half a broken
---- pattern, it matched nothing). At most 32 alternatives.
+--- group of alternatives ("lin(en|t)" -> "linen", "lint"). At most 32 alternatives.
 local function SplitTop(re)
 	local parts, buf, depth, paren, i = {}, {}, 0, 0, 1
 	while i <= #re do
@@ -710,8 +709,7 @@ local function RunPipeline(sh, pipeline)
 		else out = function(l) lines[#lines + 1] = l end end
 		status = SH.RunWords(sh, words, input, out)
 		input = lines
-		-- (a > on any stage: the file written, and the next stage gets nothing, as bash does; 1.0.88, review: dropped
-		-- unless on the last)
+		-- (a > on any stage: the file written, and the next stage gets nothing, as bash does)
 		if cmd.out then
 			local target = WriteTarget(sh, cmd.out.v)
 			if not target then
@@ -750,7 +748,7 @@ end
 ----------------------------------------------------------------------
 
 --- What NPCs sell (Questie's items, every one): the first cat or grep on /npc waits for it, and the first after the
---- idle sweep let it go (review, 1.0.72).
+--- idle sweep let it go.
 local function EnsureSold(io, d)
 	local I = ns.Integrations
 	local ready = FS.sold and not (I and I.NpcItemsReady and not I.NpcItemsReady())
@@ -1267,7 +1265,7 @@ SH.Command("rm", {
 			return 1
 		end
 		local opts, rest = SH.Opts(io.args, "rf")
-		-- (an option it doesn't know: said, as every command does; "rm -k" was a Lua error, 0.68.13, review)
+		-- (an option it doesn't know: said, as every command does; "rm -k" was a Lua error)
 		if not opts then io.err(rest) return 2 end
 		for _, a in ipairs(rest) do
 			local target = WriteTarget(io.sh, a)
@@ -1392,14 +1390,13 @@ SH.Command("link", {
 	args = "path",
 	run = function(io)
 		local path = PathArgs(io, io.args)[1]
-		-- (not `path and Resolve(...)`: an and keeps one value, and "No such file" was lost for "missing operand"; review,
-		-- 0.67.12)
+		-- (not `path and Resolve(...)`: an and keeps one value, and "No such file" was lost for "missing operand")
 		local node, err
 		if path then node, err = Resolve(io, path) end
 		if not node then io.err(err or L["missing operand"]) return 1 end
 		if node.kind ~= "file" or node.e.special then io.err(L["no link"]) return 1 end
 		local e = node.e
-		-- (an error's message isn't the text: select(2, pcall(...)) put it in the chat box; 1.0.88, review)
+		-- (an error's message isn't the text: select(2, pcall(...)) put it in the chat box)
 		local function Try(fn, ...) local ok, v = pcall(fn, ...) if ok then return v end end
 		local text = ns.Share and ns.Share.Text and Try(ns.Share.Text, e) or nil
 		if type(text) ~= "string" or text == "" then
@@ -1925,12 +1922,12 @@ SH.Z_AGE = 1000 -- (the ranks' sum past which every rank is aged by a tenth, as 
 
 local function Now() return time and time() or 0 end
 
---- The folders kept: path -> { r = rank, t = last visit (time()) }, kept between sessions.
+--- The folders kept: path -> { r = rank, t = last visit (time) }, kept between sessions.
 function SH.ZData()
 	local d = SH.Data()
 	if not d then return {} end
 	d.z = type(d.z) == "table" and d.z or {}
-	if not d.zShared then -- (friends' folders kept before 1.0.17 left them out: gone; review, 1.0.32)
+	if not d.zShared then -- (friends' folders kept before 1.0.17 left them out: gone)
 		for p in pairs(d.z) do if SH.IsShared(p) then d.z[p] = nil end end
 		d.zShared = true
 	end
@@ -1952,13 +1949,13 @@ function SH.SharedLine(line, cwd)
 	if SH.IsShared(cwd) then return true end
 	local d = FS.DirOf and FS.DirOf("shared")
 	local top = Lower((d and d.name) or "shared"):gsub("%p", "%%%0")
-	-- (the folder named however it's followed: "cd /shared && cd Bob" was kept; 1.0.88, review)
+	-- (the folder named however it's followed: "cd /shared && cd Bob" was kept)
 	return Lower(line):find("%f[%w_]" .. top .. "%f[^%w_]") ~= nil
 end
 
 function SH.ZAdd(path, now)
 	if type(path) ~= "string" or path == "/" or path == "" then return end
-	if SH.IsShared(path) then return end -- (a friend's folder isn't kept: their names; review, 1.0.17)
+	if SH.IsShared(path) then return end -- (a friend's folder isn't kept: their names)
 	local z = SH.ZData()
 	local e = type(z[path]) == "table" and z[path] or { r = 0 }
 	e.r, e.t = (tonumber(e.r) or 0) + 1, now or Now()
@@ -2149,8 +2146,7 @@ end
 
 --- The prompt line for a session (painted, a space at its end). spec: the parts; false: classic; nil: as set.
 function SH.PromptLine(sh, spec)
-	-- (false is classic itself: `spec or ...` made the presets list draw classic as the prompt you have; the player's
-	-- screenshot, 0.68.0)
+	-- (false is classic itself: `spec or ...` made the presets list draw classic as the prompt you have)
 	if spec == nil then spec = SH.PromptSpec() end
 	if not spec then
 		return Paint("green", FS.User() .. "@" .. FS.Host()) .. Paint("dim", ":") .. Paint("blue", SH.Literal(FS.Pretty(sh.cwd)))
@@ -2389,7 +2385,7 @@ local function CommonPrefix(list)
 		local s = list[i]
 		local n = 0
 		while n < #p and n < #s and Lower(p:sub(n + 1, n + 1)) == Lower(s:sub(n + 1, n + 1)) do n = n + 1 end
-		-- (never half a character: é and è share their first byte; 1.0.88, review)
+		-- (never half a character: é and è share their first byte)
 		while n > 0 and n < #p and p:byte(n + 1) >= 128 and p:byte(n + 1) < 192 do n = n - 1 end
 		if n > 0 and p:byte(n) >= 192 then n = n - 1 end
 		p = p:sub(1, n)

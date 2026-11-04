@@ -2,17 +2,16 @@ local ns = select(2, ...)
 
 -- Questie's quest, NPC and item data, read from the QuestieDB addon alone or through Questie.
 --
--- Newer Questie keeps its database in a separate addon, QuestieDB, which publishes it as
--- `LibQuestieDB` (entities `Quest`, `Npc`, `Item` with `Get(id, field)` and `GetAllIds()`, plus whole
--- support tables such as the zone maps). Questie's own `QueryQuestSingle` *is* `LibQuestieDB.Quest.Get`,
--- so reading LibQuestieDB gives the same answers, and with QuestieDB alone (no Questie: a Blizzard-like
--- UI) @questie, @npc and the Questie filters still work. When Questie is installed, its corrections and
--- translations go into that same shared data during its start-up, so reads wait until it is ready.
--- An older Questie with the data built in (no LibQuestieDB) is read through its QuestieLoader modules.
+-- Newer Questie keeps its database in a separate addon, QuestieDB, which publishes it as `LibQuestieDB` (entities
+-- `Quest`, `Npc`, `Item` with `Get(id, field)` and `GetAllIds`, plus whole support tables such as the zone maps).
+-- Questie's own `QueryQuestSingle` *is* `LibQuestieDB.Quest.Get`, so reading LibQuestieDB gives the same answers, and
+-- with QuestieDB alone (no Questie: a Blizzard-like UI) @questie, @npc and the Questie filters still work. When Questie
+-- is installed, its corrections and translations go into that same shared data during its start-up, so reads wait until
+-- it is ready. An older Questie with the data built in (no LibQuestieDB) is read through its QuestieLoader modules.
 --
--- `QD.DB()` gives a Questie-shaped table: QueryQuestSingle/QueryNPCSingle/QueryItemSingle(id, field),
--- QuestIds()/NpcIds()/ItemIds() (ascending id lists), npcFlags (the flag bits of this game version).
--- `QD.UiMapOfArea(areaId)` and `QD.DungeonLocation(areaId)` stand in for Questie's ZoneDB.
+-- `QD.DB` gives a Questie-shaped table: QueryQuestSingle/QueryNPCSingle/QueryItemSingle(id, field),
+-- QuestIds/NpcIds/ItemIds (ascending id lists), npcFlags (the flag bits of this game version). `QD.UiMapOfArea(areaId)`
+-- and `QD.DungeonLocation(areaId)` stand in for Questie's ZoneDB.
 
 local QD = {}
 ns.QuestieData = QD
@@ -98,13 +97,13 @@ local QUESTIE_DB = {} -- (an older Questie: its module, wrapped the same way)
 --- The data, Questie-shaped, or nil while it can't be read (see Ready).
 function QD.DB()
 	-- (the library wrapped already, and nothing it hangs on changed (the same library; Questie's module found, or no
-	-- Questie): at once. NPC filters ask per row on every keystroke; review, 0.53.6: Ready ran its checks each time)
+	-- Questie): at once. NPC filters ask per row on every keystroke)
 	if libDB and rawget(_G, "LibQuestieDB") == libFrom and (libModule or not QD.HasQuestie()) then
 		if libModule and type(libModule.npcFlags) == "table" then libDB.npcFlags = libModule.npcFlags end -- (its own, as below)
 		return libDB
 	end
 	-- (an older Questie, no library: its module wrapped already, the same Questie still there: at once, not two
-	-- ImportModule calls per NPC row; 0.63.7, review)
+	-- ImportModule calls per NPC row)
 	local w0 = QUESTIE_DB
 	if w0.module and w0.loader == rawget(_G, "QuestieLoader") and rawget(_G, "LibQuestieDB") == nil and QD.QuestieReady() then
 		w0.npcFlags = w0.module.npcFlags
@@ -213,9 +212,9 @@ end
 --- The zone tables: { map = areaId -> uiMapId, sub = sub area -> its zone's area, dungeons }, or nil.
 function QD.Zones() return LibZones() end
 
--- (0.49.2, review: "@npc ... sort:distance" asks here for every spawn's area, and each ask was a pcall'd ImportModule and
--- a pcall into ZoneDB: ~28k a keystroke. Questie's ZoneDB module is kept once found (looked up again for another
--- QuestieLoader), and each area's map once worked out, per source: a few hundred areas.)
+-- ("@npc ... sort:distance" asks here for every spawn's area, and each ask was a pcall'd ImportModule and a pcall into
+-- ZoneDB: ~28k a keystroke. Questie's ZoneDB module is kept once found (looked up again for another QuestieLoader), and
+-- each area's map once worked out, per source: a few hundred areas.)
 local zoneMod, zoneLoader -- Questie's ZoneDB module, and the QuestieLoader it came from
 local function ZoneModule()
 	if not QD.QuestieReady() then return nil end -- (as QD.Module: only once Questie is ready)
@@ -235,7 +234,7 @@ function QD.UiMapOfArea(areaId)
 	local ui = uiOfArea[areaId]
 	if ui == nil then
 		if src == Z then ui = Safe(Z.GetUiMapIdByAreaId, Z, areaId) else ui = src.map[areaId] end
-		-- (0 is "no map" on either path: Questie's ZoneDB passed it on as a map; 0.49.2, review)
+		-- (0 is "no map" on either path: Questie's ZoneDB passed it on as a map)
 		if type(ui) ~= "number" or ui == 0 then ui = false end
 		uiOfArea[areaId] = ui
 	end

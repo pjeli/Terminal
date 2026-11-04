@@ -6,11 +6,11 @@ local Safe, Str, Lower = ns.Safe, ns.Str, ns.Lower
 local AddOnVersion = I._.AddOnVersion
 
 ----------------------------------------------------------------------
--- Attune (0.50.2, the player's ask): its attunements, dungeon quest lines, keys and class quests become @attune
--- (@attunement), each with how far along you are and your next step, as Attune records them (Attune_DB: the steps it
--- has seen you do). Enter opens Attune's window on it and points at it; Shift+Enter puts it in the chat box. Only what
--- Attune itself lists for you: your faction's, your class's class quests (every class's with Attune's own option for
--- that), the retired ones only when Attune shows them.
+-- Attune: its attunements, dungeon quest lines, keys and class quests become @attune (@attunement), each with how far
+-- along you are and your next step, as Attune records them (Attune_DB: the steps it has seen you do). Enter opens
+-- Attune's window on it and points at it; Shift+Enter puts it in the chat box. Only what Attune itself lists for you:
+-- your faction's, your class's class quests (every class's with Attune's own option for that), the retired ones only
+-- when Attune shows them.
 --
 --   <attunement> > steps   its steps first to last (each quest line in turn), each saying whether it's done or next;
 --                          Enter opens Attune on that step (Attunements.lua)
@@ -100,8 +100,7 @@ local function Ids(v)
 	return out
 end
 
--- (a name given as "Quest #id" / "NPC #id" while Questie wasn't ready: the index is made again once it is; review,
--- 0.53.6: those stayed the steps' titles and search text for the session)
+-- (a name given as "Quest #id" / "NPC #id" while Questie wasn't ready: the index is made again once it is)
 local fellBack = false
 local function QuestName(id)
 	local n = Lang("Q1_" .. id)
@@ -251,10 +250,10 @@ local function Add(map, id, aid)
 	t[#t + 1] = aid
 end
 
--- The steps' numbers (0.55.20, the player: "do a better job of outlining what the steps are"): Attune's rows (STAGE) in
--- order are the numbers, 1, 2, 3; where lines of quests run side by side, each line has its letter, the same down the
--- rows: 2a, 3a, 4a is one line, 2b, 3b the next. A side quest (Attune's SIDE: one you'll come across inside, drawn in its
--- "Inside the dungeon" box) has no number: it says so (r.label nil, r.side). Sets r.label ("2a") and rec.stages.
+-- The steps' numbers: Attune's rows (STAGE) in order are the numbers, 1, 2, 3; where lines of quests run side by side,
+-- each line has its letter, the same down the rows: 2a, 3a, 4a is one line, 2b, 3b the next. A side quest (Attune's
+-- SIDE: one you'll come across inside, drawn in its "Inside the dungeon" box) has no number: it says so (r.label nil,
+-- r.side). Sets r.label ("2a") and rec.stages.
 --
 -- 0.56.6 (Attune 16001-32, the player: "support the new look ... for labeling steps"), as its chart reads:
 --   letters left to right as it draws them (r.x, AT.Columns: a row's lowest step on the right, so "a" was the right one)
@@ -425,7 +424,7 @@ function AT.Index()
 			idx.byId[aid] = idx.byId[aid] or rec
 		end
 	end
-	-- (its tables there, but not as lists: nothing read; said, not an empty @attune. 0.63.7, review)
+	-- (its tables there, but not as lists: nothing read; said, not an empty @attune.)
 	if #idx.list == 0 and (next(D.attunes) ~= nil or next(D.steps) ~= nil) then
 		I.Failed("Attune", L["@attune is unavailable."], ("Attune_Data: %d attunements, %d steps as lists; none read"):format(#D.attunes, #D.steps))
 	end
@@ -463,7 +462,7 @@ local function MyToon()
 	if not first then return nil end
 	if last then
 		-- (with both names, only that record: another starting with the first name is another character, an alt with
-		-- the same first name. Review, 0.53.6: its attunements were shown as yours before you had a record)
+		-- the same first name. Review)
 		if type(toons[first .. " " .. last]) ~= "table" then return nil end
 		myKey = first .. " " .. last
 		return toons[myKey], myKey
@@ -1071,9 +1070,9 @@ AT.STEP_LAZY = {
 	attuneId = function(t) return t.stepRec.aid end,
 }
 
---- An attunement's step rows, by their numbers: 1, 2a, 2b, 2c, 3a... (0.55.21, the player), side quests last; each line
---- of quests in turn, as Attune's tree reads it, is the bar's Sort "Line by line" (sort:line: stepIndex). `how`: what the
---- chain says found them.
+--- An attunement's step rows, by their numbers: 1, 2a, 2b, 2c, 3a..., side quests last; each line of quests in turn, as
+--- Attune's tree reads it, is the bar's Sort "Line by line" (sort:line: stepIndex). `how`: what the chain says found
+--- them.
 function AT.StepRows(rec, how)
 	local out = {}
 	if not (rec and AT.stepMeta) then return out end
@@ -1104,7 +1103,7 @@ end
 local function SetupAttune()
 	if attune.on then return end
 	if not Present() then
-		-- (Attune loaded, its data not where Terminal reads it: said, not "not found"; 0.57.1)
+		-- (Attune loaded, its data not where Terminal reads it: said, not "not found")
 		local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or _G.IsAddOnLoaded
 		local ok, yes = pcall(isLoaded or function() end, "Attune")
 		if ok and yes then

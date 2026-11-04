@@ -1,15 +1,14 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- .report (0.67.11, the player's call): a problem report to paste where the author reads it, CurseForge's comments
--- first (GitHub issues too). Addons can't open a page, write the clipboard or send anything, so it's text in the copy
--- window, selected: Ctrl+C, then paste. What it holds: what you say happened, the result it's about (the row menu's
--- "Report a problem"), the last searches that found nothing, Terminal's and the game's versions, the addons Terminal
--- found, blocked actions, Terminal's errors BugSack caught, and Terminal's last steps. Your characters', alts' and
--- guild's names become "you", "alt 1", "your guild"; nothing leaves the game unless you paste it.
--- Pointed to where a report helps: a search that found nothing (Simple mode's row, Advanced's footer), an action the
--- game blocked, an error of Terminal's (BugSack), and the row menu. Written in English like .debug log (the author
--- reads it), what the player is told through L[].
+-- .report: a problem report to paste where the author reads it, CurseForge's comments first (GitHub issues too). Addons
+-- can't open a page, write the clipboard or send anything, so it's text in the copy window, selected: Ctrl+C, then
+-- paste. What it holds: what you say happened, the result it's about (the row menu's "Report a problem"), the last
+-- searches that found nothing, Terminal's and the game's versions, the addons Terminal found, blocked actions,
+-- Terminal's errors BugSack caught, and Terminal's last steps. Your characters', alts' and guild's names become "you",
+-- "alt 1", "your guild"; nothing leaves the game unless you paste it. Pointed to where a report helps: a search that
+-- found nothing (Simple mode's row, Advanced's footer), an action the game blocked, an error of Terminal's (BugSack),
+-- and the row menu. Written in English like .debug log (the author reads it), what the player is told through L[].
 
 local R = {}
 ns.Report = R
@@ -19,8 +18,7 @@ R.STEPS = 15 -- (Terminal's last trace lines)
 R.ERRORS = 3 -- (Terminal's newest errors BugSack holds)
 R.HINT = L["expected something? .report"]
 
--- people's rows: their names are someone's, never put in a report (UI.IsPerson's one list; 1.0.83, review: this copy
--- had drifted, without "people")
+-- people's rows: their names are someone's, never put in a report (UI.IsPerson's one list)
 local function Person(e) return ns.UI and ns.UI.IsPerson and ns.UI.IsPerson(e) or false end
 
 local function Plain(s)

@@ -3,17 +3,16 @@ local L = ns.L
 local I = ns.Integrations
 local OA = ns.OneForAll
 
--- Reputation rewards and @itemset (1.0.3, the player's ask), OneForAll's armory: what each faction's quartermaster sells at
--- each standing (and yours: can you buy it yet), the item sets (each class's, the dungeon and raid sets, how many pieces
--- you have, the bonuses) and their pieces (where each comes from, yours or not). "argent dawn rewards", "what can i buy
--- at honored", "my class sets", "pieces of battlegear of might" ask for them (Simple mode).
--- 1.0.10 (the player: too many kinds): a set's pieces are no kind of their own (was @setpiece) but @itemset's rows that
--- only "<set> > pieces", Enter on a set and "pieces of <set>" list, as Attune's steps are; a set's text has its pieces'
--- names and sources, so "@itemset onyxia" finds the sets with a piece from Onyxia.
--- 1.0.11 (the same call): the rewards are no kind of their own either (was @repreward) but @reputation's rows
--- (`repReward`), in its list with the factions since 1.0.27 (the player: "@reputation shows only Orgrimmar"):
--- @reputation is:reward, is:canbuy, standing:, sort:standing, Group by faction or standing; the questions ("argent dawn
--- rewards", "what can i buy at honored") and "<faction> > rewards" list them too.
+-- Reputation rewards and @itemset, OneForAll's armory: what each faction's quartermaster sells at each standing (and
+-- yours: can you buy it yet), the item sets (each class's, the dungeon and raid sets, how many pieces you have, the
+-- bonuses) and their pieces (where each comes from, yours or not). "argent dawn rewards", "what can i buy at honored",
+-- "my class sets", "pieces of battlegear of might" ask for them (Simple mode). 1.0.10 (the player: too many kinds): a
+-- set's pieces are no kind of their own (was @setpiece) but @itemset's rows that only "<set> > pieces", Enter on a set
+-- and "pieces of <set>" list, as Attune's steps are; a set's text has its pieces' names and sources, so "@itemset
+-- onyxia" finds the sets with a piece from Onyxia. 1.0.11 (the same call): the rewards are no kind of their own either
+-- (was @repreward) but @reputation's rows (`repReward`), in its list with the factions since 1.0.27 (the player:
+-- "@reputation shows only Orgrimmar"): @reputation is:reward, is:canbuy, standing:, sort:standing, Group by faction or
+-- standing; the questions ("argent dawn rewards", "what can i buy at honored") and "<faction> > rewards" list them too.
 --
 -- OneForAll's ranks run 0-7 (4 Friendly .. 7 Exalted); the game's standings 1-8 (5 Friendly .. 8 Exalted): a reward's
 -- standing is its rank + 1, as the reputation list reads it (`reaction`: the standing it needs).
@@ -28,7 +27,7 @@ local STANDING_ENGLISH = ns.STANDING_ENGLISH -- (Util.lua)
 
 -- an icon as OneForAll gives it: a file id, or an icon's name
 local function Icon(v, fallback)
-	-- (0: no icon, OneForAll's unnamed pieces; review, 1.0.13)
+	-- (0: no icon, OneForAll's unnamed pieces)
 	if type(v) == "number" then return v > 0 and v or fallback end
 	local s = OA.Text(v)
 	if s and s:match("^%d+$") then return tonumber(s) > 0 and tonumber(s) or fallback end
@@ -184,8 +183,7 @@ end
 local function NoSpot(e) ns:Print(L["OneForAll has no spot for %s yet."]:format(e.vendorName or e.name)) end
 
 -- (rows a question or a chain lists beside their kind's list (set pieces; the rewards are @reputation's own rows too
--- since 1.0.27): what ns:GetEntries gives the list's rows, the kind's
--- label and the key picks are counted by; review, 1.0.16: blank kind column, never in recent picks)
+-- since 1.0.27): what ns:GetEntries gives the list's rows, the kind's label and the key picks are counted by)
 local function Stamp(rows, kind)
 	local p = ns.providers[kind]
 	local label = p and ns:KindLabel(p) or nil
@@ -238,11 +236,11 @@ end
 local rewards, watch
 --- The reward rows, kept.
 function A.Rewards()
-	if not watch then -- (only once they're asked for: no frame for everyone; review, 1.0.21)
+	if not watch then -- (only once they're asked for: no frame for everyone)
 		watch = CreateFrame("Frame")
 		A.watch = watch -- (tests)
 		watch:RegisterEvent("UPDATE_FACTION")
-		-- (not on the one @reputation's own header read fires: the standings didn't change; review, 1.0.38)
+		-- (not on the one @reputation's own header read fires: the standings didn't change)
 		watch:SetScript("OnEvent", function()
 			local p = ns.providers.reputation
 			if p and p._firedOwn and GetTime() - (p._collectedAt or 0) < 1 then return end
@@ -379,7 +377,7 @@ OA.AddSetup(function()
 			available = function() return A.Factions() ~= nil end, addon = "OneForAll",
 			seedKinds = { "reputation" },
 			seedNone = L["No faction called \"%s\" among your reputations (one you haven't met: ask for its rewards, \"%s rewards\")"],
-			-- (e.repReward, not rawget: a chain's rows are views on them; review, 1.0.16)
+			-- (e.repReward, not rawget: a chain's rows are views on them)
 			applies = function(e) return e.kind == "reputation" and not e.repReward and e.factionID ~= nil end,
 			run = function(rows)
 				local out = {}
@@ -435,9 +433,9 @@ end)
 -- "argent dawn rewards", "what can i buy at honored", "rep rewards", "my class sets", "pieces of battlegear of might"
 ----------------------------------------------------------------------
 
--- (not "vendor", "sell": "vendor in ratchet", "booty bay vendor" are NPC searches, those towns factions too; review, 1.0.13)
--- ("buy" only with a standing, a rep word or "can": "where to buy in booty bay" is the town's vendors; not "quartermaster":
--- "argent dawn quartermaster" is the NPC. Review, 1.0.36)
+-- (not "vendor", "sell": "vendor in ratchet", "booty bay vendor" are NPC searches, those towns factions too) ("buy"
+-- only with a standing, a rep word or "can": "where to buy in booty bay" is the town's vendors; not "quartermaster":
+-- "argent dawn quartermaster" is the NPC.)
 local REWARD = { reward = true, rewards = true, unlocks = true }
 local REP = { rep = true, reputation = true, faction = true, factions = true }
 local WHAT = { recipes = "recipe", recipe = "recipe", patterns = "recipe", plans = "recipe", formulas = "recipe", gear = "gear",
@@ -483,8 +481,8 @@ local function FactionIn(words)
 		end
 	end
 	for _, f in ipairs(A.Factions() or {}) do Try(f) end
-	-- (AtlasLoot's faction loot's factions too, "brood of nozdormu rewards": its rewards are @reputation's since 1.0.28;
-	-- review, 1.0.38)
+	-- (AtlasLoot's faction loot's factions too, "brood of nozdormu rewards": its rewards are @reputation's since
+	-- 1.0.28)
 	if not best then for _, f in ipairs(AtlasFactions()) do Try(f) end end
 	return best, bestAt, bestN
 end
@@ -538,8 +536,8 @@ function A.Question(text)
 			end
 		end
 		-- (a faction or a standing, and a word for what it sells: "argent dawn rewards", "what can i buy at honored",
-		-- "timbermaw recipes"; "rep rewards" too)
-		-- ("what can i buy at honored": what honored lets you buy, up to it, whatever you are now; review, 1.0.13)
+		-- "timbermaw recipes"; "rep rewards" too) ("what can i buy at honored": what honored lets you buy, up to it,
+		-- whatever you are now)
 		if buy and (q.standing or rep or q.now) then reward = true end
 		if q.standing and q.now then q.now, q.upTo = nil, true end
 		if reward and (f or q.standing or rep) and #q.words == 0 then return q end
@@ -549,7 +547,7 @@ function A.Question(text)
 		local set, mine, sure = false, false, false
 		local q = { what = "sets", words = {} }
 		for i, w in ipairs(words) do
-			-- ("item", "tier", "class": item sets; "my sets", "sets" alone are your equipment sets'; review, 1.0.13)
+			-- ("item", "tier", "class": item sets; "my sets", "sets" alone are your equipment sets')
 			if w == "item" or w == "tier" or w == "class" or w == "itemset" or w == "itemsets" then sure = true end
 			if SET[w] then set = true
 				if w == "tier" and tonumber(words[i + 1] or "") then q.words[#q.words + 1] = "tier " .. words[i + 1] end
@@ -606,7 +604,7 @@ function A.Answer(q)
 		if #rows == 0 then return { ns.NoteRow(L["No item set has that"]) }, L["Item sets"] end
 		return rows, q.mine and L["Item sets for your class"] or L["Item sets"]
 	end
-	-- (@reputation's rewards, OneForAll's and AtlasLoot's, as the line Alt+` writes finds them; review, 1.0.38: OneForAll's alone)
+	-- (@reputation's rewards, OneForAll's and AtlasLoot's, as the line Alt+` writes finds them)
 	local rows = {}
 	local p = ns.providers.reputation
 	local all = {}
@@ -638,7 +636,7 @@ function A.ToAdvanced(q)
 	if q.what == "pieces" then return A.PiecesSearch(q.set) end
 	local w = q.words and #q.words > 0 and (table.concat(q.words, " ") .. " ") or ""
 	if q.what == "sets" then return "@itemset " .. (q.mine and "class:mine " or "") .. w end
-	-- (as @reputation's filters, 1.0.27: the faction's words, its standing (up to it, or that one), a kind's word, can buy)
+	-- (as @reputation's filters, the faction's words, its standing (up to it, or that one), a kind's word, can buy)
 	local parts = { "@reputation is:reward" }
 	if q.faction then parts[#parts + 1] = Norm(q.faction.name) end
 	if q.standing then parts[#parts + 1] = "standing:" .. (q.upTo and "<=" or "") .. Lower(STANDING_ENGLISH[q.standing] or tostring(q.standing)) end

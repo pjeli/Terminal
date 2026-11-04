@@ -1,18 +1,14 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Every class's spells, known or not (0.54.1, a player's ask: "'travel form' doesn't list the spell since I don't
--- currently have it. Ideally it'd tell me that it's a druid spell trainable at level 30"; "healing wave" on a druid
--- found only a talent; "druid spells" found nothing). @classspell: a row per spell of every class, with the level each
--- rank is learned at; your own class's only those you don't know yet (the spellbook has the rest). Enter shows its
--- Wowhead page, Shift+Enter links it in chat. class:druid narrows to a class; "druid spells", "upcoming spells" are
+-- Every class's spells, known or not. @classspell: a row per spell of every class, with the level each rank is learned
+-- at; your own class's only those you don't know yet (the spellbook has the rest). Enter shows its Wowhead page,
+-- Shift+Enter links it in chat. class:druid narrows to a class; "druid spells", "upcoming spells" are
 -- Search/Questions/ClassSpells.lua's questions.
 --
--- The spells come from What's Training (0.56.1, the player: "I would prefer to rely on WT"): its WT_API.GetCatalog,
--- every class's trainer and quest spells with their levels, races and factions, and its weapon masters. Terminal
--- kept a copy of that data before. Without What's Training, TrainerSpells' (0.57.1: its class spells by level, read
--- while it's installed, Integrations/TrainerSpells.lua); with neither these lists are empty and the footer says to
--- install What's Training.
+-- The spells come from What's Training: its WT_API.GetCatalog, every class's trainer and quest spells with their
+-- levels, races and factions, and its weapon masters. Terminal kept a copy of that data before. Without What's
+-- Training, TrainerSpells'; with neither these lists are empty and the footer says to install What's Training.
 
 local CS = {}
 ns.ClassSpells = CS
@@ -115,8 +111,7 @@ local function ClassName(file)
 end
 CS.ClassName = function(file) return ClassName(file) end
 --- Is this spell (this rank of it) yours? Asked as What's Training and TrainerSpells ask it: in your spellbook, known,
---- or the player's own (0.57.2: IsPlayerSpell alone missed spells WoW Forever's spellbook has). A rank a later one
---- replaced may still say no: CS.KnownRanks.
+--- or the player's own. A rank a later one replaced may still say no: CS.KnownRanks.
 local function Known(id)
 	if type(id) ~= "number" then return false end
 	local SB = C_SpellBook
@@ -130,7 +125,7 @@ CS.Known = Known
 
 --- Which of a spell's ranks (in the order they're learned) you have: the ones you know, and every one before the last
 --- you know (a new rank replaces the one before it in the spellbook, which then says it isn't known: a level 30
---- warrior's Battle Shout Rank 1; 0.57.2). A list of true/false, one per rank.
+--- warrior's Battle Shout Rank 1). A list of true/false, one per rank.
 function CS.KnownRanks(ids)
 	local out, last = {}, 0
 	for i, id in ipairs(ids) do
@@ -230,7 +225,7 @@ local LAZY = {
 
 local others = {} -- class -> its rows: another class's never change (made once a session)
 -- (another class's rows made with a description not in: made again at most this many times, then kept as they are; a
--- description that never comes made them again on every search. Review, 1.0.32)
+-- description that never comes made them again on every search.)
 CS.WHOLE_TRIES = 3
 local partial = {} -- class -> times its rows were made with a description missing
 
@@ -253,10 +248,10 @@ function CS.Rows(cls, mine, all)
 		local known = false
 		if mine then for _, r in ipairs(s.ranks) do if Known(r[1]) then known = true break end end end
 		if not known or all then
-			-- (what it does, its first rank's description: "druid spells that root"; 0.68.8. Not in yet: asked for, and
-			-- the rows made again once it is, Spells.lua)
+			-- (what it does, its first rank's description: "druid spells that root". Not in yet: asked for, and the
+			-- rows made again once it is, Spells.lua)
 			local desc = SP and SP.Desc and SP.Desc(s.ranks[1][1], CS.descBudget)
-			if SP and SP.Desc and desc == nil then whole, desc = false, "" end -- (not in yet: these rows not kept; review, 1.0.20)
+			if SP and SP.Desc and desc == nil then whole, desc = false, "" end -- (not in yet: these rows not kept)
 			desc = desc or ""
 			rows[#rows + 1] = setmetatable({ _compact = true, key = cls .. ":" .. s.ranks[1][1], name = s.name, _s = s,
 				_rank = mine and CS.MINE_RANK or CS.OTHER_RANK, _lname = Lower(s.name),
@@ -273,10 +268,9 @@ end
 function CS.ForgetRows() others, partial = {}, {} end -- (tests; a spell's data in)
 
 ns:RegisterProvider("classspells", {
-	-- (one list with your spellbook since 0.54.6: its rows say Spell, in the spellbook's colour too; 0.54.7, the player)
+	-- (one list with your spellbook since 0.54.6: its rows say Spell, in the spellbook's colour too)
 	label = L["Spell"],
 	color = "ff9d7bff",
-	-- (0.54.6: reached through @spell, which looks in these too; its words, @classspell and the rest, are @spell's now)
 	aliases = {}, noKind = true, reach = "@spell", oneWith = "spells", -- (part of @spell to the player: its colour too)
 	events = { "SPELLS_CHANGED", "LEARNED_SPELL_IN_SKILL_LINE", "PLAYER_LEVEL_UP" },
 	guard = 2,
@@ -320,8 +314,7 @@ local function WTMasters()
 	return bySkill
 end
 
---- TrainerSpells' weapon masters (0.57.1: "polearm trainer" without What's Training listed every weapon master), in
---- the same shape, or nil.
+--- TrainerSpells' weapon masters, in the same shape, or nil.
 local function TSMasters()
 	local TS = ns.TrainerSpells
 	local w = TS and TS.WeaponData and TS.WeaponData()
@@ -357,7 +350,6 @@ function CS.WeaponMasters(ids)
 	end
 	ts = TSMasters()
 	if ts then return From(ts) end
-	-- (1.0.4: OneForAll's, with neither: Providers/Integrations/OneForAll/World.lua)
 	local W = ns.OneForAllWorld
 	local oa = W and W.WeaponMasters()
 	if oa then return From(oa) end

@@ -20,16 +20,15 @@ local function QDB() return QD.DB() end
 
 --- One field of a Questie NPC (minLevel, maxLevel, zoneID, npcFlags...), for the search filters.
 -- the small fields filters ask of every NPC row on every keystroke ("vendor", "nearest repair"): read once per NPC
--- (rank: QuestieDB's npc field 6, cmangos' creature_template rank: 0 normal, 1 elite, 2 rare elite, 3 world boss, 4 rare;
--- read as its own field, nil when a version has none. 1.0.62, the reach audit)
+-- (rank: QuestieDB's npc field 6, cmangos' creature_template rank: 0 normal, 1 elite, 2 rare elite, 3 world boss, 4
+-- rare; read as its own field, nil when a version has none.)
 local SMALL = { npcFlags = true, friendlyToFaction = true, minLevel = true, maxLevel = true, zoneID = true, subName = true,
 	subNameEn = true, rank = true }
 I.NPC_RANKS = { elite = { [1] = true, [2] = true }, rare = { [2] = true, [4] = true }, rareelite = { [2] = true }, boss = { [3] = true } }
 --- An NPC's rank as the game names it ("Elite", "Rare", "Rare Elite", "Boss"), or nil for a normal one.
 function I.NpcRankName(id)
 	local r = ns.Num(id and I.NpcField(id, "rank"))
-	-- (the fallbacks Terminal's own texts; "Rare Elite" one text, not two words put together in English order: review,
-	-- 1.0.70)
+	-- (the fallbacks Terminal's own texts; "Rare Elite" one text, not two words put together in English order: review)
 	if r == 1 then return ns.GameText("ELITE", L["Elite"]) end
 	if r == 2 then return L["Rare Elite"] end
 	if r == 3 then return ns.GameText("BOSS", L["Boss"]) end
@@ -49,7 +48,7 @@ local function Query(DB, id, field)
 end
 local fieldCache, NONE, fieldFrom = {}, {}, nil
 function I.NpcField(id, field)
-	-- (a small field read before: from the cache, without asking for the database first; review, 0.53.6)
+	-- (a small field read before: from the cache, without asking for the database first)
 	if fieldFrom and SMALL[field] then
 		local byId = fieldCache[field]
 		local v = byId and byId[id]
@@ -93,8 +92,8 @@ local function NpcSub(DB, id)
 	return sub, ns.Lower(sub)
 end
 
--- (and what another part of Terminal adds to an NPC's text: a hunter's beasts to tame, OneForAll's: "tameable cat teaches
--- bite 4;"; I.NpcExtraText, Pets.lua, 1.0.37)
+-- (and what another part of Terminal adds to an NPC's text: a hunter's beasts to tame, OneForAll's: "tameable cat
+-- teaches bite 4;"; I.NpcExtraText, Pets.lua)
 local function NpcListRow(DB, id, name, meta)
 	local lname = ns.Lower(name)
 	local sub, lsub = NpcSub(DB, id)
@@ -120,7 +119,7 @@ local function IndexNPCs(after)
 	if npc.list or npc.busy or not QuestieReady() then return finish() end
 	local DB = QDB()
 	if not DB then return finish() end
-	-- (its database without the calls Terminal reads: said, not an empty list with no word why; 0.57.1)
+	-- (its database without the calls Terminal reads: said, not an empty list with no word why)
 	if type(DB.QueryNPCSingle) ~= "function" or type(DB.NpcIds) ~= "function" then
 		I.Failed("Questie", L["@npc is unavailable."], "QueryNPCSingle " .. type(DB.QueryNPCSingle) .. ", NpcIds " .. type(DB.NpcIds))
 		return finish()
@@ -144,7 +143,7 @@ local function IndexNPCs(after)
 			if names then names[#names + 1] = "\n" .. lname .. (lsub and (" <" .. lsub .. ">") or "") .. "\t" .. id end
 		end
 	end, function()
-		-- (ids but not one name: the database's shape changed; said, not an empty @npc with no word why. 0.63.7, review)
+		-- (ids but not one name: the database's shape changed; said, not an empty @npc with no word why.)
 		if #ids > 0 and #out == 0 then I.Failed("Questie", L["@npc is unavailable."], "QueryNPCSingle(id, \"name\"): no names") end
 		npc.list, npc.busy, npc.count = out, false, #out -- (count: said by .integrations once the list is freed)
 		if names then npc.names, npc.nameQuery = table.concat(names) .. "\n", "QueryNPCSingle" end
@@ -171,7 +170,7 @@ local function FindNames(blob, tokens, tick)
 	for k = 2, #tokens do if #tokens[k] > #lead then lead = tokens[k] end end
 	local pos, count, firstId, looked, ids, firstLine = 1, 0, nil, 0, {}, nil
 	-- the one named: the name exactly as typed first, then one with the words in its name (not its title), then the
-	-- first (0.68.19: "thrall" named Nazgrel, <Advisor to Thrall>, who comes first by id)
+	-- first
 	local phrase, rank = table.concat(tokens, " "), 0
 	while count < 100 do
 		local at = blob:find(lead, pos, true)
@@ -180,7 +179,7 @@ local function FindNames(blob, tokens, tick)
 		local tab = blob:find("\t", at, true)
 		if tab and tab < lineEnd then -- (a match in the name, not in the id after it)
 			local all, name = true, nil
-			-- the line cut out only to check the other words (review, 0.53.6), or while a better line may come
+			-- the line cut out only to check the other words, or while a better line may come
 			if #tokens > 1 or rank < 3 then
 				local from = math.max(1, at - 120)
 				local back = blob:sub(from, at):match(".*\n()")
@@ -214,7 +213,7 @@ end
 I.FindNames = FindNames
 
 --- Is the line exactly a quest's or an NPC's whole name (Questie's)? "What Is Going On?" is a quest, not the calendar's
---- question (0.68.19).
+--- question.
 function I.IsName(text)
 	if type(text) ~= "string" then return false end
 	local lt = ns.Lower(text):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
@@ -229,7 +228,7 @@ function I.IsName(text)
 end
 
 --- The NPC whose whole name is `lname` (lowercase), from the names text (which outlives the list: no list built, none
---- kept alive; review, 1.0.67): its id, or nil.
+--- kept alive): its id, or nil.
 function I.NpcIdNamed(lname)
 	local blob = npc.names
 	if type(blob) ~= "string" or type(lname) ~= "string" or lname == "" then return nil end
@@ -242,7 +241,7 @@ function I.NpcIdNamed(lname)
 end
 
 --- Are these words, in this order, whole words of an NPC's or a quest's name (not a title)? "dalaran mage", "stockade
---- guard", "orgrimmar reveler" are NPCs, not mages in Dalaran (0.68.19): Simple mode then reads no place in them.
+--- guard", "orgrimmar reveler" are NPCs, not mages in Dalaran: Simple mode then reads no place in them.
 function I.NamedAs(tokens)
 	if #tokens < 2 then return false end
 	local phrase = table.concat(tokens, " ")
@@ -266,10 +265,9 @@ function I.NamedAs(tokens)
 	return false
 end
 
---- The provider's hintFind: the first matching name (as the game writes it), the count, the
---- first ids (UI shows those rows themselves when there are only a few: hintRow), and the first
---- match's line in the index ("kyra boucher <reagent vendor>": lowercase, an NPC's title in <>),
---- for the overview to tell a match in the name from one in the title (0.56.11).
+--- The provider's hintFind: the first matching name (as the game writes it), the count, the first ids (UI shows those
+--- rows themselves when there are only a few: hintRow), and the first match's line in the index ("kyra boucher <reagent
+--- vendor>": lowercase, an NPC's title in <>), for the overview to tell a match in the name from one in the title.
 local function HintFind(t, tokens, tick)
 	local id, count, ids, line = FindNames(t.names, tokens, tick)
 	if not id then return nil, 0 end
@@ -334,9 +332,9 @@ local function NpcLocation(id)
 		spawnsByZone = type(n) == "table" and n.spawns or nil
 	end
 	if type(spawnsByZone) ~= "table" then return end
-	-- (0.49.2, review: the first area pairs() gave and its first spawn, while the row's "N yd" and arrow are its nearest
-	-- spawn on your continent: "nearest murloc forager" said 10 yd, Enter showed another zone and pinned it there, and
-	-- ">> party" linked that spot. Where you are known: that same spawn.)
+	-- (the first area pairs gave and its first spawn, while the row's "N yd" and arrow are its nearest spawn on your
+	-- continent: "nearest murloc forager" said 10 yd, Enter showed another zone and pinned it there, and ">> party"
+	-- linked that spot. Where you are known: that same spawn.)
 	local ui, c, isDoor = NearestSpawn(spawnsByZone, I.Here())
 	if ui then return ui, { x = c[1] / 100, y = c[2] / 100 }, isDoor end
 	-- (else the areas in order, the same answer every time; one out in the world before a dungeon's entrance)
@@ -347,8 +345,7 @@ local function NpcLocation(id)
 	for _, zone in ipairs(zones) do
 		local spawns = spawnsByZone[zone]
 		c = type(spawns) == "table" and spawns[1]
-		-- (a dungeon's: its entrance, whatever spot it has inside (Questie's { -1, -1 } for most); 0.51.18, the player's
-		-- ask: they had no location at all)
+		-- (a dungeon's: its entrance, whatever spot it has inside (Questie's { -1, -1 } for most))
 		local doors = type(c) == "table" and I.Entrances and I.Entrances(zone)
 		if doors then
 			if not door then door = { doors[1][1], { x = doors[1][2][1] / 100, y = doors[1][2][2] / 100 } } end
@@ -410,7 +407,7 @@ end
 
 local function OpenNpcDirect(e)
 	-- no press could be set up: the map shown already shows it; else it's pinned and where to open the map said (never
-	-- opened from Terminal's own code: it taints the map; 0.50.7, review)
+	-- opened from Terminal's own code: it taints the map)
 	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(e.name)) return end
 	if not NpcLocation(e.npcID) then -- nowhere to show it: leave the map alone
 		ns:Print(L["Questie has no known location for %s."]:format(e.npcName or e.name))

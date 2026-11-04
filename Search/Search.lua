@@ -3,12 +3,11 @@ local L = ns.L
 
 -- The search engine: the searches themselves (UI:Search, SearchText and its steps: the lists asked, the rows collected
 -- and narrowed, the results finished; fuzzy finding). Command and argument rows and the empty terminal's recent picks
--- are CommandRows.lua (0.69.8).
--- Beside it: the line read into the query (Query.lua), "nearest" (Nearest.lua), what runs when nothing matches
--- (Fallbacks.lua: relaxed, close spellings, the "Search Questie for this" rows), Simple mode's overview (Overview.lua),
--- the questions (Questions/), Alt+` (Printers.lua), "Why is this here?" (Why.lua); scoring a row and sorting the
--- matches are in Score.lua. Moved out of UI.lua (0.43.15) as it was: the window (UI.lua) shows what these give and runs
--- them a slice at a time (UI:RunSearch).
+-- are CommandRows.lua. Beside it: the line read into the query (Query.lua), "nearest" (Nearest.lua), what runs when
+-- nothing matches (Fallbacks.lua: relaxed, close spellings, the "Search Questie for this" rows), Simple mode's overview
+-- (Overview.lua), the questions (Questions/), Alt+` (Printers.lua), "Why is this here?" (Why.lua); scoring a row and
+-- sorting the matches are in Score.lua. Moved out of UI.lua as it was: the window (UI.lua) shows what these give and
+-- runs them a slice at a time (UI:RunSearch).
 
 local UI = ns.UI
 local Fuzzy = ns.Fuzzy
@@ -25,7 +24,7 @@ local SortAndTrim = Score.SortAndTrim
 
 local function PseudoEntries(lines) -- (lines saying something: ns.NoteRow each)
 	local out = {}
-	-- (nothing found: where to say so, .report; 0.67.11)
+	-- (nothing found: where to say so, .report)
 	for i, line in ipairs(lines) do out[i] = ns.NoteRow(line, line == EASY_NONE and ns.Report and ns.Report.HINT or nil) end
 	return out
 end
@@ -43,11 +42,10 @@ function Scan.Budget(self)
 	return function() return slicing and debugprofilestop() > self.sliceUntil end
 end
 
---- The typed words, split at spaces, but a "quoted phrase" is one string (0.52.13, the player's ask: "outlaw saber"
---- is one thing, not two words): the words, and the phrases (quote marks off, inner spaces as one) apart, in order.
---- An open quote runs to the end (while it's being typed). A quote inside a word joins the phrase to it, quote marks
---- off: in:"elwynn forest" is the word in:elwynn forest, -"outlaw saber" the word -outlaw saber.
---- (Read off the line's tokens: Lex.lua, docs/FRONT_END.md)
+--- The typed words, split at spaces, but a "quoted phrase" is one string: the words, and the phrases (quote marks off,
+--- inner spaces as one) apart, in order. An open quote runs to the end (while it's being typed). A quote inside a word
+--- joins the phrase to it, quote marks off: in:"elwynn forest" is the word in:elwynn forest, -"outlaw saber" the word
+--- -outlaw saber. (Read off the line's tokens: Lex.lua, docs/FRONT_END.md)
 function Scan.Words(text)
 	return ns.Lex.Words(text)
 end
@@ -111,11 +109,11 @@ function UI:Search(text)
 		ns.Filters.fitMade = nil -- (is:upgrade's filter says so when it's made: its rows' tooltips say why)
 		if ns.Filters.ResetAsks then ns.Filters.ResetAsks() end -- (items the client hasn't loaded: a few asked per search)
 	end
-	-- arithmetic: the answer is the top result (see Calc.lua)
-	-- (not in Ctrl+R's history search either: "3*4" there is a line to find; 0.63.7, review)
+	-- arithmetic: the answer is the top result (see Calc.lua) (not in Ctrl+R's history search either: "3*4" there is a
+	-- line to find)
 	local calc = not (self.fzf or self.histSearch) and ns.Calc and ns.Calc.Entry(text)
-	-- (a sum answered: its characters aren't words to look for close spellings of, nor is "Nothing has that" said
-	-- under the answer; 0.50.7, review: "3*45g" ran a close-spellings pass over every list on each keystroke)
+	-- (a sum answered: its characters aren't words to look for close spellings of, nor is "Nothing has that" said under
+	-- the answer)
 	self.calcAnswered = calc and true or nil
 	-- (the questions' ranking of a line kept while this search runs: Questions.lua's Q.Ranked)
 	local Qs = ns.Questions
@@ -137,8 +135,7 @@ function UI:Search(text)
 			res = self:SearchText(text)
 		end
 	end
-	-- (upgrades weighed: the footer says how to judge them otherwise; 0.65.9, the player: "a gentle extended footer
-	-- reminder for user to set .weights if they do not like the results of upgrade searching")
+	-- (upgrades weighed: the footer says how to judge them otherwise)
 	self.weightsNote = ns.Filters and ns.Filters.fitMade and L["Not what you'd pick? .weights sets how upgrades are judged"] or nil
 	if calc then
 		for i = #res, 1, -1 do
@@ -303,9 +300,9 @@ function Scan.FlightNote(res)
 	end
 end
 
---- The rows a search ends with (q.kinds as they are by then): its lists' lead lines on top.
---- A list named by its name (q.kindIds): the game's window of that name comes along, after the list's rows ("macros":
---- your macros, then the Macros window; 1.0.45, the player's ask).
+--- The rows a search ends with (q.kinds as they are by then): its lists' lead lines on top. A list named by its name
+--- (q.kindIds): the game's window of that name comes along, after the list's rows ("macros": your macros, then the
+--- Macros window).
 function Scan.KindExtras(q)
 	local pp = ns.providers.panels
 	local word = q.kindWord
@@ -338,8 +335,8 @@ function Scan.Finish(q, res)
 	-- a list that asks the server first (@who), or says why it lists nothing (@recipe is:unknown): its own row on top
 	-- (given the rows so far)
 	local function Leads(set)
-		-- (in the lists' own order, the last one's on top: not the set's hash order, which could change between sessions;
-		-- review, 0.53.6)
+		-- (in the lists' own order, the last one's on top: not the set's hash order, which could change between
+		-- sessions)
 		for _, k in ipairs(ns.providerOrder) do
 			local p = set[k] and ns.providers[k]
 			local row = p and p.leadRow and p.leadRow(p, q.text, res)
@@ -359,9 +356,8 @@ end
 function Scan.SimpleScope(self, q)
 	if not q.simple then return end
 	-- (no reset of lastScan here: its signature holds the lists and filters searched, so a category picked for you, or
-	-- by you, narrows keystroke by keystroke like Advanced does)
-	-- a category picked for you (only one had it) is worked out again with every keystroke (an @kind typed: none; review,
-	-- 0.55.18: the one opened for "horse" stayed on for "@item iron", the footer said Collections)
+	-- by you, narrows keystroke by keystroke like Advanced does) a category picked for you (only one had it) is worked
+	-- out again with every keystroke (an @kind typed: none)
 	if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
 	if q.typedKinds then return end
 	if q.empty and not q.filters and not q.kindIds then
@@ -386,7 +382,7 @@ function Scan.SimpleScope(self, q)
 		self.category, self.categoryAuto = q.kindCat, true
 		easyCat = ns.Easy.BY_ID[q.kindCat]
 	end
-	-- (a list's own name, "macros", "linen in my bank": those lists, a category or none; Scan.KindWord, 1.0.45)
+	-- (a list's own name, "macros", "linen in my bank": those lists, a category or none; Scan.KindWord)
 	if q.kindIds and not (self.category and not self.categoryAuto and easyCat and easyCat.id ~= q.kindCat) then
 		q.kinds = {}
 		for id in pairs(q.kindIds) do if ns.providers[id] then q.kinds[id] = true end end
@@ -432,8 +428,7 @@ function Scan.Lists(q)
 				sig[#sig] = id .. "~" -- (its plain view: never a narrowing of the whole list, nor the other way)
 			end
 			if p._dirty or not p._entries then fresh = false end
-			-- (a list made from another, @gear from @item: stale while that one is, though it has no events of its own;
-			-- review, 0.48.6: narrowing kept a sold sword in @gear)
+			-- (a list made from another, @gear from @item: stale while that one is, though it has no events of its own)
 			local src = p.follows and ns.providers[p.follows]
 			if src and (src._dirty or not src._entries) then fresh = false end
 		end
@@ -445,9 +440,9 @@ end
 
 --- How a list's rows may match a search that doesn't name it (no @kind, category or action): 0 as any row, 1 by their
 --- names only (`namesOnly`: OneForAll's item sets, transport, books, whose long names and texts took ordinary words,
---- "toys", "gems", "Elixir of Giants", from the lists they meant; 1.0.39, the player's call), 2 only its rows that say
---- `namesOnly` (`namesOnlyRows`: @reputation's quartermaster rewards, not its factions). Their @kind, their Simple-mode
---- category and their questions match them as before.
+--- "toys", "gems", "Elixir of Giants", from the lists they meant), 2 only its rows that say `namesOnly`
+--- (`namesOnlyRows`: @reputation's quartermaster rewards, not its factions). Their @kind, their Simple-mode category
+--- and their questions match them as before.
 function Scan.NameMode(included, p)
 	if not (included and included.namesOnly and p) then return 0 end
 	if p.namesOnly then return 1 end
@@ -464,7 +459,7 @@ function Scan.RowNameHas(e, tokens)
 end
 local RowNameHas = Scan.RowNameHas
 --- A row a list's NameMode leaves out of this search: a word its name hasn't, close spellings and all ("zanzils
---- concentation" is Zanzil's Concentration; a plain find each left those out: review, 1.0.66)?
+--- concentation" is Zanzil's Concentration; a plain find each left those out: review)?
 local TokenScore = Score.TokenScore
 function Scan.NameLeftOut(mode, e, tokens)
 	if mode == 0 or (mode == 2 and not rawget(e, "namesOnly")) then return false end
@@ -526,8 +521,8 @@ function Scan.Collect(self, q, included, sig, fresh)
 	-- in the next frame (tens of thousands of NPCs or quests no longer hitch one frame)
 	local overBudget = Scan.Budget(self)
 	-- (which list each run of matches came from, kept with them: narrowing the next keystroke gives each its list's id,
-	-- so a compact row's pick history is looked up once per list, as the full scan does, not once per row; review,
-	-- 0.53.6. A last mark with no id: rows added after, close spellings, are looked up per row as before)
+	-- so a compact row's pick history is looked up once per list, as the full scan does, not once per row. A last mark
+	-- with no id: rows added after, close spellings, are looked up per row as before)
 	local spans = {}
 	local function Span(id) spans[#spans + 1] = { from = #out + 1, id = id } end
 	if candidates then
@@ -623,12 +618,11 @@ function Scan.Finalize(self, q, out)
 	-- closest MAX_RESULTS only)
 	-- (summed up, "| sum value": every match as it is, nothing to sort or trim; release review: at most 5000 counted)
 	if ns.Aggregate and ns.Aggregate.Summing(self.aggregate) then
-		-- (a quest in your log counted once, not with its Questie copy too; review, 0.53.6)
+		-- (a quest in your log counted once, not with its Questie copy too)
 		if kinds and kinds.quests and kinds.questie then out = Scan.OneQuest(out) end
 		-- ("| first 10 | sum value": the first ten by the sort typed; "| except @bank" listed by it: its order is set
-		-- here, as the steps sort by it after; 0.66.7, review)
-		-- (rows taken out by "| except" after: every row in its order, else those kept were the ones gone, and the rest
-		-- came by relevance; review)
+		-- here, as the steps sort by it after) (rows taken out by "| except" after: every row in its order, else those
+		-- kept were the ones gone, and the rest came by relevance; review)
 		local agg = self.aggregate
 		if (agg.first or not agg.last) and q.sortField and ns.Bar then
 			ns.Bar.SortRows(out, q.sortField, #(agg.wheres or {}) > 0 and #out or agg.first or Score.MAX_RESULTS, overBudget)
@@ -639,8 +633,8 @@ function Scan.Finalize(self, q, out)
 	-- ("| first 3": how many matched, for the footer's "3 of 250", before the best are kept)
 	if self.aggregate and self.aggregate.first then self.aggregate.matched = #out end
 	local limit = (q.easyCat and (not q.here or q.nearDefault)) and Score.LIST_MAX or nil
-	-- (a list sorted, no words: all of it, up to LIST_MAX, as a question listed it: "@bank sort:name" is the whole bank, not
-	-- its first 100; docs/QUESTIONS.md, 1.0.77)
+	-- (a list sorted, no words: all of it, up to LIST_MAX, as a question listed it: "@bank sort:name" is the whole
+	-- bank, not its first 100; docs/QUESTIONS.md)
 	if not limit and q.sortField and q.empty then limit = Score.LIST_MAX end
 	if q.sortField and ns.Bar then ns.Bar.SortRows(out, q.sortField, limit or Score.MAX_RESULTS, overBudget) end
 	local res = SortAndTrim(out, limit, overBudget)
@@ -714,14 +708,14 @@ function UI:SearchText(text, how)
 		out = Scan.Collect(self, q, included, sig, fresh)
 		Scan.Fallbacks(self, q, out, included, sig)
 	end
-	-- (a list named alone, or one no category shows, with nothing in it: said, not every category's rows; 1.0.45)
+	-- (a list named alone, or one no category shows, with nothing in it: said, not every category's rows)
 	if q.kindIds and #out == 0 and (q.kindAlone or not q.easyCat) then return Scan.Finish(q, PseudoEntries({ EASY_NONE })) end
 	-- easy mode: nothing in the picked category: the categories that have it instead
 	if q.easyCat and #out == 0 then
 		local keep = q.easyCat.keep
 		self.category, self.categoryAuto, self.closeSpellings, self.softRelaxed = nil, nil, nil, nil
-		-- (with the search's own signature, the category's test and "#id" left out, and what was typed: the clear winner
-		-- and narrowing as when no category was picked; review, 0.48.6)
+		-- (with the search's own signature, the category's test and "#id" left out, and what was typed: the clear
+		-- winner and narrowing as when no category was picked)
 		if keep then Scan.DropFilters(q, { [keep] = true }, "#" .. q.easyCat.id) end
 		q.kinds, q.easyCat = nil, nil
 		return Scan.Finish(q, Scan.Overview(self, q, true))
@@ -820,7 +814,7 @@ function UI.FuzzyPlain(text)
 	local F, out = ns.Filters, {}
 	for _, w in ipairs(words) do
 		local key = w:match("^(%a+):")
-		local skip = w:sub(1, 1) == "@" or w:find("^[-!][%a\128-\255]") or w:find("[|&]") -- ("-малое" too, 0.49.2)
+		local skip = w:sub(1, 1) == "@" or w:find("^[-!][%a\128-\255]") or w:find("[|&]") -- ("-малое" too)
 			or (F and F.SortOf and F.SortOf(w)) or (key and F and F.IsKey and F.IsKey(key))
 		if not skip then out[#out + 1] = w end
 	end

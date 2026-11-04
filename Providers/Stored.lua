@@ -77,7 +77,7 @@ end
 local function SyndicatorItems(A)
 	local seen = {}
 	-- (each copy's enchant, by where it is: ench["Name-Realm|bank"][itemID] = { [true] = a copy has one, [false] = one
-	-- hasn't }; is:enchanted, 0.64.2. A row's link is one copy's.)
+	-- hasn't }; is:enchanted. A row's link is one copy's.)
 	local ench = {}
 	local function note(items, place)
 		for _, it in pairs(type(items) == "table" and items or {}) do
@@ -116,10 +116,10 @@ local function SyndicatorItems(A)
 	return seen, ench
 end
 
---- Auctions in Syndicator's records that Terminal saw come back by mail (Mail.lua's MA.EndedAuctions), as
---- { [character] = { [itemID] = count } }, or nil: left out of "auctions". 0.48.9, the player: a failed auction's 200
---- arrows, mailed back and taken, still showed as on the auction house: the game told addons nothing when it came back, so
---- Syndicator keeps the auction until its next visit to the auction house.
+--- Auctions in Syndicator's records that Terminal saw come back by mail (Mail.lua's MA.EndedAuctions), as { [character]
+--- = { [itemID] = count } }, or nil: left out of "auctions". a failed auction's 200 arrows, mailed back and taken,
+--- still showed as on the auction house: the game told addons nothing when it came back, so Syndicator keeps the
+--- auction until its next visit to the auction house.
 local function EndedAuctions(A)
 	local M = ns.Mail
 	local ended = M and M.EndedAuctions and M.EndedAuctions()
@@ -484,7 +484,7 @@ end
 ns:RegisterProvider("stored", {
 	label = L["Alts & bank"],
 	color = "ffb4a0ff",
-	-- ("bank" alone is @bank: this character's own, below; 0.62.1, the player)
+	-- ("bank" alone is @bank: this character's own, below)
 	aliases = { "stored", "alts", "alt", "banks", "storage", "everywhere", "syndicator", "bagnon" },
 	busy = function() return S.Busy() end, -- the terminal's spinner
 	explicit = true, -- every item on every character: only with @stored (a plain search offers it when only it has a match)
@@ -496,10 +496,10 @@ ns:RegisterProvider("stored", {
 	guard = 1,
 	idleDrop = 600,
 	-- (read again a moment after a bag, bank or mail change, with the terminal closed: every plain search reads it for
-	-- its hint, and it costs one item info per recorded item; review, 0.48.6)
+	-- its hint, and it costs one item info per recorded item)
 	warmDirty = 2,
 	-- (Syndicator's records in use, its callbacks heard: they say when its records change, after it has read them; the
-	-- game's own bag, mail and bank events made the whole list again as well, a second time; review, 0.57.7)
+	-- game's own bag, mail and bank events made the whole list again as well, a second time)
 	ignoreEvent = function() return S.hooked == true and S.Source() == "Syndicator" end,
 	collect = function()
 		local out = {}
@@ -531,13 +531,13 @@ ns:RegisterProvider("stored", {
 		local src = S.Source()
 		local A = src == "Syndicator" and SyndicatorAPI() or nil
 		local bb = src == "BagBrother" and BrotherBags() or nil
-		if A and not SyndicatorReady(A) then A = nil end -- busy() says so; filled in once it's ready
+		if A and not SyndicatorReady(A) then A = nil end -- busy says so; filled in once it's ready
 		S.mineName = ns.CharacterName() or L["You"] -- (with the surname, as Syndicator names characters)
 		if A then ReadSyndicator(A, add) elseif bb then ReadBrother(bb, add) end
 		for _, x in pairs(byID) do LiveCounts(x) end
 		for id, x in pairs(byID) do
-			-- only what's somewhere you aren't carrying it (your bags are the Item results)
-			-- (is:enchanted: of those copies only, not the one you wear or carry; review, 0.64.3)
+			-- only what's somewhere you aren't carrying it (your bags are the Item results) (is:enchanted: of those
+			-- copies only, not the one you wear or carry)
 			local elsewhere, known = false, false
 			x.enchanted, x.unenchanted = nil, nil
 			for _, h in pairs(x.holders) do
@@ -553,7 +553,7 @@ ns:RegisterProvider("stored", {
 				x.enchanted, x.unenchanted = x.enchanted or false, x.unenchanted or false
 			else
 				-- (nothing known of those copies: neither, as @bank. The row's link is any copy's, perhaps the one you
-				-- carry; release review, 0.64.6)
+				-- carry)
 				x.enchanted, x.unenchanted = false, false
 			end
 			local name = elsewhere and Name(id, x.link)
@@ -565,9 +565,9 @@ ns:RegisterProvider("stored", {
 
 
 ----------------------------------------------------------------------
--- @bank (0.62.1, the player: "@bank as just MY bank (current player's bank) ... from @stored (which is everyone on alts
--- as well)"): what this character has in its bank, @stored's rows cut to that one place (its count the bank's, as the
--- game counts it while you're online: LiveCounts)
+-- @bank ("@bank as just MY bank (current player's bank) ... from @stored (which is everyone on alts as well)"): what
+-- this character has in its bank, @stored's rows cut to that one place (its count the bank's, as the game counts it
+-- while you're online: LiveCounts)
 ----------------------------------------------------------------------
 
 --- This character's bank holder of a @stored row, or nil.
@@ -594,7 +594,7 @@ ns:RegisterProvider("bank", {
 				for k, v in pairs(e) do c[k] = v end -- (a copy: the @stored row keeps every holder)
 				c.holders = { [h.key] = h }
 				c.total = h.count
-				-- (the bank's copies' own; unknown: neither, never another character's link; review, 0.64.3)
+				-- (the bank's copies' own; unknown: neither, never another character's link)
 				c.enchanted, c.unenchanted = rawget(h, "enchanted") or false, rawget(h, "unenchanted") or false
 				-- (searched by its name and its place, not by every holder @stored's row has: "@bank mail")
 				c.text, c._ltext = nil, ns.Lower(L["bank"] .. " bank " .. tostring(h.who or ""))
@@ -646,8 +646,6 @@ function S.HookSyndicator()
 	local R = _G.Syndicator and _G.Syndicator.CallbackRegistry
 	if type(R) ~= "table" or not R.RegisterCallback or S.hooked then return end
 	S.hooked = true
-	-- (0.50.7, review: these set the list dirty directly, so it was read again inside the next keystroke, and the
-	-- currency ones, which change no item, did it too; now through ns:Changed, read in the background, money for Gold)
 	local function dirty()
 		ns:Changed("stored")
 		ns:Changed("gold") -- (Gold.lua: money is in the same records)

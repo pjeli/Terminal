@@ -3,16 +3,15 @@ local L = ns.L
 local I = ns.Integrations
 local OA = ns.OneForAll
 
--- OneForAll's gear value (1.0.5, the player's ask: "we can forgo our own upgrades if OneForAll suggests upgrades"):
--- while it's installed, is:upgrade ("upgrades") takes its verdict on each item, its stat weights for your talents
--- against what you wear (FLT.GearValue.Change: up, by how much; new, the slot empty; down, same, worn), in place of
--- Terminal's own weights (Search/Filters/Upgrades.lua). Terminal's own still decide when you picked roles in .weights
--- (OneForAll judges for your talents alone), and its checks before stay: your level, what your class can use.
--- The gear OneForAll's planner knows you could get (dungeon loot, quest rewards, sets, reputation, crafted: FLT.GearIndex)
--- is @loot's (1.0.25, the player: "it should be under Loot with sources mapped"; was @gearplan): each item with where it
--- comes from (`lootSource`: dungeon, raid, quest, crafted, reputation, other; source:quest...), a boss's said as
--- AtlasLoot's rows are ("Arugal  Shadowfang Keep"); what AtlasLoot lists already left to its rows. Without AtlasLoot,
--- @loot is these alone. "upgrades" finds the upgrades among them too.
+-- OneForAll's gear value: while it's installed, is:upgrade ("upgrades") takes its verdict on each item, its stat
+-- weights for your talents against what you wear (FLT.GearValue.Change: up, by how much; new, the slot empty; down,
+-- same, worn), in place of Terminal's own weights (Search/Filters/Upgrades.lua). Terminal's own still decide when you
+-- picked roles in .weights (OneForAll judges for your talents alone), and its checks before stay: your level, what your
+-- class can use. The gear OneForAll's planner knows you could get (dungeon loot, quest rewards, sets, reputation,
+-- crafted: FLT.GearIndex) is @loot's: each item with where it comes from (`lootSource`: dungeon, raid, quest, crafted,
+-- reputation, other; source:quest...), a boss's said as AtlasLoot's rows are ("Arugal  Shadowfang Keep"); what
+-- AtlasLoot lists already left to its rows. Without AtlasLoot, @loot is these alone. "upgrades" finds the upgrades
+-- among them too.
 
 local G = {}
 OA.Gear = G
@@ -45,7 +44,7 @@ end
 function G.Judge()
 	local F = ns.Filters
 	if F and F.MyRoles and F.MyRoles() then G.gv = nil return nil end
-	-- (found once a search, each row's verdict asks it: review, 1.0.21)
+	-- (found once a search, each row's verdict asks it: review)
 	G.gv = GV()
 	return G.gv and G or nil
 end
@@ -84,7 +83,7 @@ function G.Index(list)
 	return out
 end
 
--- (as @loot's rows are named: Loot.lua's I.LootName, the game's name or the one the name pump got; 1.0.44)
+-- (as @loot's rows are named: Loot.lua's I.LootName, the game's name or the one the name pump got)
 local function ItemName(id) return I.LootName and I.LootName(id) or nil end
 
 local function Tooltip(e, t)
@@ -99,8 +98,8 @@ end
 local function QuestPage(e)
 	if e.qid and I.WOWHEAD_QUEST then ns:ShowText(L["Wowhead: %s"]:format(tostring(e.src)), I.WOWHEAD_QUEST:format(e.qid), { compact = true }) end
 end
--- Shift+Enter: the item's link in the chat box with where it's from (Share.Text), opened by the game as AtlasLoot's rows
--- are (Core.lua's ChatBoxSpec; review, 1.0.34: Terminal's own code opened the chat box, which taints it); in combat, Terminal's
+-- Shift+Enter: the item's link in the chat box with where it's from (Share.Text), opened by the game as AtlasLoot's
+-- rows are (Core.lua's ChatBoxSpec); in combat, Terminal's
 local function LinkText(e) return ns.Share and ns.Share.Text(e) or select(2, ns.Safe(C_Item.GetItemInfo, e.itemID)) or e.name end
 local function LinkIt(e) ns.LinkInChat(LinkText(e)) end
 local LINK_CHATBOX = ns.ChatBoxSpec(LinkText)
@@ -108,7 +107,7 @@ local LINK_CHATBOX = ns.ChatBoxSpec(LinkText)
 local function Row(e, i, name)
 	-- (a boss's as AtlasLoot's rows say it, "<boss>  <instance>": the loot readers take its instance from that)
 	local where = (e.boss and e.inst) and (e.boss .. "  " .. e.inst) or e.src or ""
-	-- (no quest: Enter links it in chat too; it did nothing. Review, 1.0.38)
+	-- (no quest: Enter links it in chat too; it did nothing.)
 	local link = not e.qid
 	return {
 		secure = link and LINK_CHATBOX or nil, isOpen = link and ns.ChatBoxNeverOpen or nil,
@@ -121,8 +120,7 @@ end
 
 --- @loot's rows of its planner's gear: each item once, none AtlasLoot lists already (`listed`: item id -> true), your
 --- faction's and both sides'. Made once for its index (OneForAll builds it once), your side and `listed`; only the
---- items with no name yet are looked at again (review, 1.0.34: made again on every @loot rebuild, every ~2 s while
---- AtlasLoot's names come in: 16 ms and 6.8 MB each).
+--- items with no name yet are looked at again.
 function G.Rows(listed)
 	local lib = OA.Lib()
 	local fn = lib and rawget(lib, "GearIndex")

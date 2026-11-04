@@ -6,15 +6,15 @@ local Safe, Str, Num, Lower = ns.Safe, ns.Str, ns.Num, ns.Lower
 local AddOnVersion = I._.AddOnVersion
 
 ----------------------------------------------------------------------
--- What's Training (0.53.7, the player's ask): the spells, ranks, weapon skills, pet abilities and grimoires your class
--- has still to learn become @training, each with when you can learn it, what it costs and where it's taught, as What's
--- Training works them out. Read through its public API (WT_API, its forever branch; version 1), never its own tables:
+-- What's Training: the spells, ranks, weapon skills, pet abilities and grimoires your class has still to learn become
+-- @training, each with when you can learn it, what it costs and where it's taught, as What's Training works them out.
+-- Read through its public API (WT_API, its forever branch; version 1), never its own tables:
 --
---   WT_API.GetSpells()      every spell it sorts, with its status (learn now, next level, later, needs a rank or a
+--   WT_API.GetSpells      every spell it sorts, with its status (learn now, next level, later, needs a rank or a
 --                           talent first, a pet ability, ignored, known), level, cost at your faction's prices, link
 --   WT_API.GetSource(id)    where it's taught: your class trainer, a weapon master (which, and where), a quest, an item
 --   its callbacks           Ready, SpellsChanged, LevelChanged, IgnoredChanged: the list made again (ns:Changed)
---   WT_API.GetCatalog(cls)  every class's spells and weapon masters (0.56.1): @spell's other classes' spells, "druid
+--   WT_API.GetCatalog(cls)  every class's spells and weapon masters: @spell's other classes' spells, "druid
 --                           spells", "dagger trainer" (Providers/ClassSpells.lua); ClassReady: their names came in
 --
 -- Known spells are @spell's; the ones you ignored in What's Training are listed last, said so. Enter opens What's
@@ -168,7 +168,7 @@ function WT.SourceLines(e)
 	local out = {}
 	if kind == "quest" then
 		local names = {}
-		-- (its fields' shapes checked: a source that isn't as expected says less, never breaks the tooltip; 0.63.7, review)
+		-- (its fields' shapes checked: a source that isn't as expected says less, never breaks the tooltip)
 		local quests = src and type(src.quests) == "table" and src.quests or {}
 		for i, qid in ipairs(quests) do
 			if i > 3 then names[#names + 1] = L["and %d more"]:format(#quests - 3) break end
@@ -286,9 +286,8 @@ function WT.Open(e)
 end
 
 local function OpenRow(e) WT.Open(e) end
---- Shift+Enter: who teaches it, the nearest first ("where to learn <it>": WhereToLearn.lua's > learn); Enter on
---- one of them shows it on the map (0.53.9, the player: "an option to pinpoint the NPC that does the training").
---- Shift+Left comes back.
+--- Shift+Enter: who teaches it, the nearest first ("where to learn <it>": WhereToLearn.lua's > learn); Enter on one of
+--- them shows it on the map. Shift+Left comes back.
 local function WhoTeaches(e)
 	local P, UI = ns.Pipes, ns.UI
 	if not (P and P.Phrase and UI and UI.WalkTo) then return end
@@ -335,10 +334,10 @@ function WT.Collect()
 	local api = WT.Api()
 	if not api then return {} end
 	local ok, spells = pcall(api.GetSpells)
-	-- (a table keyed by spell, not a list: as changed, said; 0.63.7, review)
+	-- (a table keyed by spell, not a list: as changed, said)
 	if ok and type(spells) == "table" and #spells == 0 and next(spells) ~= nil then ok, spells = true, "a table, not a list" end
 	if not (ok and type(spells) == "table") then
-		-- (its API changed: said once, not an empty list with no word why; review, 0.57.7)
+		-- (its API changed: said once, not an empty list with no word why)
 		I.Failed("What's Training", L["@training is unavailable."], "GetSpells: " .. tostring(ok and type(spells) or spells))
 		return {}
 	end
@@ -400,7 +399,7 @@ local function SetupWhatsTraining()
 			if okR then hooked = hooked + 1 else ns:Trace("training: callback " .. ev .. " failed: " .. tostring(err)) end
 		end
 	end
-	-- (none took: its callbacks changed; the game's own events make the list again instead, and it's said; review, 0.57.7)
+	-- (none took: its callbacks changed; the game's own events make the list again instead, and it's said)
 	if hooked == 0 then
 		I.Failed("What's Training", L["@training isn't kept up to date as you train."], "no WT_API.Event callback registered")
 	end

@@ -1,20 +1,20 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- .tour (0.51.16; made plainer in 0.51.20, the player: "not very intuitive and simple: it should highlight some basic
--- results and be very clear"): a few short steps. A card above the terminal says what the step shows, in a sentence or
--- two; the step's search is typed for you and the result it's about is selected (the highlighted row). Enter goes on,
--- Shift+Left goes back, Esc ends it; typing ends it too, and you carry on from there. Up and Down, Tab and the mouse
--- work as ever. In Simple mode (for the tour, when you use Advanced). The empty prompt's first suggestion on a fresh
--- install is ".tour" (Examples.lua: E.NextExample).
+-- .tour (made plainer in 0.51.20, the player: "not very intuitive and simple: it should highlight some basic results
+-- and be very clear"): a few short steps. A card above the terminal says what the step shows, in a sentence or two; the
+-- step's search is typed for you and the result it's about is selected (the highlighted row). Enter goes on, Shift+Left
+-- goes back, Esc ends it; typing ends it too, and you carry on from there. Up and Down, Tab and the mouse work as ever.
+-- In Simple mode (for the tour, when you use Advanced). The empty prompt's first suggestion on a fresh install is
+-- ".tour" (Examples.lua: E.NextExample).
 
 local T = {}
 ns.Tour = T
 
 -- { text: typed into the prompt, pick: the row to select (its name, lowercase; "first"; "category"; or a test of the
--- row, else the first), title, say }. Questie's, AtlasLoot's, Attune's and What's Training's steps show what they
--- bring when they're installed (0.51.22, 0.51.23, 0.53.7: the player's asks); the ones that aren't are named on one
--- card, with what installing them adds. With none of them, two steps of the game's own: an item from your bags, and a setting.
+-- row, else the first), title, say }. Questie's, AtlasLoot's, Attune's and What's Training's steps show what they bring
+-- when they're installed; the ones that aren't are named on one card, with what installing them adds. With none of
+-- them, two steps of the game's own: an item from your bags, and a setting.
 local function HasAddon(name)
 	local I = ns.Integrations
 	return not (I and I.AddonMissing and I.AddonMissing(name))
@@ -46,11 +46,10 @@ local function TrainingText()
 end
 T.TrainingText = TrainingText -- (tests)
 
---- Your bags' items: the Hearthstone left out (0.51.24, the player: the tour showed it every time), every one, and the
---- Hearthstone's row (nil: none in your bags).
-local HEARTHSTONE = 6948 -- (by its id: its name is the client's language's; review, 0.51.25)
+--- Your bags' items: the Hearthstone left out, every one, and the Hearthstone's row (nil: none in your bags).
+local HEARTHSTONE = 6948 -- (by its id: its name is the client's language's)
 --- The Hearthstone's name in your language, lowercase, when it's in none of your bags (the game knows it by its id;
---- "hearthstone" found nothing on another client: review, 0.53.6).
+--- "hearthstone" found nothing on another client: review).
 local function HearthName()
 	local n = C_Item and C_Item.GetItemNameByID and ns.Str(ns.Safe(C_Item.GetItemNameByID, HEARTHSTONE))
 	return n and ns.Lower(n) or "hearthstone"
@@ -99,8 +98,8 @@ local function SettingText()
 	return Random(there) or known[#known]
 end
 
---- The Questie step's search, at random (0.68.1, the player's ask): an NPC everyone needs, or a mailbox, anvil, forge or
---- cooking fire (an object's only when its list is there: QuestieDB with objects). Each is found on both continents.
+--- The Questie step's search, at random: an NPC everyone needs, or a mailbox, anvil, forge or cooking fire (an object's
+--- only when its list is there: QuestieDB with objects). Each is found on both continents.
 T.NEAREST = { { "nearest vendor" }, { "nearest innkeeper" }, { "nearest repair" }, { "nearest trainer" },
 	{ "nearest mailbox", "mailbox" }, { "nearest anvil", "anvil" }, { "nearest forge", "forge" },
 	{ "nearest cooking fire", "cookingfire" } }
@@ -112,9 +111,8 @@ function T.NearestText()
 	return Random(there) or "nearest vendor"
 end
 
---- "Say what to do" (0.51.25, the player: "use elixir of fortitude" is no quicker than your bags): a kind of thing, not
---- its name, that something in your bags is: "use stamina food", "equip shield"; else "use food". Its line and the
---- filters its rows pass, or nil.
+--- "Say what to do": a kind of thing, not its name, that something in your bags is: "use stamina food", "equip shield";
+--- else "use food". Its line and the filters its rows pass, or nil.
 local STATS = { "stamina", "strength", "agility", "intellect", "spirit" }
 local KINDS = { "food", "elixir", "potion", "scroll", "flask" }
 local GEAR = { "shield", "sword", "axe", "mace", "dagger", "staff", "bow", "gun", "wand", "helm", "cloak", "gloves", "belt",
@@ -157,7 +155,7 @@ local function DoLine(rows)
 end
 
 --- The key that opens Terminal, as the last card says it (bound on first run to `, or Ctrl+` when that's taken; any
---- other the player chose; none: /term). (Review, 0.51.25: the card always said `.)
+--- other the player chose; none: /term).
 local function ToggleKey()
 	local ok, key = pcall(_G.GetBindingKey or function() end, "TERMINAL_TOGGLE")
 	if not ok or type(key) ~= "string" or key == "" then return nil end
@@ -304,8 +302,7 @@ local function ShowCard()
 	local fw = frame.GetWidth and frame:GetWidth()
 	local w = math.max(260, (type(fw) == "number" and fw or 400) * scale)
 	c:SetWidth(w)
-	-- (above the terminal, else below it when there's no room above: clamped to the screen, it sat over the prompt;
-	-- 0.51.21, the player's screenshot)
+	-- (above the terminal, else below it when there's no room above: clamped to the screen, it sat over the prompt)
 	ns.Panel.Flat(c)
 	local r, g, b = Theme.RGB(t.bg)
 	c:SetBackdropColor(r, g, b, 0.97)
@@ -379,7 +376,7 @@ function T.Arrived()
 	if not s or tour.picked or not s.pick then return end
 	local UI = ns.UI
 	if UI.searchJob then return end -- (still searching: once it's done)
-	-- (the step's own search: not the last step's rows, its search not started yet; review, 0.51.25)
+	-- (the step's own search: not the last step's rows, its search not started yet)
 	if UI.searchedText ~= s.text then return end
 	tour.picked = true
 	local at
@@ -420,7 +417,7 @@ function T.Key(key, shift)
 	if not tour then return false end
 	if key == "ENTER" or key == "NUMPADENTER" then T.Next() return true end
 	if key == "ESCAPE" then T.Stop() ns.UI:Dismiss() return true end
-	-- (in a category, Shift+Left is the list's: back to the categories, as step 3's card says; review, 0.51.25)
+	-- (in a category, Shift+Left is the list's: back to the categories, as step 3's card says)
 	if key == "LEFT" and shift then
 		if ns.UI.category then return false end
 		T.Back()

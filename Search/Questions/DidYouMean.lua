@@ -1,8 +1,8 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- "Did you mean...?" (0.56.2, the player's ask): when a plain-words search finds nothing at all ("Nothing has that"),
--- the phrases Terminal understands that are closest to it come under the note, each a row Enter searches:
+-- "Did you mean...?": when a plain-words search finds nothing at all ("Nothing has that"), the phrases Terminal
+-- understands that are closest to it come under the note, each a row Enter searches:
 --
 --   a spelling put right   "nearest inkeeper"         -> nearest innkeeper (each word not known, the closest known word)
 --   a phrase it's like     "flight paths i dont have" -> unlearned flight paths (the examples, by the words they share)
@@ -41,7 +41,7 @@ DYM.Words = Words
 
 --- The edit distance between two words (letters added, dropped, changed or two swapped), or `cap` + 1 past `cap`.
 --- (Fuzzy.distance's, the close spellings': one algorithm; it runs for every known word on a keystroke that found
---- nothing. 0.63.7, review: a copy of it was kept here, a quarter slower)
+--- nothing. a copy of it was kept here, a quarter slower)
 local function Distance(a, b, cap)
 	return ns.Fuzzy.distance(a, b, 1, #b, cap) or cap + 1
 end
@@ -293,7 +293,7 @@ end
 ns:RegisterCommand("missed", {
 	desc = L["The searches that found nothing, kept here to try again (.missed clear forgets them)"],
 	-- (the list and clear: said in the chat window, Terminal closed as after any command; one picked to try again: it
-	-- stays open on that search. 0.56.4, the player: Enter on ".missed" printed and stayed open)
+	-- stays open on that search. Enter on ".missed" printed and stayed open)
 	argStaysOpen = function(v) return Lower(tostring(v or "")) ~= "clear" end,
 	complete = function()
 		local out = {}

@@ -133,7 +133,7 @@ function K.Rows(mode)
 			local text = K.TextFor(line, mode)
 			if text then
 				if title then out[#out + 1] = { title = title }; title = nil end
-				-- (` said as the terminal's key, whichever it is: "^ or Esc", "Alt+^"; 0.65.1)
+				-- (` said as the terminal's key, whichever it is: "^ or Esc", "Alt+^")
 				out[#out + 1] = { key = ns.KeyHint(line[1]), text = ns.KeyHint(text), own = K.Own(line, mode) }
 			end
 		end
@@ -163,7 +163,7 @@ local pool = {} -- { key = FontString, text = FontString } per row shown
 local mode, back = "simple", nil
 local sc -- (the scrolling box: Panel.Scroller)
 -- the mode in use when it opened, for the header: read in K.Open before the terminal goes (its Hide ends fuzzy finding
--- and Alt+`'s Advanced, so read in Layout F1 in fuzzy finding said "you're in Simple mode"; 0.49.2, review)
+-- and Alt+`'s Advanced, so read in Layout F1 in fuzzy finding said "you're in Simple mode")
 local inUse = "simple"
 
 --- Scroll to `to` pixels from the top (kept inside the list), the thumb following.
@@ -370,7 +370,7 @@ function K.Close(why)
 	local was = back
 	back = nil
 	local closed = Panel.Close(frame, why, L["The keys window"])
-	-- (a fight: the terminal as F1 found it comes back at the fight's end, as it does without F1; review, 0.48.6)
+	-- (a fight: the terminal as F1 found it comes back at the fight's end, as it does without F1)
 	if closed and why == "combat" and was and not UI.combatState then
 		UI.combatState = was
 		UI.comeBackGen = (UI.comeBackGen or 0) + 1

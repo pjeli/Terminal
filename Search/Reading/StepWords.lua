@@ -7,9 +7,9 @@ local ns = select(2, ...)
 local E = ns.Easy
 local Lower = ns.Lower
 
--- Top N in plain words (0.66.7, the player): "the 3 nearest mailboxes", "top 5 upgrades", "my 10 most valuable items",
--- "5 swords" (the first five by how well they match), "the closest innkeeper" (one). The number beside a ranking word,
--- or opening the line; not one that's part of the search ("3 stacks of linen", "10 slot bag", "level 20 swords").
+-- Top N in plain words: "the 3 nearest mailboxes", "top 5 upgrades", "my 10 most valuable items", "5 swords" (the first
+-- five by how well they match), "the closest innkeeper" (one). The number beside a ranking word, or opening the line;
+-- not one that's part of the search ("3 stacks of linen", "10 slot bag", "level 20 swords").
 E.NUMBER_WORDS = { one = 1, two = 2, three = 3, four = 4, five = 5, six = 6, seven = 7, eight = 8, nine = 9, ten = 10,
 	eleven = 11, twelve = 12, fifteen = 15, twenty = 20, fifty = 50, hundred = 100 }
 E.RANK_WORDS = { nearest = true, closest = true, farthest = true, furthest = true, cheapest = true, best = true,
@@ -20,7 +20,7 @@ E.NOT_COUNTED = { stack = true, stacks = true, x = true, of = true, slot = true,
 	day = true, days = true, hour = true, hours = true, minute = true, minutes = true, week = true, weeks = true,
 	month = true, months = true, ago = true, to = true, ["and"] = true, ["or"] = true, handed = true, hand = true,
 	piece = true, pieces = true, point = true, points = true, yards = true, yard = true, yd = true, yds = true,
-	-- (a spell's: "10 sec cooldown", "100 mana"; 0.68.8)
+	-- (a spell's: "10 sec cooldown", "100 mana")
 	sec = true, secs = true, second = true, seconds = true, mana = true, rage = true, energy = true }
 local TOP_LEAD = { the = true, my = true }
 E.NOT_A_NOUN = { of = true, ["and"] = true, ["or"] = true, the = true, a = true, an = true, ["in"] = true, on = true, to = true,
@@ -134,8 +134,8 @@ function E.TopN(text)
 	return c.rest, c.n
 end
 
--- Comparing two searches in plain words (0.66.10): "mats on my alts but not on me", "cloth except my bank", "linen
--- plus my alts": the second is one of your own lists, said at the end.
+-- Comparing two searches in plain words: "mats on my alts but not on me", "cloth except my bank", "linen plus my alts":
+-- the second is one of your own lists, said at the end.
 E.LIST_PHRASES = { ["my bank"] = "@bank", ["in my bank"] = "@bank", ["the bank"] = "@bank", ["my bags"] = "@item in:bags",
 	["in my bags"] = "@item in:bags", ["on me"] = "@item in:bags", ["my alts"] = "@stored", ["on my alts"] = "@stored",
 	["my quest log"] = "@quest", ["in my log"] = "@quest", ["my log"] = "@quest", ["my mail"] = "@mail", ["in my mail"] = "@mail",

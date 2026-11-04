@@ -1,11 +1,9 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Tabs (0.53.5, the player's ask: several lists open at once, a shopping list, your route, upgrades; each
--- one a standing view, not a one-off search). Ctrl+T opens one, Ctrl+1-4 (or Ctrl+Tab / Ctrl+Shift+Tab) switch,
--- Ctrl+Shift+W closes one; a click on a tab switches, a right-click or its x (shown while the pointer is on the tab;
--- 0.64.5, the player: "a visual way to close a tab ... a small x on mouseover") closes it. The strip shows over the
--- prompt while there are two or more.
+-- Tabs. Ctrl+T opens one, Ctrl+1-4 (or Ctrl+Tab / Ctrl+Shift+Tab) switch, Ctrl+Shift+W closes one; a click on a tab
+-- switches, a right-click or its x (shown while the pointer is on the tab) closes it. The strip shows over the prompt
+-- while there are two or more.
 --
 -- A tab is what the prompt had (UI:SaveState's text, cursor, mode for this run, category, selected row), kept in
 -- db.tabs so it's there after a /reload. The one shown keeps itself up to date: a list it shows that changes is
@@ -18,8 +16,8 @@ local T = {}
 ns.Tabs = T
 T.MAX = 4
 
-local run = setmetatable({}, { __mode = "k" }) -- tab -> { kinds = set, any = bool, at = Stamp() } (not saved)
-local changed = {} -- provider id -> Stamp() when it last changed
+local run = setmetatable({}, { __mode = "k" }) -- tab -> { kinds = set, any = bool, at = Stamp } (not saved)
+local changed = {} -- provider id -> Stamp when it last changed
 local stamp = 0
 local function Stamp() stamp = stamp + 1 return stamp end -- (in order, never two alike: a change and a look in one frame too)
 
@@ -91,15 +89,14 @@ local function Snapshot()
 		if not (e.noActivate or e.lead) then KindsOf(e, kinds) end
 	end
 	tab.n = T.Count(UI.results)
-	-- (a sum's rows are of no list: whatever it summed may change; review, 0.53.6: any row of no list counted, so a tab
-	-- left on Simple mode's categories got a dot on every change)
+	-- (a sum's rows are of no list: whatever it summed may change)
 	run[tab] = { kinds = kinds, any = UI.aggregate ~= nil, at = Stamp() }
 	return tab
 end
 
---- The prompt kept into the tab shown, unless this run isn't the tab's: pure fuzzy finding (a run of its own, over
---- the tab), the tour, a run opened with a text of its own (a chat link, /term words: UI.tabForeign). Review, 0.53.6:
---- New, Switch and Close kept fuzzy finding's and the tour's text as the tab.
+--- The prompt kept into the tab shown, unless this run isn't the tab's: pure fuzzy finding (a run of its own, over the
+--- tab), the tour, a run opened with a text of its own (a chat link, /term words: UI.tabForeign). New, Switch and Close
+--- kept fuzzy finding's and the tour's text as the tab.
 local function Keep(t)
 	if UI.fzf or UI.tabForeign or (ns.Tour and ns.Tour.Active and ns.Tour.Active()) then return end
 	t.list[t.cur] = Snapshot()
@@ -121,7 +118,7 @@ local function Load(tab)
 	tab = tab or {}
 	if ns.Tour and ns.Tour.Stop then ns.Tour.Stop() end -- (the tour's card and its next step: not over a tab)
 	UI:EndFuzzy()
-	UI.histSearch = nil -- (another tab: not the history search; 0.63.7, review)
+	UI.histSearch = nil -- (another tab: not the history search)
 	UI:Disarm()
 	UI:HideRowMenu()
 	if ns.Bar then ns.Bar.Reset() end -- (Simple mode's bar: picked for the tab left, not this one)
@@ -294,8 +291,8 @@ function T.Height()
 	return math.max(18, (Theme.Get().fontSize or 14) + 8)
 end
 
--- the shown list's count, kept while it's the same list (the strip is drawn on every footer update: a held Down ~20 times
--- a second; review, 0.53.6)
+-- the shown list's count, kept while it's the same list (the strip is drawn on every footer update: a held Down ~20
+-- times a second)
 local countFor, countLen, countN
 local function CountShown()
 	local r = UI.results

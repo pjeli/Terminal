@@ -16,8 +16,6 @@ local panels = {} -- every app built: { IsShown, Close }
 local frames = {} -- their frames (.zen keeps them up while the interface fades)
 
 --- A one-line FontString in the input font, at `size` (the font's own when nil), justified left unless told.
---- (0.49.2, review: a size is its own font object, Theme.FontAt, so `.set font` reaches every app's text; a face set
---- on the FontString itself stayed the one it was made with)
 function P.Text(parent, size, justify)
 	local fs = parent:CreateFontString(nil, "OVERLAY")
 	fs:SetFontObject(size and Theme.FontAt(size) or Theme.fonts.input)
@@ -35,8 +33,6 @@ function P.Build(name, app)
 	frame:SetClampedToScreen(true)
 	frame:Hide()
 	frame:EnableKeyboard(true)
-	-- (0.49.2, review: only WoWamp caught the mouse, as the terminal does: a click on F1's or the changelog's text went
-	-- through to the world and targeted the mob behind it, a drag on .atop turned the camera)
 	frame:EnableMouse(true)
 	frame:RegisterEvent("PLAYER_REGEN_DISABLED")
 	frame:SetScript("OnEvent", function() app.Close("combat") end)
@@ -46,9 +42,9 @@ function P.Build(name, app)
 	return frame
 end
 
---- Where the terminal is, in its theme: sized W x H (when given) at the terminal's scale, hung from the
---- The flat backdrop Terminal's windows use (white with a 1 px edge, coloured by each), and one with the edge alone
---- (a box drawn round a part of a window). One table each (review, 0.53.6: written out in six files).
+--- Where the terminal is, in its theme: sized W x H (when given) at the terminal's scale, hung from the The flat
+--- backdrop Terminal's windows use (white with a 1 px edge, coloured by each), and one with the edge alone (a box drawn
+--- round a part of a window). One table each.
 P.FLAT = { bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 }
 P.EDGE = { edgeFile = WHITE, edgeSize = 1 }
 --- Gives a frame the flat backdrop, once (setting it makes its textures again: some did on every show).
@@ -131,9 +127,9 @@ function P.Close(frame, why, label, extra)
 end
 
 --- A scrolling box in an app's window (the changelog, the keys window): its edge, the scroll frame and its content, a
---- thumb on the right; the mouse wheel scrolls it. `top`: where it starts below the window's top; `step`: pixels a line.
---- Gives { box, scroll, content, thumb, offset, ScrollTo(to), Max(), KEYS (the scroll keys: Up/Down, PgUp/PgDn,
---- Home/End) }. (One copy: the two apps had one each, line for line; review, 0.53.6.)
+--- thumb on the right; the mouse wheel scrolls it. `top`: where it starts below the window's top; `step`: pixels a
+--- line. Gives { box, scroll, content, thumb, offset, ScrollTo(to), Max, KEYS (the scroll keys: Up/Down, PgUp/PgDn,
+--- Home/End) }. (One copy: the two apps had one each, line for line.)
 function P.Scroller(frame, top, step)
 	local sc = { offset = 0, step = step or 40 }
 	local box = CreateFrame("Frame", nil, frame, "BackdropTemplate")
@@ -215,7 +211,7 @@ end
 function P.Footer(frame, y, text, size)
 	local fs = P.Text(frame, size or 11)
 	fs:SetPoint("BOTTOMLEFT", 12, y)
-	-- (a ` in it says the terminal's key, whichever it is: "Esc or ^ close"; 0.65.1)
+	-- (a ` in it says the terminal's key, whichever it is: "Esc or ^ close")
 	local set = fs.SetText
 	fs.SetText = function(self, t, ...) return set(self, ns.KeyHint(t), ...) end
 	if text then fs:SetText(text) end

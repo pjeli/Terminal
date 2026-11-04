@@ -2,10 +2,10 @@ local ns = select(2, ...)
 local L = ns.L
 local I = ns.Integrations
 
--- OneForAll - Forever (Smoergi's, GPL-3; 1.0.1, the player's ask): its tables read while it's installed, never copied
--- into Terminal. It has no API: its whole namespace is the global OneForAll (its Data.lua: _G[ADDON] = FLT), so its
--- tables are read as they are, each checked first; one that isn't in the shape expected is left out and said once in
--- chat (I.Failed: what's unavailable), the rest still used. What each part makes is in Providers/Integrations/OneForAll/:
+-- OneForAll - Forever (Smoergi's, GPL-3): its tables read while it's installed, never copied into Terminal. It has no
+-- API: its whole namespace is the global OneForAll (its Data.lua: _G[ADDON] = FLT), so its tables are read as they are,
+-- each checked first; one that isn't in the shape expected is left out and said once in chat (I.Failed: what's
+-- unavailable), the rest still used. What each part makes is in Providers/Integrations/OneForAll/:
 --
 --   BOOKS, BOOK_REWARD_TIERS, MAP_IDS     @book: the Library Books (Books.lua)
 --   PET_ABILITIES, PET_FAMILIES, PET_RARES  a hunter's only: its pet abilities' ranks in @spell, who teaches each, the
@@ -15,7 +15,7 @@ local I = ns.Integrations
 --                                         weapon masters, Merchant's Favor recipes (on @recipe's unknown ones), boats, zeppelins and the tram,
 --                                         loot drop chances (World.lua)
 --   GearValue, GearIndex                  is:upgrade judged by OneForAll's gear value, its suggested gear (Upgrades.lua)
---   UI.panels, OpenPanel                  its window's tabs as @panel rows (below, 1.0.14)
+--   UI.panels, OpenPanel                  its window's tabs as @panel rows (below)
 
 local OA = {}
 ns.OneForAll = OA
@@ -79,7 +79,7 @@ end
 function OA.Text(v) return type(v) == "string" and v ~= "" and v or nil end
 
 --- Does every word (lowercase) appear in a row's name or its text? The parts' questions ask it of whole lists per
---- keystroke: each looked for in each, no string joined per row (review, 1.0.21).
+--- keystroke: each looked for in each, no string joined per row.
 function OA.Has(e, words)
 	if not words or #words == 0 then return true end
 	local n, t = rawget(e, "_lname") or "", rawget(e, "_ltext") or rawget(e, "text") or ""
@@ -110,8 +110,7 @@ end
 
 --- The rows by how far each is from you, nearest first, each a view saying so (I.NearView: the English "N yd" the
 --- list's distance column reads back, translated there, kept up to date as you walk); those with no spot after. Nil
---- when where you are isn't known. (Review, 1.0.22: the parts' own copies wrote the translated "%.0f m", and German,
---- French, Spanish, Russian and Chinese clients lost the column.)
+--- when where you are isn't known.
 function OA.Nearest(rows)
 	local here = I.Here and I.Here()
 	if not here then return nil end
@@ -150,10 +149,9 @@ function OA.Status()
 end
 
 ----------------------------------------------------------------------
--- Its window's tabs in @panel (1.0.14, the player's ask): "OneForAll: Dungeons & Raids", Enter opens its window on it
--- (its own OpenPanel; its window is its own frame, not Blizzard's). The tabs are read from its list (UI.panels: key,
--- label), so a new one in a new version is there too. Opening a tab hidden in its settings shows it again, as its
--- own buttons do.
+-- Its window's tabs in @panel: "OneForAll: Dungeons & Raids", Enter opens its window on it (its own OpenPanel; its
+-- window is its own frame, not Blizzard's). The tabs are read from its list (UI.panels: key, label), so a new one in a
+-- new version is there too. Opening a tab hidden in its settings shows it again, as its own buttons do.
 ----------------------------------------------------------------------
 
 --- Its tabs, checked: { { key, label } } in its order, or nil.

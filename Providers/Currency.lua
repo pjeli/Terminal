@@ -30,7 +30,7 @@ end
 
 -- The currency list as the Currency tab reads it: a folded header's currencies aren't in it, so folded ones are opened
 -- for the read and folded back (ns.ReadExpanded; the tab itself folds them with C_CurrencyInfo.ExpandCurrencyList:
--- Forever's Camelot/Blizzard_TokenUI.lua; review, 0.48.6: "Miscellaneous" folded left its currencies out)
+-- Forever's Camelot/Blizzard_TokenUI.lua)
 local function CurrencyRow(i)
 	local info = ns.Safe(C_CurrencyInfo.GetCurrencyListInfo, i)
 	if type(info) ~= "table" then return nil end

@@ -52,7 +52,7 @@ local function Me() return ns.CharacterName and ns.CharacterName() or (UnitName 
 function LL.Parse(msg)
 	if type(msg) ~= "string" or (ns.Secret and ns.Secret(msg)) then return nil end
 	for _, f in ipairs(Patterns()) do
-		-- (a table only for the form that matched: every loot line of the group goes through the six; review, 0.53.6)
+		-- (a table only for the form that matched: every loot line of the group goes through the six)
 		local a, b, c, d = msg:match(f.p)
 		if a then
 			local got = { a, b, c, d }
@@ -67,8 +67,8 @@ function LL.Parse(msg)
 	end
 end
 
--- Only what's worth rolling for is kept (the player's call, 0.43.26): uncommon (green) and better. Grey junk and
--- white trade goods, cloth and quest items aren't logged.
+-- Only what's worth rolling for is kept: uncommon (green) and better. Grey junk and white trade goods, cloth and quest
+-- items aren't logged.
 LL.MIN_QUALITY = 2
 local LINK_COLOURS = { ["9d9d9d"] = 0, ffffff = 1, ["1eff00"] = 2, ["0070dd"] = 3, a335ee = 4, ff8000 = 5,
 	e6cc80 = 6, ["00ccff"] = 7 }
@@ -117,7 +117,7 @@ function LL.Add(link, who, count, from, src, drop)
 		if e.id == id and e.who == who and t - (e.t or 0) <= LL.SAME and not Told(e, src) then
 			if from and not e.from then
 				e.from = from
-				ns:Changed("lootlog") -- (its row says the boss now: "@drop <boss>" finds it; review, 0.53.6)
+				ns:Changed("lootlog") -- (its row says the boss now: "@drop <boss>" finds it)
 			end
 			if drop and not e.drop then e.drop = drop end
 			e.src = (e.src or "loot") .. "+" .. src
@@ -184,7 +184,7 @@ local function Who(who)
 end
 
 -- In chat a drop says who got it, where and when: "[Rotmender's Garb] looted by Zd Zd from Mordresh Fire Eye in
--- Razorfen Downs (26 min ago)" (0.45.10: it went as the bare link). The line is yours, so your own drops say "me".
+-- Razorfen Downs (26 min ago)". The line is yours, so your own drops say "me".
 local function ChatWho(e)
 	if e.mine then return L["me"] end
 	local who = e.looter
@@ -257,7 +257,7 @@ ns:RegisterProvider("lootlog", {
 	aliases = { "drop", "dropped", "drops", "lootlog", "looted", "loothistory" },
 	explicit = true, -- (only with @drop, or Simple mode's Loot log)
 	refreshOnOpen = 60, -- (the "5 min ago" moves on: rebuilt on open when a minute old; new entries mark it dirty)
-	leadRow = ns.EmptyLead(L["Nothing looted yet"], function() return #(Log() or {}) == 0 end), -- (0.49.2, review)
+	leadRow = ns.EmptyLead(L["Nothing looted yet"], function() return #(Log() or {}) == 0 end),
 	collect = function()
 		local out, log = {}, Log() or {}
 		-- (drops kept before 0.43.26 that aren't worth rolling for go now)
@@ -266,8 +266,7 @@ ns:RegisterProvider("lootlog", {
 			if type(d) ~= "table" or not LL.Worth(d.link, d.id) then table.remove(log, i) end
 		end
 		local n = #log
-		-- (two alike drops in one second, to the same looter: a key each, the older one's as it was; 0.63.7, review: they
-		-- shared one, and its pick history)
+		-- (two alike drops in one second, to the same looter: a key each, the older one's as it was)
 		local function BaseKey(d) return (d.t or 0) .. ":" .. tostring(d.id) .. ":" .. tostring(d.who) end
 		local total, seen = {}, {}
 		for _, d in ipairs(log) do
@@ -326,7 +325,7 @@ local names, namesFor
 local function Plainish(s) return (ns.Lower(s):gsub("[%p]", " "):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")) end
 local function LooterNames(log)
 	-- (the newest entry itself, not its time: at the log's cap, a drop in the same second as the newest kept the same
-	-- count and time, and a new looter wasn't known; 0.63.7, review)
+	-- count and time, and a new looter wasn't known)
 	local mark = #log .. ":" .. tostring(log[1])
 	if namesFor == mark then return names end
 	names, namesFor = {}, mark

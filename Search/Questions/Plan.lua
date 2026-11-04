@@ -1,12 +1,12 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- A profession's levelling plan (0.48.2, the player's ask): Advanced "sort:plan" ("@recipe blacksmithing sort:plan"),
--- Simple mode "blacksmithing plan" / "level blacksmithing" / "leveling plan". Your recipes that still give a skill point
--- (orange or yellow: is:skillup), by how many times the materials you have make each: in your bags and bank, and with
--- what your alts hold (the bag addon's records, as @stored counts them). Materials a vendor sells you are left out of
--- the count (you'd buy them: a recipe made of those only says so, and isn't planned); sold means a vendor's window
--- showed it on sale in any number (MissingRecipes.lua keeps db.vendorItems), or Questie lists a vendor friendly to you.
+-- A profession's levelling plan: Advanced "sort:plan" ("@recipe blacksmithing sort:plan"), Simple mode "blacksmithing
+-- plan" / "level blacksmithing" / "leveling plan". Your recipes that still give a skill point (orange or yellow:
+-- is:skillup), by how many times the materials you have make each: in your bags and bank, and with what your alts hold
+-- (the bag addon's records, as @stored counts them). Materials a vendor sells you are left out of the count (you'd buy
+-- them: a recipe made of those only says so, and isn't planned); sold means a vendor's window showed it on sale in any
+-- number (MissingRecipes.lua keeps db.vendorItems), or Questie lists a vendor friendly to you.
 --
 -- The footer says the skill the materials would give: crafting the recipe with the best chance of a point first, again
 -- and again while the materials last, each craft's chance as the game's: 1 while orange, then (grey - skill) / (grey -
@@ -23,8 +23,7 @@ local Safe, Num, Str, Lower = ns.Safe, ns.Num, ns.Str, ns.Lower
 PL.SHOWN_CHANCE = { orange = 1, yellow = 0.75, green = 0.25, grey = 0 } -- (no levels known: the window's colour)
 PL.STEPS = 600 -- (crafts planned at most: each looks over every recipe planned)
 -- (a recipe AtlasLoot gives no levels for, Forever's own say: its window's colour holds only for the skill it was read
--- at, so it's counted for this many points at most, and the note says the plan is rough; review, 0.48.6: one shown
--- orange was "made" a point at a time up to the cap)
+-- at, so it's counted for this many points at most, and the note says the plan is rough)
 PL.UNKNOWN_POINTS = 5
 
 local function Diff()
@@ -89,10 +88,9 @@ end
 
 local WORSE = { orange = 0, yellow = 1, green = 2, grey = 3 }
 
---- A craft's chance of a skill point at this skill, and its colour then ("orange", "yellow", "green", "grey"). AtlasLoot's
---- levels aren't always Forever's (0.48.3, the player: Coarse Sharpening Stone, orange to AtlasLoot at 62 Blacksmithing,
---- grey in the game's window, was planned): the colour the window showed last wins when it's worse (the skill only goes
---- up since: one it showed grey gives nothing now).
+--- A craft's chance of a skill point at this skill, and its colour then ("orange", "yellow", "green", "grey").
+--- AtlasLoot's levels aren't always Forever's: the colour the window showed last wins when it's worse (the skill only
+--- goes up since: one it showed grey gives nothing now).
 function PL.Chance(e, skill)
 	local D = Diff()
 	local d = e.difficulty
@@ -330,8 +328,7 @@ end
 ----------------------------------------------------------------------
 
 local ASK = {}
--- (and a question's filler: "whats the best way to level blacksmithing" looked for recipes named "whats" and "way";
--- 0.49.2, review)
+-- (and a question's filler: "whats the best way to level blacksmithing" looked for recipes named "whats" and "way")
 for w in ([[my me i the a an to of for how do does can should what which up skill points with is are it best
 	fastest quickly quick next whats way ways guide cheapest easiest good get]]):gmatch("%a+") do ASK[w] = true end
 -- (not "skillup": "blacksmithing skillup" stays Simple mode's is:skillup search)
@@ -345,8 +342,7 @@ local ANY = { profession = true, professions = true, prof = true, profs = true, 
 function PL.Question(text)
 	local t = ns.QuestionText(text)
 	if not t then return nil end
-	-- (a plan word first: this is asked on every keystroke, and your professions are read only when it may be one;
-	-- review, 0.48.6)
+	-- (a plan word first: this is asked on every keystroke, and your professions are read only when it may be one)
 	local cued = false
 	for w in t:gmatch("%S+") do if CUE[w] then cued = true break end end
 	if not cued then return nil end
@@ -356,7 +352,6 @@ function PL.Question(text)
 	local cue, any, profs, words, seen = false, false, {}, {}, {}
 	local planSaid, levelSaid = false, false
 	-- a name of several words, whole ("first aid plan", "erste hilfe"): named, and its words not left to narrow by
-	-- (review, 0.53.6: "aid" narrowed First Aid's plan to recipes named "aid")
 	local padded = " " .. (t:gsub("%s+", " ")) .. " "
 	for _, pr in ipairs(mine) do
 		local ln = (Lower(pr.name):gsub("'", ""):gsub("%p", " "):gsub("%s+", " "))
@@ -384,7 +379,7 @@ function PL.Question(text)
 		elseif not ASK[w] then words[#words + 1] = w end
 	end
 	-- "leveling plan": every profession of yours (a levelling word and a plan word, nothing else: "level 20" stays a
-	-- search; 0.49.2, review: it was a search, though the comments above give it)
+	-- search)
 	if cue and #profs == 0 and not any and planSaid and levelSaid and #words == 0 and #mine > 0 then any = true end
 	if not cue or (#profs == 0 and not any) then return nil end
 	return { profs = profs, words = words }

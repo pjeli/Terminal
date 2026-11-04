@@ -1,14 +1,13 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- @auction (0.48.10, the player's ask: auctions out of @mail into a list of their own): every character's auctions on
--- the auction house as Terminal saw them, and the auction house's news.
+-- @auction: every character's auctions on the auction house as Terminal saw them, and the auction house's news.
 --
 --   up now     each auction posted (seen as it was made: Mail.lua's MA.OnPost / MA.AuctionCreated) or listed on your
 --              Auctions tab (read whenever you visit the auction house: MA.ReadOwned), with its price and time left
 --   ran out    one whose time is up with no other news of it
 --   news       sold, won, outbid, expired, each kept its hour (Mail.lua's MA.NewsRows; "incoming mail" reads them too)
---   sold       your sales of the last 30 days (0.56.12, a player: past sales weren't listed), newest first: each kept as
+--   sold       your sales of the last 30 days, newest first: each kept as
 --              the auction house told it (MA.KeepSale), the buyer and what you got from its mail (MA.SalesFromMail)
 --
 -- Terminal's own records only (the player's call): an auction leaves the list of those up once it sells, expires, is
@@ -120,7 +119,7 @@ local function SoldRow(key, i, s, mine, who, now)
 	}
 end
 
---- The auction house's price for one now (Auctionator's last scan; 0.62.0), and whether yours is above it: undercut.
+--- The auction house's price for one now (Auctionator's last scan), and whether yours is above it: undercut.
 local function Market(a, id, link, over)
 	local AN = ns.Auctionator
 	if over or not (AN and AN.On and AN.On()) then return nil end
@@ -281,11 +280,11 @@ function AU.Question(text)
 		else rest[#rest + 1] = w end
 	end
 	-- "what am i selling": selling with asking words is about your auctions too ("what's up" isn't: 0.49.2, review);
-	-- "am i undercut", "undercut auctions" (Auctionator's prices, 0.62.0)
+	-- "am i undercut", "undercut auctions" (Auctionator's prices)
 	if not subject and not (cues.up and selling and asked and #rest == 0) and not (cues.undercut and #rest == 0) then return nil end
 	if subject and weak and not asked and not next(cues) then return nil end
-	-- other words: asked, and with what auctions do (sold, selling, listed) or "auctions" itself, as the mail's question
-	-- does ("where is the ah", "show me the auction house" are searches: they said "No auction has that"; 0.49.2, review)
+	-- other words: asked, and with what auctions do (sold, selling, listed) or "auctions" itself, as the mail's
+	-- question does ("where is the ah", "show me the auction house" are searches: they said "No auction has that")
 	if #rest > 0 and not (asked and (selling or not weak)) then return nil end
 	return { words = rest, sold = cues.sold, up = cues.up and not cues.sold or nil, undercut = cues.undercut }
 end

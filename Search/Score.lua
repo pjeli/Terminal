@@ -10,8 +10,7 @@ local Fuzzy = ns.Fuzzy
 local SLICE_CHECK = UI.SLICE_CHECK -- rows scored between looks at the clock
 local TEXT_SCORE = 1.0 -- score given to a match found in an entry's secondary text
 local MAX_RESULTS = 100 -- rows a search keeps
--- rows a Simple mode category keeps (Dungeon loot): all its row said it had, not the best 100 (0.51.7, the player:
--- "upgrades" said 133 in Dungeon loot, and listed 100 there)
+-- rows a Simple mode category keeps (Dungeon loot): all its row said it had, not the best 100
 local LIST_MAX = 1000
 
 ----------------------------------------------------------------------
@@ -23,10 +22,9 @@ local LIST_MAX = 1000
 local NO_POS = {}
 UI.NO_POS = NO_POS
 
---- `kind`: the row's provider id when the caller knows it, so a compact row whose kind was never
---- picked isn't read through its metatable just to find that out. `picked`: ns:FreqKind(kind), when the caller looked
---- it up once for the whole list (false: nothing of it picked; review, 0.48.6: it was asked per match, a third of a
---- broad search's scoring once anything of that kind had been picked).
+--- `kind`: the row's provider id when the caller knows it, so a compact row whose kind was never picked isn't read
+--- through its metatable just to find that out. `picked`: ns:FreqKind(kind), when the caller looked it up once for the
+--- whole list (false: nothing of it picked).
 local function FreqBonus(e, kind, picked)
 	local freq = ns.db and ns.db.freq
 	if not freq then return 0 end
@@ -85,8 +83,7 @@ local function StartsRight(name, lname, c1)
 	local c = byte(s, 1)
 	if c and c >= 65 and c <= 90 then c = c + 32 end
 	if c == c1 then return true end
-	-- (a name that starts with a quote or a number: Fuzzy.initials skips those, so it decides; review, 0.57.7:
-	-- "mp" didn't find "Mr. Pinchy" by its initials)
+	-- (a name that starts with a quote or a number: Fuzzy.initials skips those, so it decides)
 	if c and c < 128 and not (c >= 97 and c <= 122) then return true end
 	if c ~= 116 and c ~= 97 and c ~= 111 then return false end
 	local c2, c3, c4 = byte(s, 2, 4)
@@ -112,11 +109,10 @@ local function NameExtra(tk, best, name, lname)
 	return best, how
 end
 
---- One typed word on a row: its score (nil: no match), how the name matched ("name": the fuzzy
---- match, "ini": the name's initials, "short": a shorthand's full name; nil: only the text), and
---- which of the shorthand's names. The initials and shorthand are looked at only when the word
---- isn't in the name as it is, so ordinary word searches rank as they always did.
---- xs: the shorthand's full names when the word is one. exact: the word was a "quoted phrase" (0.52.13): only the
+--- One typed word on a row: its score (nil: no match), how the name matched ("name": the fuzzy match, "ini": the name's
+--- initials, "short": a shorthand's full name; nil: only the text), and which of the shorthand's names. The initials
+--- and shorthand are looked at only when the word isn't in the name as it is, so ordinary word searches rank as they
+--- always did. xs: the shorthand's full names when the word is one. exact: the word was a "quoted phrase": only the
 --- phrase as it is counts. Allocation-free.
 local function TokenScore(tk, xs, name, lname, ltext, exact)
 	if exact then -- (a "quoted phrase": in the name as it is, else in the row's text; never letters scattered)
@@ -171,15 +167,15 @@ local function ScoreEntry(e, tokens)
 	local name, lname, short, exact = e.name, e._lname, tokens.short, tokens.exact
 	local ini = tokens.ini or IniFirst(tokens)
 	-- (the last word first: narrowing, the rows had every earlier word, and only the one being typed can turn one away;
-	-- the total, the name hit and nil are the same in any order. Review, 0.53.6)
+	-- the total, the name hit and nil are the same in any order.)
 	for i = #tokens, 1, -1 do
 		local tk = tokens[i]
 		local xs = short and short[i]
 		local best, sub
 		local where = xs and ShortHit(xs, lname or ns.Lower(name), ltext)
 		if exact and exact[tk] then
-			-- a "quoted phrase" (0.52.13, the player's ask): one string, in the name as it is (no letters scattered, no
-			-- initials), else in the row's text
+			-- a "quoted phrase": one string, in the name as it is (no letters scattered, no initials), else in the
+			-- row's text
 			best, sub = Fuzzy.substr(tk, name, lname), true
 			if best then nameHit = true end
 		elseif where then
@@ -206,18 +202,18 @@ local function ScoreEntry(e, tokens)
 		total = total + best
 	end
 	-- (not written on compact rows: a field more grew each to the next table size, ~320 B a row over thousands; their
-	-- matched letters are worked out on screen anyway, Positions. Cleared only when there: in Lua 5.1 a nil written to a
-	-- field a row hasn't makes the field, and a full row doubles; 0.63.7, review: +347 B a matched row)
+	-- matched letters are worked out on screen anyway, Positions. Cleared only when there: in Lua 5.1 a nil written to
+	-- a field a row hasn't makes the field, and a full row doubles)
 	if rawget(e, "_pos") ~= nil then e._pos = nil end
 	if not rawget(e, "_compact") then e._nameHit = nameHit end
 	return total
 end
 
 -- close spellings: how far a word may be from a name's word, in Fuzzy.typo's costs (a slip of the hand 2, any other
--- change 3; 0.68.15, the player's call): 4-7 letters, one mistake of any kind; 8+, two slips, or a slip and another
--- mistake, not two keys far from where they belong. `tk`, the word itself: counted in letters, not bytes ("льняная" is
--- 7 letters in 14 bytes), and none for a word of Chinese or Korean characters: a byte off there is another character
--- altogether (铜 copper and 铝 aluminium differ in their last byte), not a slip of the hand
+-- change 3): 4-7 letters, one mistake of any kind; 8+, two slips, or a slip and another mistake, not two keys far from
+-- where they belong. `tk`, the word itself: counted in letters, not bytes ("льняная" is 7 letters in 14 bytes), and
+-- none for a word of Chinese or Korean characters: a byte off there is another character altogether (铜 copper and 铝
+-- aluminium differ in their last byte), not a slip of the hand
 local function NearLimit(n, tk)
 	if tk and tk:find("[\128-\255]") then
 		if tk:find("[\224-\244]") then return nil end
@@ -225,8 +221,8 @@ local function NearLimit(n, tk)
 	end
 	if n < 4 then return nil end
 	-- (in letters: NearWord measures a word with letters of two bytes a letter at a time. Counted in bytes, one wrong
-	-- Cyrillic letter was two bytes off (review, 1.0.18: "ткан" never found "ткань"), and a room of two letters' bytes let
-	-- two wrong letters through, "кожа" for "лоза"; review, 1.0.32)
+	-- Cyrillic letter was two bytes off, and a room of two letters' bytes let two wrong letters through, "кожа" for
+	-- "лоза")
 	return n >= 8 and 5 or 3
 end
 
@@ -320,7 +316,7 @@ end
 -- sorts along with the rows it shows; it stays first)
 local PINNED = 1e12
 --- The last tie-break, by key: numbers as numbers (no two strings made per compare: dozens of NPCs of one name tie on
---- score and name; review, 0.53.6), anything else as text.
+--- score and name), anything else as text.
 local function KeyLess(ka, kb)
 	if type(ka) == "number" and type(kb) == "number" then return ka < kb end
 	return tostring(ka) < tostring(kb)

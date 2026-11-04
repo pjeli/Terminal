@@ -3,11 +3,11 @@ local L = ns.L
 local I = ns.Integrations
 local OA = ns.OneForAll
 
--- @book: WoW Forever's Library Books (1.0.1, the player's ask), OneForAll's list of them: the tomes found in the world
--- and turned in to the library for its rewards (not the lore books on the shelves). Each book is a quest (turning it
--- in) and an item (the book you carry), in a zone at a spot: a row each, with where it is and how far along you are
--- ("in your bags", "turned in"), on the map with Enter as a mailbox is. "library books", "books i still need",
--- "nearest library book", "library book rewards" ask for them (Simple mode; Search/Questions/Questions.lua).
+-- @book: WoW Forever's Library Books, OneForAll's list of them: the tomes found in the world and turned in to the
+-- library for its rewards (not the lore books on the shelves). Each book is a quest (turning it in) and an item (the
+-- book you carry), in a zone at a spot: a row each, with where it is and how far along you are ("in your bags", "turned
+-- in"), on the map with Enter as a mailbox is. "library books", "books i still need", "nearest library book", "library
+-- book rewards" ask for them (Simple mode; Search/Questions/Questions.lua).
 --
 -- How far along: OneForAll's own judgement when it gives one (FLT:GetBookState: a turn-in it saw, a book you marked,
 -- one in your bags or bank, the quest flag), else the game's (the quest done, the book in your bags or bank).
@@ -60,7 +60,7 @@ function B.Rewards()
 	return OA.Part("bookrewards", "BOOK_REWARD_TIERS", L["The Library Books' rewards are unavailable."], function(raw)
 		local out = {}
 		for _, t in ipairs(raw) do
-			-- (the books it needs are in its label, "10 books", "30 books (?)"; its req is a level: review, 1.0.13)
+			-- (the books it needs are in its label, "10 books", "30 books (?)"; its req is a level: review)
 			local need = type(t) == "table" and Num(tonumber((OA.Text(t.books) or ""):match("%d+") or ""))
 			if need then
 				local items = {}
@@ -206,7 +206,7 @@ function B.Question(text)
 	end
 	if not book then return nil end
 	-- ("book", "my spell book", "where do i find the book": not these. Without "library", books asked about as a list:
-	-- "books i still need", "missing books"; review, 1.0.13)
+	-- "books i still need", "missing books")
 	if not library and not (plural and (cues.todo or cues.done or cues.have or cues.near or cues.rewards)) then return nil end
 	-- other words: only those naming a book or its place ("library books in the barrens"), else not this question
 	if #rest > 0 and not B.AnyFor(rest) then return nil end
@@ -295,8 +295,7 @@ function B.None(q) return { ns.NoteRow(q.todo and L["Every Library Book is turne
 function B.ToAdvanced(q)
 	q = q or {}
 	local w = q.words and #q.words > 0 and (table.concat(q.words, " ") .. " ") or ""
-	-- (the reward tiers are the question's own rows, no list's: the question itself, which Advanced answers the same;
-	-- review, 1.0.42: "@book" listed every book)
+	-- (the reward tiers are the question's own rows, no list's: the question itself, which Advanced answers the same)
 	if q.rewards then return nil end
 	return "@book " .. (q.todo and "is:todo " or q.done and "is:done " or "") .. (q.near and "sort:distance " or "") .. w
 end

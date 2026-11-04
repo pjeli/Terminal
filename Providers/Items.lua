@@ -2,8 +2,8 @@ local ns = select(2, ...)
 local L = ns.L
 local H = ns.Highlight
 
--- (0.49.2, review: RangedSlot too: this client's paper doll has CharacterRangedSlot (bows, guns, wands, thrown, relics:
--- Filters.SLOTS' slot 18). A client without it errors on the name: each slot is asked in its own pcall, WornRows)
+-- (RangedSlot too: this client's paper doll has CharacterRangedSlot (bows, guns, wands, thrown, relics: Filters.SLOTS'
+-- slot 18). A client without it errors on the name: each slot is asked in its own pcall, WornRows)
 local EQUIP_SLOTS = {
 	"HeadSlot", "NeckSlot", "ShoulderSlot", "BackSlot", "ChestSlot", "ShirtSlot", "TabardSlot",
 	"WristSlot", "HandsSlot", "WaistSlot", "LegsSlot", "FeetSlot", "Finger0Slot", "Finger1Slot",
@@ -15,7 +15,7 @@ local QualityHex, Str, Secret = ns.QualityHex, ns.Str, ns.Secret -- (Util.lua)
 local function BagLabel(bag)
 	if bag == 0 then return L["Backpack"] end
 	if Enum.BagIndex and bag == Enum.BagIndex.ReagentBag then return L["Reagent bag"] end
-	if Enum.BagIndex and bag == Enum.BagIndex.Keyring then return ns.GameText("KEYRING", L["Keyring"]) end -- (0.49.2)
+	if Enum.BagIndex and bag == Enum.BagIndex.Keyring then return ns.GameText("KEYRING", L["Keyring"]) end
 	return L["Bag %s"]:format(bag)
 end
 
@@ -34,8 +34,6 @@ end
 local function PaperDollOpen() return PaperDollFrame and PaperDollFrame:IsVisible() and true or false end
 
 -- fallback when the secure path isn't available: the equipment page showing, the slot is pointed at; else said.
--- (0.49.2, review: no ToggleCharacter from Terminal's code here any more: the character window then held what it wrote,
--- and reads secret values on its next show. Said instead, as Spells' and Currency's fallbacks do)
 local function ShowEquipped(e)
 	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(tostring(e.name))) return end
 	if PaperDollOpen() then return PointAtSlot(e) end
@@ -90,8 +88,8 @@ local function QuestIndex()
 	local qp = ns.providers.quests
 	local rows = qp and ns:GetEntries(qp) or {}
 	if questIndex and rows == questIndexFrom then
-		-- (Questie's item needs for the same quests: kept while its data is the same; asked again only when it wasn't ready
-		-- or changed. Review, 0.53.6: three QueryQuestSingle per quest on every bag change)
+		-- (Questie's item needs for the same quests: kept while its data is the same; asked again only when it wasn't
+		-- ready or changed. Review)
 		local q1 = questIndex[1]
 		local DB = ns.QuestieData and ns.QuestieData.DB()
 		if q1.questieItems == false or q1.questieDB ~= DB then q1.questieItems, q1.questieDB = nil, nil end
@@ -149,8 +147,7 @@ local function QuestieItems(quests)
 	return map, DB
 end
 
--- (the quest an item starts, by Questie: the data doesn't change, asked once per item and database; review, 0.53.6: asked
--- for nearly every bag item on every rebuild)
+-- (the quest an item starts, by Questie: the data doesn't change, asked once per item and database)
 local startOf, startFrom = {}, nil
 local function QuestieFor(itemID, quests)
 	local map, DB = QuestieItems(quests)
@@ -246,7 +243,7 @@ local function IsQuestItem(bag, slot, itemID)
 	end
 	local classID = C_Item.GetItemInfoInstant and select(6, C_Item.GetItemInfoInstant(itemID))
 	if classID == (Enum.ItemClass and Enum.ItemClass.Questitem or 12) then return true end
-	-- (an item's bind type never changes: asked once per item, not on every list made again; review, 0.57.7)
+	-- (an item's bind type never changes: asked once per item, not on every list made again)
 	local bindType = bindOf[itemID]
 	if bindType == nil and C_Item.GetItemInfo then
 		bindType = select(14, C_Item.GetItemInfo(itemID))
@@ -323,7 +320,6 @@ local function EquipLoc(e)
 			end
 		end
 	end
-	-- (review, 0.53.6: every bag item that isn't gear went on to GetItemInfo on every collect)
 	if sure then return nil end
 	if e.itemID and C_Item.GetItemInfo then
 		local ok, _, _, _, _, _, _, _, _, loc = pcall(C_Item.GetItemInfo, e.itemID)
@@ -351,10 +347,10 @@ local function OnUse(id)
 	return ok and Str(spell) ~= nil
 end
 
---- (0.45.21, the player: Shift+Enter on a piece of gear found with @item used it, with @gear equipped it) Equipment does
---- what @gear's rows do wherever it's found (@item, @gear, a plain search, Simple mode's Bags): Shift+Enter equips a bag
---- piece (an /equip line the game presses); a worn piece is used by its slot only when it has a use (a trinket), else
---- Shift+Enter says it's worn already. `loc`: its slot type when known (else asked). Gives the slot type, or nil.
+--- Equipment does what @gear's rows do wherever it's found (@item, @gear, a plain search, Simple mode's Bags):
+--- Shift+Enter equips a bag piece (an /equip line the game presses); a worn piece is used by its slot only when it has
+--- a use (a trinket), else Shift+Enter says it's worn already. `loc`: its slot type when known (else asked). Gives the
+--- slot type, or nil.
 local function GearActions(e, loc)
 	loc = loc or EquipLoc(e)
 	if not loc then return nil end
@@ -442,7 +438,7 @@ ns:RegisterProvider("items", {
 	aliases = { "item", "items", "bag", "bags", "inventory", "equipped" }, -- (@gear: equipment only, below)
 	-- (not QUEST_LOG_UPDATE: it comes with every kill while questing, and the rows only link an item to a quest, which
 	-- accepting, dropping or handing one in changes; an item a quest needs comes with a bag update. PLAYER_LEVEL_UP:
-	-- gear you can wear now isn't greyed any more; review, 0.48.6)
+	-- gear you can wear now isn't greyed any more)
 	events = { "BAG_UPDATE_DELAYED", "PLAYER_EQUIPMENT_CHANGED", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "PLAYER_LEVEL_UP" },
 	guard = 1,
 	collect = function()
@@ -473,14 +469,14 @@ ns:RegisterProvider("items", {
 				if b ~= nil and not Secret(b) then
 					if b then e.bound = true else e.unbound = true end
 				end
-				-- (is:enchanted / is:unenchanted) the same for a copy's enchant (0.64.2; is:unenchanted asks for gear itself)
+				-- (is:enchanted / is:unenchanted) the same for a copy's enchant (is:unenchanted asks for gear itself)
 				local ench = ns.LinkEnchant(info.hyperlink)
 				if ench then
 					if ench ~= 0 then e.enchanted = true else e.unenchanted = true end
 				end
 			end
 		end
-		-- (the backpack to the reagent bag, then the keyring when the client has one: Bags.lua; 0.49.2, review)
+		-- (the backpack to the reagent bag, then the keyring when the client has one: Bags.lua)
 		for _, bag in ipairs(ns.Bags.BagIDs()) do
 			local okn, slots = pcall(C_Container.GetContainerNumSlots, bag)
 			for slot = 1, (okn and type(slots) == "number" and slots or 0) do
@@ -582,8 +578,8 @@ ns:RegisterProvider("gear", {
 	aliases = { "gear", "equip", "armor", "armour", "weapon", "weapons" }, -- ("equipment" is the sets', EquipmentSets.lua)
 	explicit = true, -- (a plain search already finds these as Items)
 	follows = "items", -- made again whenever the item list is (Core's GetEntries)
-	-- (and when a skill is learned: Plate Mail, Two-Handed Swords at a trainer change what you can use, and no bag event
-	-- comes with them; review, 0.53.6: plate stayed greyed "can't use" until the bags changed)
+	-- (and when a skill is learned: Plate Mail, Two-Handed Swords at a trainer change what you can use, and no bag
+	-- event comes with them)
 	events = { "SKILL_LINES_CHANGED" },
 	collect = function()
 		local out = {}

@@ -98,8 +98,7 @@ end
 -- Colour example: a small sample beside the theme buttons, drawn with the current colours
 ----------------------------------------------------------------------
 
--- (in the player's language: a few letters of each word of the name, as one would type them; 0.63.7, review: English
--- always, its matched letters' places written out)
+-- (in the player's language: a few letters of each word of the name, as one would type them)
 O.SAMPLE_QUERY, O.SAMPLE_NAME, O.SAMPLE_KIND = L["hvy ban"], L["Heavy Linen Bandage"], L["First Aid"]
 
 --- The sample name's letters the sample search matches (Colorize's set): each word's, as the terminal marks them.
@@ -307,8 +306,6 @@ local function MarkChoice(items, current, labelOf)
 end
 
 -- Themes
--- (0.51.1, the player's screenshot: the panel ran past its frame at the bottom: the rows closer together, the style
--- buttons beside the sliders, the checkboxes in two columns)
 Label(L["Theme"], "GameFontNormal", 16, -66)
 local function ThemeLabel(id) return T.PRESETS[id].label end
 O.widgets.themeMenu, O.widgets.themeList, O.themeItems = Dropdown(16, -84, 200, T.PRESET_ORDER, ThemeLabel, function(id) T.ApplyPreset(id) end)
@@ -341,7 +338,6 @@ local function CursorLabel(id) return T.CURSOR_LABELS[id] end
 O.widgets.cursor, O.widgets.cursorList, O.cursorItems = Dropdown(130, -142, 140, T.CURSOR_ORDER, CursorLabel, function(id) T.Set("cursor", id) end)
 
 -- Animation style: a dropdown beside the cursor's (the example above plays it)
--- (0.51.2, the player's screenshot: it ran up to the Example: both dropdowns narrower, a gap before the Example at 440)
 Label(L["Animation"], "GameFontNormal", 284, -124)
 local function AnimLabel(id) return T.ANIMATION_LABELS[id] end
 O.widgets.animations, O.widgets.animationList, O.animationItems = Dropdown(284, -142, 140, T.ANIMATION_ORDER, AnimLabel, function(id)
@@ -437,8 +433,8 @@ local function Action(x, w, text, onClick)
 	b:SetScript("OnClick", onClick)
 	return b
 end
--- (already open: left as it is. 0.51.3, the player: clicking again where the button was opened a fresh terminal each time,
--- what was typed gone)
+-- (already open: left as it is. clicking again where the button was opened a fresh terminal each time, what was typed
+-- gone)
 Action(16, 130, L["Open Terminal"], function() if not ns.UI:IsShown() then ns.UI:Open() end end)
 Action(156, 130, L["Reset to defaults"], function() T.Reset() end)
 -- Sharing the look: Export opens the style string in a copy window (Ctrl+C); Import takes a pasted one
@@ -459,7 +455,7 @@ local function BuildImportDialog()
 	d:Hide()
 	tinsert(UISpecialFrames, "TerminalStyleImport") -- Esc closes it
 
-	-- (its title, hint and what Apply does: a style's, or a Pawn scale's for .weights; O.PasteDialog, 0.65.8)
+	-- (its title, hint and what Apply does: a style's, or a Pawn scale's for .weights; O.PasteDialog)
 	local title = d:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	title:SetPoint("TOPLEFT", 14, -12)
 	d.title = title
@@ -512,8 +508,7 @@ local function BuildImportDialog()
 	return d
 end
 
---- Opens a paste dialog (empty, focused): `title`, `hint`, and `apply(text)` -> ok, the line to say (0.65.8: .weights
---- pawn's, a Pawn scale string longer than the prompt takes).
+--- Opens a paste dialog (empty, focused): `title`, `hint`, and `apply(text)` -> ok, the line to say.
 function O.PasteDialog(title, hint, apply)
 	local d = BuildImportDialog()
 	d.title:SetText(title)

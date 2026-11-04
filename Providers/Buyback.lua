@@ -109,7 +109,7 @@ function BB.Rows()
 	local seen = {}
 	for i, x in ipairs(list) do
 		local id = x.link and tonumber(x.link:match("item:(%d+)"))
-		-- (by what and when it was sold, not where in the list: a new sale doesn't move the selection; review, 0.64.3)
+		-- (by what and when it was sold, not where in the list: a new sale doesn't move the selection)
 		local key = (x.link or x.name) .. "#" .. tostring(x.t or 0)
 		seen[key] = (seen[key] or 0) + 1
 		if seen[key] > 1 then key = key .. "#" .. seen[key] end
@@ -144,7 +144,7 @@ function BB.OnEvent(event, isLogin)
 		if isLogin == true and ns.db then ns.db.buyback = {}; ns:Changed("buyback") end
 		return
 	end
-	-- (not on closing: the window gone, the game may say its list is empty; review, 0.64.3)
+	-- (not on closing: the window gone, the game may say its list is empty)
 	if event == "MERCHANT_CLOSED" then atVendor = false return end
 	if event == "MERCHANT_SHOW" then atVendor = true end
 	if atVendor then BB.Read() end

@@ -30,7 +30,7 @@ local function Chars()
 end
 
 -- the cap as the game works it out (GameRulesUtil.GetEffectiveMaxLevelForPlayer: the lower of the expansion's cap and
--- this player's; 0.49.2, review: the expansion's alone may be the retail cap on WoW Forever)
+-- this player's)
 local function MaxLevel()
 	local exp, player = Num(Safe(_G.GetMaxLevelForPlayerExpansion)), Num(Safe(_G.GetMaxPlayerLevel))
 	if exp and player then return math.min(exp, player) end
@@ -186,11 +186,11 @@ local function Who(name, realm)
 	name = ns.Lower(tostring(name or ""))
 	local base, r = name:match("^(.-)%-(.+)$")
 	if base then name, realm = base, r end
-	-- (the realm without spaces or marks: the bag addons' "ArgentDawn" is Terminal's "Argent Dawn"; review, 0.51.25)
+	-- (the realm without spaces or marks: the bag addons' "ArgentDawn" is Terminal's "Argent Dawn")
 	return (name:match("^(%S+)") or name), (ns.Lower(tostring(realm or "")):gsub("[%s%p]", ""))
 end
---- Alts forgotten with .forget <name>, by Who's "name|realm": not listed again as unnoted while the bag addon still knows
---- them (review, 0.51.25: "Forgot" and there it was again); noted again once you log in on one.
+--- Alts forgotten with .forget <name>, by Who's "name|realm": not listed again as unnoted while the bag addon still
+--- knows them; noted again once you log in on one.
 local function Forgotten()
 	local db = ns.db
 	if type(db) ~= "table" then return {} end
@@ -262,14 +262,14 @@ ns:RegisterProvider("experience", {
 	label = L["Experience"],
 	color = "ff8a6cff", -- (the XP bar's purple)
 	aliases = { "experience", "exp", "xp", "rested" },
-	refreshOnOpen = 60, -- (alts' rested keeps filling: ~5% in 8 h, read again a minute on, not on every open; review, 0.53.6)
+	refreshOnOpen = 60, -- (alts' rested keeps filling: ~5% in 8 h, read again a minute on, not on every open)
 	events = { "PLAYER_XP_UPDATE", "UPDATE_EXHAUSTION", "PLAYER_LEVEL_UP", "PLAYER_UPDATE_RESTING", "PLAYER_ENTERING_WORLD" },
 	guard = 1,
 	collect = function() return X.Collect() end,
 })
 
---- Forget an alt (not the character you're on): `.forget <name>` (0.65.12: .xp is gone, @experience lists them). Not
---- listed again as unnoted while the bag addon still knows it. How many were dropped.
+--- Forget an alt (not the character you're on): `.forget <name>`. Not listed again as unnoted while the bag addon still
+--- knows it. How many were dropped.
 function X.ForgetAlt(who)
 	local lw, chars, myKey, n = ns.Lower(who), Chars() or {}, MyKey(), 0
 	for key, c in pairs(chars) do
@@ -292,8 +292,8 @@ function X.AltNames()
 	return out
 end
 
--- This session's experience (1.0.61, the reach audit: "how long to level", "xp per hour"): what you gained since you
--- logged in, a level's rollover counted, kept in memory only. { since (Now()), gained, level, xp, max } of the last read.
+-- This session's experience: what you gained since you logged in, a level's rollover counted, kept in memory only. {
+-- since (Now), gained, level, xp, max } of the last read.
 X.session = nil
 --- Notes what changed since the last read (called on every experience event).
 function X.SessionTick(me)
@@ -304,8 +304,8 @@ function X.SessionTick(me)
 	if me.level == s.level then
 		if me.xp > s.xp then s.gained = s.gained + (me.xp - s.xp)
 		elseif me.xp < s.xp then
-			-- (a level's rollover read before the level: UnitLevel catches up a moment after PLAYER_LEVEL_UP. Counted now,
-			-- once: the level's own reading then adds only what came since; review, 1.0.68)
+			-- (a level's rollover read before the level: UnitLevel catches up a moment after PLAYER_LEVEL_UP. Counted
+			-- now, once: the level's own reading then adds only what came since)
 			s.gained = s.gained + math.max(0, s.max - s.xp) + me.xp
 			s.rolled = true
 		end
@@ -319,9 +319,8 @@ function X.SessionTick(me)
 	s.rolled = me.level == s.level and s.rolled or nil
 	s.level, s.xp, s.max = me.level, me.xp, me.max
 end
---- Experience an hour this session, the seconds it's been, and your xp and the level's (nil: not read yet).
---- (At the level cap: nil, the seconds, you: the answer says so. Under a minute: as if a minute had gone, not "none
---- gained"; review, 1.0.68.)
+--- Experience an hour this session, the seconds it's been, and your xp and the level's (nil: not read yet). (At the
+--- level cap: nil, the seconds, you: the answer says so. Under a minute: as if a minute had gone, not "none gained".)
 function X.Rate()
 	local s = X.session
 	local me = X.ReadMe()

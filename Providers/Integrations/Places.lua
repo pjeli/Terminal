@@ -28,7 +28,7 @@ local function PlaceIndex()
 		if not n then return end
 		local key = ns.Lower(n):gsub("^the ", "")
 		if #key < 4 or (E and (E.WORDS[key] or E.STOP[key] or E.ACTIONS[key])) then return end
-		-- (nor an object's word: Ashenvale's Moonwell area made "nearest moonwell" NPCs standing in it, 0.68.10)
+		-- (nor an object's word: Ashenvale's Moonwell area made "nearest moonwell" NPCs standing in it)
 		if I.OBJECT_KINDS[key] or I.ENTRANCE_KINDS[key] then return end
 		-- (nor what a profession's people or an NPC's role are called: Arathi Basin's Blacksmith made "nearest blacksmith"
 		-- the NPCs standing in it; nor a word too common to mean a place, "mine", "camp"; 0.68.11, review over QuestieDB's
@@ -178,8 +178,6 @@ local function TextTowns(sliced)
 	if textTowns then return textTowns end
 	local idx, DB = PlaceIndex(), QDB()
 	if not (idx and DB and DB.QueryQuestSingle and DB.QueryNPCSingle) then return nil end
-	-- (0.49.2, review: asked while the background build ran, or waited on a fight, every town was worked out at once on
-	-- the keystroke, 30-100 ms; now not yet, as before the quests are indexed: I.TownsPending)
 	if townsBuilding then return nil end
 	-- (asked before Questie's quests are indexed: reading every quest's text now would stall the game; later)
 	if not sliced and not qdb.list then return nil end
@@ -209,8 +207,6 @@ local function TextTowns(sliced)
 	Finish()
 	return textTowns
 end
--- (0.49.2, review: the build 2 s after the quests are indexed was skipped in a fight and never tried again, so the first
--- "vendor goldshire" worked every town out on the keystroke. Now a fight puts it off until the fight is over.)
 local townWait
 I.BuildTowns = function()
 	if textTowns or townsBuilding == true then return nil end
@@ -235,8 +231,7 @@ function I.TownsPending() return not textTowns and (not qdb.list or townsBuildin
 -- a town's middle: its flight point (on its zone's map, else a map above it), else where its quests send you,
 -- in world yards (false: none)
 local centres = {}
--- the flight point's answer alone, kept while the quest texts' isn't known yet (0.50.7, review: neither was kept then, so
--- every keystroke asked the taxi maps again for every NPC "vendor goldshire" judged, until the towns were built)
+-- the flight point's answer alone, kept while the quest texts' isn't known yet
 local fpCentres = {}
 
 --- A town's flight point in world yards (false: none found), looked for on its zone's map, then up to two maps
@@ -290,8 +285,7 @@ local function TownCentre(place)
 	ns:Trace(("places: %s %s (flight points read on maps %s: %d)"):format(place.name,
 		c and ("centre from " .. from .. " " .. math.floor(c.x) .. "," .. math.floor(c.y)) or "has no centre found",
 		table.concat(tried, "/"), seen))
-	-- (none found: kept as none, not asked again on every row; 0.63.7, review: a town with no centre was worked out,
-	-- and traced, for each of 50 rows)
+	-- (none found: kept as none, not asked again on every row)
 	centres[place.area] = c or false
 	return c or nil
 end

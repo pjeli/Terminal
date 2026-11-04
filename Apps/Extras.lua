@@ -1,10 +1,9 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Terminal Extras: the games and the radio (.snake, .tetris, .lootrun, .typing, .wowamp), .atop and the console live in an
--- addon of their own
--- that comes with Terminal (the Terminal_Extras folder: ## LoadOnDemand, ## Dependencies: Terminal), loaded the first
--- time one is asked for, so Terminal alone doesn't carry them (0.47.8, the player's ask). Their commands are here as
+-- Terminal Extras: the games and the radio (.snake, .tetris, .lootrun, .typing, .wowamp), .atop and the console live in
+-- an addon of their own that comes with Terminal (the Terminal_Extras folder: ## LoadOnDemand, ## Dependencies:
+-- Terminal), loaded the first time one is asked for, so Terminal alone doesn't carry them. Their commands are here as
 -- stand-ins with the same names, words and descriptions: running one loads the extras (C_AddOns.LoadAddOn), whose own
 -- files register the real commands in their place (RegisterCommand replaces a name), and runs that.
 --
@@ -21,7 +20,7 @@ X.COMMANDS = {
 	{ "lootrun", L["Play Loot Run, a maze chase (WASD or arrows move; afterwards Enter tells your guild, Tab plays again; Esc or ` quits)"], { "maze" } },
 	{ "typing", L["A typing speed test (Tab: 15 / 30 / 60 s; Enter afterwards tells your guild; Esc or ` quits)"], { "wpm", "typetest" } },
 	{ "wowamp", L["WoWamp: radio stations playing the game's music (.wowamp stop, next, or a station)"], { "radio", "amp" },
-		-- (what it takes before the extras are loaded: its stations come with them; review, 0.48.6)
+		-- (what it takes before the extras are loaded: its stations come with them)
 		function() return { { "stop", L["stop the radio"] }, { "next", L["skip this track"] } } end },
 	-- (.atop and the console moved here too, the player's call: Terminal alone doesn't carry them)
 	{ "atop", L["AddOn top: your addons' CPU and memory, live (type to filter, Tab sort, Esc closes)"], { "top", "htop" } },
@@ -149,13 +148,12 @@ function X.KeepPage()
 	local text = X.CleanLore(Str(Safe(_G.ItemTextGetText)))
 	if not text then return nil, "no words" end
 	local page = math.max(1, Num(Safe(_G.ItemTextGetPage)) or 1)
-	-- (past the pages kept: not kept; pages 41-50 each wrote over page 40. Review, 0.53.6)
+	-- (past the pages kept: not kept; pages 41-50 each wrote over page 40.)
 	if page > X.LORE_PAGES then return nil, "past the pages kept" end
 	local key = ns.Lower(title)
 	local b = books[key]
 	if type(b) ~= "table" or type(b.pages) ~= "table" then b = { title = title, pages = {} }; books[key] = b end
-	-- (past what a typing test reads of a book: not kept, the saved variables don't grow with text never read;
-	-- review, 0.57.7)
+	-- (past what a typing test reads of a book: not kept, the saved variables don't grow with text never read)
 	local before = 0
 	for i = 1, page - 1 do if type(b.pages[i]) == "string" then before = before + #b.pages[i] end end
 	if before >= X.LORE_BOOK_CHARS then return nil, "past what a typing test reads" end

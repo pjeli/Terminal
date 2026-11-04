@@ -19,7 +19,7 @@ do
 	if mt.__newindex == nil then mt.__newindex = function(t, k, v) rawset(t, k, v); pairOf = nil end end
 end
 function E.PairFirst()
-	-- (and the game's own words in the client's language, E.GameWords: "puissance d'attaque", "poder de ataque"; 0.69.6)
+	-- (and the game's own words in the client's language, E.GameWords: "puissance d'attaque", "poder de ataque")
 	local game = E.GameWords and E.GameWords() or {}
 	if pairOf ~= E.WORDS or pairGame ~= game then
 		pairFirst, pairOf, pairGame = {}, E.WORDS, game
@@ -77,7 +77,7 @@ local function JoinNotIn(r, units)
 		local w2 = units[i + 1].word
 		local lw, nw = ns.Phrase.Low(units[i]), ns.Phrase.Low(units[i + 1])
 		-- (first, it's a "not" only before an everyday word or a filter, "without cloth", "not boe": else a name's own
-		-- first word, "No Rest for the Wicked", "Without a Trace"; review, 0.53.6)
+		-- first word, "No Rest for the Wicked", "Without a Trace")
 		local leads = i > 1 or E.WORDS[nw] ~= nil or E.IsAdvancedWord(w2)
 		if E.NOT_WORDS[lw] and leads and not E.OR_WORDS[nw] and not E.NOT_WORDS[nw] then
 			units[i] = ns.Phrase.Join(r, { units[i], units[i + 1] }, "-" .. w2, "not")
@@ -92,8 +92,8 @@ local function JoinOrIn(r, units)
 	while i < #units do
 		if E.OR_WORDS[ns.Phrase.Low(units[i])] then
 			local stop = i + 1
-			-- (a "not" after it is for the whole search: "rare sword or axe not boe"; any language's letter after the -,
-			-- 0.49.2, review: "-малое" too)
+			-- (a "not" after it is for the whole search: "rare sword or axe not boe"; any language's letter after the
+			-- -)
 			while stop + 1 <= #units and not E.OR_WORDS[ns.Phrase.Low(units[stop + 1])] and not units[stop + 1].word:find("^[-!][%a\128-\255]") do
 				stop = stop + 1
 			end
@@ -115,10 +115,10 @@ local function JoinOrIn(r, units)
 		end
 	end
 end
--- A state said in a sentence (1.0.46, the reach audit: "quests i haven't done" read is:done, the opposite): "haven't",
--- "not", "never", "not yet" before a state word (done, completed, finished, earned, learned, known, ready...)
--- turn it round, and the sentence's own words around it go ("i have", "you", "yet" after it): "quests i haven't done" ->
--- -done, "quests not yet done" -> -done, "quests i have done" -> done; "mail i haven't read" -> unread.
+-- A state said in a sentence: "haven't", "not", "never", "not yet" before a state word (done, completed, finished,
+-- earned, learned, known, ready...) turn it round, and the sentence's own words around it go ("i have", "you", "yet"
+-- after it): "quests i haven't done" -> -done, "quests not yet done" -> -done, "quests i have done" -> done; "mail i
+-- haven't read" -> unread.
 local STATE_NOT = { ["not"] = true, never = true, ["haven't"] = true, havent = true, ["hasn't"] = true, hasnt = true,
 	["didn't"] = true, didnt = true, ["havn't"] = true, havnt = true }
 local STATE_HAVE = { have = true, has = true, had = true, ["i've"] = true, ive = true, ["we've"] = true, ["you've"] = true }
@@ -129,8 +129,8 @@ local function StateOf(lw)
 	if type(spec) == "string" and spec:find("^%-?is:") then return true end
 	return STATE_ONLY_NOT[lw] ~= nil
 end
--- (a state word that is already turned round, "undone" -> -is:done, turned round again: the word for is:done,
--- "done", not "--is:done"; review, 1.0.66)
+-- (a state word that is already turned round, "undone" -> -is:done, turned round again: the word for is:done, "done",
+-- not "--is:done")
 local positiveOf = {}
 local function Positive(lw)
 	local spec = E.WORDS[lw]
@@ -156,7 +156,7 @@ local function JoinStateIn(r, units)
 			if j >= 1 and Low(units[j]) == "yet" then j = j - 1 end
 			if j >= 1 and STATE_NOT[Low(units[j])] then neg, from, j = true, j, j - 1 end
 			if j >= 1 and STATE_HAVE[Low(units[j])] then from, j = j, j - 1 end
-			-- ("i" before a state said in two words, "i don't know": the sentence's too; 1.0.54)
+			-- ("i" before a state said in two words, "i don't know": the sentence's too)
 			if j >= 1 and STATE_WHO[Low(units[j])] and (from < i or lw:find(" ", 1, true)) then from = j end
 			local to = i
 			if units[i + 1] and Low(units[i + 1]) == "yet" and (neg or from < i) then to = i + 1 end

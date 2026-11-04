@@ -5,14 +5,13 @@ local H = ns.Highlight
 -- Quests are searched by title AND by their description, objectives and zone,
 -- so "kill 10 boars" or a snippet of flavour text finds the quest.
 --
--- Opening one: the map's quest panel is opened and turned to the quest's details by the game's own clicks (0.46.18:
--- its micro button, then the quest's row: QUEST_NAV below), and Terminal points at them. Until 0.46.2 a game-pressed
--- /run QuestMapFrame_OpenToQuestDetails did it, but a /run line runs tainted too (0.46.1: the game blames it as
--- "*** ForceTaint_Strong ***"), and that call wrote the map's focused quest and its details' quest: the map's quest
--- pins, rebuilt from them later (often in combat), then failed (blocked SetPassThroughButtons). A click the game makes
--- on the row writes them clean. Without that route the log is opened with your quest key and the row pointed at (when
--- it scrolls into view, too). Nothing in the map's list is scrolled from here (Blizzard's ScrollBox, written by
--- Terminal's code). In a classic-style log (ClassicUIForever's, its own frames) the quest is selected and scrolled to.
+-- Opening one: the map's quest panel is opened and turned to the quest's details by the game's own clicks, and Terminal
+-- points at them. Until 0.46.2 a game-pressed /run QuestMapFrame_OpenToQuestDetails did it, but a /run line runs
+-- tainted too, and that call wrote the map's focused quest and its details' quest: the map's quest pins, rebuilt from
+-- them later (often in combat), then failed (blocked SetPassThroughButtons). A click the game makes on the row writes
+-- them clean. Without that route the log is opened with your quest key and the row pointed at (when it scrolls into
+-- view, too). Nothing in the map's list is scrolled from here (Blizzard's ScrollBox, written by Terminal's code). In a
+-- classic-style log (ClassicUIForever's, its own frames) the quest is selected and scrolled to.
 
 -- quest windows, first visible wins; any other visible "...Quest..." window is tried after
 local LOGS = { "ForeverClassicUIQuestLog", "QuestLogFrame", "QuestLogDetailFrame", "QuestLogExFrame", "ClassicQuestLog" }
@@ -21,17 +20,15 @@ local MAP_LOGS = { "QuestMapFrame" }
 
 local Visible = ns.Usable
 
--- Frames with "Quest" in their name that are not quest log windows: our own, Questie's
--- (its tracker is always on screen), and the game's watch/tracker/timer/pin pieces.
--- (0.49.2, review: QuestFrame, the game's quest dialog with an NPC, is no log: its greeting's title buttons hold quest
--- titles, and one was clicked from Terminal's code, which chose that quest in the dialog, tainted)
+-- Frames with "Quest" in their name that are not quest log windows: our own, Questie's (its tracker is always on
+-- screen), and the game's watch/tracker/timer/pin pieces.
 local function NotAWindow(name)
 	return name:find("^Terminal") or name:find("^Questie") or name:find("Tracker") or name:find("Watch")
 		or name:find("Timer") or name:find("POI") or name:find("Tooltip") or name:find("Banner") or name == "QuestFrame"
 end
 
---- Did an addon make the frame named `name` (its global written by an addon, not by the game's own code)? Read only;
---- no way to tell: no. (0.49.2, review: a row in a window the game owns is only pointed at, never clicked from here)
+--- Did an addon make the frame named `name` (its global written by an addon, not by the game's own code)? Read only; no
+--- way to tell: no.
 local function AddonMade(name)
 	local check = _G.issecurevariable
 	if type(check) ~= "function" then return false end
@@ -168,8 +165,7 @@ local function ShowQuestAfter(e)
 end
 
 -- Fallback when the secure path isn't available: the quest log showing, the quest is pointed at there; else said. Never
--- in combat (review, 0.48.6). (0.49.2, review: no ToggleQuestLog / ToggleWorldMap from Terminal's code here any more:
--- the map then held what it wrote. Said instead, as Spells' and Currency's fallbacks do)
+-- in combat.
 local function ShowQuest(e)
 	if InCombatLockdown() then ns:Print(L["In combat: can't open %s now."]:format(tostring(e.name))) return end
 	if LogShown() then return ShowQuestAfter(e) end
@@ -293,7 +289,6 @@ local Lower = ns.Lower
 ----------------------------------------------------------------------
 
 
--- (0.63.7, review: one answer for how hard a quest is, where three disagreed when the game gave none)
 local RCD = (Enum and Enum.RelativeContentDifficulty) or {}
 -- the game's difficulty -> 0 grey, 1 green, 2 yellow, 3 orange, 4 red (QT.COLOURS' and DIFF_NAME's order)
 local DIFF_STEP = { [RCD.Trivial or 0] = 0, [RCD.Easy or 1] = 1, [RCD.Fair or 2] = 2, [RCD.Difficult or 3] = 3, [RCD.Impossible or 4] = 4 }
@@ -343,7 +338,7 @@ local function ZoneLevels(id, cache)
 end
 
 ----------------------------------------------------------------------
--- What a quest is, for bulk tracking (QuestTrack.lua, 0.63.3) and its filters (is:red, is:dungeon, is:class...)
+-- What a quest is, for bulk tracking (QuestTrack.lua) and its filters (is:red, is:dungeon, is:class...)
 ----------------------------------------------------------------------
 
 -- the quest's tag, as the log says it ("Dungeon", "Raid": C_QuestLog.GetQuestTagInfo's tagID, Enum.QuestTag)
@@ -584,7 +579,7 @@ function QT.Draw(t, q)
 	if #head > 0 then Line(t, table.concat(head, ns.DETAIL_SEP), DIM) end
 	local me = _G.UnitLevel and Num(Call(_G.UnitLevel, "player"))
 	if q.needs and me and q.needs > me then Line(t, L["Requires level %d"]:format(q.needs), QT.COLOURS[4]) end
-	-- (what else it needs, Questie's: a profession's skill, a standing, red when you haven't it; daily, repeatable. 1.0.64)
+	-- (what else it needs, Questie's: a profession's skill, a standing, red when you haven't it; daily, repeatable.)
 	local QRq = ns.QuestRewards
 	local needs, met = {}, {}
 	if q.id and QRq and QRq.RequiresSaid then needs, met = QRq.RequiresSaid(q.id) end
@@ -604,7 +599,7 @@ function QT.Draw(t, q)
 	local given, choose = {}, {}
 	if id then given, choose = Items(id) end
 	local QR = ns.QuestRewards
-	local reps = id and QR and QR.RepRewards and QR.RepRewards(id) or {} -- (the reputation it gives, Questie's; 1.0.63)
+	local reps = id and QR and QR.RepRewards and QR.RepRewards(id) or {} -- (the reputation it gives, Questie's)
 	if (xp and xp > 0) or money or #given > 0 or #choose > 0 or #reps > 0 or loading then
 		t:AddLine(" ")
 		Line(t, ns.GameText and ns.GameText("QUEST_REWARDS", L["Rewards"]) or L["Rewards"], GOLD)

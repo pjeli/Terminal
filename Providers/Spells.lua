@@ -105,8 +105,7 @@ do
 	local f = CreateFrame("Frame")
 	pcall(f.RegisterEvent, f, "SPELL_DATA_LOAD_RESULT")
 	f:SetScript("OnEvent", function(_, _, id)
-		-- (only one asked for and not in yet: the event comes for every spell anything loads, again for one in already;
-		-- review, 1.0.20: each made another class's rows again)
+		-- (only one asked for and not in yet: the event comes for every spell anything loads, again for one in already)
 		if asked[id] ~= true then return end
 		asked[id] = "in"
 		if descDue then return end
@@ -168,9 +167,9 @@ local function BookOpen() return SP.Book() ~= nil end
 -- "Turning a window"): the press opens it with its micro button when it's closed, then each step clicks the search
 -- box's clear button, the spell's tab or a page arrow, picked by reading the book (its categories, its pages' element
 -- lists); the book's own code does the turning, untainted. Then Terminal points at the spell. Until 0.46.2 the game
--- pressed /run ... SpellBookFrame:GoToSpell(id), but a /run line runs tainted (0.46.1), and the book's items set up by
--- it held tainted slots (a click on a spell there, C_SpellBook.CastSpellBookItem, could be blocked); 0.46.2-0.46.17
--- only opened it and pointed. Turned off (.nav) or not possible: opened with your spellbook key and pointed at.
+-- pressed /run ... SpellBookFrame:GoToSpell(id), but a /run line runs tainted, and the book's items set up by it held
+-- tainted slots (a click on a spell there, C_SpellBook.CastSpellBookItem, could be blocked).46.17 only opened it and
+-- pointed. Turned off (.nav) or not possible: opened with your spellbook key and pointed at.
 
 --- The game's own book (PlayerSpellsFrame.SpellBookFrame), shown or not; nil without it.
 local function GameBook()
@@ -255,7 +254,7 @@ end
 
 local function NavMacro(e)
 	-- (a spell's row only: the Spellbook panel row shares this spec, and turning nothing would still clear the book's
-	-- search, 0.47.0 review)
+	-- search)
 	if type(e) ~= "table" or not e.spellID or not Turns() then return nil end
 	local book = GameBook()
 	local open
@@ -508,9 +507,9 @@ function SP.PlacedNames()
 				local n = SpellNameOf(id)
 				if n then into[ns.Lower(n)] = true end
 			elseif kind == "macro" then
-				-- (a macro's id is what it shows, not its number: a spell's id when it shows a spell, as Blizzard's action
-				-- buttons read it; the macro itself found by its name, for every spell its text casts. 0.50.7, review: the
-				-- id was taken for the macro's number, another macro or none read)
+				-- (a macro's id is what it shows, not its number: a spell's id when it shows a spell, as Blizzard's
+				-- action buttons read it; the macro itself found by its name, for every spell its text casts. the id
+				-- was taken for the macro's number, another macro or none read)
 				if sub == "spell" and type(id) == "number" then
 					local n = SpellNameOf(id)
 					if n then into[ns.Lower(n)] = true end
@@ -612,10 +611,8 @@ end
 ns:RegisterProvider("spells", {
 	label = L["Spell"],
 	color = "ff9d7bff",
-	-- (0.54.6, the player: every class's spells under @spell, as @talent has every class's talents: @classspell's words
-	-- name this list too, and a search of it looks in @classspell's rows as well, Search.lua; is:known keeps to these)
 	aliases = { "spell", "spells", "ability", "abilities", "spellbook", "classspell", "classspells", "allspells", "classabilities" },
-	-- (LEARNED_SPELL_IN_SKILL_LINE: this client's name for it; LEARNED_SPELL_IN_TAB is gone and was never registered. 0.50.7)
+	-- (LEARNED_SPELL_IN_SKILL_LINE: this client's name for it; LEARNED_SPELL_IN_TAB is gone and was never registered.)
 	events = { "SPELLS_CHANGED", "LEARNED_SPELL_IN_SKILL_LINE", "PLAYER_TALENT_UPDATE", "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" },
 	guard = 2,
 	collect = function()
@@ -646,7 +643,7 @@ ns:RegisterProvider("spells", {
 						e.key, e.spellID, e.icon, e.passive, e.line = name, id, info.iconID, passive, line
 						e.tab = tab
 						e.detail = ns.Detail(passive and L["Passive"] or nil, rankText, tab)
-						-- (and what it does: "spells that stun"; 0.68.8)
+						-- (and what it does: "spells that stun")
 						e.text = tab .. (passive and " passive" or "") .. " " .. (SP.Desc(id, budget) or "")
 						if passive then
 							e.secondary, e.secondarySecure, e.secondaryIsOpen, e.secondaryAfter = CastFallback, nil, nil, nil

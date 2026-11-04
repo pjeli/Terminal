@@ -99,8 +99,7 @@ function I.WindowVersion(A, storage)
 	return Safe(storage.GetAviableGameVersion, storage, game)
 end
 
--- What kind of place a loot table is (0.51.9, the player: "upgrades" offered a level 30 warrior Naxxramas gear,
--- engineers' trinkets and cosmetic helms): "dungeon" (AtlasLoot's Dungeons and WoW Forever's own), "raid", or "other"
+-- What kind of place a loot table is: "dungeon" (AtlasLoot's Dungeons and WoW Forever's own), "raid", or "other"
 -- (professions, PvP, factions, collections, world events...), by the name of its AtlasLoot content type; and the level
 -- it can be entered at (its LevelRange's first number).
 local DUNGEON_TYPES, RAID_TYPES = { "Dungeons", "Forever Dungeons" }, { "20 Raids", "40 Raids", "Forever Raids", "Raids" }
@@ -122,8 +121,7 @@ function I.PlaceKind(A, c)
 end
 function I.NotePlace(addon, content, kind, enter)
 	if content == nil then return end
-	-- (0.53.4, the player: "World Bosses" grouped as a raid) AtlasLoot files Azuregos, Kazzak and the dragons under its
-	-- 40-player raids: bosses out in the world, no instance
+	-- AtlasLoot files Azuregos, Kazzak and the dragons under its 40-player raids: bosses out in the world, no instance
 	if content == "WorldBosses" then kind = "world" end
 	local t = loot.places[addon]
 	if not t then t = {}; loot.places[addon] = t end
@@ -141,13 +139,12 @@ function I.LootPlace(e)
 	return t and t[e.content] or nil
 end
 
---- AtlasLoot's faction loot as @reputation's rewards (1.0.28, the player's ask): each item of its Factions module, saying
---- its faction and the standing it needs ("Brood of Nozdormu  ·  Exalted", as its tables are filed: "<standing>  <faction>"),
---- whether yours allows it, Enter opening AtlasLoot on it as @loot's row does (a view on that row). `mine`: lowercase
---- faction name -> your standing (1-8); `have`: item ids listed already (OneForAll's, which say their quartermaster).
---- (AtlasLoot's own rows, not @loot's list: building @loot inside @reputation's collect was most of its 86 ms at login, and
---- again on every rep gain; its faction rows found once per index, each one's standing and faction read then. Review,
---- 1.0.34)
+--- AtlasLoot's faction loot as @reputation's rewards: each item of its Factions module, saying its faction and the
+--- standing it needs ("Brood of Nozdormu  ·  Exalted", as its tables are filed: "<standing>  <faction>"), whether yours
+--- allows it, Enter opening AtlasLoot on it as @loot's row does (a view on that row). `mine`: lowercase faction name ->
+--- your standing (1-8); `have`: item ids listed already (OneForAll's, which say their quartermaster). (AtlasLoot's own
+--- rows, not @loot's list: building @loot inside @reputation's collect was most of its 86 ms at login, and again on
+--- every rep gain; its faction rows found once per index, each one's standing and faction read then.)
 function I.FactionLoot(mine, have)
 	local out = {}
 	local lp = ns.providers.loot
@@ -186,8 +183,8 @@ function I.FactionLoot(mine, have)
 			local my = mine and mine[x.lfac]
 			local need = x.need
 			local can = my ~= nil and my >= need
-			-- (said as OneForAll's are: the game's name for the standing, "you can buy it", the words its filters and Group
-			-- read; review, 1.0.38. ns.StandingName, OneForAll on or not: review, 1.0.73)
+			-- (said as OneForAll's are: the game's name for the standing, "you can buy it", the words its filters and
+			-- Group read. ns.StandingName, OneForAll on or not: review)
 			local st = ns.StandingName(need) or x.st
 			out[#out + 1] = setmetatable({ key = "al:" .. id .. ":" .. tostring(r.content), name = name, repReward = true, namesOnly = true,
 				faction = x.fac, reaction = need, mine = my, canBuy = can,
@@ -201,7 +198,7 @@ end
 
 --- Where a loot row's item comes from (source:): dungeon, raid, world (a world boss), quest, crafted, reputation, pvp,
 --- collection, or other. AtlasLoot's by its module (Crafting, Factions, PvP, Collections) and its place; OneForAll's
---- planner's as it says (1.0.25, the player's ask).
+--- planner's as it says.
 local sourceOf = {} -- addon -> content -> source (AtlasLoot's index doesn't change in a session; LootPlace's places neither)
 function I.LootSource(e)
 	local s = rawget(e, "lootSource")
@@ -291,7 +288,7 @@ local function CacheKey(mods)
 	local A = AL()
 	local ver = AddOnVersion
 	local core = LoadedCore() or "AtlasLoot"
-	-- (and the window's own pick, which I.WindowVersion indexes first; review, 0.57.7: a switch kept the old index)
+	-- (and the window's own pick, which I.WindowVersion indexes first)
 	local gui = type(A.db) == "table" and type(A.db.GUI) == "table" and A.db.GUI.selectedGameVersion or nil
 	local parts = { "v" .. CACHE_FORMAT, core .. "=" .. ver(core), "game=" .. tostring(A.GetGameVersion and Safe(A.GetGameVersion, A)),
 		"win=" .. tostring(gui) }
@@ -433,10 +430,8 @@ LoadLootModules = function()
 		return C_Timer.After(3, LoadLootModules)
 	end
 	if #mods == 0 then
-		-- (0.49.2, review: built from no modules, the saved index was written over with an empty one; it stays for a
-		-- session whose AtlasLoot lists its modules)
 		ns:Trace("loot: AtlasLoot still lists no loot modules after " .. tostring(loot.retries) .. " tries: nothing indexed, the saved index kept")
-		-- (its module list changed: said, and .integrations no longer says "still loading"; review, 0.57.7)
+		-- (its module list changed: said, and .integrations no longer says "still loading")
 		loot.done = true
 		I.Failed("AtlasLoot", L["@loot (its loot tables) is unavailable."], "Loader.GetLootModuleList: no loot modules")
 		return
@@ -488,7 +483,7 @@ I.LoadLootModules = function() return LoadLootModules() end -- (tests: a new ses
 local function OpenLoot(e)
 	local A = AL()
 	local GUI = A and A.GUI
-	-- (its pickers too: an AtlasLoot whose window has other fields said "not ready" instead of an error; review, 0.53.6)
+	-- (its pickers too: an AtlasLoot whose window has other fields said "not ready" instead of an error)
 	local f = GUI and GUI.frame
 	if not (type(f) == "table" and type(f.moduleSelect) == "table") then
 		ns:Trace("loot: AtlasLoot's window or its module picker isn't there")
@@ -542,7 +537,7 @@ local LOOT_CHATBOX = ns.ChatBoxSpec(LootLinkText)
 local function LinkLoot(e) ns.LinkInChat(LootLinkText(e)) end
 
 --- A loot row's detail as GroupText made it, "<boss>  <instance>": without the drop chance said after it (1.0.4,
---- OneForAll's), which isn't part of the instance (review, 1.0.13: "count by instance" split each instance by chance).
+--- OneForAll's), which isn't part of the instance.
 function I.LootDetail(d)
 	if type(d) ~= "string" then return d end
 	local cut = d:find(ns.DETAIL_SEP, 1, true)
@@ -576,7 +571,6 @@ local function SetupAtlasLoot()
 		collect = function()
 			local out = {}
 			if not AtlasLootPresent() then return out end -- AtlasLoot went away: no stale loot rows
-			-- (1.0.4: its chance to drop, OneForAll's Classic numbers, after where it drops; read once a row)
 			local W = ns.OneForAllWorld
 			local chances = W and W.DropChances()
 			-- (a boss's rows share their detail: its chances looked up once a session, made again only when OneForAll's
@@ -602,11 +596,11 @@ local function SetupAtlasLoot()
 				end
 				if rawget(r, "name") then out[#out + 1] = r end
 			end
-			-- (1.0.25) OneForAll's planner's gear AtlasLoot doesn't list: quest rewards, reputation, crafted, its dungeons'
+			-- OneForAll's planner's gear AtlasLoot doesn't list: quest rewards, reputation, crafted, its dungeons'
 			local G = ns.OneForAllGear
 			if G and G.on and G.Rows then
-				-- (every AtlasLoot row's item, named yet or not: one whose name hasn't come isn't OneForAll's twice; made
-				-- once per index, so OneForAll's rows are too: review, 1.0.34)
+				-- (every AtlasLoot row's item, named yet or not: one whose name hasn't come isn't OneForAll's twice;
+				-- made once per index, so OneForAll's rows are too: review)
 				if loot.listedOf ~= loot.rows or loot.listedN ~= #loot.rows then
 					local listed = {}
 					for _, r in ipairs(loot.rows) do listed[r.itemID] = true end

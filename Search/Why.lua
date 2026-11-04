@@ -7,8 +7,8 @@ local L = ns.L
 local UI = ns.UI
 
 ----------------------------------------------------------------------
--- "Why is this here?" (0.66.11, the player): a row's menu says why the last search listed it: which typed words it
--- matched and where, the filters it passed, the sort's value for it, and for an upgrade what it gains under .weights.
+-- "Why is this here?": a row's menu says why the last search listed it: which typed words it matched and where, the
+-- filters it passed, the sort's value for it, and for an upgrade what it gains under .weights.
 ----------------------------------------------------------------------
 --- The stats an upgrade changes, in words: "+7 str, +4 sta, -2 agi".
 local function StatDiff(mine, worn)

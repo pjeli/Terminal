@@ -35,7 +35,7 @@ local function IndexQuests()
 	if qdb.list or qdb.busy or not QuestieReady() then return end
 	local DB = QDB()
 	if not DB then return end
-	if type(DB.QueryQuestSingle) ~= "function" or type(DB.QuestIds) ~= "function" then -- (said: I.Failed; 0.57.1)
+	if type(DB.QueryQuestSingle) ~= "function" or type(DB.QuestIds) ~= "function" then -- (said: I.Failed)
 		I.Failed("Questie", L["@questie is unavailable."], "QueryQuestSingle " .. type(DB.QueryQuestSingle) .. ", QuestIds " .. type(DB.QuestIds))
 		return
 	end
@@ -75,7 +75,7 @@ local function IndexQuests()
 			if names then names[#names + 1] = "\n" .. lname .. "\t" .. id end
 		end
 	end, function()
-		-- (ids but not one name: the database's shape changed; said, not an empty @questie with no word why. 0.63.7, review)
+		-- (ids but not one name: the database's shape changed; said, not an empty @questie with no word why.)
 		if #ids > 0 and #out == 0 then I.Failed("Questie", L["@questie is unavailable."], "QueryQuestSingle(id, \"name\"): no names") end
 		qdb.list, qdb.busy = out, false
 		if names then qdb.names, qdb.nameQuery = table.concat(names) .. "\n", "QueryQuestSingle" end
@@ -104,10 +104,10 @@ end
 
 I.QuestGiver = QuestGiver -- (Rewards.lua: the quests whose reward is an upgrade, their giver's distance)
 
--- What each NPC sells and drops, by NPC (1.0.50, the reach audit: "what does innkeeper farley sell", "what does hogger
--- drop"): Questie keeps it by item (each item's vendors and npcDrops), so every item is read once, in slices, the first
--- time it's asked (I.NpcItems), or at once for the Console (I.BuildNpcItems, its shell waiting while it does), and let go
--- after I.NPC_ITEMS_IDLE seconds unused. { sold = { [npc] = { item ids } }, drops = { ... } }.
+-- What each NPC sells and drops, by NPC: Questie keeps it by item (each item's vendors and npcDrops), so every item is
+-- read once, in slices, the first time it's asked (I.NpcItems), or at once for the Console (I.BuildNpcItems, its shell
+-- waiting while it does), and let go after I.NPC_ITEMS_IDLE seconds unused. { sold = { [npc] = { item ids } }, drops =
+-- { ... } }.
 I.NPC_ITEMS_IDLE = 600
 local npcItems -- (nil: not read; .building while it's read; .done)
 local function NpcItemsAdd(DB, t, id)
@@ -165,7 +165,7 @@ function I.BuildNpcItems(step)
 	local DB = QDB()
 	local ids = ItemIds(DB)
 	if not ids then return false end
-	-- (a search's read in frames under way: let go, not read twice at once; review, 1.0.72)
+	-- (a search's read in frames under way: let go, not read twice at once)
 	if npcItems and npcItems.building then npcItems.dropped = true end
 	local t = { sold = {}, drops = {} }
 	for i, id in ipairs(ids) do
@@ -254,9 +254,9 @@ local function FromLog(field, otherwise)
 	end
 end
 
---- A Questie quest's tooltip (0.45.10): the log's own when you're on it (progress and all), else Questie's: level,
---- zone, the level it needs, its objectives, who starts it, then its rewards (ns.QuestTip, Quests.lua: the game's
---- numbers where it has them, QuestieDB's experience otherwise).
+--- A Questie quest's tooltip: the log's own when you're on it (progress and all), else Questie's: level, zone, the
+--- level it needs, its objectives, who starts it, then its rewards (ns.QuestTip, Quests.lua: the game's numbers where
+--- it has them, QuestieDB's experience otherwise).
 local function QuestieTooltip(e, t)
 	local QT = ns.QuestTip
 	local id = e.qid
@@ -290,10 +290,8 @@ local QUESTIE_LAZY = {
 	icon = function(t)
 		return Done(t.qid) and "Interface\\RAIDFRAME\\ReadyCheck-Ready" or "Interface\\GossipFrame\\AvailableQuestIcon"
 	end,
-	-- Shift+Enter: the quest in the game (log, or the giver on the map), through the game's own key
-	-- (Maps.lua loads before this file, so its specs are there to read)
-	-- (0.49.2, review: with no giver on the map, an object or an item starting it, nothing is pressed: the map key opened
-	-- the map on your own zone before the line saying what starts it. So the spec is worked out when read: Maps.SecureFor)
+	-- Shift+Enter: the quest in the game (log, or the giver on the map), through the game's own key (Maps.lua loads
+	-- before this file, so its specs are there to read)
 	secondarySecure = function(t)
 		local l = InLog(t.qid) and LogEntry(t.qid)
 		if l then return l.secure end
@@ -334,7 +332,7 @@ local function SetupQuestie()
 		noCombat = true,
 		idleDrop = 600, -- freed after 10 minutes without an @npc search; re-read when next wanted
 		held = function() return npc.list ~= nil end,
-		-- (and the NPCs' small fields the filters read, and the places' in-town answers: review, 0.48.6)
+		-- (and the NPCs' small fields the filters read, and the places' in-town answers: review)
 		onDrop = function() npc.list = nil; ClearNpcFields(); if I.ForgetPlaceNpcs then I.ForgetPlaceNpcs() end end,
 		collect = function()
 			if not npc.list then IndexNPCs() end
@@ -353,11 +351,11 @@ local function SetupQuestie()
 				aliases = def.aliases,
 				explicit = true, -- (only with @mailbox, or "nearest mailbox" in Simple mode)
 				lazy = true,
-				-- (made when first asked for, not at login, and freed after 10 minutes unused: the cooking fires are ~2,000
-				-- rows, 1.5 MB, which 0.68.10 had built at every login and kept; 0.68.10, review)
+				-- (made when first asked for, not at login, and freed after 10 minutes unused: the cooking fires are
+				-- ~2,000 rows, 1.5 MB, which 0.68.10 had built at every login and kept)
 				idleDrop = 600,
-				-- (read before Questie is ready, the list was empty for the session: "No mailbox known near you". Now it's
-				-- read again a moment later, and once Questie is; review, 0.48.6)
+				-- (read before Questie is ready, the list was empty for the session: "No mailbox known near you". Now
+				-- it's read again a moment later, and once Questie is)
 				collect = function()
 					if not QD.Ready() then
 						C_Timer.After(I.MAILBOX_RETRY, function() ns:Changed(kind) end)
@@ -385,16 +383,14 @@ local function SetupQuestie()
 			local sub = rawget(t, "sub")
 			local d = x and ((sub and (sub .. ns.DETAIL_SEP) or "") .. x) or sub or (L["NPC"] .. "  #" .. t.npcID)
 			local inside = I.NpcDungeon and I.NpcDungeon(t.npcID)
-			if inside then d = d .. ns.DETAIL_SEP .. L["in %s"]:format(inside) end -- (pointed at its entrance; 0.51.18)
-			local rank = I.NpcRankName and I.NpcRankName(t.npcID) -- ("Rare Elite"; 1.0.62)
+			if inside then d = d .. ns.DETAIL_SEP .. L["in %s"]:format(inside) end -- (pointed at its entrance)
+			local rank = I.NpcRankName and I.NpcRankName(t.npcID) -- ("Rare Elite")
 			if rank then d = d .. ns.DETAIL_SEP .. rank end
 			return d
 		end,
 		inDungeon = function(t) return I.NpcDungeon and I.NpcDungeon(t.npcID) or false end,
 		tooltip = function(t) return I.NpcExtraTooltip and I.NpcExtraTooltip(t.npcID) or nil end, -- (a beast to tame's)
 		mapTarget = function(t) return (NpcLocation(t.npcID)) end, -- the zone the map switches to
-		-- (0.49.2, review: an NPC with no known spot pressed the map key, opening your own zone, then said Questie has no
-		-- location for it: now nothing is pressed and Enter only says so)
 		secure = function(t) return ns.Maps.SecureFor(t) end,
 	})
 	ns:RegisterProvider("questie", {

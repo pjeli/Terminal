@@ -44,8 +44,7 @@ local function BagsOpen()
 end
 
 -- the Currency tab of the character window: the currency key's binding (Forever's TOGGLECURRENCY runs the window's own
--- ToggleTokenFrame), its tab's /click for a mouse click where the tab is a button. (Review, 0.48.6: with only the tab's
--- route, on Forever's plain-frame tabs nothing was pressed and Enter ran ToggleCharacter from Terminal's code: taint.)
+-- ToggleTokenFrame), its tab's /click for a mouse click where the tab is a button.
 local function TokenClick() return ns.Secure.CharTabMacro("TokenFrame", { _G.CURRENCY or "Currency", "Currency" }) end
 local TOKEN_SECURE = { binding = "TOGGLECURRENCY", buttons = { "CharacterMicroButton" }, click = TokenClick }
 local function TokenOpen() return Shown("TokenFrame") end
@@ -82,9 +81,9 @@ local function TabKind(t)
 	return type(t) ~= "table" and "not loaded yet" or t.Click and "a button" or "a plain frame"
 end
 -- The line that clicks a tab (a global name): /click, which the game runs as your own click (clean). A tab that is a
--- plain Frame (as the character tabs are here) isn't a button: /click does nothing to it, and Terminal points at it
--- for you to click. Until 0.46.2 a /run line clicked it or ran its mouse scripts; but a /run line runs tainted
--- (0.46.1), and the window it switched then held what it wrote.
+-- plain Frame (as the character tabs are here) isn't a button: /click does nothing to it, and Terminal points at it for
+-- you to click. Until 0.46.2 a /run line clicked it or ran its mouse scripts; but a /run line runs tainted, and the
+-- window it switched then held what it wrote.
 local function TabClickLine(tab) return "/click " .. tab end
 -- Group Finder pages (this client's BrowsingTab / WhoListingTab, the player's /fstack names): the window opened by
 -- the Dungeons micro button. Open is told by the window the tab sits in (its parents up to UIParent), so a window
@@ -142,9 +141,9 @@ local function TabFallback(e) ns:Print(L["Switch to %s in its window (a click fr
 -- tab selects them: LegacySystemFrameTabMixin's custom OnMouseUp fires "Legacy.SelectPage"; no binding, no button, no C
 -- call; running the window's code from Terminal or a /run line would taint it, the Tree's talent panel with it): the
 -- window opens (on the page you left it on; Rewards the first time a session, its OnLoad picks page 1) and Terminal
--- points at the tab, saying once why it can't switch it.
--- 0.48.7: the tabs are keys of LegacySystemFrame (parentKey, no name: Blizzard_LegacySystem.xml), not globals, so
--- "LegacyTreeTab" alone found nothing and the Tree tab was never pointed at.
+-- points at the tab, saying once why it can't switch it. the tabs are keys of LegacySystemFrame (parentKey, no name:
+-- Blizzard_LegacySystem.xml), not globals, so "LegacyTreeTab" alone found nothing and the Tree tab was never pointed
+-- at.
 local LEGACY_PAGES = { -- (the window's own page numbers, by the tab's path)
 	["LegacySystemFrame.LegacyRewardTrackTab"] = 1, ["LegacySystemFrame.LegacyChallengeTab"] = 2, ["LegacySystemFrame.LegacyTreeTab"] = 3 }
 local function LegacyOn(page)
@@ -196,11 +195,11 @@ local function LegacyAfter(e)
 	end)
 end
 
--- The guild & communities window's tabs (CommunitiesFrame.RosterTab, .GuildInfoTab): keys, not globals. The press
--- opens the window (only while it's closed) and asks /click for the tab by its path, which the game looks up itself
+-- The guild & communities window's tabs (CommunitiesFrame.RosterTab, .GuildInfoTab): keys, not globals. The press opens
+-- the window (only while it's closed) and asks /click for the tab by its path, which the game looks up itself
 -- (GetClickFrame: whether it takes a path on this client isn't known; when it doesn't, nothing happens and Terminal
--- points at the tab). Until 0.46.2 a /run line clicked it: a /run line runs tainted (0.46.1). No guild button: the
--- guild key's binding instead (the spec's), no tab.
+-- points at the tab). Until 0.46.2 a /run line clicked it: a /run line runs tainted. No guild button: the guild key's
+-- binding instead (the spec's), no tab.
 local function CommunitiesTabMacro(e)
 	local lines = {}
 	if not Shown("CommunitiesFrame") then
@@ -230,9 +229,9 @@ local function MapRoute()
 	return ns.Maps and ns.Maps.SECURE or { binding = "TOGGLEWORLDMAP" }, PanelOpen
 end
 
--- (0.49.2, review) without the game's own route (no key command, no button on this client), a panel isn't opened by
--- Terminal's code either (that taints it, as the Currency, Calendar and Legacy rows always said): it says where to open it,
--- and its micro button glows where there is one
+-- without the game's own route (no key command, no button on this client), a panel isn't opened by Terminal's code
+-- either (that taints it, as the Currency, Calendar and Legacy rows always said): it says where to open it, and its
+-- micro button glows where there is one
 local function OpenYourself(e)
 	ns:Print(L["Open %s from its button or key (opening it from Terminal's own code would taint it)."]:format(tostring(e and e.name)))
 end
@@ -330,7 +329,7 @@ local PANEL_SAID = {
 	["Social / Friends"] = L["Social / Friends"], ["Backpack & Bags"] = L["Backpack & Bags"], ["Game Menu"] = L["Game Menu"],
 	["Options"] = L["Options"], ["AddOn List"] = L["AddOn List"], ["Macros"] = L["Macros"], ["Edit Mode"] = L["Edit Mode"],
 	["Legacy"] = L["Legacy"], ["Legacy Challenges"] = L["Legacy Challenges"], ["Legacy Tree"] = L["Legacy Tree"],
-	["Legacy Rewards"] = L["Legacy Rewards"], -- (0.49.2, review: its row was always in English)
+	["Legacy Rewards"] = L["Legacy Rewards"],
 	["Guild Roster"] = L["Guild Roster"], ["Guild Info"] = L["Guild Info"], ["Character Stats"] = L["Character Stats"],
 	["Equipment Manager"] = L["Equipment Manager"], ["Titles"] = L["Titles"], ["Group Browser"] = L["Group Browser"],
 	["Who Listing"] = L["Who Listing"], ["Shop"] = L["Shop"],
@@ -364,7 +363,7 @@ local function PanelActivate(e)
 	MicroGlow(e.micro)
 end
 
--- (1.0.14) other addons' windows, as rows of their own: functions -> rows (OneForAll's tabs: Integrations/OneForAll/OneForAll.lua)
+--  other addons' windows, as rows of their own: functions -> rows (OneForAll's tabs: Integrations/OneForAll/OneForAll.lua)
 ns.PanelExtras = ns.PanelExtras or {}
 
 ns:RegisterProvider("panels", {

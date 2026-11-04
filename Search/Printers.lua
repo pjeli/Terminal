@@ -62,8 +62,8 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 		local sort = ns.Bar.SortWord(bar)
 		if sort then words[#words + 1] = "sort:" .. sort end
 		local line = Scan.WithTail(asked, words):gsub("%s+$", "")
-		-- (the bar's group only where the search groups by it: not after steps that sum, count or group, "items by zone";
-		-- TakeAggregate; 1.0.82, review)
+		-- (the bar's group only where the search groups by it: not after steps that sum, count or group, "items by
+		-- zone"; TakeAggregate)
 		if bar.group and not noGroup and not StepsSumUp(line) then line = line .. " | group by " .. bar.group end
 		return line .. " "
 	end
@@ -96,7 +96,7 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 	if q.typedKinds then
 		AddKinds(q.kinds, true)
 	elseif q.kindIds then
-		-- (a list's own name, "macros", "linen on my alts": those lists; Scan.KindWord, 1.0.45)
+		-- (a list's own name, "macros", "linen on my alts": those lists; Scan.KindWord)
 		AddKinds(q.kindIds, true)
 	elseif act and act.map then
 		local set = {}
@@ -114,18 +114,18 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 		if AddKinds(set) == 0 then AddKinds(set, true) end
 	elseif shown then
 		-- (rows shown from a list Advanced searches only when it's named, Questie's quests and NPCs: every list shown
-		-- named, or Advanced never looks there; 0.68.18: "hex of weakness" listed Questie's quests, Alt+` found nothing)
+		-- named, or Advanced never looks there)
 		for k in pairs(shown) do
 			local p = ns.providers[k]
 			if p and p.explicit then AddKinds(shown, true) break end
 		end
 	end
 	local nearest = act and act.nearest
-	-- ("farthest innkeeper": sort:-distance; 0.65.7)
+	-- ("farthest innkeeper": sort:-distance)
 	local distWord
 	if nearest and q.actWord then distWord = act.far and "sort:-distance" or "sort:distance" else distWord = q.sortFar and "sort:-distance" or "sort:distance" end
-	-- (0.55.18) the words shown found nothing passing every everyday word, so the closest were listed (UI.softRelaxed,
-	-- this very line): those words written as words, not as filters nothing passes ("linen cloth": not type:cloth)
+	-- the words shown found nothing passing every everyday word, so the closest were listed (UI.softRelaxed, this very
+	-- line): those words written as words, not as filters nothing passes ("linen cloth": not type:cloth)
 	local relaxed = {}
 	local UIr = ns.UI
 	local function Trim(t) return (t:gsub("^%s+", ""):gsub("%s+$", "")) end
@@ -133,14 +133,14 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 		for i, f in ipairs(q.softs or {}) do relaxed[f] = q.softWords and q.softWords[i] or true end
 	end
 	-- (an everyday word for a kind of item, "sword": that kind, or the word in a name; written so, sword|type:sword, as
-	-- type:sword alone left out what's named so without the item data saying it; 0.55.18)
+	-- type:sword alone left out what's named so without the item data saying it)
 	local softWord = {}
 	for i, f in ipairs(q.softs or {}) do softWord[f] = q.softWords and q.softWords[i] end
 	local specs, plainWords = {}, {}
 	for _, f in ipairs(q.filters or {}) do
 		local spec = q.specOf and q.specOf[f]
 		local w = softWord[f]
-		-- (a stat's or a slot's word too, "testing an enemy's strength", "the collector's ring": in a name as well; 0.68.18)
+		-- (a stat's or a slot's word too, "testing an enemy's strength", "the collector's ring": in a name as well)
 		if spec and w and (spec:find("^type:") or spec:find("^stat:") or spec:find("^slot:")) and not w:find("[%s|]") then
 			spec = w .. "|" .. spec
 		end
@@ -186,8 +186,7 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 		Add(q.exact and q.exact[w] and ('"' .. as .. '"') or as)
 	end
 	for _, w in ipairs(plainWords) do Add(w) end
-	-- (a value of several words, read without its quotes, in:The Barrens: written with them again, in:"The Barrens";
-	-- 0.55.16, the player's screenshot: Alt+` wrote in:The Barrens, which searched for "Barrens" as a word too)
+	-- (a value of several words, read without its quotes, in:The Barrens: written with them again, in:"The Barrens")
 	-- (each piece of a | or & list on its own, after its - or key: -"outlaw saber", type:dagger|"pirate saber"; review)
 	local function Quoted(sp)
 		if sp:find('"', 1, true) or not sp:find("%s") then return sp end
@@ -214,9 +213,8 @@ end
 --- A whole line as Advanced mode writes it (Alt+`, Easy.ToAdvanced): its query printed (ns.QueryToAdvanced), then what
 --- the line's reading has after it, in the one order the search applies them (UI/Results.lua's TakeAggregate): the
 --- comparison and top N said in words, the bar's Group, the steps; the send. A ">> party" or "| sum value" typed after
---- the words is kept as typed (review, 0.53.6: "hogger >> party" became "hogger party >> ", "cloth | sum value" "sum
---- value type:cloth | "); Simple mode's copy in words, "linen to csv", is the send it stands for, ">>> csv" (review: it
---- was written "linen csv", which copied nothing).
+--- the words is kept as typed; Simple mode's copy in words, "linen to csv", is the send it stands for, ">>> csv"
+--- (review: it was written "linen csv", which copied nothing).
 function ns.LineToAdvanced(text, category, shown, noGroup)
 	local line = tostring(text or "")
 	local r = ns.Phrase.ReadLine(line, { simple = EasyOn() })
@@ -224,8 +222,8 @@ function ns.LineToAdvanced(text, category, shown, noGroup)
 	if r.send then t, tail = line:sub(1, r.send.at - 1), " " .. line:sub(r.send.at)
 	elseif r.copy then t, tail = r.copy.query, " >>> " .. r.copy.how end
 	if r.steps then
-		-- (steps that only keep rows, a group stepped into: the bar's Group groups what they keep (UI/Results.lua, 1.0.29),
-		-- so it's written after them; review, 1.0.35: Alt+` dropped it, and reset the bar)
+		-- (steps that only keep rows, a group stepped into: the bar's Group groups what they keep (UI/Results.lua), so
+		-- it's written after them)
 		local add = ""
 		local bar = ns.Bar and ns.Bar.Active and ns.Bar.Active()
 		local A = ns.Aggregate
@@ -235,7 +233,7 @@ function ns.LineToAdvanced(text, category, shown, noGroup)
 		end
 		t, tail = r.steps.query, " | " .. table.concat(r.steps.list, " | ") .. add .. tail
 	elseif r.top or r.setop then
-		-- ("the 3 nearest mailboxes": "| first 3", 0.66.7; "but not in my bank": "| except @bank", 0.66.10)
+		-- ("the 3 nearest mailboxes": "| first 3", 0.66.7; "but not in my bank": "| except @bank")
 		local add = (r.setop and (" | " .. r.setop.step) or "") .. (r.top and (" | first " .. r.top.n) or "")
 		local bar = ns.Bar and ns.Bar.Active and ns.Bar.Active()
 		if bar and bar.group and not noGroup then add = add .. " | group by " .. bar.group end

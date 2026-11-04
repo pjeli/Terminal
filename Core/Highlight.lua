@@ -90,10 +90,10 @@ function H:Show(target)
 	return g
 end
 
---- Poll `finder` (returns a frame, or a list of frames, or nil) until it
---- succeeds, then call onFound. Gives Blizzard frames time to build/layout.
---- One pointing at a time (0.47.0 review): a newer When ends the older one (Enter on spell A, then on spell B: turning
---- the page later no longer points at A, nor says A's hint). `finder` returning false ends it too (its window closed).
+--- Poll `finder` (returns a frame, or a list of frames, or nil) until it succeeds, then call onFound. Gives Blizzard
+--- frames time to build/layout. One pointing at a time: a newer When ends the older one (Enter on spell A, then on
+--- spell B: turning the page later no longer points at A, nor says A's hint). `finder` returning false ends it too (its
+--- window closed).
 H.gen = 0
 function H:When(finder, onFound, tries, onFail)
 	H.gen = H.gen + 1
@@ -150,7 +150,7 @@ end
 local function Says(f, text, exact)
 	for _, r in ipairs({ f:GetRegions() }) do
 		if r.GetObjectType and r:GetObjectType() == "FontString" then
-			local t = ns.Str(r:GetText()) -- (a secret text: never searched; review, 0.53.6)
+			local t = ns.Str(r:GetText()) -- (a secret text: never searched)
 			if t and ((exact and t == text) or (not exact and t:find(text, 1, true))) then return true end
 		end
 	end
@@ -158,8 +158,7 @@ local function Says(f, text, exact)
 end
 
 --- Find a visible frame having a FontString whose text is `text`, else one whose text contains it. The window itself
---- (`root`) last: its title naming it points at nothing (0.63.7, review: "Heal" pointed at "Flash Heal", the first
---- button whose text had it).
+--- (`root`) last: its title naming it points at nothing.
 function ns.FindByText(root, text, depth)
 	if not text or text == "" then return nil end
 	return ns.FindFrame(root, function(f) return f ~= root and Says(f, text, true) end, depth)

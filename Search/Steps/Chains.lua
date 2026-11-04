@@ -15,10 +15,9 @@ local L = ns.L
 -- bags).
 --
 -- A link is a ">" standing on its own (spaces around it: lvl:>20 is a filter; ">>" sends to chat). The word after it
--- names the relation; the rest of that part narrows what it gave, by name. Recipes come from your own professions
--- and, for any crafted item, from AtlasLoot's crafting data; sellers, droppers and gathering spots from Questie.
--- (Revived from the shelved `pipes` branch, 0.36.0.)
--- (This was Pipes.lua; the "|" steps, sums and groups, are Aggregate.lua beside it.)
+-- names the relation; the rest of that part narrows what it gave, by name. Recipes come from your own professions and,
+-- for any crafted item, from AtlasLoot's crafting data; sellers, droppers and gathering spots from Questie. (Revived
+-- from the shelved `pipes` branch.) (This was Pipes.lua; the "|" steps, sums and groups, are Aggregate.lua beside it.)
 
 local P = {}
 ns.Pipes = P
@@ -108,11 +107,11 @@ P.PHRASES = {
 	{ "^who trains (.+)$", "learn" },
 	{ "^where is (.+) taught$", "learn" }, { "^where to get the recipe for (.+)$", "learn" },
 	{ "^where is the recipe for (.+)$", "learn" }, { "^recipe sources? for (.+)$", "learn" },
-	-- (1.0.50, the reach audit) what an NPC drops, what a vendor sells: only when the words name one (P.PHRASE_NPC)
+	-- what an NPC drops, what a vendor sells: only when the words name one (P.PHRASE_NPC)
 	{ "^what does (.+) drop$", "drops" }, { "^what do (.+) drop$", "drops" }, { "^drops from (.+)$", "drops" },
 	{ "^loot from (.+)$", "drops" }, { "^(.+) loot$", "drops" }, { "^(.+) drops$", "drops" },
-	-- (1.0.52, the reach audit) a quest's rewards and its chain in words
-	-- (only when the words name a quest: "what does stamina give", "rewards from dungeons" aren't; review, 1.0.65)
+	-- a quest's rewards and its chain in words (only when the words name a quest: "what does stamina give", "rewards
+	-- from dungeons" aren't)
 	{ "^what does (.+) give$", "rewards", "quest" }, { "^what does (.+) reward$", "rewards", "quest" },
 	{ "^rewards for (.+)$", "rewards", "quest" }, { "^rewards from (.+)$", "rewards", "quest" },
 	{ "^what do i get for (.+)$", "rewards", "quest" },
@@ -120,8 +119,8 @@ P.PHRASES = {
 	{ "^what does (.+) sell$", "sells" }, { "^what do (.+) sell$", "sells" }, { "^items sold by (.+)$", "sells" },
 	{ "^what is sold by (.+)$", "sells" }, { "^whats sold by (.+)$", "sells" }, { "^(.+) wares$", "sells" },
 	{ "^what does (.+) have for sale$", "sells" },
-	-- (1.0.53, the reach audit) where to farm or find something: its sources, when the words aren't an NPC's or a place's
-	-- ("where do i find hogger" stays where he is: P.PHRASE_THING)
+	-- where to farm or find something: its sources, when the words aren't an NPC's or a place's ("where do i find
+	-- hogger" stays where he is: P.PHRASE_THING)
 	{ "^where to farm (.+)$", "sources", "thing" }, { "^where do i farm (.+)$", "sources", "thing" },
 	{ "^where can i farm (.+)$", "sources", "thing" }, { "^where to find (.+)$", "sources", "thing" },
 	{ "^where do i find (.+)$", "sources", "thing" }, { "^where can i find (.+)$", "sources", "thing" },
@@ -130,15 +129,14 @@ P.PHRASES = {
 	{ "^where to buy (.+)$", "sources" }, { "^where can i buy (.+)$", "sources" }, { "^how to get (.+)$", "sources" },
 	{ "^how do i get (.+)$", "sources" }, { "^sources? for (.+)$", "sources" }, { "^sources? of (.+)$", "sources" },
 	{ "^where does (.+) drop$", "sources" }, { "^who sells (.+)$", "sources" }, { "^what drops (.+)$", "sources" },
-	-- (0.68.17: "who drops x" asked /who, "vendors that sell x" found nothing)
 	{ "^who drops (.+)$", "sources" }, { "^what mobs? drops? (.+)$", "sources" }, { "^which mobs? drops? (.+)$", "sources" },
 	{ "^vendors? that sells? (.+)$", "sources" }, { "^vendors? selling (.+)$", "sources" }, { "^which vendors? sells? (.+)$", "sources" },
 	{ "^what vendors? sells? (.+)$", "sources" }, { "^who has (.+) for sale$", "sources" },
-	-- the quests before one (Rewards.lua, 0.49.16): "quest chain for the missing diplomat", "quest chain for outlaw sabre"
+	-- the quests before one (Rewards.lua): "quest chain for the missing diplomat", "quest chain for outlaw sabre"
 	{ "^quest chain for (.+)$", "chain" }, { "^quest chain of (.+)$", "chain" }, { "^chain for (.+)$", "chain" },
 	{ "^quests? before (.+)$", "chain" }, { "^what leads to (.+)$", "chain" }, { "^prereqs? for (.+)$", "chain" },
 	{ "^(.+) quest chain$", "chain" }, { "^(.+) chain$", "chain", "quest" }, -- (after "quest chain": its name without
-	-- "quest"; only a quest's name: "heavy chain" is an item's, review 1.0.65)
+	-- "quest"; only a quest's name: "heavy chain" is an item's)
 }
 
 -- (the phrases whose words must name an NPC or a boss: "hogger loot" is Hogger's, "deadmines loot" and "raid loot" not)
@@ -179,12 +177,12 @@ for _, ph in ipairs(P.PHRASES) do
 	if l then P.LAST[l] = true end
 end
 P.FIRST.mat, P.FIRST.material, P.FIRST.reagent, P.FIRST.use, P.FIRST.source = true, true, true, true, true
-P.FIRST.prereq = true -- ("^prereqs? for" starts with prereq too; review, 0.49.17)
+P.FIRST.prereq = true -- ("^prereqs? for" starts with prereq too)
 P.FIRST.vendor = true -- ("^vendors? that sells?": "vendor that sells x")
 
---- The chain a line means: the line itself when it has links, the chain its plain words say ("mats for x" ->
---- "x > mats"), else nil. `words`: only the plain words (Simple mode: a ">" typed there is Advanced syntax, refused
---- like an @kind, 0.45.13).
+--- The chain a line means: the line itself when it has links, the chain its plain words say ("mats for x" -> "x >
+--- mats"), else nil. `words`: only the plain words (Simple mode: a ">" typed there is Advanced syntax, refused like an
+--- @kind).
 function P.Canonical(text, words)
 	if type(text) ~= "string" then return nil end
 	if P.Split(text) then
@@ -212,11 +210,11 @@ function P.Canonical(text, words)
 	return nil
 end
 
--- (0.49.2, review) what a phrase caught that names no item: your group ("what does my group need" is the group's
--- question, Group.lua), a way somewhere ("how do i get to orgrimmar"). They said "Nothing called 'my group'".
+-- what a phrase caught that names no item: your group ("what does my group need" is the group's question, Group.lua), a
+-- way somewhere ("how do i get to orgrimmar"). They said "Nothing called 'my group'".
 local GROUP_WORDS = { my = true, our = true, the = true, group = true, party = true, raid = true, members = true,
 	member = true, groupmates = true, team = true }
--- (words that point at something without naming it: "my mats", "where to get it", "what drops here"; 0.63.7, review)
+-- (words that point at something without naming it: "my mats", "where to get it", "what drops here")
 local POINTERS = { my = true, our = true, the = true, it = true, its = true, there = true, here = true, this = true, that = true,
 	these = true, those = true, them = true, me = true, money = true }
 function P.NotAName(what)
@@ -452,12 +450,11 @@ ns:RegisterRelation("uses", {
 	end,
 })
 
--- drops, sells: what an NPC drops (AtlasLoot's loot of a boss by that name; any other creature: the items whose
--- Questie npcDrops list it) and what a vendor sells (the items whose Questie vendors list it). 1.0.50, the reach audit:
--- "what does hogger drop", "what does innkeeper farley sell" (Advanced: "hogger > drops", "farley > sells").
--- (@loot's rows by their boss's lowercase name, and the bosses by instance, made once a loot list. Only loot that drops:
--- AtlasLoot's faction, crafting, PvP and collection pages name a standing or a profession where a boss goes, "Honored
--- @ Argent Dawn"; review, 1.0.68)
+-- drops, sells: what an NPC drops (AtlasLoot's loot of a boss by that name; any other creature: the items whose Questie
+-- npcDrops list it) and what a vendor sells (the items whose Questie vendors list it). "what does hogger drop", "what
+-- does innkeeper farley sell" (Advanced: "hogger > drops", "farley > sells"). (@loot's rows by their boss's lowercase
+-- name, and the bosses by instance, made once a loot list. Only loot that drops: AtlasLoot's faction, crafting, PvP and
+-- collection pages name a standing or a profession where a boss goes, "Honored @ Argent Dawn")
 local bossBy, bossFrom, bossPlaces
 local NOT_DROPS = { reputation = true, crafted = true, pvp = true, collection = true }
 local function BossLoot()
@@ -498,14 +495,14 @@ function P.BossPlaces()
 	return bossPlaces or {}
 end
 --- Do these (lowercase) words name an NPC Questie knows, or a boss AtlasLoot lists? (Questie's names text, not the NPC
---- list: asked on a keystroke, it built the list and kept it from being let go; review, 1.0.67)
+--- list: asked on a keystroke, it built the list and kept it from being let go)
 function P.NpcNamed(what)
 	if BossLoot()[what] then return true end
 	local I = ns.Integrations
 	return (I and I.NpcIdNamed and I.NpcIdNamed(what)) ~= nil
 end
 --- Do these (lowercase) words name a quest Questie knows: its whole name, or the start of one (four letters or more)?
---- (The quests' names kept once a list; review, 1.0.65.)
+--- (The quests' names kept once a list.)
 local questNames, questNamesFrom
 function P.QuestNamed(what)
 	local I = ns.Integrations
@@ -542,7 +539,7 @@ function P.QuestNamed(what)
 	n = questNames[lo]
 	return n ~= nil and n:sub(1, #t) == t
 end
--- (the last words of an NPC's role said, not a thing: "flight master", "mage trainer", "quest giver"; review, 1.0.65)
+-- (the last words of an NPC's role said, not a thing: "flight master", "mage trainer", "quest giver")
 local ROLE_LAST = { trainer = true, trainers = true, master = true, masters = true, giver = true, givers = true,
 	keeper = true, keepers = true, healer = true, healers = true, house = true, houses = true }
 --- Do these (lowercase) words name an NPC or a place rather than a thing ("where do i find hogger", "where can i find
@@ -550,7 +547,7 @@ local ROLE_LAST = { trainer = true, trainers = true, master = true, masters = tr
 function P.NotAThing(what)
 	if P.NpcNamed(what) then return true end
 	-- (an NPC's role or a kind of object: where the nearest is, not its sources: "where do i find an innkeeper", "where
-	-- can i find a mailbox", "where do i find the auction house"; review, 1.0.65)
+	-- can i find a mailbox", "where do i find the auction house")
 	local E, I0 = ns.Easy, ns.Integrations
 	if (E and E.ROLE_WORDS and E.ROLE_WORDS[what]) or (E and E.PROF_PEOPLE and E.PROF_PEOPLE[what])
 		or (I0 and I0.OBJECT_KINDS and I0.OBJECT_KINDS[what]) or ROLE_LAST[what:match("(%S+)$") or ""] then return true end
@@ -634,8 +631,7 @@ P.View = View
 
 -- a view of an NPC or spot with how far it is said first, as "nearest" says it ("80 yd  Sells it  ·  Vendor"): the
 -- selected row's arrow sits just left of the distance, and keeps it up to date as you walk (`_dist`, `nearRest`:
--- List.lua's NavTick); no known spot on your continent: just what it is (0.45.17, the player's screenshot: the arrow
--- sat mid-row, the distance cut off at the end)
+-- List.lua's NavTick); no known spot on your continent: just what it is
 local function NearSaid(v, d, rest)
 	if d then
 		v.detail, v._dist, v.nearRest = ns.NearDetail(d, rest), d, rest
@@ -647,7 +643,7 @@ end
 P.NearSaid = NearSaid
 
 --- Is this Questie NPC friendly to you (as faction:friendly judges it: "A", "H" or "AH" holding your side; one hostile
---- to both, or not known, isn't)? Sellers are only the ones you can buy from (0.45.16, the player's ask).
+--- to both, or not known, isn't)? Sellers are only the ones you can buy from.
 local friendlyTest
 function P.Friendly(row)
 	local F = ns.Filters
@@ -799,12 +795,12 @@ ns:RegisterRelation("sources", {
 })
 
 ----------------------------------------------------------------------
--- learn: where a recipe is learned (0.45.12, the player's ask). The game doesn't say: this client's profession window
--- lists recipes you don't know, but C_TradeSkillUI.GetRecipeSourceText gives nothing for them (the player's probe).
--- So: AtlasLoot's recipe items (its Data.Recipe: [Plans: Thorium Belt] teaches the spell; GetRecipeForSpell is the
--- reverse) and where to get that item (Questie, AtlasLoot's bosses, your alts); a craft AtlasLoot knows with no recipe
--- item is taught by a trainer, said with that evidence, and the nearest trainers of its profession Questie knows (a
--- trainer whose rank tops out below the skill the recipe needs left out).
+-- learn: where a recipe is learned. The game doesn't say: this client's profession window lists recipes you don't know,
+-- but C_TradeSkillUI.GetRecipeSourceText gives nothing for them (the player's probe). So: AtlasLoot's recipe items (its
+-- Data.Recipe: [Plans: Thorium Belt] teaches the spell; GetRecipeForSpell is the reverse) and where to get that item
+-- (Questie, AtlasLoot's bosses, your alts); a craft AtlasLoot knows with no recipe item is taught by a trainer, said
+-- with that evidence, and the nearest trainers of its profession Questie knows (a trainer whose rank tops out below the
+-- skill the recipe needs left out).
 ----------------------------------------------------------------------
 
 -- AtlasLoot's profession numbers: the word trainer: takes, the skill line
@@ -879,8 +875,7 @@ local function Trainers(word)
 	local busy = p.busy and p.busy()
 	if busy then P.loading = true; F.loading = true end -- (Questie's NPCs still being read: asked again once they're in)
 	if trainersOf.list ~= list then trainersOf.list, trainersOf.by = list, {} end
-	-- (trainer:class and trainer:pet are whose class asks, !t's asker's too: kept per class; 1.0.84, review: a guildie's
-	-- "where to learn heroic strike" got your mage trainers)
+	-- (trainer:class and trainer:pet are whose class asks, !t's asker's too: kept per class)
 	local key = word
 	if word == "class" or word == "pet" then key = word .. ":" .. tostring(F._ and F._.MyClass and F._.MyClass() or "") end
 	local got = trainersOf.by[key]
@@ -1035,8 +1030,7 @@ ns:RegisterRelation("alts", {
 local function Id(e)
 	local k = rawget(e, "key")
 	if k == nil then
-		-- (a view, View's or NearSaid's: the row it shows and how it was found; review, 0.48.6: each view was its own, so
-		-- a trade supplier selling three of the reagents was listed three times, and passed on three times)
+		-- (a view, View's or NearSaid's: the row it shows and how it was found)
 		local mt = getmetatable(e)
 		local base = mt and type(mt.__index) == "table" and mt.__index or nil
 		k = base and rawget(base, "key")
@@ -1159,7 +1153,7 @@ local function SeedParse(text, seedKinds, alsoKinds)
 			local p = ns:ResolveProvider(w:sub(2))
 			if p then kinds[#kinds + 1] = p.id else words[#words + 1] = w end
 		else
-			local f = (w:find("[:|]") or w:find("^[-!][%a\128-\255]")) and ns.Filters and ns.Filters.Parse(w) -- ("-малое", 0.49.2)
+			local f = (w:find("[:|]") or w:find("^[-!][%a\128-\255]")) and ns.Filters and ns.Filters.Parse(w) -- ("-малое")
 			if f then filters[#filters + 1] = f else words[#words + 1] = w end
 		end
 	end
@@ -1238,9 +1232,9 @@ local function Once(list)
 	return out
 end
 
--- reagent rows for the items known by exactly this (lowercase) name: your recipes' reagents, else Questie's items
--- (your recipes' reagents by lowercase name, made once per recipes list: every keystroke whose words matched no name
--- read every reagent's name again; made again while some names are still coming. Review, 0.53.6)
+-- reagent rows for the items known by exactly this (lowercase) name: your recipes' reagents, else Questie's items (your
+-- recipes' reagents by lowercase name, made once per recipes list: every keystroke whose words matched no name read
+-- every reagent's name again; made again while some names are still coming.)
 local reagents = { list = nil, byName = nil, whole = false }
 local function ReagentIds(whole)
 	local list = Entries("recipes")
@@ -1300,11 +1294,10 @@ end
 
 --- Where a chain starts: rows of your recipes, bags, AtlasLoot and alts whose names have the words (an @kind picks the
 --- lists, key:value filters narrow them). An exact name keeps only those rows (or "mats for thorium belt" would add up
---- every belt); else the one name that has every word as typed; with only filters typed, every row that passes.
---- Never a guess (0.44.4: "core leather belt" gave Comfortable Leather Hat's mats, its letters scattered in the name):
---- no name with every word -> {} and the closest name (second result); several -> {} and those names to pick from
---- (third result: rows, best first); `applies` (a row -> whether the link can go on from it) keeps, of several names,
---- those it can, when some can. `alsoKinds`: lists looked in as well as the usual ones (a relation's other
+--- every belt); else the one name that has every word as typed; with only filters typed, every row that passes. Never a
+--- guess: no name with every word -> {} and the closest name (second result); several -> {} and those names to pick
+--- from (third result: rows, best first); `applies` (a row -> whether the link can go on from it) keeps, of several
+--- names, those it can, when some can. `alsoKinds`: lists looked in as well as the usual ones (a relation's other
 --- definitions' own: "fireball > learn" looks in What's Training's spells too, P.AlsoSeeds).
 function P.Seed(text, seedKinds, alsoKinds, applies)
 	local kinds, filters, tokens, whole = SeedParse(text, seedKinds, alsoKinds)
@@ -1318,7 +1311,7 @@ function P.Seed(text, seedKinds, alsoKinds, applies)
 	-- carry: "where to get copper ore")
 	if #subs == 0 and #all == 0 and whole ~= "" and not seedKinds then
 		local out = SeedByReagentName(whole)
-		-- (the phrase took a leading article off, "where to get the collector's ring": a name may begin with one; 0.68.17)
+		-- (the phrase took a leading article off, "where to get the collector's ring": a name may begin with one)
 		for _, a in ipairs(#out == 0 and P.ARTICLES or {}) do
 			out = SeedByReagentName(a .. whole)
 			if #out > 0 then break end
@@ -1328,7 +1321,7 @@ function P.Seed(text, seedKinds, alsoKinds, applies)
 	if #tokens == 0 then return Once(all) end -- (only filters typed: every row that passes)
 	if #subs == 0 then return {}, near end
 	-- (the names the chain's link can go on from, when some can: "where to learn dagger" is the Daggers weapon skill,
-	-- not a pick among every dagger AtlasLoot knows; 0.53.9)
+	-- not a pick among every dagger AtlasLoot knows)
 	if applies and #subs > 1 then
 		local fit = {}
 		for _, m in ipairs(subs) do if applies(m[1]) then fit[#fit + 1] = m end end
@@ -1436,7 +1429,7 @@ end
 local function SeedRows(key, stages)
 	local def, name = FirstDef(stages)
 	local kinds = def and def.seedKinds
-	-- (a link two parts give, "> rewards": a quest's (Rewards.lua) and a faction's (OneForAll): each one's lists; 1.0.52)
+	-- (a link two parts give, "> rewards": a quest's (Rewards.lua) and a faction's (OneForAll): each one's lists)
 	if kinds and name and #P.relations[name] > 1 then
 		local all, seen = {}, {}
 		for _, d in ipairs(P.relations[name]) do
@@ -1448,7 +1441,7 @@ local function SeedRows(key, stages)
 	end
 	local also = not kinds and P.AlsoSeeds(name) or nil
 	-- (the same words start another list there; and the names to pick from are those the first link takes: kept by it
-	-- too. 0.63.7, review: "copper > mats" then "copper > uses" offered mats' names, Copper Ore missing)
+	-- too. "copper > mats" then "copper > uses" offered mats' names, Copper Ore missing)
 	if name then key = key .. " @" .. name end
 	local rows = Cached(key)
 	if not rows then
@@ -1643,7 +1636,7 @@ ns:RegisterCommand("chains", {
 	run = function()
 		local lines = { L["Chains: a  >  passes what a search found on (Enter on a row walks on, Shift+Enter opens it):"] }
 		for _, name in ipairs(P.order) do
-			-- (only the links you can use: steps and attunement need Attune, chain Questie; review, 0.53.6)
+			-- (only the links you can use: steps and attunement need Attune, chain Questie)
 			local def = P.Available(name) and P.relations[name][1]
 			if def then
 				lines[#lines + 1] = ("  %s%s  -  %s"):format(name, #def.aliases > 0 and (" (" .. table.concat(def.aliases, ", ") .. ")") or "", def.desc)

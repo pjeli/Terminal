@@ -24,7 +24,7 @@ function Scan.TakeAction(tokens, filters, src)
 	local first = 1
 	while first < #tokens and ARTICLE[tokens[first]] do first = first + 1 end
 	-- (a request's lead-in, when "nearest" follows it: "where is the nearest mailbox" listed nothing, "find the nearest
-	-- innkeeper" and "show me the closest anvil" nothing, "whats the nearest innkeeper" a Watchmaster; 0.68.11, review)
+	-- innkeeper" and "show me the closest anvil" nothing, "whats the nearest innkeeper" a Watchmaster)
 	local k = first
 	while k < #tokens and (LEAD_IN[tokens[k]] or ARTICLE[tokens[k]]) do k = k + 1 end
 	if k > first then
@@ -41,8 +41,8 @@ function Scan.TakeAction(tokens, filters, src)
 		if src then taken[#taken + 1] = table.remove(src, 1) end
 		return a, table.remove(tokens, 1), taken
 	end
-	-- "near me" said after what's wanted: "repair near me" (it read as the word "near"; 0.68.11, review), "innkeeper near
-	-- me in stormwind" (0.68.16: only the last two words were looked at)
+	-- "near me" said after what's wanted: "repair near me" (it read as the word "near"), "innkeeper near me in
+	-- stormwind"
 	if #tokens > 2 or (#tokens == 2 and filters) then
 		for j = #tokens - 1, 1, -1 do
 			if NEAR_ME[tokens[j] .. " " .. tokens[j + 1]] then
@@ -128,16 +128,14 @@ function Scan.AddFilter(q, f, how, sig, word, spec)
 	end
 	if sig then q.fsig[#q.fsig + 1] = sig end
 	-- (a filter whose answer changes while you type, a cooldown or where you stand: the next keystroke doesn't narrow
-	-- from the rows it kept, it reads every row again; review, 0.57.7: "@spell is:ready f" kept Fireball out after its
-	-- cooldown ended)
+	-- from the rows it kept, it reads every row again)
 	for _, t in ipairs({ spec, sig }) do
 		if type(t) == "string" and Scan.Volatile(t) then q.volatile = true end
 	end
 end
 
 --- Is this filter's answer one that changes by itself (is:ready, near:)?
--- (where you are, what's tracked: they change too; 0.63.7, review: "@quest is:here r" in Durotar, then "ra" in the
--- Barrens, narrowed Durotar's rows to nothing)
+-- (where you are, what's tracked: they change too)
 Scan.VOLATILE = { "is:ready", "is:offcooldown", "near:", "is:here", "is:nearby", "is:tracked", "is:untracked", "is:watched" }
 function Scan.Volatile(t)
 	t = t:lower()
@@ -145,7 +143,7 @@ function Scan.Volatile(t)
 		local at = t:find(v, 1, true)
 		if at and (at == 1 or t:sub(at - 1, at - 1):find("[%s|!%-]")) then return true end
 	end
-	-- (a piece that takes the first one's key: "is:passive|ready", "is:done&here"; review, 1.0.18)
+	-- (a piece that takes the first one's key: "is:passive|ready", "is:done&here")
 	for key, rest in t:gmatch("([%a]+):([^%s]*[|&][^%s]*)") do
 		for piece in rest:gmatch("[^|&]+") do
 			local p = key .. ":" .. piece:gsub("^[-!]", "")
@@ -182,8 +180,8 @@ function Scan.Parse(self, text, how)
 	local q = { text = text, simple = simple, tokens = {}, fsig = {} }
 	self.noPosition = nil
 	-- the line read (Phrase.lua): its words, "quoted phrases" apart (searched as one string each, never a filter or an
-	-- everyday word; 0.52.13); Simple mode: numbers in plain words read as their filters ("under level 25" is lvl:<25,
-	-- "worth more than 1g" value:>1g; 0.66.5, PlainNumbers.lua's plain stage), two everyday words that mean one thing as one
+	-- everyday word); Simple mode: numbers in plain words read as their filters ("under level 25" is lvl:<25, "worth
+	-- more than 1g" value:>1g; 0.66.5, PlainNumbers.lua's plain stage), two everyday words that mean one thing as one
 	-- ("attack power food", "spell power"), "sword or axe" as sword|axe, "not boe" as -boe (its join stage)
 	local r = ns.Phrase.ReadLine(text, { simple = simple, parse = true, noAlt = how and how.noAlt or nil })
 	q.reading = r
@@ -228,7 +226,7 @@ function Scan.Parse(self, text, how)
 	q.typedOf = typedOf
 	for _, u in ipairs(units) do
 		local w = u.word
-		-- (each word's sort: and do: read once, and lowered once; review, 0.53.6: up to three and five times a word)
+		-- (each word's sort: and do: read once, and lowered once)
 		local lw = Low(u)
 		local sort = F and F.SortOf and F.SortOf(w)
 		local act, actWord
@@ -248,9 +246,8 @@ function Scan.Parse(self, text, how)
 				-- (distance after a field, sort:level,distance: how far each is, worked out to break the field's ties)
 				for k = 2, #parts do if F.SortParts(parts[k]) == "distance" then q.sortNear = true end end
 			end
-			-- (Simple mode: the bar shows it as its Sort, and takes the word back out of the line: Bar.lua)
-			-- (an order said in words, "most valuable": those words; 0.66.7)
-			-- (one span: where the sort is said, the bar's too)
+			-- (Simple mode: the bar shows it as its Sort, and takes the word back out of the line: Bar.lua) (an order
+			-- said in words, "most valuable": those words) (one span: where the sort is said, the bar's too)
 			q.srcSort = Span(u)
 			if simple then q.typedSort = { id = sort, word = u.claim and u.phrase or w, drop = true, src = q.srcSort } end
 			q.fsig[#q.fsig + 1] = "^" .. (sort == "distance" and "near" or sort == "-distance" and "far" or sort)
@@ -265,15 +262,15 @@ function Scan.Parse(self, text, how)
 		else
 			-- lvl:20-30, slot:wrist, zone:ashenvale, is:todo... (Filters.lua); anything else is text
 			local f = F and F.Parse(w, plainWord)
-			-- Simple mode: a few everyday words are strict ("upgrades": only what suits you, never relaxed away). They're
-			-- everyday words all the same (review, 0.48.6): "my upgrades" drops its "my", "nearest battlemaster" keeps to
+			-- Simple mode: a few everyday words are strict ("upgrades": only what suits you, never relaxed away).
+			-- They're everyday words all the same: "my upgrades" drops its "my", "nearest battlemaster" keeps to
 			-- friendly NPCs, and the overview looks Questie's NPCs up by them
 			local strict = not f and simple and ns.Easy.HARD_WORDS[lw] and ns.Easy.Strict(lw)
 			if f then
 				-- (written as Advanced does: Simple mode's "-boe", "sword|axe" as -is:boe, type:sword|type:axe)
 				local spec = (simple and not ns.Easy.IsAdvancedWord(w)) and ns.Easy.AdvancedPart(lw) or w
 				-- (printed: a kind of item turned down, "-cloth", turns down what's named so too, as "sword" alone is
-				-- written sword|type:sword: -cloth|type:cloth, not -type:cloth that let Linen Cloth back. 0.63.7, review)
+				-- written sword|type:sword: -cloth|type:cloth, not -type:cloth that let Linen Cloth back.)
 				local printed = spec
 				local neg, a = lw:match("^([-!])(%a+)$")
 				if simple and neg and spec == neg .. tostring(ns.Easy.WORDS[a]) and spec:find("^[-!]type:") then
@@ -284,7 +281,7 @@ function Scan.Parse(self, text, how)
 			elseif strict then
 				Scan.AddFilter(q, strict, "strict", lw, lw, ns.Easy.WORDS[lw])
 				Picked(ns.Easy.WORDS[lw], u, Src(strict, u))
-				-- ("upgrades": the biggest first, as sort:best; 0.51.14, the player's ask)
+				-- ("upgrades": the biggest first, as sort:best)
 				if ns.Easy.WORDS[lw] == "is:upgrade" then q.sortBest = true end
 			else
 				-- everyday words ("rare", "ready", "vendor") are soft filters in Simple mode (Simple.lua)
@@ -313,8 +310,8 @@ function Scan.Parse(self, text, how)
 	end
 	tokens.exact = q.exact
 	q.typedKinds = kinds ~= nil
-	-- "@spell": your spellbook and the spells you don't know yet, any class's (@classspell's rows), are one list to search
-	-- (0.54.6, the player: as @talent is); an action (do:cast) only the spellbook's, which can be cast
+	-- "@spell": your spellbook and the spells you don't know yet, any class's (@classspell's rows), are one list to
+	-- search; an action (do:cast) only the spellbook's, which can be cast
 	if kinds and kinds.spells and ns.providers.classspells and not q.advAct then kinds.classspells = true end
 	-- "sort:plan": what's planned is recipes (with no @kind, or with @profession: searched too)
 	if q.sortPlan and (not kinds or kinds.professions) then
@@ -333,7 +330,7 @@ function Scan.Parse(self, text, how)
 	-- (Simple mode too since 0.55.18: Advanced syntax typed there is searched as typed, and the bar's "Not known yet",
 	-- "Can learn now" are these filters; review: Simple mode left the list out)
 	local barWords = simple and ns.Bar and ns.Bar.Active() and ns.Bar.Active().filters or {}
-	-- (standing: keeps rewards only when they're asked for: F.AsksRewards, Others.lua; 1.0.40)
+	-- (standing: keeps rewards only when they're asked for: F.AsksRewards, Others.lua)
 	if F and F.AsksRewards then F.rewardsAsked = F.AsksRewards(text, barWords) end
 	local missingWords = {}
 	for _, w in ipairs(words) do missingWords[#missingWords + 1] = w end
@@ -361,20 +358,19 @@ function Scan.Parse(self, text, how)
 		end
 	end
 	q.kinds = kinds
-	-- Simple mode's bar (Bar.lua, 0.55.1): its filters taken as typed ones (hard: never relaxed away), its sort
+	-- Simple mode's bar (Bar.lua): its filters taken as typed ones (hard: never relaxed away), its sort
 	local bar = simple and ns.Bar and ns.Bar.Active()
 	if bar then
 		for _, w in ipairs(bar.filters) do Scan.AddFilter(q, F and F.Parse(w), "hard", "!bar:" .. w, nil, w) end
 		if bar.sort == "distance" or bar.sort == "-distance" then q.sortNear, q.sortFar = true, bar.sort == "-distance" or nil
-		elseif bar.sort then q.sortField = ns.Bar.SortWord(bar) end -- (Sort's "then by", Shift picked: on a tie; 0.66.4)
+		elseif bar.sort then q.sortField = ns.Bar.SortWord(bar) end -- (Sort's "then by", Shift picked: on a tie)
 		q.group = bar.group
 	end
 	return q
 end
 
 --- Simple mode: "enchanting trainer" is the trainers who teach enchanting, not the word in their title (the Journeyman
---- Enchanter's: Easy.TrainerProfs; 0.49.8, the player's ask); said alone, the nearest (ActionAndPlace). Looked at after
---- a place is taken (review, 0.49.17: "trainer in mage quarter" was the mage trainers, its place lost). Sets
+--- Enchanter's: Easy.TrainerProfs); said alone, the nearest (ActionAndPlace). Looked at after a place is taken. Sets
 --- q.trainerAsked, and the words and filters left.
 function Scan.TrainerWords(q)
 	local softWords, tokens = q.softWords, q.tokens
@@ -393,7 +389,7 @@ function Scan.TrainerWords(q)
 	if not (q.simple and softWords and (#tokens > 0 or #softWords > 1)) then return end
 	local said = false
 	for _, w in ipairs(softWords) do if w == "trainer" or w == "trainers" then said = true end end
-	-- ("dagger trainer": the weapon skill's weapon masters, the word no longer an item type; 0.53.9, the player)
+	-- ("dagger trainer": the weapon skill's weapon masters, the word no longer an item type)
 	local F, weapons = ns.Filters, {}
 	if said and F and F.TrainerWeapon then
 		for _, w in ipairs(softWords) do if F.TrainerWeapon(w) then weapons[#weapons + 1] = w end end
@@ -406,11 +402,10 @@ function Scan.TrainerWords(q)
 	end
 	local kept, specs = ns.Easy.TrainerProfs(asked, said)
 	if not specs then return end
-	-- (a weapon's few masters, two or three in your capitals: those on another continent listed too, after the nearest;
-	-- 0.53.10, the player: "daggers trainer" in Orgrimmar listed Sayoc, not Undercity's Archibald)
+	-- (a weapon's few masters, two or three in your capitals: those on another continent listed too, after the nearest)
 	if #weapons > 0 then q.keepFar = true end
 	-- the trainer:<what> filter says trainer by the title: the word's own is:trainer (Questie's trainer flag) goes, or
-	-- the Demon Trainers, who sell grimoires (a vendor's flag), were left out (0.49.13, the player's report)
+	-- the Demon Trainers, who sell grimoires (a vendor's flag), were left out
 	local drop = {}
 	for _, w in ipairs({ "trainer", "trainers" }) do local t = ns.Easy.Word(w); if t then drop[t] = true end end
 	for _, w in ipairs(weapons) do local t = ns.Easy.Word(w); if t then drop[t] = true end end
@@ -424,8 +419,8 @@ function Scan.TrainerWords(q)
 	end
 end
 
---- The action, in either mode (0.55.4: Simple mode's action word and Advanced do: went two ways): its lists when no
---- @kind says which, and its own test (do = emotes). Only an action that works on lists has them ("show" doesn't).
+--- The action, in either mode: its lists when no @kind says which, and its own test (do = emotes). Only an action that
+--- works on lists has them ("show" doesn't).
 function Scan.UseAction(q, act)
 	q.act = act
 	if not (act and act.map) then return end
@@ -466,11 +461,11 @@ function Scan.ActionAndPlace(self, q)
 		local taken
 		act, q.actWord, taken = Scan.TakeAction(q.tokens, q.filters, src)
 		if act then q.srcAction = ns.Phrase.Note(q.reading, taken, "action", { spec = act.label, word = q.actWord }) end
-		-- (1.0.48, the reach audit: "camps nearby", "mailbox near me" were NPCs named so) nearest and a list's own name that
-		-- isn't NPCs: that list, nearest first (the kind word is taken below, Scan.KindWord)
+		-- nearest and a list's own name that isn't NPCs: that list, nearest first (the kind word is taken below,
+		-- Scan.KindWord)
 		local Ih = ns.Integrations
 		-- (only lists whose rows have a place, and never beside an NPC role read: "nearest recipe vendor" is a vendor,
-		-- "nearest achievement" no list's; review, 1.0.66)
+		-- "nearest achievement" no list's)
 		if act and act.nearest and ns.Easy.KindWord and not Scan.RoleRead(q) then
 			for i, w in ipairs(q.tokens) do
 				local k = ns.Easy.KindWord(w)
@@ -495,13 +490,13 @@ function Scan.ActionAndPlace(self, q)
 	local I = ns.Integrations
 	if simple and #q.tokens > 0 and I and I.FindPlace then
 		local place, rest = I.FindPlace(q.tokens)
-		-- (only a sentence's little words left are nothing more to look for: "deadmines entrance", "in the deadmines" are the
-		-- dungeon by its name, not everything standing in it; 0.68.11, review)
+		-- (only a sentence's little words left are nothing more to look for: "deadmines entrance", "in the deadmines"
+		-- are the dungeon by its name, not everything standing in it)
 		local more = false
 		for _, w in ipairs(rest or {}) do if not ns.Easy.STOP[w] then more = true break end end
 		-- (words that are a name, the place's among them, are that name: "dalaran mage", "stockade guard"; 0.68.16; a
-		-- sentence's little words at either end aren't the name's: "innkeeper in westfall" is "in westfall" once the role
-		-- is taken, a quest's name has that, 0.68.16)
+		-- sentence's little words at either end aren't the name's: "innkeeper in westfall" is "in westfall" once the
+		-- role is taken, a quest's name has that)
 		if place and more and I.NamedAs then
 			local a, b = 1, #q.tokens
 			while a <= b and ns.Easy.STOP[q.tokens[a]] do a = a + 1 end
@@ -533,8 +528,8 @@ function Scan.ActionAndPlace(self, q)
 		end
 	end
 	if simple then Scan.TrainerWords(q) end
-	-- "blacksmithing trainer", "mage trainer" said alone: the nearest of them (0.49.9, the player's ask: it listed nothing,
-	-- the NPCs being searched only when asked for); a place said keeps to the place ("mining trainer in org")
+	-- "blacksmithing trainer", "mage trainer" said alone: the nearest of them; a place said keeps to the place ("mining
+	-- trainer in org")
 	if simple and not act and q.trainerAsked and not self.place then
 		act = ns.Easy.ACTIONS.nearest
 		Scan.UseAction(q, act)
@@ -549,12 +544,12 @@ function Scan.ActionAndPlace(self, q)
 		Scan.UseAction(q, act)
 		q.nearImplied = true
 	end
-	-- an object said alone ("mailbox", "anvil", "mailboxes in westfall"): the nearest of them, as a role is (0.68.16: a
-	-- writ's text, an NPC called the Anvil); a place said keeps to it
+	-- an object said alone ("mailbox", "anvil", "mailboxes in westfall"): the nearest of them, as a role is; a place
+	-- said keeps to it
 	if simple and not act and not q.sortField and I and I.ObjectKind and I.OBJECT_KINDS and I.Here then
 		local said = Scan.DropStop(q.tokens)
 		local w = table.concat(said, " ")
-		-- (not a word that's more than the object: "mail" is armour and your mail, "post" a word; 0.68.16)
+		-- (not a word that's more than the object: "mail" is armour and your mail, "post" a word)
 		if #said > 0 and #said <= 2 and not OBJECT_NOT_ALONE[w] and I.ObjectKind(said) and I.OBJECT_KINDS[w] and I.Here() then
 			act = ns.Easy.ACTIONS.nearest
 			Scan.UseAction(q, act)
@@ -566,8 +561,8 @@ function Scan.ActionAndPlace(self, q)
 	if simple and not (act and act.map) and not q.trainerAsked and not (self.category and not self.categoryAuto) then
 		Scan.KindWord(q)
 	end
-	-- (1.0.62, the reach audit) "rare", "elite" beside NPCs ("rare mobs near me", "elite npcs", "rare spawns in westfall"),
-	-- or with a place and nothing else ("rare in westfall"): an NPC's rank, not an item's quality
+	-- "rare", "elite" beside NPCs ("rare mobs near me", "elite npcs", "rare spawns in westfall"), or with a place and
+	-- nothing else ("rare in westfall"): an NPC's rank, not an item's quality
 	if simple then Scan.RankWords(self, q, act) end
 	-- (the nearest of a list named: where you are, for its rows' distances; Scan.Nearest)
 	if q.nearList and not q.here then q.here = I and I.Here and I.Here() or nil end
@@ -599,21 +594,20 @@ function Scan.RoleRead(q)
 	return false
 end
 
---- Simple mode: "hogger quest", "quests in westfall", "npcs in westfall", "linen recipes" (0.68.14, the player's call:
---- the word was searched as a word, and "quests in westfall" found an NPC named Quartermaster Lewis). The first word
---- that names a kind (E.KindWord) is taken out and its category kept as q.kindCat (q.kindOnly: the one list a word like
---- "mounts" names). 1.0.45 (the player's ask): every list's own name is one too (q.kindIds: the lists it names, searched
---- alone, explicit ones included: "linen on my alts" @stored, "guild online" @guild), and a kind word said alone (with
---- "my", "list", "show" and such) lists its lists ("macros", "my addons", "slash commands"), unless a row elsewhere is
---- named the line (names stay names). A game window of that name comes along after them (Scan.KindExtras).
+--- Simple mode: "hogger quest", "quests in westfall", "npcs in westfall", "linen recipes". The first word that names a
+--- kind (E.KindWord) is taken out and its category kept as q.kindCat (q.kindOnly: the one list a word like "mounts"
+--- names). 1.0.45 (the player's ask): every list's own name is one too (q.kindIds: the lists it names, searched alone,
+--- explicit ones included: "linen on my alts" @stored, "guild online" @guild), and a kind word said alone (with "my",
+--- "list", "show" and such) lists its lists ("macros", "my addons", "slash commands"), unless a row elsewhere is named
+--- the line (names stay names). A game window of that name comes along after them (Scan.KindExtras).
 local ALONE = { my = true, list = true, show = true, all = true, every = true, me = true, the = true, your = true, mine = true }
--- (a list said with what it holds, "which alt has linen", "my bank has copper": those words go with it; 1.0.49)
+-- (a list said with what it holds, "which alt has linen", "my bank has copper": those words go with it)
 local KIND_FILLER = { has = true, have = true, had = true, got = true, holds = true, hold = true, carries = true, carry = true,
 	keeps = true, which = true, what = true }
--- (a thing's general word beside a list said as yours, "items on my alts": the list's rows are those; 1.0.49)
+-- (a thing's general word beside a list said as yours, "items on my alts": the list's rows are those)
 local KIND_GENERAL = { item = true, items = true, thing = true, things = true, stuff = true }
---- Is anything (not a window, not one of `ids`' rows) named `lname` in the lists built? (Each list read once per
---- word until a list changes: "macros" typed went over every loot row, again for Alt+`; review, 1.0.67)
+--- Is anything (not a window, not one of `ids`' rows) named `lname` in the lists built? (Each list read once per word
+--- until a list changes: "macros" typed went over every loot row, again for Alt+`)
 local takenSeen, takenGen = {}, nil
 local function NameTaken(lname, ids)
 	if takenGen ~= ns.entriesGen then takenSeen, takenGen = {}, ns.entriesGen end
@@ -640,7 +634,7 @@ local NPC_WORDS = { mob = true, mobs = true, npc = true, npcs = true, spawn = tr
 function Scan.RankWords(self, q, act)
 	local npcs = q.kindCat == "npcs" or (q.kindIds and q.kindIds.npc) or (act and act.map and act.map.npc)
 	-- (with a place, only when nothing else is said: a sentence's little words aside, no other everyday word: "rare
-	-- swords westfall" is green swords; review, 1.0.66)
+	-- swords westfall" is green swords)
 	local onlyRank = true
 	local STOP = ns.Easy.STOP or {}
 	for _, w in ipairs(q.tokens) do if w ~= "elite" and w ~= "rare" and not STOP[w] then onlyRank = false end end
@@ -697,7 +691,7 @@ function Scan.KindWord(q)
 		local f = k.filter and ns.Filters and ns.Filters.Parse(k.filter)
 		if f then Scan.AddFilter(q, function(e) return e.kind == "panels" or f(e) end, "hard", k.filter, nil, k.filter) end
 	end
-	-- (a list said as yours comes first: "items on my alts" is your alts', not your bags; 1.0.49, the reach audit)
+	-- (a list said as yours comes first: "items on my alts" is your alts', not your bags)
 	local first = 1
 	for i = 1, #tokens do
 		local kk = not (exact and exact[tokens[i]]) and E.KindWord(tokens[i])
@@ -768,10 +762,10 @@ end
 --- The words searched in the end (q.tokens, q.empty), and the ones to light up.
 function Scan.Prepare(self, q)
 	local tokens = q.tokens
-	-- Simple mode: the little words of a sentence aren't asked for ("food that gives stamina", "shield from kresh")
-	-- (a trainer's profession said: as an everyday word, the sentence's little words go: "mining trainer in org", "the
-	-- enchanting trainer"; review, 0.49.17)
-	-- (a kind said, "quests in westfall": the little words go even when nothing else is left, the kind was what was said)
+	-- Simple mode: the little words of a sentence aren't asked for ("food that gives stamina", "shield from kresh") (a
+	-- trainer's profession said: as an everyday word, the sentence's little words go: "mining trainer in org", "the
+	-- enchanting trainer") (a kind said, "quests in westfall": the little words go even when nothing else is left, the
+	-- kind was what was said)
 	if q.simple and #tokens > 0 then tokens = Scan.DropStop(tokens, q.softs or q.strictWords or q.trainerAsked or q.kindCat) end
 	tokens.exact = q.exact -- ("quoted phrases": as they are; DropStop's list is a new one)
 	-- "brd", "strat", "sw": also the place's full name (Shorthand.lua), looked up once per search (before
@@ -779,11 +773,9 @@ function Scan.Prepare(self, q)
 	Scan.FillShorthand(tokens)
 	-- (set before any early return: rows listed straight away, "nearest mailbox", light up these words, not the last search's)
 	self.posTokens = tokens
-	-- (sorted by AH value or price, or is:auctionable: the rows' detail says it, List.lua's FillRow; 0.62.2, the player:
-	-- "the value disappears from the details column when I add my bank into the mix")
-	-- (0.65.6, the player's screenshot: "the advanced version of the bags search loses the slots in the details
-	-- column") a quest search for bags (reward:bag, sort:slots) says which bag and its slots: Rewards.lua. A sort turned
-	-- round (sort:-ahvalue) says it too.
+	-- (sorted by AH value or price, or is:auctionable: the rows' detail says it, List.lua's FillRow) a quest search for
+	-- bags (reward:bag, sort:slots) says which bag and its slots: Rewards.lua. A sort turned round (sort:-ahvalue) says
+	-- it too.
 	local sf = q.sortField and ((ns.Filters.SortList(q.sortField)[1] or ""):gsub("^%-", ""))
 	local auctionable, bags = false, nil
 	for w in ns.Lower(q.text or ""):gmatch("%S+") do
@@ -792,7 +784,7 @@ function Scan.Prepare(self, q)
 	end
 	-- (the kind asked for: sort:slots and the detail say that kind's bag, as "quests that reward bags" does)
 	if ns.QuestRewards then ns.QuestRewards.slotKind = bags end
-	-- (any sort whose field says itself in the detail, and the words that ask for one: is:itemstart its item; 1.0.79)
+	-- (any sort whose field says itself in the detail, and the words that ask for one: is:itemstart its item)
 	local said
 	for w in ns.Lower(q.text or ""):gmatch("%S+") do said = said or (ns.SHOW_FIELD_FOR and ns.SHOW_FIELD_FOR[w]) end
 	self.showField = (sf and ns.FIELD_DETAIL and ns.FIELD_DETAIL[sf] and sf) or (auctionable and "ahvalue")

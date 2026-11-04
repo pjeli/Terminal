@@ -1,10 +1,10 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Profession training in plain words (0.57.1): what a trainer still has to teach you in your professions. Its rows are
--- @recipe is:unknown's (Providers/MissingRecipes.lua): the recipes a trainer teaches that you don't know, as your
--- profession windows and the trainers' windows listed them, and TrainerSpells when it's installed (with their cost and
--- the skill they need); a profession's next rank is on its @profession row (Providers/Recipes.lua).
+-- Profession training in plain words: what a trainer still has to teach you in your professions. Its rows are @recipe
+-- is:unknown's (Providers/MissingRecipes.lua): the recipes a trainer teaches that you don't know, as your profession
+-- windows and the trainers' windows listed them, and TrainerSpells when it's installed (with their cost and the skill
+-- they need); a profession's next rank is on its @profession row (Providers/Recipes.lua).
 --
 --   "what can i train in tailoring", "tailoring training", "profession training", "how much is tailoring training",
 --   "what can i learn at the tailoring trainer": @recipe is:learnable tailoring trainer (| sum cost)
@@ -81,7 +81,7 @@ function PT.Question(text)
 	if not t then return nil end
 	t = t:gsub("first aid", "firstaid")
 	-- (no word of training, learning, a trainer or its cost: not this question, before your professions are read; it's
-	-- asked on every keystroke; review, 0.57.7)
+	-- asked on every keystroke)
 	local cue = false
 	for w in t:gmatch("%S+") do
 		if TRAIN[w] or LEARN[w] or MONEY[w] or w == "trainer" or w == "trainers" then cue = true break end
@@ -190,13 +190,13 @@ end
 
 --- The question as Advanced syntax (Alt+`): "@recipe is:learnable tailoring trainer | sum cost".
 function PT.ToAdvanced(q)
-	-- (every one still to learn: the answer lists what you can learn now first, then by the skill each needs; no Advanced
-	-- line orders them so. Kept as said; 0.63.7, review)
+	-- (every one still to learn: the answer lists what you can learn now first, then by the skill each needs; no
+	-- Advanced line orders them so. Kept as said)
 	if q.state ~= "now" then return nil end
 	local parts = { "@recipe", "is:learnable" }
 	local profs = {}
 	for _, p in ipairs(q.profs or {}) do profs[#profs + 1] = (Lower(p):gsub(" ", "_")) end
-	-- (the recipe's own profession, Smelting's are Mining's, as PT.Keeps reads it; 1.0.82, review: "mining" as a word)
+	-- (the recipe's own profession, Smelting's are Mining's, as PT.Keeps reads it)
 	if #profs > 0 then parts[#parts + 1] = "prof:" .. table.concat(profs, "|") end
 	parts[#parts + 1] = "trainer"
 	if q.money then parts[#parts + 1] = "| sum cost" end

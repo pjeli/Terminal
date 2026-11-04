@@ -31,9 +31,9 @@ local function KeysText(k1, k2)
 end
 
 -- Opening Options > Keybindings: the game's own call on the secure macro button (Secure.SettingsMacro), answered by the
--- window's own code. Nothing is typed into its search box any more: until 0.46.2 the line also did SetText on it, so
--- an action's row showed inside a closed section, but a /run line runs tainted (0.46.1) and the list it rebuilt held
--- it. Now the row is pointed at once it shows, and an action in a closed section says which one to open.
+-- window's own code. Nothing is typed into its search box any more: until 0.46.2 the line also did SetText on it, so an
+-- action's row showed inside a closed section, but a /run line runs tainted and the list it rebuilt held it. Now the
+-- row is pointed at once it shows, and an action in a closed section says which one to open.
 function K.OpenMacro()
 	local St = _G.Settings
 	return ns.Secure.SettingsMacro(St and St.KEYBINDINGS_CATEGORY_ID)
@@ -63,8 +63,8 @@ local function ListFrame(key, value)
 	local sp = _G.SettingsPanel
 	local ok, list = pcall(function() return sp:GetSettingsList() end)
 	local box = ok and type(list) == "table" and rawget(list, "ScrollBox")
-	-- (its frames live on its view: ScrollBoxBaseMixin:GetFrames() = self:GetView():GetFrames(), read only. 0.46.18 read
-	-- a field on the box itself, which the client doesn't have: the section was never found, so never unfolded)
+	-- (its frames live on its view: ScrollBoxBaseMixin:GetFrames = self:GetView:GetFrames, read only. 0.46.18 read a
+	-- field on the box itself, which the client doesn't have: the section was never found, so never unfolded)
 	local okF, frames = false, nil
 	if box and type(box.GetFrames) == "function" then okF, frames = pcall(box.GetFrames, box) end
 	if not okF or type(frames) ~= "table" then return nil end
@@ -109,12 +109,12 @@ function K.NavMacro(e)
 end
 local OPEN_SPEC = { macro = K.NavMacro, opensWindow = true }
 
--- Quick Keybind Mode: the Keybindings page's own "Quick Keybind Mode" button (KeybindingsOverrides.lua), clicked for the
--- game by a step as the sections' headers are: the press opens the page at its top (scrolled to its first row, the
+-- Quick Keybind Mode: the Keybindings page's own "Quick Keybind Mode" button (KeybindingsOverrides.lua), clicked for
+-- the game by a step as the sections' headers are: the press opens the page at its top (scrolled to its first row, the
 -- character-bindings checkbox), and the button's own code closes the options window (applying what you changed, as a
--- click of yours does) and shows the protected QuickKeybindFrame. (0.49.2, review: until then a /run line did both:
--- HideUIPanel skipped the window's own closing, so unapplied settings were lost, and the frame's OnShow ran tainted, so
--- the action bars' empty slots, shown only for the game's own code (ActionButton.lua's SetShowGrid), never showed.)
+-- click of yours does) and shows the protected QuickKeybindFrame. (until then a /run line did both: HideUIPanel skipped
+-- the window's own closing, so unapplied settings were lost, and the frame's OnShow ran tainted, so the action bars'
+-- empty slots, shown only for the game's own code (ActionButton.lua's SetShowGrid), never showed.)
 local function QuickText() return Str(_G.SETTINGS_QUICK_KEYBIND_BUTTON) or Str(_G.QUICK_KEYBIND_MODE) or L["Quick Keybind Mode"] end
 local function QuickOn()
 	local f = _G.QuickKeybindFrame
@@ -196,7 +196,7 @@ ns:RegisterProvider("keybinds", {
 	events = { "UPDATE_BINDINGS" },
 	guard = 1,
 	-- (Terminal binds Enter itself for each press it sets up, and lets it go after: UPDATE_BINDINGS then, none of your
-	-- bindings changed; 0.50.7, review: every press made the next search read hundreds of bindings again)
+	-- bindings changed)
 	ignoreEvent = function()
 		local at = ns.Secure and ns.Secure.boundAt
 		return at ~= nil and GetTime() - at < 0.5
@@ -210,7 +210,7 @@ ns:RegisterProvider("keybinds", {
 			detail = L["Shift+Enter: start it"],
 			text = "keybind keybinding binding hotkey bind keys quick mode",
 			tip = L["Hover an action button, spell or macro and press a key to bind it."],
-			rowText = QuickText(), -- (the button's own text, as QuickStep finds it; review, 0.53.6: it was the mode's name)
+			rowText = QuickText(), -- (the button's own text, as QuickStep finds it)
 			secure = OPEN_SPEC, isOpen = IsOpen, after = PointAtRow, activate = OpenDirect,
 			secondary = QuickInCombat, secondarySecure = QUICK_SPEC, secondaryIsOpen = NeverOpen, secondaryAfter = QuickStarted,
 		}

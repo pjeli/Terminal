@@ -35,9 +35,9 @@ local achMeta -- shared fields of every achievement row (made once the list is r
 local progCache = {} -- achievement id -> its progress text (false: none), emptied when criteria move
 local earned, earnedOf -- the earned rows (plain searches' view), and the list they were picked from
 
---- "3/10": the completed criteria of an unearned achievement, or a lone criterion's quantity
---- (kill 50 of them: "12/50"). Nil when earned or without criteria. Cached per achievement until progress moves (in a
---- table of its own: written onto the rows, it took them past the compact rows' eight fields; review, 0.48.6).
+--- "3/10": the completed criteria of an unearned achievement, or a lone criterion's quantity (kill 50 of them:
+--- "12/50"). Nil when earned or without criteria. Cached per achievement until progress moves (in a table of its own:
+--- written onto the rows, it took them past the compact rows' eight fields).
 local function Progress(t)
 	if rawget(t, "completed") then return nil end
 	local id, prog = rawget(t, "key"), nil
@@ -122,8 +122,8 @@ ns:RegisterProvider("achievements", {
 	plain = Earned, -- (plain searches: the earned ones only)
 	lazy = true,
 	events = { "ACHIEVEMENT_EARNED" }, -- earned this session: listed without a /reload
-	-- (no idleDrop: every plain search reads its earned rows, and a list freed was read again inside a keystroke's frame,
-	-- the prewarm leaving freed lists alone; review, 0.48.6)
+	-- (no idleDrop: every plain search reads its earned rows, and a list freed was read again inside a keystroke's
+	-- frame, the prewarm leaving freed lists alone)
 	collect = CollectAchievements,
 })
 
@@ -133,7 +133,7 @@ achMeta = ns:CompactMeta(ns.providers.achievements, {
 	activate = OpenAchievement,
 	secondary = LinkAchievement, -- Shift+Enter: link it in chat (the game opens the box; combat: Terminal's own)
 	secondarySecure = ns.ChatBoxSpec(AchievementLink), secondaryIsOpen = ns.ChatBoxNeverOpen,
-	-- (its detail is progress and points, never a place: in: doesn't work it out per row, a GetAchievementInfo and
-	-- the criteria each; review, 0.53.6)
+	-- (its detail is progress and points, never a place: in: doesn't work it out per row, a GetAchievementInfo and the
+	-- criteria each)
 	noPlace = true,
 }, { detail = AchDetail, progress = Progress, icon = AchIcon, points = AchPoints, tip = AchTip, color = AchColor })

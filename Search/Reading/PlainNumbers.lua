@@ -7,15 +7,15 @@ local ns = select(2, ...)
 local E = ns.Easy
 
 ----------------------------------------------------------------------
--- Numbers in plain words (0.66.5, the player): "swords between level 20 and 30", "quests under level 25", "items worth
--- more than 1g", "bags with at least 10 slots", "gear with durability below 50%" are the Advanced filters lvl:20-30,
--- lvl:<25, value:>1g, slots:>=10, dura:<50. Alt+` writes them so; the bar shows them as typed filters.
+-- Numbers in plain words: "swords between level 20 and 30", "quests under level 25", "items worth more than 1g", "bags
+-- with at least 10 slots", "gear with durability below 50%" are the Advanced filters lvl:20-30, lvl:<25, value:>1g,
+-- slots:>=10, dura:<50. Alt+` writes them so; the bar shows them as typed filters.
 ----------------------------------------------------------------------
 E.NUM_FIELDS = { level = "lvl", levels = "lvl", lvl = "lvl", lvls = "lvl", ["item level"] = "ilvl", ["item levels"] = "ilvl",
 	ilvl = "ilvl", itemlevel = "ilvl", worth = "value", value = "value", valued = "value", ["sells for"] = "value",
 	slot = "slots", slots = "slots", durability = "dura", dura = "dura",
-	-- what a spell does (0.68.8): "30 yards", "30 yard range", "range over 20", "cooldown under 10", "10 sec cooldown",
-	-- "cast time under 2", "2 second cast", "costing under 100", "under 100 mana"
+	-- what a spell does: "30 yards", "30 yard range", "range over 20", "cooldown under 10", "10 sec cooldown", "cast
+	-- time under 2", "2 second cast", "costing under 100", "under 100 mana"
 	range = "range", yards = "range", yard = "range", yd = "range", ["yard range"] = "range", ["yards range"] = "range",
 	["yd range"] = "range", cooldown = "cd", ["sec cooldown"] = "cd", ["second cooldown"] = "cd", ["seconds cooldown"] = "cd",
 	["cast time"] = "cast", ["sec cast"] = "cast", ["second cast"] = "cast", costing = "cost", cost = "cost",
@@ -86,8 +86,8 @@ end
 
 -- the fields only a spell has, read only in a line about spells ("30 yard spells", "spells under 100 mana"): elsewhere
 -- their words stay words ("vendor within 300 yards", "drinks over 4000 mana") and money is money ("cost under 1 gold");
--- 0.68.8 read them in every line, and a filter only spells pass emptied the rest (0.68.9, review). What only a spell
--- says ("cast time", "30 yard range", as its tooltip does) needs no spell word.
+-- 0.68.8 read them in every line, and a filter only spells pass emptied the rest. What only a spell says ("cast time",
+-- "30 yard range", as its tooltip does) needs no spell word.
 E.SPELL_ONLY = { range = true, yards = true, yard = true, yd = true, cooldown = true, ["sec cooldown"] = true,
 	["second cooldown"] = true, ["seconds cooldown"] = true, costing = true, cost = true, mana = true, rage = true, energy = true }
 E.SPELL_WORDS = { spell = true, spells = true, ability = true, abilities = true }
@@ -155,8 +155,8 @@ local function ValueAt(lw, i, key, bare)
 end
 
 local OrderAt -- (below)
--- Dates in plain words (0.66.8, the player): "loot from yesterday", "my mail older than 20 days", "auctions sold this week",
--- "what killed me today", "in the last 3 days", "this session": since: and older: (Filters/Others.lua).
+-- Dates in plain words: "loot from yesterday", "my mail older than 20 days", "auctions sold this week", "what killed me
+-- today", "in the last 3 days", "this session": since: and older: (Filters/Others.lua).
 local TIME_UNITS = { minute = "m", minutes = "m", min = "m", mins = "m", hour = "h", hours = "h", hr = "h", hrs = "h",
 	day = "d", days = "d", week = "w", weeks = "w" }
 --- Dates at words[i]: the filter words ({ "since:yesterday", "older:today" }) and how many words; or nil.
@@ -208,9 +208,9 @@ local function DateAt(lw, i)
 	end
 end
 
--- Levels relative to you (0.66.6, the player): "3 levels above me", "within 5 levels of me", "up to 3 levels above me",
--- "above my level", "around my level", "next level" are lvl:me+3, lvl:me-5..me+5, lvl:me..me+3, lvl:>me,
--- lvl:me-2..me+3, lvl:me+1: they move with you as you level.
+-- Levels relative to you: "3 levels above me", "within 5 levels of me", "up to 3 levels above me", "above my level",
+-- "around my level", "next level" are lvl:me+3, lvl:me-5..me+5, lvl:me..me+3, lvl:>me, lvl:me-2..me+3, lvl:me+1: they
+-- move with you as you level.
 local ABOVE = { above = "+", over = "+", higher = "+", below = "-", under = "-", lower = "-", beneath = "-" }
 local ME = { me = 1, mine = 1, ["my level"] = 2, ["my lvl"] = 2 }
 --- "me", "mine", "my level" at words[i]: how many words; or nil.
@@ -296,7 +296,7 @@ end
 -- its words), each claim the filter words it stands for ("lvl:<25"; a date may be two: "since:yesterday older:today").
 -- They read the line's words (Phrase.WordView: a "quoted phrase" is none of them) lowered.
 
---- A plain recognizer's at() from a reader: reader(lw, i) -> its filter words and how many words it took, or nil.
+--- A plain recognizer's at from a reader: reader(lw, i) -> its filter words and how many words it took, or nil.
 local function PlainAt(reader)
 	return function(r, i)
 		local P = ns.Phrase
@@ -340,7 +340,7 @@ local function FirstWords(...)
 end
 local function IsNumber(low) return low:find("^%d") ~= nil end
 
--- dates: "yesterday", "this week", "older than 20 days" (0.66.8)
+-- dates: "yesterday", "this week", "older than 20 days"
 Plain("dates", 70, function(lw, i) return DateAt(lw, i) end,
 	{ "from", "on", "today", "tonight", "yesterday", "since", "this", "in", "last", "past", "older", "more", "over" })
 -- levels from yours: "3 levels above me", "next level"
@@ -348,7 +348,7 @@ Plain("relative", 60, function(lw, i)
 	local rel, nr = RelativeAt(lw, i)
 	if rel then return { "lvl:" .. rel }, nr end
 end, FirstWords({ next = 1, around = 1, near = 1, about = 1, at = 1, up = 1, within = 1 }, ABOVE), IsNumber)
--- an order said: "most valuable", "cheapest", "highest level" (0.66.7)
+-- an order said: "most valuable", "cheapest", "highest level"
 Plain("order", 50, function(lw, i)
 	local so, nso = OrderAt(lw, i)
 	if so then return { "sort:" .. so }, nso end

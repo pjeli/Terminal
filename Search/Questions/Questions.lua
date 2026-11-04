@@ -13,11 +13,11 @@ ns.Questions = Q
 
 -- An entry (docs/QUESTIONS.md, section 2): `id`; `ask(text, converting)` gives what the line asks (and a second value
 -- for line/answer/toAdvanced) or nil when it isn't its kind; then either `line(q, extra)`, the Advanced line whose
--- search is its answer and its Alt+` (a search question: `note(q, rows)` its footer, `empty(q)` its rows when nothing is
--- found), or `answer` giving rows and the footer's note (true third: the note is a chain's path), or nil to pass the line
--- on, with `toAdvanced` the same question as Advanced mode writes it (Alt+`, nil: the words as typed); `examples`, the lines it must answer (tests/smoke/question_registry.lua); `over`, the entries it beats
--- when both understand a line as well (section 3); `custom`, why its answer is its own. One list for the answer and
--- Alt+` (review, 0.53.6: Easy.lua kept its own copy in the same order by hand, and the two had drifted before).
+-- search is its answer and its Alt+` (a search question: `note(q, rows)` its footer, `empty(q)` its rows when nothing
+-- is found), or `answer` giving rows and the footer's note (true third: the note is a chain's path), or nil to pass the
+-- line on, with `toAdvanced` the same question as Advanced mode writes it (Alt+`, nil: the words as typed); `examples`,
+-- the lines it must answer (tests/smoke/question_registry.lua); `over`, the entries it beats when both understand a
+-- line as well (section 3); `custom`, why its answer is its own. One list for the answer and Alt+`.
 --- A module of its own (ns[name]): its Question; Line (the Advanced line answering what it asked, nil: its own answer),
 --- Footer and None (its rows when nothing is found) for a search question (section 4.1); Answer and ToAdvanced for an own answer, or where Line gives
 --- none ("my mail": the mail with the auction house's news). `more`: the entry's other fields.
@@ -46,29 +46,29 @@ Scan.ANSWERS = {
 	Asks("History", { examples = { "history", "recent searches" } }),
 	-- "quests to turn in", "turn in quests": your quest log's ready ones (Search/Questions/Suggest.lua)
 	Asks("TurnIn", { examples = { "quests to turn in", "which quests are ready" } }),
-	-- "who gives the defias brotherhood", "where do i turn in ...": its giver, its turn-in NPC (Suggest.lua; 1.0.47)
+	-- "who gives the defias brotherhood", "where do i turn in ...": its giver, its turn-in NPC (Suggest.lua)
 	Asks("QuestPeople", { custom = "a quest's giver or turn-in NPC: no relation in the search for it" }),
-	-- "quests near me", "turn ins near me": the quests whose giver (turn-in) is nearest (Suggest.lua; 1.0.48)
+	-- "quests near me", "turn ins near me": the quests whose giver (turn-in) is nearest (Suggest.lua)
 	Asks("NearQuests", { examples = { "quests near me", "turn ins near me" },
 		custom = "quests by their giver's distance, turn-ins as NPCs" }),
-	-- "deadmines bosses": an instance's bosses from AtlasLoot, each leading to its loot (Suggest.lua; 1.0.50)
+	-- "deadmines bosses": an instance's bosses from AtlasLoot, each leading to its loot (Suggest.lua)
 	Asks("InstanceBosses", { custom = "boss rows whose Enter walks to the drops chain" }),
-	-- "quests that start from an item": the quests an item starts (Suggest.lua; 1.0.52)
+	-- "quests that start from an item": the quests an item starts (Suggest.lua)
 	Asks("ItemQuests", { examples = { "quests that start from an item" } }),
-	-- "what level is hogger", "duskwood level": the level Terminal has for it (Suggest.lua; 1.0.55)
+	-- "what level is hogger", "duskwood level": the level Terminal has for it (Suggest.lua)
 	Asks("LevelOf", { custom = "one row from three kinds: the level is the answer" }),
-	-- "bigger bags": bags bigger than your smallest (Suggest.lua; 1.0.57)
+	-- "bigger bags": bags bigger than your smallest (Suggest.lua)
 	Asks("BiggerBags", { examples = { "bigger bags", "bags with more slots" },
 		custom = "bags from four lists, one row per item, bigger than your smallest" }),
-	-- "achievements almost done", "quests almost done": the closest to done first (Suggest.lua; 1.0.59)
+	-- "achievements almost done", "quests almost done": the closest to done first (Suggest.lua)
 	Asks("AlmostDone", { examples = { "achievements almost done", "quests almost done" } }),
-	-- "where is my hearth": where your hearthstone takes you, and its cooldown (Suggest.lua; 1.0.60)
+	-- "where is my hearth": where your hearthstone takes you, and its cooldown (Suggest.lua)
 	Asks("HearthBind", { examples = { "where is my hearth", "where am i bound" }, custom = "a game value, not a list" }),
-	-- "how long to level", "xp per hour": this session's experience an hour (Suggest.lua; 1.0.61)
+	-- "how long to level", "xp per hour": this session's experience an hour (Suggest.lua)
 	Asks("XpRate", { examples = { "xp per hour", "how long to level" }, custom = "this session's experience" }),
-	-- "quests for stormwind rep", "how do i get exalted with timbermaw": Rewards.lua's ns.RepQuests (1.0.63)
+	-- "quests for stormwind rep", "how do i get exalted with timbermaw": Rewards.lua's ns.RepQuests
 	Asks("RepQuests", { custom = "ranked by the reputation the faction asked for gives" }),
-	-- "tailoring quests", "daily quests", "quests that need honored with stormwind": Rewards.lua's ns.QuestNeeds (1.0.64)
+	-- "tailoring quests", "daily quests", "quests that need honored with stormwind": Rewards.lua's ns.QuestNeeds
 	Asks("QuestNeeds", { examples = { "tailoring quests", "daily quests" }, custom = "a standing needed: no filter says it" }),
 	Asks("QuestsHere", { over = { "Zones" }, custom = "your level or zone not known: says so", examples = { "quests here", "zone quests" } }),
 	Asks("CanCraft", { examples = { "what can i craft", "what can i cook" } }),
@@ -80,10 +80,10 @@ Scan.ANSWERS = {
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;
 	-- was before the auctions' question: "what can i sell on the ah" isn't about what you've posted)
 	Asks("AuctionatorQ", { over = { "Auctions" }, custom = "bags and bank together, your alts', everywhere: one row per item" }),
-	Asks("AhUpgradesQ", { custom = "gain per gold over one row per item" }), -- ("ah upgrades": AuctionValues.lua, 0.66.13)
+	Asks("AhUpgradesQ", { custom = "gain per gold over one row per item" }), -- ("ah upgrades": AuctionValues.lua)
 	-- ("ah value of my mats": "@mats | sum ahvalue", was ahead of the chains' "... mats")
 	Asks("AhValueQ", { over = { "Chains" }, steps = true, line = function(q) return q.line end }),
-	-- ("what are my bags worth": "in:bags | sum value"; Suggest.lua, 1.0.56)
+	-- ("what are my bags worth": "in:bags | sum value"; Suggest.lua)
 	Asks("BagWorth", { examples = { "what are my bags worth", "bag value" }, steps = true, line = function(q) return q.line end }),
 	-- "what is in my bank": this character's bank (@bank, Providers/Stored.lua)
 	Asks("MyBankQ", { examples = { "what is in my bank", "my bank" } }),
@@ -108,7 +108,7 @@ Scan.ANSWERS = {
 		ask = function(text) local S = ns.SpellIds return S and S.Question(text) end,
 		answer = function(q) return ns.SpellIds.Answer(q) end,
 		toAdvanced = function(q) return ns.SpellIds.ToAdvanced(q) end },
-	-- "itemid linen cloth", "questid 176", "npcid hogger": SpellIds.lua's ns.ObjectIds (1.0.58)
+	-- "itemid linen cloth", "questid 176", "npcid hogger": SpellIds.lua's ns.ObjectIds
 	Asks("ObjectIds", { examples = { "itemid linen cloth", "questid 176" }, custom = "rows made on the spot: no list of ids" }),
 	-- "healing talents", "shaman crit talents", "druid regen talents": talents by what they do (Search/Questions/Talents.lua;
 	-- was before the chains and searches: "talents for crit" isn't a chain, "crit" and "healing" aren't an item's stats here)
@@ -116,7 +116,7 @@ Scan.ANSWERS = {
 		ask = function(text) local T = ns.TalentsQ return T and T.Question(text) end,
 		answer = function(q) return ns.TalentsQ.Answer(q) end },
 	-- a chain ("thorium belt > mats", "mats for thorium belt"): Chains.lua. (a ">" chain runs whichever way it came, in
-	-- either mode; 0.55.4)
+	-- either mode)
 	{ id = "Chains", examples = { "mats for thorium belt", "thorium belt > mats" }, custom = "a chain: one pipeline either way",
 		ask = function(text) return ns.Pipes and ns.Pipes.Canonical(text) end,
 		answer = function(chain)
@@ -183,8 +183,8 @@ Scan.ANSWERS = {
 	-- "my mail", "mail running out", "cod mail": Mail.lua
 	Asks("Mail", { over = { "HaveQ" }, examples = { "my mail", "cod mail", "do i have mail" },
 		custom = "your mail with the auction house's news and every mailbox" }),
-	-- "how many linen do i have", "do i have linen cloth": how many in all and where (Suggest.lua; 1.0.51. Was after the
-	-- collections' and the mail's: "how many mounts do i have", "do i have mail" are theirs; review, 1.0.65)
+	-- "how many linen do i have", "do i have linen cloth": how many in all and where (Suggest.lua. Was after the
+	-- collections' and the mail's: "how many mounts do i have", "do i have mail" are theirs)
 	Asks("HaveQ", { examples = { "how many linen do i have", "do i have linen cloth" },
 		custom = "one row per item counting your bags, bank and alts together" }),
 	-- "who is dead", "who needs fortitude", "who is out of range", "group healers": Group.lua
@@ -197,7 +197,7 @@ Scan.ANSWERS = {
 			return R and R.UpgradeQuestion and R.UpgradeQuestion(text) or nil
 		end,
 		answer = function() return ns.QuestRewards.UpgradeAnswer() end },
-	-- "upgrades i can buy", "vendor upgrades": the friendly vendors selling an upgrade for you (Rewards.lua; 0.66.12)
+	-- "upgrades i can buy", "vendor upgrades": the friendly vendors selling an upgrade for you (Rewards.lua)
 	{ id = "VendorUpgrades", examples = { "upgrades i can buy", "vendor upgrades" },
 		custom = "what each vendor sells that is an upgrade, and by how much",
 		ask = function(text)
@@ -325,12 +325,11 @@ function ns.QuestionToAdvanced(text)
 	return ns.QuestionToAdvancedOf(text)
 end
 --- The question's line with the filters and sorts typed after it (`tail`, words): before its first step ("| group by
---- zone": the search's, the steps sum up what it found) or its ">>"/">>>" part, where the search reads them (0.63.7,
---- review: "untrack quests is:red" was written "@quest >>> untrack is:red", which untracked them all).
---- In the order Alt+` prints a search (its filters, then its sort), so Alt+` of it is the same line: the filters typed
---- go before the line's sort, a sort typed takes the line's place ("my auctions sort:value": by value, not the list's
---- order).
---- A line's words, a quoted value one word with its spaces ('zone:"the barrens"'): as the search reads them (Lex).
+--- zone": the search's, the steps sum up what it found) or its ">>"/">>>" part, where the search reads them. In the
+--- order Alt+` prints a search (its filters, then its sort), so Alt+` of it is the same line: the filters typed go
+--- before the line's sort, a sort typed takes the line's place ("my auctions sort:value": by value, not the list's
+--- order). A line's words, a quoted value one word with its spaces ('zone:"the barrens"'): as the search reads them
+--- (Lex).
 local function RawWords(text)
 	local out, i, n = {}, 1, #text
 	while i <= n do
@@ -386,21 +385,21 @@ end
 --- A line whose question is answered by an Advanced line with steps ("quests per zone": "@questie | group by zone",
 --- "what are my bags worth": "in:bags | sum value"): that line, the filters and sorts typed after the question before
 --- its first step ("items by zone q:rare" -> "@item q:rare | group by zone"), with its search and steps (as A.Split
---- reads it); nil when the line's best question isn't such a one ("lockouts by raid": @lockout's own; release review,
---- 0.63.0). Read at the steps stage (the "per" recognizer below), so only the line and its Advanced words after it:
---- never the line read again from inside its reading.
+--- reads it); nil when the line's best question isn't such a one ("lockouts by raid": @lockout's own). Read at the
+--- steps stage (the "per" recognizer below), so only the line and its Advanced words after it: never the line read
+--- again from inside its reading.
 function Q.StepLine(text)
 	if type(text) ~= "string" then return nil end
 	text = ns.Easy and ns.Easy.English and ns.Easy.English(text) or text
 	-- (steps typed after the question, "items by quality | first 2": after its own, as Alt+` writes them; a question is
-	-- never read with a "|" in it, so they were dropped and the line searched as plain words; 1.0.82, review)
+	-- never read with a "|" in it, so they were dropped and the line searched as plain words)
 	local typed
 	do
 		local head, more = text:match("^(.-)%s+|%s+(.-)%s*$")
 		if head and head ~= "" and more ~= "" then text, typed = head, more end
 	end
-	-- (every line is read so, and outside a search: the whole ranking only when a question whose line has steps (`steps`)
-	-- takes it, else nothing to rewrite; release review of 1.0.77: phrase.lua's reads ran out of budget)
+	-- (every line is read so, and outside a search: the whole ranking only when a question whose line has steps
+	-- (`steps`) takes it, else nothing to rewrite)
 	local function Best(t)
 		local any = false
 		for _, a in ipairs(Scan.ANSWERS) do
@@ -490,14 +489,14 @@ end
 --- How a line is read as a question, the same for its answer (Scan.Answer) and its Advanced form (Alt+`,
 --- ns.QuestionToAdvancedOf): ask(t) -> what the question gives (nil: none takes t), the question (Scan.ANSWERS' entry).
 --- Tried in this order: a chain, with the sorts typed after it ("deadmines > steps sort:line": only sorts, a filter at
---- the end is the last step's own; 0.55.21); dates said after a question ("loot today", "my auctions sold this week":
---- its filters, before the question reads them as its own little words; not the calendar's, whose today is its own:
---- 0.66.8 review); the line; the line with the Advanced filters and sorts typed after it ("my auctions q:rare+
---- sort:value"); dates and numbers said in words after it ("what killed me today": "what killed me since:today";
---- 0.66.8). Gives what ask gave and the words typed after the question (nil: none), or nil.
---- The line with what its plain stage read said as filters ("loot today" -> "loot since:today"), read off the line's
---- reading (Phrase.lua, kept for the frame: the search reads the same one next), not the line split again; dates: only
---- the dates' recognizer asked (as E.PlainDates); the line itself when nothing was read.
+--- the end is the last step's own); dates said after a question ("loot today", "my auctions sold this week": its
+--- filters, before the question reads them as its own little words; not the calendar's, whose today is its own: 0.66.8
+--- review); the line; the line with the Advanced filters and sorts typed after it ("my auctions q:rare+ sort:value");
+--- dates and numbers said in words after it ("what killed me today": "what killed me since:today"). Gives what ask gave
+--- and the words typed after the question (nil: none), or nil. The line with what its plain stage read said as filters
+--- ("loot today" -> "loot since:today"), read off the line's reading (Phrase.lua, kept for the frame: the search reads
+--- the same one next), not the line split again; dates: only the dates' recognizer asked (as E.PlainDates); the line
+--- itself when nothing was read.
 local DATES = { dates = true }
 local function PlainSaid(text, dates)
 	local r = ns.Phrase.ReadLine(text, { simple = true, parse = true, only = dates and DATES or nil })
@@ -518,7 +517,7 @@ end
 
 function Scan.ReadQuestion(text, ask)
 	-- (a quest's or an NPC's whole name asked like a question, "What Is Going On?", "Who Is Stealing Our Cats?": the
-	-- name, searched; three words or more, or a "?", so "mounts" or "my mail" are still asked; 0.68.19)
+	-- name, searched; three words or more, or a "?", so "mounts" or "my mail" are still asked)
 	local I = ns.Integrations
 	if EasyOn() and I and I.IsName and (text:find("?", 1, true) or select(2, text:gsub("%S+", "")) >= 3) and I.IsName(text) then
 		return nil
@@ -599,7 +598,7 @@ function Scan.AnswerView(self, rows, tail)
 	local Real = B.Real
 	local out, kept, any, dropped = {}, {}, false, false
 	-- (an answer's rows are what was asked for: its quartermaster rewards too, for standing:, which reads
-	-- F.rewardsAsked; set by Scan.Parse, which a question never runs, so it was the last search's; review, 1.0.71)
+	-- F.rewardsAsked; set by Scan.Parse, which a question never runs, so it was the last search's)
 	local askedWas = F.rewardsAsked
 	F.rewardsAsked = true
 	for _, e in ipairs(rows) do
@@ -608,8 +607,7 @@ function Scan.AnswerView(self, rows, tail)
 		else dropped = true end
 	end
 	F.rewardsAsked = askedWas
-	-- (the row on top that does it to them all, "Untrack 4 quests", "Drop all 5": made again for the ones left; 0.63.7,
-	-- review: "untrack quests is:red" showed two and untracked all four)
+	-- (the row on top that does it to them all, "Untrack 4 quests", "Drop all 5": made again for the ones left)
 	if dropped and any then
 		local again = {}
 		for _, e in ipairs(out) do

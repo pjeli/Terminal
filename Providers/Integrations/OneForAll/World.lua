@@ -3,11 +3,10 @@ local L = ns.L
 local I = ns.Integrations
 local OA = ns.OneForAll
 
--- OneForAll's world (1.0.4, the player's ask): its weapon masters (who teaches which weapon: the third source after
--- What's Training and TrainerSpells, ClassSpells.lua's CS.WeaponMasters), its drop chances on AtlasLoot's loot
--- (Classic's numbers, Loot.lua's rows), the recipes the Merchant's Favor buys (a way to learn the ones you don't know:
--- MissingRecipes.lua's rows) and @transport (the boats, zeppelins, airships and the tram, and where each zone's roads
--- cross into the next).
+-- OneForAll's world: its weapon masters (who teaches which weapon: the third source after What's Training and
+-- TrainerSpells, ClassSpells.lua's CS.WeaponMasters), its drop chances on AtlasLoot's loot (Classic's numbers,
+-- Loot.lua's rows), the recipes the Merchant's Favor buys (a way to learn the ones you don't know: MissingRecipes.lua's
+-- rows) and @transport (the boats, zeppelins, airships and the tram, and where each zone's roads cross into the next).
 -- "favor recipes i don't know", "nearest boat", "zeppelin to orgrimmar", "zone exits" ask for them (Simple mode).
 
 local W = {}
@@ -109,7 +108,7 @@ function W.BossChances(inst, boss)
 end
 --- An item's chance to drop when OneForAll lists it under one boss only (percent), or nil: the boss's name not needed
 --- (AtlasLoot names bosses and instances in the client's language, OneForAll in English: on another client no name
---- matched; 1.0.84, review). An item under two bosses with other chances says none.
+--- matched). An item under two bosses with other chances says none.
 local byItem = { from = nil, at = {} }
 function W.ItemChance(id)
 	local d = W.DropChances()
@@ -173,9 +172,8 @@ function W.FavorData()
 	end, true)
 end
 
--- (1.0.12, the player: too many kinds; was @favor) No kind of their own: a recipe you don't know yet (@recipe
--- is:unknown, Providers/MissingRecipes.lua) says it's bought with the Merchant's Favor, what it costs and your faction's
--- vendor, as one of the ways to learn it.
+-- No kind of their own: a recipe you don't know yet (@recipe is:unknown, Providers/MissingRecipes.lua) says it's bought
+-- with the Merchant's Favor, what it costs and your faction's vendor, as one of the ways to learn it.
 --- What the Merchant's Favor says of a recipe of a profession (their names): { cost, skill, vendor, place, zone } or nil.
 function W.FavorOf(name, prof)
 	local d = W.FavorData()
@@ -211,7 +209,7 @@ function W.Transports()
 				return w
 			end
 		end
-		-- (the zeppelins are the Horde's: OneForAll marks them "Horde only"; review, 1.0.13)
+		-- (the zeppelins are the Horde's: OneForAll marks them "Horde only")
 		for _, z in ipairs(type(raw.zeppelin) == "table" and raw.zeppelin or {}) do
 			if type(z) == "table" then for k = 4, #z do Add("zeppelin", z[1], z[2], z[3], z[k], "H") end end
 		end
@@ -348,8 +346,7 @@ function W.Question(text)
 		return q
 	end
 	if way and ns.providers.transport then
-		-- (none of that way for you, the Alliance's "zeppelin": the search's, its masters; review, 1.0.36: "OneForAll
-		-- knows no way like that")
+		-- (none of that way for you, the Alliance's "zeppelin": the search's, its masters)
 		local any = false
 		for _, e in ipairs(ns:GetEntries(ns.providers.transport)) do if e.way == way then any = true break end end
 		if not any then return nil end
@@ -434,7 +431,7 @@ function W.ToAdvanced(q)
 	local w = q.words and #q.words > 0 and (table.concat(q.words, " ") .. " ") or ""
 	if q.what == "favor" then return "@recipe is:unknown favor " .. w end
 	local word = ({ ship = "boat", zeppelin = "zeppelin", air = "airship", tram = "tram", road = "road" })[q.way] or ""
-	-- ("zone exits": your zone's roads, as the question lists them; review, 1.0.42: every road in the game)
+	-- ("zone exits": your zone's roads, as the question lists them)
 	local here = ""
 	if q.here and not q.to then
 		local zone = ZoneOf(HereMap())

@@ -13,11 +13,10 @@ local Safe, Str, Num = ns.Safe, ns.Str, ns.Num
 -- The empty prompt's faint examples (a different one each time it opens)
 ----------------------------------------------------------------------
 
--- Each with what it needs (an addon: "Questie", "AtlasLoot", "Attune", "WhatsTraining", "Syndicator" (a bag addon for your alts);
--- "guild", "group") and where it's most use ("city": a capital, or resting in a town; "field": out in the world;
--- "instance": in a dungeon or raid; none: anywhere). One whose addon isn't there isn't offered; the ones for where you
--- are come first, the others after (0.52.1, the player's ask: "nearest trainer, mailbox" in a city, "nearest dungeon,
--- best upgrades" outside; "if no Questie, no NPC suggestions").
+-- Each with what it needs (an addon: "Questie", "AtlasLoot", "Attune", "WhatsTraining", "Syndicator" (a bag addon for
+-- your alts); "guild", "group") and where it's most use ("city": a capital, or resting in a town; "field": out in the
+-- world; "instance": in a dungeon or raid; none: anywhere). One whose addon isn't there isn't offered; the ones for
+-- where you are come first, the others after.
 E.SIMPLE = {
 	-- in a city
 	{ "nearest mailbox", "Questie", "city" }, { "nearest innkeeper", "Questie", "city" }, { "nearest repair", "Questie", "city" },
@@ -82,9 +81,8 @@ local PRIMARY = { WARRIOR = "str", PALADIN = "str", DEATHKNIGHT = "str", ROGUE =
 	MAGE = "int", WARLOCK = "int", PRIEST = "int", DRUID = "int", SHAMAN = "int" }
 E.rand = math.random
 
---- A list's rows as last built, never built again here (0.53.1, the player: a CPU spike on opening: the suggestions'
---- list, made again a minute on, rebuilt your bags, quest log and professions each time). A few minutes old is fine for
---- a suggestion; a list never built yet (or let go) gives none this time.
+--- A list's rows as last built, never built again here. A few minutes old is fine for a suggestion; a list never built
+--- yet (or let go) gives none this time.
 local function Entries(id)
 	local p = ns.providers[id]
 	local list = p and rawget(p, "_entries")
@@ -106,8 +104,7 @@ local function Valid(ex)
 end
 
 ----------------------------------------------------------------------
--- Ammo (0.64.2, the player: "a melee with a bow or gun and no arrows or bullets: try: nearest vendor sells:arrow; a
--- hunter: when the quiver or ammo pouch is low")
+-- Ammo
 ----------------------------------------------------------------------
 
 local WEAPON, PROJECTILE, QUIVER = 2, 6, 11 -- (item classes: Enum.ItemClass)
@@ -160,7 +157,7 @@ function E.AmmoCount(kind)
 		if bag > 0 and C.ContainerIDToInventoryID then
 			local inv = Num(Safe(C.ContainerIDToInventoryID, bag))
 			local classID, sub = ItemClass(inv and Equipped(inv))
-			-- (only the one for this ammo: an ammo pouch is no room for arrows; review, 0.64.3)
+			-- (only the one for this ammo: an ammo pouch is no room for arrows)
 			if classID == QUIVER and HOLDS[sub] == kind then room = room + slots * E.AMMO_STACK end
 		end
 	end
@@ -180,11 +177,9 @@ function E.AmmoNeed(classFile)
 end
 
 ----------------------------------------------------------------------
--- Reagents (0.64.4, the player: "try: nearest reagent vendor, if level is appropriate and if it is needed: priest
--- candles if none, paladin if empty on anything, mages, druids etc."). A class's spells that use one up, each as its
--- ranks in order with the reagent of each: the highest rank you know says which one you carry. Knowing the spell is the
--- level being right; none of it in your bags is the need. (Only what's cast often enough to keep on you: not feathers,
--- fish oil, infernal stones.)
+-- Reagents. A class's spells that use one up, each as its ranks in order with the reagent of each: the highest rank you
+-- know says which one you carry. Knowing the spell is the level being right; none of it in your bags is the need. (Only
+-- what's cast often enough to keep on you: not feathers, fish oil, infernal stones.)
 ----------------------------------------------------------------------
 
 local HOLY_CANDLE, SACRED_CANDLE, SYMBOL_OF_DIVINITY, SYMBOL_OF_KINGS = 17028, 17029, 17033, 21177
@@ -211,11 +206,10 @@ E.REAGENT_SPELLS = {
 	SHAMAN = { { { 20608, ANKH } } }, -- Reincarnation
 	ROGUE = { { { 1856, FLASH_POWDER }, { 1857, FLASH_POWDER } } }, -- Vanish
 }
--- reagents a reagent vendor doesn't sell: "nearest vendor sells:<it>" instead (Flash Powder: poison suppliers;
--- release review, 0.64.6)
+-- reagents a reagent vendor doesn't sell: "nearest vendor sells:<it>" instead (Flash Powder: poison suppliers)
 E.REAGENT_ELSEWHERE = { [FLASH_POWDER] = true }
 -- reagents of spells cast now and then (Divine Intervention, the Portals): suggested as often as any other example, not
--- more (the player, 0.64.6: always lacking one, a paladin or mage saw it nearly every session)
+-- more
 E.REAGENT_RARE = { [SYMBOL_OF_DIVINITY] = true, [RUNE_OF_PORTALS] = true }
 
 --- An item as a sells: value: its name, lowercase, _ for the spaces (the client's language), else its id.
@@ -258,7 +252,7 @@ local function Gather()
 	className, f.classFile = Str(className), Str(classFile)
 	f.cls = className and Lower(className)
 	-- professions you have (their rows' names; not their trade spells, Smelting: "nearest smelting trainer", "smelting
-	-- skillup" found nothing; 0.49.2, review), and a consumable you carry
+	-- skillup" found nothing), and a consumable you carry
 	local profs = {}
 	for _, e in ipairs(Entries("professions")) do
 		local n = not e.spellID and Short(e.name and Lower(e.name), 20)
@@ -370,7 +364,7 @@ function E.PersonalExamples(advanced)
 end
 
 ----------------------------------------------------------------------
--- Where you are, for which examples come first (0.52.1, the player's ask)
+-- Where you are, for which examples come first
 ----------------------------------------------------------------------
 
 -- the capitals' maps (and their parts: a city's own sub-maps have it as their parent)
@@ -399,8 +393,7 @@ E.PLACE_WEIGHT = {
 	instance = { city = 0.4, field = 0.8, instance = 5 },
 }
 E.MINE_WEIGHT, E.TIP_WEIGHT = 1.5, 0.5
--- (0.61.4, the player: "it should be part of the random group", only more frequent) "what should i do" when there's
--- something worth doing (Suggest.lua's SG.Pressing: lists already read only)
+-- "what should i do" when there's something worth doing (Suggest.lua's SG.Pressing: lists already read only)
 E.TODO_WEIGHT = 4 -- (as an example for where you are)
 E.rand01 = math.random
 
@@ -441,7 +434,7 @@ local function Pool()
 		and pool.setup == setup and now - (pool.made or 0) < 60 then
 		return pool.list
 	end
-	-- (asked only when the pool is made again, a minute on: not on every open; release review, 0.63.0)
+	-- (asked only when the pool is made again, a minute on: not on every open)
 	local SG = ns.Suggest
 	local pressing = false
 	if not adv and SG and SG.Pressing then local ok, p = pcall(SG.Pressing); pressing = ok and p or false end
@@ -469,8 +462,7 @@ function E.BuyKey(ammo, reagents)
 	return (ammo or "") .. "|" .. table.concat(reagents or {}, ",")
 end
 --- Is what's to buy different from what the pool was made with? (The pool made again when it is: the ammo bought, its
---- suggestion goes; run out, it comes; review, 0.64.3: it stayed up to a minute. Release review, 0.64.6: not made
---- again on every bag change while one is up, which reshuffled the examples on every arrow shot.)
+--- suggestion goes; run out, it comes)
 function E.CheckBuy()
 	if E.buyKey == nil or (InCombatLockdown and InCombatLockdown()) then return false end
 	local _, classFile = Safe(UnitClass, "player")
@@ -490,7 +482,7 @@ end
 --- The pool made again on the next look (tests).
 function E.ResetPool()
 	pool.made = nil
-	-- (a suggestion from E.FIRST, Share's invite: gone with it, not shown until the next open; 0.69.7 review)
+	-- (a suggestion from E.FIRST, Share's invite: gone with it, not shown until the next open)
 	if pool.fromFirst then pool.first, pool.fromFirst = nil, nil end
 end
 do
@@ -499,7 +491,7 @@ do
 	pcall(f.RegisterEvent, f, "PLAYER_REGEN_ENABLED")
 	f:SetScript("OnEvent", function() E.OnBags() end)
 end
--- a fresh install (nothing run from the prompt yet): the first suggestion is the tour, once (0.51.16, the player's ask)
+-- a fresh install (nothing run from the prompt yet): the first suggestion is the tour, once
 E.TOUR_EXAMPLE = "try: .tour"
 function E.NextExample()
 	local db = ns.db
@@ -512,7 +504,7 @@ function E.NextExample()
 			return ex
 		end
 	end
-	-- (spent when it's shown, E.ExampleShown: not on an open with suggestions off or with text typed; review, 0.51.25)
+	-- (spent when it's shown, E.ExampleShown: not on an open with suggestions off or with text typed)
 	if type(db) == "table" and not db.tourOffered and #(db.history or {}) == 0 then
 		pool.first = E.TOUR_EXAMPLE
 		return pool.first

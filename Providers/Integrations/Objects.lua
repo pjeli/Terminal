@@ -16,16 +16,12 @@ I.OBJECT_KINDS = { mailbox = "mailbox", mailboxes = "mailbox", mail = "mailbox",
 	forge = "forge", forges = "forge", anvil = "anvil", anvils = "anvil",
 	["cooking fire"] = "cookingfire", ["cooking fires"] = "cookingfire", cookingfire = "cookingfire", cookingfires = "cookingfire",
 	moonwell = "moonwell", moonwells = "moonwell" }
--- each kind's object names, lowercase: every object of one of these exact names counts (0.67.10, the player: forges and
--- anvils for blacksmiths and engineers; WoW Forever's QuestieDB has 70 forge and 193 anvil spots, Ironforge's own forge
--- named The Great Forge. 0.68.1, the player: cooking fires and moonwells, only objects of exactly that name, 12 Cooking
--- Fire and 31 Moonwell spots: no campfires or bonfires, no moonwell with a name of its own)
+-- each kind's object names, lowercase: every object of one of these exact names counts
 I.OBJECT_NAMES = { mailbox = { "mailbox" }, forge = { "forge", "the great forge" }, anvil = { "anvil" },
 	moonwell = { "moonwell" } }
--- kinds that are a list of object ids, not names (0.68.10, the player: every fire you can cook at, not only those named
--- Cooking Fire): the server decides which objects count, and some campfires are only scenery, so a name can't tell
--- generated: tests/gen_data.py cookingfires (do not edit by hand)
--- 2231 objects, Mangos Zero's gameobject_template: type 8 (spell focus), focus 4 (Cooking Fire)
+-- kinds that are a list of object ids, not names: the server decides which objects count, and some campfires are only
+-- scenery, so a name can't tell generated: tests/gen_data.py cookingfires (do not edit by hand) 2231 objects, Mangos
+-- Zero's gameobject_template: type 8 (spell focus), focus 4 (Cooking Fire)
 I.COOKING_FIRE_IDS = {
 	1766, 1798, 1799, 1801, 1802, 1803, 1804, 1805, 1806, 1807, 1808, 1809, 1810, 1811, 1812, 1813,
 	1814, 1815, 1816, 1817, 1818, 1819, 1820, 1821, 1822, 1824, 1825, 1826, 1827, 1828, 1829, 1830,
@@ -251,7 +247,7 @@ I.ResetObjectsForTests = function() objectIds = nil end
 -- fallback when the game can't be handed the press (combat)
 local function PinObject(e)
 	local M = ns.Maps
-	-- (a row with no place known, a TrainerSpells trainer without one: said, not an error; review, 0.57.7)
+	-- (a row with no place known, a TrainerSpells trainer without one: said, not an error)
 	local x, y = tonumber(e.px), tonumber(e.py)
 	local pin = e.ui and x and y and M and M.Place and M.Place({ name = e.name, mapID = e.ui, pos = { x = x / 100, y = y / 100 } })
 	if pin then
@@ -358,13 +354,13 @@ function I.NearestObjectRows(kind, here, keep, far)
 			if keep then elsewhere[#elsewhere + 1] = e end
 		end
 	end
-	-- (a place said on another continent, "mailbox in durotar" from Goldshire: its own, no distance; 0.68.16: "none")
+	-- (a place said on another continent, "mailbox in durotar" from Goldshire: its own, no distance)
 	if #found == 0 and not far and #elsewhere > 0 then
 		local rows = {}
 		for i = 1, math.min(#elsewhere, I.OBJECTS_NEAR) do rows[i] = setmetatable({ _score = 1e6 - i }, { __index = elsewhere[i] }) end
 		return rows
 	end
-	-- (far: the farthest first, "farthest mailbox"; 0.65.7)
+	-- (far: the farthest first, "farthest mailbox")
 	if far then table.sort(found, function(a, b) return a.d > b.d end) else table.sort(found, function(a, b) return a.d < b.d end) end
 	local rows = {}
 	for i = 1, math.min(#far_, I.OBJECTS_NEAR) do rows[i] = setmetatable({ _score = 1e6 - i }, { __index = far_[i] }) end

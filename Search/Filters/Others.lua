@@ -90,7 +90,7 @@ local function SkillUp(e)
 	return d ~= nil and (d == F.DIFF.orange or d == F.DIFF.yellow)
 end
 -- is: values only recipes answer: "@profession is:skillup" searches the recipes too (and is:learned, which Tab offers
--- there: "@profession is:learned" listed nothing; 0.49.2, review)
+-- there: "@profession is:learned" listed nothing)
 F.RECIPE_IS = { skillup = true, skillups = true, orange = true, yellow = true, green = true, grey = true, gray = true,
 	trivial = true, craftable = true, learned = true, known = true }
 -- is: values only the recipes you don't know answer: "@recipe is:unknown" searches those too (MissingRecipes.lua)
@@ -158,8 +158,8 @@ end
 
 --- Done / not done: quests by the game's record; achievements by their row's completed (rows without it aren't judged).
 local function DoneOf(e)
-	-- (a row that says: a Library Book, Providers/Integrations/OneForAll/Books.lua; a compact row's lookup isn't asked: Questie's
-	-- quests, 5000 of them, have none; review, 1.0.21)
+	-- (a row that says: a Library Book, Providers/Integrations/OneForAll/Books.lua; a compact row's lookup isn't asked:
+	-- Questie's quests, 5000 of them, have none)
 	local said = rawget(e, "isDone")
 	if said == nil and not rawget(e, "_compact") then said = e.isDone end
 	if type(said) == "boolean" then return said end
@@ -199,7 +199,7 @@ F._.StandingWords = StandingWords -- (OneForAll's reputation rewards question re
 local function StandingNames()
 	local out = {}
 	for i = 1, 8 do
-		local g = ns.StandingName and ns.StandingName(i) -- (Util.lua's: the game's, else English; review, 1.0.73)
+		local g = ns.StandingName and ns.StandingName(i) -- (Util.lua's: the game's, else English)
 		out[i] = type(g) == "string" and g ~= "" and Lower(g):gsub(" ", "_") or STANDING_ENGLISH[i]
 	end
 	return out
@@ -222,9 +222,9 @@ P.ClearStanding = function() standingWords = nil end
 -- Keys for these rows
 ----------------------------------------------------------------------
 
--- Levels relative to you (0.66.6, the player): lvl:me (your level), lvl:me+3, lvl:<me, lvl:>=me+1, lvl:me+ (yours and
--- above), lvl:me-2..me+3 (from two below to three above). Read when the search is made, so a saved search or alias
--- moves with you as you level.
+-- Levels relative to you: lvl:me (your level), lvl:me+3, lvl:<me, lvl:>=me+1, lvl:me+ (yours and above), lvl:me-2..me+3
+-- (from two below to three above). Read when the search is made, so a saved search or alias moves with you as you
+-- level.
 --- A level value with "me" in it, as numbers ("me+3" at 30: "33", "me-2..me+3": "28-33"); else the value as it is.
 function F.MyLevelValue(v)
 	if type(v) ~= "string" or not v:find("me", 1, true) then return v end
@@ -305,13 +305,13 @@ KEYS.class = function(v)
 		end
 	end
 	local want = Squash(v)
-	-- (the classes the value names, once a filter: an item set lists class files; review, 1.0.18: worked out per row)
+	-- (the classes the value names, once a filter: an item set lists class files)
 	local named = {}
 	for _, f in ipairs({ "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }) do
 		if Squash(f):sub(1, #want) == want or Squash(ClassNameOf(f)):sub(1, #want) == want then named[f] = true end
 	end
 	return function(e)
-		-- (an item set for every class: any class's, as class:mine keeps it; review, 1.0.18)
+		-- (an item set for every class: any class's, as class:mine keeps it)
 		if rawget(e, "anyClass") == true then return true end
 		local set = rawget(e, "classFiles")
 		if set then
@@ -387,9 +387,9 @@ KEYS["do"] = function(v)
 	return function() return true end
 end
 
--- (a reward's standing is the one it needs: kept only when the search asks for rewards, is:reward or is:canbuy, typed or
--- the bar's; "standing:exalted" alone is the factions you're exalted with. 1.0.40, the player's call: it also listed
--- every reward that needs Exalted. F.rewardsAsked: set by Scan.Parse, Query.lua)
+-- (a reward's standing is the one it needs: kept only when the search asks for rewards, is:reward or is:canbuy, typed
+-- or the bar's; "standing:exalted" alone is the factions you're exalted with. it also listed every reward that needs
+-- Exalted. F.rewardsAsked: set by Scan.Parse, Query.lua)
 KEYS.standing = function(v)
 	local r = StandingRange(v)
 	return r and function(e)
@@ -414,7 +414,6 @@ end
 KEYS.rep = KEYS.standing
 
 -- source:quest / dungeon / raid / world / crafted / reputation / pvp / collection / other: where a loot item comes from
--- (1.0.25, the player's ask: "filter it for quest sources vs dungeon vs raid"; Loot.lua's I.LootSource)
 local SOURCES = { quest = "quest", quests = "quest", dungeon = "dungeon", dungeons = "dungeon", raid = "raid", raids = "raid",
 	world = "world", worldboss = "world", crafted = "crafted", craft = "crafted", crafting = "crafted", profession = "crafted",
 	professions = "crafted", reputation = "reputation", rep = "reputation", faction = "reputation", factions = "reputation",
@@ -449,7 +448,7 @@ end
 IS.skillup, IS.orange, IS.yellow = SkillUp, DiffOrQuest("orange"), DiffOrQuest("yellow")
 IS.green = DiffOrQuest("green")
 IS.red = function(e) return e.kind == "quests" and e.diffName == "red" end
--- quests the tracker shows (the game's, or Questie's), and those where you are (QuestTrack.lua, 0.63.3)
+-- quests the tracker shows (the game's, or Questie's), and those where you are (QuestTrack.lua)
 IS.tracked = function(e) return e.kind == "quests" and ns.QuestTrack ~= nil and ns.QuestTrack.Tracked(e.questID) end
 IS.untracked = function(e) return e.kind == "quests" and ns.QuestTrack ~= nil and not ns.QuestTrack.Tracked(e.questID) end
 IS.here = function(e) return e.kind == "quests" and ns.QuestTrack ~= nil and ns.QuestTrack.Here(e) end
@@ -474,8 +473,8 @@ IS.cod = MailIs(function(_, m) return m.cod ~= nil end)
 IS.expiring = MailIs(function(e) return e.soon == true end)
 IS.unread = MailIs(function(_, m) return not m.read end)
 IS.returned = MailIs(function(_, m) return m.returned == true end)
--- (auction mail; every @auction row (Auctions.lua: the auction house's news among them, 0.48.10) counts as an auction,
--- a sale with its price as gold; mail you sent: is:sent, to others and to your alts)
+-- (auction mail; every @auction row (Auctions.lua: the auction house's news among them) counts as an auction, a sale
+-- with its price as gold; mail you sent: is:sent, to others and to your alts)
 IS.auction = function(e)
 	return (e.kind == "auctions") or (e.kind == "mail" and e.mailKind == "mail" and e.mail.auction ~= nil) or false
 end
@@ -538,7 +537,7 @@ local function AttuneIs(group)
 end
 local AttuneRaid, AttuneDungeon = AttuneIs("raid"), AttuneIs("dungeon")
 -- (a quest in your log: a raid's or a dungeon's by its tag or its header, a class quest under its class's header:
--- Quests.lua, 0.63.3)
+-- Quests.lua)
 IS.raid = function(e) return (e.kind == "lockouts" and e.isRaid == true) or (e.kind == "quests" and e.instance == "raid") or AttuneRaid(e) end
 IS.dungeon = function(e)
 	return (e.kind == "lockouts" and not e.isRaid) or (e.kind == "quests" and e.instance == "dungeon") or AttuneDungeon(e)
@@ -549,7 +548,7 @@ IS.class = function(e) return (e.kind == "quests" and e.classQuest == true) or A
 -- (your gear's wear: Durability.lua)
 IS.broken = function(e) return e.kind == "durability" and e.duraKind ~= "total" and e.duraCur == 0 end
 -- is:started: an achievement or a quest with some progress made, not done yet or done ("achievements almost done": with
--- is:todo and sort:progress; 1.0.79)
+-- is:todo and sort:progress)
 IS.started = function(e)
 	local A = ns.Aggregate
 	local f = A and A.Progress and A.Progress(e)
@@ -557,7 +556,6 @@ IS.started = function(e)
 end
 -- prof:<profession>: recipes (and recipes to learn) of that profession, the recipe's own: Smelting's are Mining's, as
 -- your profession list names it ("_" for a space: prof:first_aid). "what can i craft mining", "blacksmithing plan"
--- (1.0.78: the profession was a word searched, which the window's name Smelting didn't have)
 KEYS.prof = function(v)
 	v = Lower((v or ""):gsub("_", " "))
 	if v == "" then return nil end
@@ -571,7 +569,7 @@ KEYS.profession = KEYS.prof
 IS.damaged = function(e)
 	if e.kind ~= "durability" then return false end
 	if e.duraKind == "total" then
-		-- (both its values: "D and D.Total()" would keep only the first)
+		-- (both its values: "D and D.Total" would keep only the first)
 		local D, n = ns.Durability, nil
 		if D and D.Total then n = select(2, D.Total()) end
 		return (n or 0) > 0
@@ -591,7 +589,6 @@ local function CalendarIs(test) return function(e) return e.kind == "calendar" a
 IS.holiday = CalendarIs(function(e) return e.type == "HOLIDAY" end)
 IS.invite = CalendarIs(function(e) return e.pending == true end)
 IS.today = CalendarIs(function(e) return ns.Calendar.InSpan(e, "today") end)
--- (0.49.2, review: not is:pending, @auction's word for its news, which this line took over)
 IS.holidays, IS.invites, IS.invited = IS.holiday, IS.invite, IS.invite
 IS.guild = CalendarIs(function(e) return ns.Calendar.GUILD[e.type] == true end) -- (your guild's events and announcements)
 -- when:<span>: on the calendar today, tomorrow, this week (the next 7 days), this weekend, next week, this month or next
@@ -601,15 +598,14 @@ KEYS.when = function(v)
 	if not (CA and CA.SPAN_OK[v]) then return nil end
 	return function(e) return e.kind == "calendar" and CA.InSpan(e, v) or false end
 end
--- Dates (0.66.8, the player: "loot from yesterday", "mail older than 20 days", "auctions sold this week", "what killed me
--- today"): since:<when> keeps rows from then on, older:<when> rows from before it. <when>: today, yesterday (from their
--- midnight), week (the last 7 days), month (30), login (this session), or a time ago: 30m, 2h, 3d, 2w. On the lists that
--- keep times: the loot log, mail, auctions, history, the combat log, buyback.
+-- Dates: since:<when> keeps rows from then on, older:<when> rows from before it. <when>: today, yesterday (from their
+-- midnight), week (the last 7 days), month (30), login (this session), or a time ago: 30m, 2h, 3d, 2w. On the lists
+-- that keep times: the loot log, mail, auctions, history, the combat log, buyback.
 local SESSION_START = (_G.time and _G.time()) or 0 -- (when the addon loaded: since:login)
--- (every unit .explain says, singular and plural: since:2weeks and older:3hours weren't filters; 1.0.86, review)
+-- (every unit .explain says, singular and plural: since:2weeks and older:3hours weren't filters)
 local SPAN_SECONDS = { m = 60, min = 60, mins = 60, minute = 60, minutes = 60, h = 3600, hr = 3600, hrs = 3600, hour = 3600,
 	hours = 3600, d = 86400, day = 86400, days = 86400, w = 604800, wk = 604800, wks = 604800, week = 604800, weeks = 604800 }
---- When a since:/older: value starts (seconds since the epoch, as time() counts), or nil when it isn't one.
+--- When a since:/older: value starts (seconds since the epoch, as time counts), or nil when it isn't one.
 function F.TimeStart(v)
 	local now = ns.Now()
 	if type(v) ~= "string" then return nil end
@@ -701,7 +697,7 @@ F.VALUES = {
 	source = { "dungeon", "raid", "quest", "crafted", "reputation", "world", "pvp", "collection", "other" },
 	q = F.QUALITIES, quality = F.QUALITIES,
 	stat = F.STATS, stats = F.STATS,
-	-- (no "warband": WoW Forever has no warband bank; 0.50.5, the player)
+	-- (no "warband": WoW Forever has no warband bank)
 	["in"] = { "bags", "bank", "mail", "guild", "equipped" },
 	faction = { "horde", "alliance", "neutral", "friendly" },
 	sort = { "distance", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner", "standing", "progress", "list", "grey", "cantake", "need" },
@@ -718,10 +714,9 @@ F.VALUES = {
 		"leatherworking", "mining", "skinning", "tailoring" },
 }
 
--- Which lists each value judges (0.47.7, the player: "@questlog is:" offered online, ready, equippable...): the pick
--- list and Tab offer only the values that judge a list typed (@kinds; "@group quests" = the party quests). A key's "*"
--- covers all its values; a key or value with nothing here is offered everywhere. Keep it in step with the tests above
--- (tests/smoke/search.lua walks every is: value).
+-- Which lists each value judges: the pick list and Tab offer only the values that judge a list typed (@kinds; "@group
+-- quests" = the party quests). A key's "*" covers all its values; a key or value with nothing here is offered
+-- everywhere. Keep it in step with the tests above (tests/smoke/search.lua walks every is: value).
 local ITEMS = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared" }
 local UPGRADES = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "questie", "quests" } -- (a quest: by its rewards)
 local MADE = { "items", "gear", "consumables", "mats", "loot", "lootlog", "stored", "bank", "shared", "recipes", "missing" } -- (and what recipes make)
@@ -747,8 +742,6 @@ F.APPLIES = {
 		red = { "quests" }, tracked = { "quests" }, untracked = { "quests" }, here = { "quests" },
 		elite = { "npc" }, rare = { "npc" }, rareelite = { "npc" }, boss = { "npc" }, worldboss = { "npc" },
 		daily = { "questie", "quests" }, repeatable = { "questie", "quests" },
-		-- (1.0.79: your race and class may take it; and you meet what it needs; an item starts it: Rewards.lua; some
-		-- progress made: below)
 		foryou = { "questie", "quests" }, cantake = { "questie", "quests" }, itemstart = { "questie" }, started = { "achievements", "quests" },
 		grey = { "recipes", "professions", "quests" }, leftbehind = { "quests" }, drop = { "quests" },
 		passive = { "spells" }, unplaced = { "spells" }, known = { "spells", "classspells" }, ability = { "spells" }, tameable = { "npc" }, tamable = { "npc" }, reward = { "reputation" }, rewards = { "reputation" },
@@ -781,9 +774,9 @@ F.APPLIES = {
 	sort = { distance = SPOTS, plan = RECIPES, best = UPGRADES, ilvl = MADE, quality = MADE, value = MADE, count = MADE,
 		name = { "items", "spells", "classspells", "talents", "quests", "recipes" }, level = { "quests", "classspells", "recipes" },
 		damage = { "combatlog" }, line = { "attune" }, owner = { "shared" }, standing = { "reputation" }, progress = { "achievements", "quests" },
-		grey = { "quests" }, -- (1.0.78)
-		cantake = { "questie", "quests" }, need = { "missing", "recipes" }, -- (1.0.79)
-		-- (sort:list: the lists that keep an order of their own; 1.0.77)
+		grey = { "quests" },
+		cantake = { "questie", "quests" }, need = { "missing", "recipes" },
+		-- (sort:list: the lists that keep an order of their own)
 		list = { "quests", "spells", "history", "buyback", "lootlog", "combatlog", "lockouts", "auctions", "calendar", "groupquests",
 			"attune", "training", "durability", "mail", "group", "book", "transport", "items", "bank", "stored" } },
 	near = { ["*"] = SPOTS },
@@ -795,9 +788,9 @@ F.APPLIES = {
 	trainer = { ["*"] = NPC },
 	dura = { ["*"] = { "durability" } }, durability = { ["*"] = { "durability" } },
 	reward = { ["*"] = { "questie", "quests" } }, rewards = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)
-	repreward = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua, 1.0.63)
-	skill = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua, 1.0.64)
-	prof = { ["*"] = { "recipes", "missing" } }, profession = { ["*"] = { "recipes", "missing" } }, -- (1.0.78)
+	repreward = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)
+	skill = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)
+	prof = { ["*"] = { "recipes", "missing" } }, profession = { ["*"] = { "recipes", "missing" } },
 	since = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
 	older = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
 	before = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
@@ -841,7 +834,7 @@ function F.ValuesFor(key, before)
 end
 
 -- the keys, in the order .filters lists them, with an example each (each naming every list it works on, as F.APPLIES
--- says: on:, faction:, near: and sort:distance named fewer; 0.49.2, review)
+-- says: on:, faction:, near: and sort:distance named fewer)
 F.HELP = {
 	{ "lvl:20-30", L["quest/NPC level, or the level an item needs (also lvl:<30, lvl:40-, lvl:20+)"] },
 	{ "lvl:me+3", L["levels from yours, as you level: lvl:me (yours), lvl:me+1 (next level), lvl:<me, lvl:me-2..me+3 (two below to three above)"] },
@@ -866,7 +859,6 @@ F.HELP = {
 	{ "faction:horde", L["@npc, @flight: friendly to the Horde / alliance / neutral (both) / friendly (to you)"] },
 	{ "standing:honored+", L["reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)"] },
 	{ "source:quest", L["@loot: where it comes from: dungeon raid quest crafted reputation world pvp collection"] },
-	-- (1.0.27-1.0.40: the quartermasters' rewards in @reputation, a hunter's pets in @npc and @spell; 1.0.41, the player's ask)
 	{ "is:reward", L["@reputation: the quartermasters' rewards (OneForAll's, and AtlasLoot's faction loot); is:canbuy: those your standing lets you buy; with is:reward, standing: is the standing each needs and sort:standing puts the lowest first"] },
 	{ "repreward:stormwind", L["@questie, @quest: the quests that give reputation with that faction (Questie); \"quests for stormwind rep\" in plain words"] },
 	{ "skill:tailoring", L["@questie, @quest: the quests that need that profession (skill:any: any one); is:daily, is:repeatable (Questie); \"tailoring quests\", \"daily quests\" in plain words"] },

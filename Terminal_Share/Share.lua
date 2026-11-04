@@ -26,10 +26,9 @@ SSH.nameFrame = nameWait.frame
 local WHERE_SAID = { b = L["bags"], k = L["bank"], m = L["mail"], v = L["void storage"], w = L["warband bank"] }
 local WHERE_ORDER = { "b", "k", "m", "v", "w" }
 
--- A friend's item looks as @stored's does (0.58.5, the player: "keep consistency"; .ssh all's one long line of every
--- character stretched the tooltip across the screen): each character a line, its total and where ("Plamen Pally  53
--- bags 18, bank 35"), the total, as @stored's tooltip, chat line and Shift+Enter say them (Stored.lua's own functions);
--- the game's item tooltip above.
+-- A friend's item looks as @stored's does: each character a line, its total and where ("Plamen Pally  53 bags 18, bank
+-- 35"), the total, as @stored's tooltip, chat line and Shift+Enter say them (Stored.lua's own functions); the game's
+-- item tooltip above.
 local WHERE_WORD = { b = "bags", k = "bank", m = "mail", v = "void", w = "warband" }
 
 --- The row's holders as @stored's are: { [key] = { key, who, where, owner, count } }, a character's places apart;
@@ -114,9 +113,9 @@ local WHISPER = { macro = function(e)
 	return t and ns.Social and ns.Social.WhisperMacro(t) or nil
 end }
 
--- One row an item a friend (0.58.6, the player: "group and sort by Owner (Cad Man vs Cherry Tusks)"): an item two
--- friends carry is two rows, "Linen Cloth x20 · Cad Man" and "x15 · Cherry Tusks", each with its owner (Aggregate.lua's
--- owner field: the bar's Group and Sort, sort:owner, | group by owner). The tooltip says who else has it.
+-- One row an item a friend ("group and sort by Owner (Cad Man vs Cherry Tusks)"): an item two friends carry is two
+-- rows, "Linen Cloth x20 · Cad Man" and "x15 · Cherry Tusks", each with its owner (Aggregate.lua's owner field: the
+-- bar's Group and Sort, sort:owner, | group by owner). The tooltip says who else has it.
 --
 -- (0.58.16, the stress test: tests/stress.py) Rows are compact (ns:CompactMeta): only what a search reads first is on
 -- the row (its name, owner, count); the rest (link, quality, holders, detail...) is worked out when asked and kept.
@@ -139,8 +138,7 @@ local ROW_LAZY = {
 		if l then rawset(t, "link", l) return l end
 		return "item:" .. t.itemID
 	end,
-	-- (where they keep it, bags and bank apart: "x20 · Cad Man · bags 12, bank 8"; 0.59.0, the player: "distinctly
-	-- separated as in Bank vs in Bags")
+	-- (where they keep it, bags and bank apart: "x20 · Cad Man · bags 12, bank 8")
 	detail = function(t)
 		local f = t.friend
 		local by = {}
@@ -240,7 +238,7 @@ function SSH.Busy()
 end
 
 -- (this character's bank, as @stored has it, is in what limited, mats and consumables share: when @stored's records
--- change, Syndicator's word after the game's bag events, what you share is sent again. Review, 0.59.0)
+-- change, Syndicator's word after the game's bag events, what you share is sent again.)
 if ns.changedHooks then
 	ns.changedHooks[#ns.changedHooks + 1] = function(id)
 		if id == "stored" and SSH.game and SSH.game:On() then SSH.game:Changed() end
@@ -248,7 +246,7 @@ if ns.changedHooks then
 end
 
 ns:RegisterProvider("shared", {
-	label = L["Shared"], -- (0.58.12, the player: "Rename @friendsbags to @shared")
+	label = L["Shared"],
 	color = "ff7fd4ff",
 	aliases = { "shared", "ssh" },
 	busy = function() return SSH.Busy() end,
@@ -260,7 +258,7 @@ ns:RegisterProvider("shared", {
 -- .ssh
 ----------------------------------------------------------------------
 
--- What you share (the player's call, 0.58.2): limited by default
+-- What you share: limited by default
 local MODES = { all = true, limited = true, mats = true, consumables = true, none = true }
 local MODE_ORDER = { "limited", "all", "mats", "consumables", "none" }
 local MODE_SAID = {
@@ -397,7 +395,6 @@ function SSH.Debug(ep)
 	sort(gs)
 	lines[1] = ("ssh debug: groups %s, queue %d, sent (game's answers) %s, heard %s"):format(#gs > 0 and concat(gs, " ") or "none",
 		#ep.queue, counts(ep.results), counts(ep.heard))
-	-- (0.60.2: which Battle.net characters are on your realm, and which were left out for another)
 	local P = SSH.People and SSH.People()
 	if P then
 		local on = {}
@@ -426,10 +423,9 @@ function SSH.Debug(ep)
 	return lines
 end
 
--- The groups remembered (0.58.6, the player: "saved and re-used automatically on login"): each group's code, its key
--- and what you share in it, in Terminal: Share's own saved variables (TerminalShareDB.groups[name] = { key = hex, mode,
--- kdf = "code1", code }). At login they're used a few seconds in (friends and guild read first) and everyone is said
--- hello to once. .share leave <group> forgets one; .share off, all.
+-- The groups remembered: each group's code, its key and what you share in it, in Terminal: Share's own saved variables
+-- (TerminalShareDB.groups[name] = { key = hex, mode, kdf = "code1", code }). At login they're used a few seconds in
+-- (friends and guild read first) and everyone is said hello to once. .share leave <group> forgets one; .share off, all.
 -- (Anyone with your WTF folder could connect as you with them: the same as having the codes, for this.)
 SSH.LOGIN_WAIT = 5
 
@@ -474,9 +470,9 @@ function SSH.Restore(ep)
 		ep.env.say(L["Share: typed passwords are gone (anyone in your guild could guess one at home), and with them %s. Make a group again with a code nobody can guess: .share invite <name> [group]"]:format(concat(stale, ", ")))
 	end
 	if n == 0 then return false end
-	-- (the ticker kept going while the groups wait to be joined, and started again once they are. 0.60.0 review: it
-	-- stopped a second in, nobody in a group yet, and nothing started it again: no pings, retries or snapshots owed
-	-- for the whole session, and friends dropped you after 30 minutes)
+	-- (the ticker kept going while the groups wait to be joined, and started again once they are. it stopped a second
+	-- in, nobody in a group yet, and nothing started it again: no pings, retries or snapshots owed for the whole
+	-- session, and friends dropped you after 30 minutes)
 	ep.restoring = true
 	SSH.StartTicker()
 	local ask = C_GuildInfo and C_GuildInfo.GuildRoster or _G.GuildRoster
@@ -504,7 +500,7 @@ end
 
 
 ----------------------------------------------------------------------
--- Invites and codes at the prompt (0.69.5)
+-- Invites and codes at the prompt
 ----------------------------------------------------------------------
 
 --- The group a command means when it names none: the only one you're in; else nil and your groups' names.
@@ -699,8 +695,7 @@ if ns.Easy then
 	end)
 end
 
--- (.share, 0.58.14, the player: ".ssh ... a fun throwback to secure shell but its probably confusing for WoW players":
--- .ssh is its alias)
+-- (.share)
 ns:RegisterCommand("share", {
 	aliases = { "ssh" },
 	desc = L["The share shell: your bags in the searches of friends who run Terminal: Share. .share invite <name> starts a group and invites a friend (.share accept to say yes to one); .share join <group> <code> with a code a friend gave you; what you share: .share limited, all, mats, consumables or none (.share <group> all: in one group); .share leave <group>; .share off"],
@@ -786,7 +781,7 @@ ns:RegisterCommand("share", {
 					return { L["Share: a group's name is one word of letters and digits, %d at most, and not one .share takes"]:format(SSH.GROUP_LEN) }
 				end
 				code, why = SSH.ReadCode(words)
-				-- (a code you're in already, under another name: that group; review, 1.0.17)
+				-- (a code you're in already, under another name: that group)
 				local key = code and SSH.KeyOfCode(code)
 				for n, g in pairs(ep.groups) do
 					if key and g.key == key and n ~= group then return { L["Share: you're in %s with that code already"]:format(n) } end
@@ -807,7 +802,7 @@ ns:RegisterCommand("share", {
 			local group = SSH.GroupName(rest)
 			if not (group and ep.groups[group]) then
 				if rest == "" then return { L["Share: which group? .share leave <group>"] } end
-				-- (remembered, not joined: still waiting at login, or one past five. 0.60.0 review: it couldn't be left)
+				-- (remembered, not joined: still waiting at login, or one past five. it couldn't be left)
 				local saved = Saved().groups
 				local name = saved[group or ""] and group or (saved[Lower(rest)] and Lower(rest))
 				if name then
@@ -853,13 +848,12 @@ ns:RegisterCommand("share", {
 })
 
 ----------------------------------------------------------------------
--- The badge at the end of the prompt (0.58.6, the player: "a little wifi icon at the very end of the Terminal prompt
--- box ... who you are connected to and how much they are sharing"): shown while the share shell is on (in a group); the theme's accent with a friend connected, grey with none. Terminal's UI.AddBadge (Prompt.lua).
+-- The badge at the end of the prompt: shown while the share shell is on (in a group); the theme's accent with a friend
+-- connected, grey with none. Terminal's UI.AddBadge (Prompt.lua).
 ----------------------------------------------------------------------
 
--- A wifi sign (0.58.7, the player: "make the wifi icon look a little better"): a dot and three arcs over it, each arc a
--- line of small dots close enough to read as one stroke. The theme's accent with a friend connected, the arcs lit one
--- by one while connecting, grey with nobody.
+-- A wifi sign: a dot and three arcs over it, each arc a line of small dots close enough to read as one stroke. The
+-- theme's accent with a friend connected, the arcs lit one by one while connecting, grey with nobody.
 local ARCS = { 4.5, 8.5, 12.5 }
 local function DrawWifi(f)
 	f.arcs = {}
@@ -893,8 +887,7 @@ function SSH.Connecting(ep)
 	return false
 end
 
--- (0.58.15, the player: keep the connecting animation, "but it should just red or something if we haven't connected
--- to anyone") connected: the accent; connecting: its arcs light in turn; nobody, nothing under way: red.
+-- connected: the accent; connecting: its arcs light in turn; nobody, nothing under way: red.
 local RED = { 0.9, 0.25, 0.2 }
 local function BadgeColour(f)
 	local ep = SSH.game
@@ -924,8 +917,8 @@ local function Ago(s)
 	return L["%dm ago"]:format(math.floor(s / 60))
 end
 
---- The pop-out (0.58.9, the player: "simplify the tooltip a bit"): a line for you, a line a friend ("Cad Mán  39 items
---- · all · Battle.net"), when they were last heard only once it's been a while, then who's still connecting.
+--- The pop-out: a line for you, a line a friend ("Cad Mán  39 items · all · Battle.net"), when they were last heard
+--- only once it's been a while, then who's still connecting.
 function SSH.BadgeTip(t)
 	local ep = SSH.game
 	local now = ep:Now()
@@ -939,8 +932,7 @@ function SSH.BadgeTip(t)
 	local widest = ep:WidestMode()
 	local _, mine = ep:Snapshot(widest)
 	local n = mine and #mine.ids or 0
-	-- (the groups always, each with what you share in it: "default: limited"; 0.59.0, the player: "put the channel name in
-	-- the wifi tooltip, default if it is default". Each friend's groups too once there are several)
+	-- (the groups always, each with what you share in it: "default: limited")
 	local names = {}
 	for g in pairs(ep.groups) do names[#names + 1] = g end
 	sort(names)
@@ -980,7 +972,7 @@ end
 if ns.UI and ns.UI.AddBadge then
 	ns.UI.AddBadge({
 		id = "share",
-		fade = 6, -- (seconds at full strength, then a faint mark until pointed at; 0.58.9, the player)
+		fade = 6, -- (seconds at full strength, then a faint mark until pointed at)
 		draw = DrawWifi,
 		shown = function() local ep = SSH.game return ep ~= nil and (ep:On() or ep:InvitesWaiting()) end,
 		refresh = BadgeColour,
@@ -1013,7 +1005,7 @@ local function Ambig(name)
 end
 
 -- friends, guild members and Battle.net friends' characters, read at most every 10 s; after their events (peopleStale)
--- at most every 2 s (0.60.0 review: a big guild's roster events read it all again for the next message, 20 ms each)
+-- at most every 2 s
 local people, peopleAt, peopleStale = nil, -100, nil
 local function People()
 	local now = GetTime()
@@ -1061,11 +1053,11 @@ local function People()
 			if nGames == 0 then accounts[1] = a.gameAccountInfo end
 			for _, g in ipairs(accounts) do
 				local id, char = type(g) == "table" and Num(g.gameAccountID), type(g) == "table" and Str(g.characterName)
-				-- (0.60.1, the player: "across rulesets (realms) this should not be possible": a Battle.net friend's character
-				-- on another realm, Forever's PvE beside your PvP, isn't one to share with, whatever its faction. Its realm by
-				-- name; else by the server in its GUID ("Player-4619-..."), as yours; neither given, not taken. 0.60.2:
-				-- not by Battle.net's realm id first, the player: "no longer able to connect to my friend on the same
-				-- realm" (an id that isn't GetRealmID()'s numbering)
+				-- ("across rulesets (realms) this should not be possible": a Battle.net friend's character on another
+				-- realm, Forever's PvE beside your PvP, isn't one to share with, whatever its faction. Its realm by
+				-- name; else by the server in its GUID ("Player-4619-..."), as yours; neither given, not taken. not by
+				-- Battle.net's realm id first, the player: "no longer able to connect to my friend on the same realm"
+				-- (an id that isn't GetRealmID's numbering)
 				local realmName = type(g) == "table" and Str(g.realmName)
 				local same
 				if realmName then same = Canon((realmName:gsub("[%s%-']", ""))) == realm
@@ -1112,14 +1104,14 @@ local function Eligible(route, peer)
 	local shown = P.names[c] or P.names[c .. "-" .. realm]
 	if shown then return shown end
 	-- (heard first on the guild channel, before the roster was read: still one of them while the roster says nothing)
-	-- (out of the guild, its roster says nothing for good: they're not, then; review, 1.0.17)
+	-- (out of the guild, its roster says nothing for good: they're not, then)
 	local inGuild = _G.IsInGuild and Safe(_G.IsInGuild)
 	if peer and peer.viaGuild and P.guildN == 0 and inGuild then return peer.name or Ambig(sender) end
 	return nil
 end
 
 -- A name claimed over Battle.net, with a surname Battle.net didn't give, kept by the Battle.net account first proven
--- with it (0.59.1, the player: "resolve this B.net loose name issue"): { [claim] = bnetAccountID }, this session.
+-- with it: { [claim] = bnetAccountID }, this session.
 local bnOwner = {}
 SSH.bnOwner = bnOwner
 
@@ -1133,12 +1125,11 @@ local function Matches(claim, route)
 		-- (Battle.net may give the first name alone: the claim's surname after it)
 		local exact = name == c
 		if not (exact or name:sub(1, #c + 1) == c .. "-") then return false end
-		-- (0.59.3: Battle.net gave the surname itself, "Girl Bird", as the player's game shows: that name and no other)
 		if not exact and c:find("-", 1, true) then return false end
 		if b.realm and SSH.Claim("x", b.realm) ~= "x@" .. realm then return false end
-		-- (no realm from Battle.net: only a character of your own realm. 0.60.0 review: any realm's taken)
+		-- (no realm from Battle.net: only a character of your own realm. any realm's taken)
 		if not b.realm and realm ~= "" and realm ~= MyRealm() then return false end
-		-- (0.59.1) The character claimed, as your friend list or guild roster knows it: by its GUID, it's this Battle.net
+		-- The character claimed, as your friend list or guild roster knows it: by its GUID, it's this Battle.net
 		-- friend's character or not. One the game knows only by its name (a friend list or roster without GUIDs, or a
 		-- Battle.net friend whose GUID isn't given): a surname claimed over Battle.net isn't taken for it; they connect
 		-- the way they're known by instead.
@@ -1241,8 +1232,8 @@ end
 --- What you share in a mode, as a snapshot (SSH.Encode's shape). limited, mats, consumables: this character's bags;
 --- all: everything there, your other characters and banks as @stored reads them (Syndicator or BagBrother), and gold.
 -- @stored as it last read it: a change to it is read in its own time (warmDirty: out of combat, after the last change),
--- not here inside a bag event or Syndicator's callback (0.60.0 review: 30 reads of it selling 30 greys, up to 450 ms
--- each with many alts). Read here only the first time. SSH.StoredMoved: once it has read it again, shared again.
+-- not here inside a bag event or Syndicator's callback. Read here only the first time. SSH.StoredMoved: once it has
+-- read it again, shared again.
 local function StoredList()
 	local p = ns.providers.stored
 	if not p then return {} end
@@ -1297,8 +1288,6 @@ function SSH.Snapshot(mode)
 		end
 		gold = AllGold()
 	elseif want then
-		-- (0.59.0, the player: "also share the character bank inventory of the same types of items": this character's
-		-- bank as @stored has it, Syndicator or BagBrother)
 		for _, e in ipairs(StoredList()) do
 			local id = e.itemID
 			for _, h in pairs(id and type(e.holders) == "table" and e.holders or {}) do
@@ -1360,10 +1349,10 @@ function SSH.RouteFor(name)
 	return nil
 end
 
--- Randomness for codes (0.69.5): a code is only as good as what it's made from, so it isn't made from
--- math.random alone. A pool, mixed with SHA-256, of what nobody can predict: the time each frame starts, to a fraction
--- of a microsecond, for the first ENTROPY_FRAMES frames after login and a while after each code; the cursor, the
--- clock, memory in use and math.random each time it's mixed; the moment the code is asked for.
+-- Randomness for codes: a code is only as good as what it's made from, so it isn't made from math.random alone. A pool,
+-- mixed with SHA-256, of what nobody can predict: the time each frame starts, to a fraction of a microsecond, for the
+-- first ENTROPY_FRAMES frames after login and a while after each code; the cursor, the clock, memory in use and
+-- math.random each time it's mixed; the moment the code is asked for.
 SSH.ENTROPY_FRAMES = 600 -- (about 10 s)
 local entropy = { pool = "Terminal.ssh.entropy", samples = {}, n = 0, made = 0 }
 local function Mix(extra)

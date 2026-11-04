@@ -251,7 +251,7 @@ TT.OVER_WAIT = 0.5 -- (s: Enter on the game-over screen tells your guild only af
 
 function TT.GameOver()
 	game.over, game.overAt = true, GetTime()
-	-- (the board too: the piece that ended it locked, and the falling one no longer drawn; review, 0.57.7)
+	-- (the board too: the piece that ended it locked, and the falling one no longer drawn)
 	game.dirty, game.sideDirty, game.stackDirty = true, true, true
 	if frame then frame:SetScript("OnUpdate", nil) end -- (nothing moves on the game-over screen)
 	ns.Game.KeepBest(game, "tetrisBest")
@@ -405,7 +405,7 @@ local function DrawSide()
 end
 
 --- What changed since the last draw: the piece on every move; the stack only when a piece locks (up to ~150 cells shown
---- again on every row a piece fell: review, 0.53.6), the side column when the score, hold or queue change.
+--- again on every row a piece fell: review), the side column when the score, hold or queue change.
 function TT.DrawChanged()
 	if not frame then return end
 	game.dirty = false
@@ -498,13 +498,12 @@ function TT.KeyDown(self, key)
 		TT.Close()
 	elseif game.over then
 		-- as the typing test: Enter tells your guild and closes, so the chat shows it (not the Enter that dropped the
-		-- last piece, held or repeated by the game; as .typing's and the drop dialog's waits; review, 0.48.6), Tab plays again
+		-- last piece, held or repeated by the game; as .typing's and the drop dialog's waits), Tab plays again
 		local fresh = not game.keys[key] and GetTime() - (game.overAt or 0) >= TT.OVER_WAIT
 		if ns.Game.OverKey(TT, game, key, fresh) then
 			-- (Tab played again; Enter told your guild and closed)
 		else
-			-- (an Enter in the wait is held from now: its repeats aren't a fresh press; review, 0.49.17: one pressed to
-			-- drop just after the stack topped out, kept down, told the guild on its first repeat)
+			-- (an Enter in the wait is held from now: its repeats aren't a fresh press)
 			if key == "ENTER" or key == "NUMPADENTER" then game.keys[key] = game.keys[key] or "drop" end
 			mine = action ~= nil
 		end

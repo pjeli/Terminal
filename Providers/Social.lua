@@ -42,14 +42,14 @@ local function AccountName(e)
 	if e.bnetTag and B.GetFriendAccountInfo and BNGetNumFriends then
 		for i = 1, (Num(Safe(BNGetNumFriends)) or 0) do
 			local a = Safe(B.GetFriendAccountInfo, i)
-			-- (BattleTags and account names can be secret: read through Str, as BNetRows reads them; review, 0.53.6)
+			-- (BattleTags and account names can be secret: read through Str, as BNetRows reads them)
 			if type(a) == "table" and Str(a.battleTag) == e.bnetTag and Str(a.accountName) then return a.accountName end
 		end
 	end
 end
 
 --- The whisper box from Terminal's code: only when no press could be set up (out of combat: in combat Activate stops a
---- pressed row first; 0.50.7, review: these comments said "combat").
+--- pressed row first).
 function SO.Whisper(e)
 	local bn = (e.bnetID or e.bnetTag) and AccountName(e)
 	local sendBN = ChatFrame_SendBNetTell or (ChatFrameUtil and ChatFrameUtil.SendBNetTell)
@@ -497,8 +497,6 @@ local function BNetRows(out, seen)
 				-- account name, an escape that shows their real name, never goes in a row: rows are sent to chat)
 				local name = charName and (who and (charName .. " (" .. who .. ")") or charName) or who
 					or (note and L["Battle.net friend: %s"]:format(note)) or L["A Battle.net friend (the game hides the name)"]
-				-- (0.56.4, the player: the Friends window names them: by their account name, an escape the
-				-- game draws as the name. Shown on the row as the window does; the row's name stays the readable one)
 				local acctName = not charName and not who and Str(a.accountName) or nil
 				local shownName = acctName and acctName:find("^|K") and acctName or nil
 				listed = listed + 1
@@ -580,9 +578,8 @@ function SO.WhoMacro(e)
 	return "/run local F=C_FriendList if F.SetWhoToUi then F.SetWhoToUi(true) end F.SendWho(" .. Quoted(e.whoFilter or "") .. ",1)"
 end
 local WHO_ASK = { macro = SO.WhoMacro }
---- The wait for the answer over (it came, or SO.WHO_WAIT passed): who-to-UI back off, so the game's own /who prints to chat
---- again. (Review, 0.48.6: it was put back only by a collect while still waiting, and the busy check that ended the wait
---- at 5 s left it on for the session; an answer after 0.3 s also waited the whole 5 s.)
+--- The wait for the answer over (it came, or SO.WHO_WAIT passed): who-to-UI back off, so the game's own /who prints to
+--- chat again.
 function SO.WhoDone()
 	if not who.waiting then return end
 	who.waiting = nil
@@ -601,13 +598,13 @@ local function WhoInCombat() ns:Print(L["Ask /who again once combat is over (it 
 --- The row on top of an @who search: ask the server with the typed words.
 function SO.WhoAskRow(text)
 	local filter = SO.WhoFilter(text)
-	-- (within the game's 255 characters a macro: its last words left out; review, 1.0.20: refused, it said "combat")
+	-- (within the game's 255 characters a macro: its last words left out)
 	local S = ns.Secure
 	while S and S.MACRO_MAX and #SO.WhoMacro({ whoFilter = filter }) > S.MACRO_MAX and filter:find("%s") do
 		filter = filter:gsub("%s+%S+$", "")
 	end
 	if S and S.MACRO_MAX and #SO.WhoMacro({ whoFilter = filter }) > S.MACRO_MAX then
-		-- (cut between letters, never inside one of two bytes or more; review, 1.0.32)
+		-- (cut between letters, never inside one of two bytes or more)
 		local cut = 150
 		while cut > 0 and (filter:byte(cut + 1) or 0) >= 128 and filter:byte(cut + 1) < 192 do cut = cut - 1 end
 		filter = filter:sub(1, cut)

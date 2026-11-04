@@ -13,10 +13,10 @@ local EasyOn, Wake, NextPos, BUSY_DOTS = UI.EasyOn, UI.Wake, UI.NextPos, UI.BUSY
 local MAX_LINES = 8 -- a long prompt wraps onto more lines (the header grows down)
 
 ----------------------------------------------------------------------
--- Undo in the prompt (0.66.1, the player): Ctrl+Z undoes the last edit to what's typed, Ctrl+Y (or Ctrl+Shift+Z) redoes
--- it. A run of typed letters is one edit (a word at a time, as editors do: a space starts the next), as is a run of
--- Backspaces; Ctrl+W, Ctrl+U, Ctrl+Backspace, a paste, a completion, Alt+` writing the line out are each one. Kept while
--- the terminal is open, for the prompt it shows (a new run or another tab starts afresh).
+-- Undo in the prompt: Ctrl+Z undoes the last edit to what's typed, Ctrl+Y (or Ctrl+Shift+Z) redoes it. A run of typed
+-- letters is one edit (a word at a time, as editors do: a space starts the next), as is a run of Backspaces; Ctrl+W,
+-- Ctrl+U, Ctrl+Backspace, a paste, a completion, Alt+` writing the line out are each one. Kept while the terminal is
+-- open, for the prompt it shows (a new run or another tab starts afresh).
 ----------------------------------------------------------------------
 UI.UNDO_MAX = 100 -- edits kept to undo
 UI.UNDO_RUN = 1.5 -- seconds between keys that still make one run of typing
@@ -334,7 +334,7 @@ end
 local function PromptY()
 	local edit = UI.edit
 	local cy
-	if GetCursorPosition then cy = select(2, GetCursorPosition()) end -- (not `x and f()`: that keeps one value, the x)
+	if GetCursorPosition then cy = select(2, GetCursorPosition()) end -- (not `x and f`: that keeps one value, the x)
 	local scale = edit:GetEffectiveScale()
 	local _, mid = edit:GetCenter()
 	if type(cy) ~= "number" or type(mid) ~= "number" or type(scale) ~= "number" or scale == 0 then return 0 end
@@ -359,7 +359,7 @@ local function IndexAt(x, down)
 	-- the end of a wrapped line is the next line's start: stay on this one, before its space
 	if i < #lines and best == last and text:sub(last, last) == " " then best = last - 1 end
 	-- (a password's *s are a * a byte: a click between two of one letter's goes before the letter, never inside it,
-	-- where typing would split it and the key made from it wouldn't match a friend's. Review, 0.58.16)
+	-- where typing would split it and the key made from it wouldn't match a friend's.)
 	local real = edit:GetText() or ""
 	while best > 0 and best < #real do
 		local b = real:byte(best + 1)
@@ -416,7 +416,7 @@ end
 --- What is still loading, one line per provider that says so.
 function UI:BusyLines()
 	local out, who = {}, {}
-	-- (a background search: the list shown is the whole last one, not a best-so-far; review, 0.51.25)
+	-- (a background search: the list shown is the whole last one, not a best-so-far)
 	if self.searchJob and not self.searchJob.quiet then out[1] = L["Searching... (the best matches so far are shown)"] end
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
@@ -442,14 +442,14 @@ function UI:PlaceEdit()
 end
 
 ----------------------------------------------------------------------
--- Badges: small icons at the end of the prompt, left of the spinner, each with a tooltip (0.58.6: Terminal: Share's
+-- Badges: small icons at the end of the prompt, left of the spinner, each with a tooltip (Terminal: Share's
 -- connection, the player's "a little wifi icon at the very end of the Terminal prompt box"). Another addon adds one:
---   Terminal.UI.AddBadge({ id = "x", draw = function(f) ... end, shown = function() return true end,
+--   Terminal.UI.AddBadge({ id = "x", draw = function(f) ... end, shown = function return true end,
 --       refresh = function(f) ... end, tooltip = function(t) t:SetText(...) end })
--- draw(f) once on its 22x22 frame; shown() whether it shows now; refresh(f) each time they're placed (its colours);
+-- draw(f) once on its 22x22 frame; shown whether it shows now; refresh(f) each time they're placed (its colours);
 -- tooltip(t) fills its pop-out on mouse-over. fade = seconds: then it fades to a faint mark, back on mouse-over or
--- UI.WakeBadge(id) (0.58.9, the player: "fade to low opacity after some seconds and re-appear on mouse-over").
--- UI:PlaceBadges() when what they show changed.
+-- UI.WakeBadge(id).
+-- UI:PlaceBadges when what they show changed.
 ----------------------------------------------------------------------
 
 UI.badges = {}
@@ -478,8 +478,8 @@ local function BadgeTip()
 end
 UI.BadgeTip = BadgeTip
 
--- (0.58.10, the player's screenshot: the pop-out and the selected row's tooltip on top of each other) The pop-out takes
--- the row tooltip's place beside the terminal (UI.PlaceTip), and the row's waits until it's put away (UI.badgeTipUp).
+-- The pop-out takes the row tooltip's place beside the terminal (UI.PlaceTip), and the row's waits until it's put away
+-- (UI.badgeTipUp).
 --- A badge's per-frame work (its pop-out drawn again, its fading) started again, when it isn't running.
 local function Tick(f)
 	if f.tick and not f.ticking then
@@ -546,8 +546,8 @@ local function MakeBadge(def)
 			a = math.max(FADED, a - (elapsed or 0) * 1.6)
 			self:SetAlpha(a)
 		end
-		-- (nothing left to do: faded, or no fading, and no pop-out up. Not run every frame for good; woken by a
-		-- point, a wake, a pop-out. Review, 0.58.16)
+		-- (nothing left to do: faded, or no fading, and no pop-out up. Not run every frame for good; woken by a point,
+		-- a wake, a pop-out.)
 		if not (self.tipUp or self.over or self.pinned) and (not self.fadeAt or a <= FADED) then
 			self:SetScript("OnUpdate", nil)
 			self.ticking = nil
@@ -580,11 +580,10 @@ end
 function UI:PlaceBadges()
 	local frame = UI.frame
 	if not (frame and self.editMid) then return end
-	-- (the spinner's spot when it's not there, a little in from the frame's edge; 0.58.9, the player: placed better)
+	-- (the spinner's spot when it's not there, a little in from the frame's edge)
 	local x = -14 - ((UI.busy and UI.busy:IsShown()) and (BADGE_W + 2) or 0)
 	local room = 0
-	-- (none while something's typed: the prompt is the text's; 0.58.13, the player: "disappear if the user starts typing
-	-- or has text in the prompt box". EditTextChanged places them again when the box empties or fills)
+	-- (none while something's typed: the prompt is the text's)
 	local typed = UI.edit ~= nil and (UI.edit:GetText() or "") ~= ""
 	self.badgesTyped = typed
 	for _, def in ipairs(UI.badges) do
@@ -628,7 +627,7 @@ function UI:UpdateBusy()
 	end
 	busy.who = who
 	local was = busy:IsShown()
-	-- (a new table only when what's loading changed: its tooltip is drawn again then, not twice a second; review, 0.57.7)
+	-- (a new table only when what's loading changed: its tooltip is drawn again then, not twice a second)
 	local said = table.concat(lines, "\n")
 	if said ~= busy.said then busy.said, busy.lines = said, lines end
 	busy:SetShown(#lines > 0)
@@ -637,7 +636,7 @@ function UI:UpdateBusy()
 	if finished and self:IsShown() and not self.inBusyRefresh then
 		ns:Trace("busy: loading finished, searching again")
 		self.inBusyRefresh = true
-		self:QuietRedo() -- (in the background: what it finds waits for F5 when a list is shown; 0.51.12)
+		self:QuietRedo() -- (in the background: what it finds waits for F5 when a list is shown)
 		self.inBusyRefresh = false
 	end
 end
@@ -684,13 +683,12 @@ end
 --- filter colour, the start of another word still being typed plain, anything else bad.
 local function ChannelColor(word, typing, filt, base, bad)
 	local to = ns.Share.Channel(word)
-	-- (">> csv", ">>> text": copying is a place to send too; review, 0.53.6)
+	-- (">> csv", ">>> text": copying is a place to send too)
 	return (to.cmd or to.pending or to.drop or to.quests or to.copy) and filt or ((typing and ns.Share.IsStart(word)) and base or bad)
 end
 
--- Which words parse as filters, remembered (review, 0.48.6: every keystroke parsed every filter word again just to
--- colour it; "is:upgrade" / "upgrades" read every worn item each time). Only whether it parses is kept, never the
--- filter, and the mode is part of the key (Simple mode's words are its own); at most WORDS_KEPT, then begun again.
+-- Which words parse as filters, remembered. Only whether it parses is kept, never the filter, and the mode is part of
+-- the key (Simple mode's words are its own); at most WORDS_KEPT, then begun again.
 local WORDS_KEPT = 300
 local parsed, nParsed = {}, 0
 local function Remembered(kind, w, ask)
@@ -731,8 +729,8 @@ function UI:SyntaxSegments(text, plain)
 			pos = pos + #sp
 		else
 			local word = text:match("^%S+", pos)
-			-- (a quote opened in it: the word runs to where it closes, spaces and all, as the search reads it: in:"elwynn
-			-- forest" is one filter; 0.53.1, the player: q:"Rare" showed as a bad filter)
+			-- (a quote opened in it: the word runs to where it closes, spaces and all, as the search reads it:
+			-- in:"elwynn forest" is one filter)
 			local _, quotes = word:gsub('"', "")
 			if quotes % 2 == 1 then
 				local close = text:find('"', pos + #word, true)
@@ -765,7 +763,6 @@ function UI:SyntaxSegments(text, plain)
 				color = p and (Hex(p.color) or t.accent) or (#word == 1 and t.accent or bad)
 			else
 				local key, value = word:match("^(%a+):(.*)$")
-				-- (0.49.2, review: "-малое", "-épée" are "not" too, as the search reads them: a letter of any language)
 				if F and (word:find("[|&]") or word:find("^[-!][%a\128-\255]")) then
 					-- "-is:boe", "q:rare|epic", "sword|axe": a filter once it parses (still being typed: plain)
 					local typing = pos + #word > #text
@@ -825,12 +822,11 @@ function UI:UpdateSyntax()
 	local text = ns.MaskSecret(edit:GetText() or "")
 	local lines = self:PromptLines()
 	local colours = Theme.Get().syntax
-	-- (a secret being typed, ".share join raid <code>": the copy shows it as *s, so it's always on; the box's own text, in
-	-- the game's typing mode (combat), is the game's password box: all *s. 0.58.6, the player: streams)
+	-- (a secret being typed, ".share join raid <code>": the copy shows it as *s, so it's always on; the box's own text,
+	-- in the game's typing mode (combat), is the game's password box: all *s. streams)
 	local secret = ns.SecretLine(text)
 	-- (what's applied, not only whether it's a password line: leaving Terminal's own keys with the line as it is, a
-	-- click into the box or Ctrl+C, turns the box's password mode on. Review, 0.58.16: it stayed off, the password
-	-- in clear)
+	-- click into the box or Ctrl+C, turns the box's password mode on. Review)
 	local want = (secret and not self.keys) and true or false
 	if edit.SetPassword and edit.secretShown ~= want then edit.secretShown = want; pcall(edit.SetPassword, edit, want) end
 	local on = self.keys and self:IsShown() and text ~= "" and (colours or #lines > 1 or secret) and true or false

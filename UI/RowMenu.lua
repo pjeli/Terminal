@@ -26,7 +26,7 @@ local Cap = ns.UpperFirst
 local function MenuRowIndex(e, idx)
 	if UI.results[idx] == e then return idx end
 	for i, r in ipairs(UI.results) do
-		if UI.SameRow(r, e) then return i end -- (rows with no key too: commands, slash rows; review, 0.53.6)
+		if UI.SameRow(r, e) then return i end -- (rows with no key too: commands, slash rows)
 	end
 end
 
@@ -101,7 +101,7 @@ do
 		end)
 	end
 
-	-- "All 8 to party"; one result: "It to party" reads oddly, "The result to party" (0.55.18, review)
+	-- "All 8 to party"; one result: "It to party" reads oddly, "The result to party"
 	local function AllTo(n, to) return (n == 1 and L["The result to %s"] or L["All %s to %s"]):format(n == 1 and to or n, n == 1 and nil or to) end
 
 	--- The menu's lines for row `e`, in order: { label, and secondary (Enter's / Shift+Enter's verb), boxLine (the chat
@@ -114,7 +114,7 @@ do
 		if share then
 			-- (the bar's horn, Bar.lua: sending and copying only)
 		elseif self.fzf then
-			-- (0.45.20) fuzzy finding runs nothing: its first lines do what its Enter and Shift+Enter do (they said "Use",
+			-- fuzzy finding runs nothing: its first lines do what its Enter and Shift+Enter do (they said "Use",
 			-- "Cast"... and then took the row to Simple mode)
 			items[#items + 1] = { label = L["To Simple mode"], run = function() UI:FuzzyPop(e, false) end }
 			items[#items + 1] = { label = L["With its list named"], run = function() UI:FuzzyPop(e, true) end }
@@ -139,8 +139,8 @@ do
 		-- to chat (both modes; Simple mode has no ">>"): the chat box with it, then a line per channel you're in, each
 		-- a chat line the game presses (Terminal's code never sends chat)
 		local SH = ns.Share
-		-- (@who's "Ask the server" asks something: it isn't a result to send)
-		-- (Ctrl+R's lines are what you typed, not results: nothing to send; 0.63.7, review)
+		-- (@who's "Ask the server" asks something: it isn't a result to send) (Ctrl+R's lines are what you typed, not
+		-- results: nothing to send)
 		if SH and SH.Line and not self.histSearch and not (e.syntaxRow or e.catId or e.raw or e.completion or e.lead) then
 			local query = SH.Split(edit:GetText() or "")
 			local searched = SH.Searched(query) -- (nothing typed: the list is your recent picks: no "All N to ..." lines)
@@ -148,9 +148,7 @@ do
 			-- (what's sent is worked out only when a line is picked: an NPC's or a spot's text sets the map pin it links,
 			-- and opening the menu, then Cancel, mustn't move your waypoint)
 			local linked = e.npcID or (e.ui and e.px) or e.getLink or e.link or e.shareLink or e.itemID or e.questID or e.qid
-			-- (0.55.12, the player: "remove All X from individual results and move it to the megaphone only; likewise remove
-			-- individual row outputs from the megaphone") a row's menu sends or copies that row; the bar's send button
-			-- (share) every result at once
+			-- a row's menu sends or copies that row; the bar's send button (share) every result at once
 			local channels = SH.MenuChannels()
 			if not share then
 				-- (the game opens the box with it: see ChatBoxMacro; not when Enter or Shift+Enter, just above, already does that)
@@ -205,22 +203,21 @@ do
 			end
 		end
 		if not EasyOn() and not share and self:ResultText(e) then
-			-- (the menu's own row, wherever the list has put it since: not whichever row is selected now; review, 0.48.6)
+			-- (the menu's own row, wherever the list has put it since: not whichever row is selected now)
 			items[#items + 1] = { label = L["Write into the prompt"], run = function()
-				-- (found as the menu's other lines find it: the same kind and key when the list was rebuilt since; 0.50.7,
-				-- review: by identity alone, whichever row was selected got written)
+				-- (found as the menu's other lines find it: the same kind and key when the list was rebuilt since)
 				local i = MenuRowIndex(e, UI.sel)
 				if not i then return end
 				UI.sel = i
 				UI:FillFromResult()
 			end }
 		end
-		-- why the search listed it (0.66.11, the player): said in chat, the terminal staying open
+		-- why the search listed it: said in chat, the terminal staying open
 		if not (share or self.fzf or self.histSearch or e.syntaxRow or e.catId or e.raw or e.completion or e.lead or e.noActivate)
 			and UI.WhyHere then
 			items[#items + 1] = { label = L["Why is this here?"], run = function() UI:WhyHere(e) end }
 		end
-		-- a problem with this result: .report about it (0.67.11)
+		-- a problem with this result: .report about it
 		if ns.Report and not (share or self.fzf or self.histSearch or e.syntaxRow or e.catId or e.completion or e.lead or e.noActivate) then
 			items[#items + 1] = { label = L["Report a problem with this result"], run = function()
 				self:Hide()
@@ -242,9 +239,9 @@ do
 		local row = fromKeys and rows[idx - UI.offset]
 		if fromKeys then
 			-- from the keyboard (Shift+Right): beside the row, its first line picked (Up/Down, Enter, Esc/Left). Placed
-			-- by screen position against UIParent, never anchored to the row: the menu holds secure buttons, and a secure
-			-- frame anchored to Terminal's frame made it protected, so SetPropagateKeyboardInput stopped working and no
-			-- Enter press reached the game again until a /reload (0.42.11-0.42.23: "everything breaks after the menu")
+			-- by screen position against UIParent, never anchored to the row: the menu holds secure buttons, and a
+			-- secure frame anchored to Terminal's frame made it protected, so SetPropagateKeyboardInput stopped working
+			-- and no Enter press reached the game again until a /reload
 			local at = (row and row:IsShown()) and row or frame
 			local right, top, as = at:GetRight(), at:GetTop(), at:GetEffectiveScale()
 			if type(right) == "number" and type(top) == "number" and type(as) == "number" and type(s) == "number" and s > 0 then
@@ -347,15 +344,15 @@ function UI:MenuKey(f, key)
 		if key ~= "ESCAPE" and key ~= "LEFT" then UI.swallowTick = GetTime() end -- (its character not typed after it)
 		f:SetPropagateKeyboardInput(false); self:HideRowMenu() return true
 	elseif key == "RIGHT" then
-		-- (the Shift+Right that opened it, repeated by a client that repeats keys itself: nothing, not closed and opened
-		-- again; 1.0.85, review)
+		-- (the Shift+Right that opened it, repeated by a client that repeats keys itself: nothing, not closed and
+		-- opened again)
 		f:SetPropagateKeyboardInput(false) return true
 	elseif key ~= "ENTER" and key ~= "NUMPADENTER" then
 		return false -- (anything else closes it and does what it does)
 	end
-	-- Enter runs the line the way Terminal's own Enter runs a row (which works in the game): the line's action is
-	-- armed on Enter during this press and the press goes on to the game, SetPropagateKeyboardInput called ONCE
-	-- (true). Binding Enter to a menu line or a proxy ahead of the press never fired in the game (0.42.14-16).
+	-- Enter runs the line the way Terminal's own Enter runs a row (which works in the game): the line's action is armed
+	-- on Enter during this press and the press goes on to the game, SetPropagateKeyboardInput called ONCE (true).
+	-- Binding Enter to a menu line or a proxy ahead of the press never fired in the game.
 	local b = menu.lines[menu.keySel or 1]
 	local it, e, idx = b and b.item, menu.entry, menu.idx
 	ns:Trace("menu: Enter on line " .. tostring(menu.keySel) .. " (" .. tostring(b and b.fs:GetText()) .. ")")
@@ -378,8 +375,8 @@ function UI:MenuKey(f, key)
 		if not se then
 			f:SetPropagateKeyboardInput(false)
 			self:HideRowMenu()
-			-- (only that: the mouse menu's way with a line this long is Terminal's own code opening the chat box, which taints
-			-- it; 0.49.2, review: this told you to take that way)
+			-- (only that: the mouse menu's way with a line this long is Terminal's own code opening the chat box, which
+			-- taints it)
 			if m and m ~= "" then ns:Print(L["Too long to put in the chat box."])
 			elseif it.chatTo then ns:Print(L["Couldn't send %s."]:format(tostring(e.name))) end -- (nothing to send)
 			return true
@@ -390,7 +387,7 @@ function UI:MenuKey(f, key)
 	if se and self:ArmForPress(se) then
 		f:SetPropagateKeyboardInput(true) -- this same press reaches the game's binding
 		ns:Trace("menu: armed Enter for the press (" .. tostring(ns.Secure.armed) .. ")")
-		-- (a press that asks for more, @who's "ask the server", stays open and isn't a line run: as Enter; 0.49.2, review)
+		-- (a press that asks for more, @who's "ask the server", stays open and isn't a line run: as Enter)
 		if not (it.chatTo or it.boxLine or se.staysOpen) then ns:RecordHistory(edit:GetText()) end
 		self:FinishSoon(se)
 		self:HideRowMenu()
@@ -417,7 +414,7 @@ function UI:MenuPicked(b)
 		self:Hide()
 		return
 	end
-	if it.chatTo and (it.chat or "") == "" then -- (no line to send: nothing was pressed, said so; review, 0.53.6)
+	if it.chatTo and (it.chat or "") == "" then -- (no line to send: nothing was pressed, said so)
 		ns:Print(L["Couldn't send %s."]:format(tostring(e.name)))
 		return
 	end

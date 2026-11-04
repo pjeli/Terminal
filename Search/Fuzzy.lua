@@ -174,7 +174,7 @@ local function Parts(needle, n)
 end
 
 --- The needle as it is in the name only, no letters scattered (a "quoted phrase"): Fuzzy.score's score when it is, else
---- nil, without the scattered match worked out and thrown away (review, 0.53.6).
+--- nil, without the scattered match worked out and thrown away.
 function Fuzzy.substr(needle, hay, lhay)
 	local n, m = #needle, #hay
 	if n == 0 then return 0 end
@@ -383,9 +383,9 @@ function Fuzzy.distance(a, s, from, to, limit)
 	return nil
 end
 
--- Typos as hands make them (0.68.15, the player's call): a neighbouring key, a key pressed twice, a key missed, two keys
--- swapped, a neighbouring key pressed too each cost TYPO_SLIP; any other change TYPO_OTHER. The keyboard is the client's
--- language's: QWERTZ (German), AZERTY (French), else QWERTY.
+-- Typos as hands make them: a neighbouring key, a key pressed twice, a key missed, two keys swapped, a neighbouring key
+-- pressed too each cost TYPO_SLIP; any other change TYPO_OTHER. The keyboard is the client's language's: QWERTZ
+-- (German), AZERTY (French), else QWERTY.
 Fuzzy.TYPO_SLIP, Fuzzy.TYPO_OTHER = 2, 3
 local ROWS = {
 	qwerty = { "1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm" },

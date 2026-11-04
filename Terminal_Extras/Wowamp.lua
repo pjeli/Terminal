@@ -137,9 +137,9 @@ local function Watch(gen, track)
 end
 W.CAN_WATCH = function() return C_Sound and type(C_Sound.IsPlaying) == "function" end
 
---- The track started again after the game cut it: at once the first time, then 2, 4, 8 s apart while it keeps being
---- cut (tabbed out with sound in the background off: the file loaded again and a timer made every second for as long
---- as you were away; review, 0.53.6). Back in the game, the music is back within those seconds.
+--- The track started again after the game cut it: at once the first time, then 2, 4, 8 s apart while it keeps being cut
+--- (tabbed out with sound in the background off: the file loaded again and a timer made every second for as long as you
+--- were away). Back in the game, the music is back within those seconds.
 W.AGAIN_MAX = 8
 function W.Again(gen)
 	local wait = math.min(W.AGAIN_MAX, (state.cuts or 1) > 1 and 2 ^ (state.cuts - 1) or 0)
@@ -168,8 +168,8 @@ PlayCurrent = function(again)
 		end)
 		if W.CAN_WATCH() then Watch(gen, track) end
 	elseif again then
-		-- (starting it again after a cut, refused: the game out of focus. The same track later, not the next one, and not
-		-- counted as a station the game has no music for; review, 0.53.6)
+		-- (starting it again after a cut, refused: the game out of focus. The same track later, not the next one, and
+		-- not counted as a station the game has no music for)
 		ns:Trace(("wowamp: the game didn't start %s again yet"):format(track[3]))
 		state.cuts = (state.cuts or 0) + 1
 		W.Again(gen)
@@ -238,8 +238,7 @@ function W.SetShuffle(on)
 			end
 			state.pos = 1
 		else
-			-- in order: on from where it is (0.49.2, review: swapped to the front of 1..n, track 5 playing gave
-			-- 5, 2, 3, 4, 1, 6...: 2 came next, not 6)
+			-- in order: on from where it is
 			state.pos = current or 1
 		end
 	end
@@ -256,7 +255,7 @@ function W.Find(text)
 	text = ns.Lower and ns.Lower(text or "") or tostring(text or ""):lower()
 	if text == "" then return nil end
 	local n = tonumber(text)
-	if n == 0 then n = 10 end -- (the window's "0" and the 0 key: station 10; review, 0.53.6)
+	if n == 0 then n = 10 end -- (the window's "0" and the 0 key: station 10)
 	if n and W.STATIONS[n] then return n end
 	for i, st in ipairs(W.STATIONS) do
 		local hay = (ns.Lower and ns.Lower(st.name .. " " .. st.id .. " " .. st.place .. " " .. st.genre)) or (st.name .. " " .. st.id):lower()
@@ -265,7 +264,7 @@ function W.Find(text)
 end
 
 -- (after a /reload or a login the zone music comes back if the radio had switched it off: Apps/Extras.lua does that,
--- these files load on demand, after the login; review, 0.48.6: a login frame here never fired)
+-- these files load on demand, after the login)
 function W.Playing() return state.playing and true or false end
 
 ----------------------------------------------------------------------
@@ -543,8 +542,8 @@ local function OnUpdate(_, elapsed)
 	local step = 1 / (off and FPS_OFF or FPS)
 	if vis.acc < step then return end
 	local dt = math.min(vis.acc, 0.2)
-	-- (the rest carried over: a 60 Hz screen's frames jitter around 1/60 s, and setting it to 0 skipped every other one;
-	-- review, 0.53.6)
+	-- (the rest carried over: a 60 Hz screen's frames jitter around 1/60 s, and setting it to 0 skipped every other
+	-- one)
 	vis.acc = math.min(vis.acc - step, step)
 	local moving = false
 	if not off then
@@ -704,7 +703,7 @@ local function Build()
 		frame:SetScript("OnUpdate", nil) -- (a hidden frame runs none anyway; it starts again on open)
 		vis.resting = true
 	end)
-	-- (shown again without being opened, the interface hidden and back: the bars move again; review, 0.57.7)
+	-- (shown again without being opened, the interface hidden and back: the bars move again)
 	frame:SetScript("OnShow", function() if state.playing then W.Redraw(true) end end)
 
 	title = Text(frame, 14)

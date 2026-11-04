@@ -87,7 +87,7 @@ local function NpcID(e) return e.kind == "npc" and (rawget(e, "key") or e.npcID)
 local function NpcField(e, field)
 	local id = NpcID(e)
 	if not id then return nil end
-	-- (a row with its own: TrainerSpells' trainers, when Questie isn't there to ask; 0.57.1)
+	-- (a row with its own: TrainerSpells' trainers, when Questie isn't there to ask)
 	local own = rawget(e, "fields")
 	if own then return own[field] end
 	local I = ns.Integrations
@@ -100,8 +100,7 @@ P.NpcID, P.NpcField = NpcID, NpcField
 local ENGLISH_CLIENT = ns.LOCALE == nil or ns.LOCALE == "enUS" or ns.LOCALE == "enGB"
 function P.EnglishTitle(e)
 	if not NpcID(e) then return nil end
-	-- (an English client's titles are English already: no second field asked per row, 0.69.7 review: trainer: searches
-	-- over 13k NPCs were a third slower)
+	-- (an English client's titles are English already: no second field asked per row)
 	if ENGLISH_CLIENT then return rawget(e, "sub") or NpcField(e, "subName") end
 	return NpcField(e, "subNameEn") or rawget(e, "sub") or NpcField(e, "subName")
 end
@@ -130,7 +129,7 @@ end
 F.Range = Range
 
 --- An amount of money in copper: "1g" 10000, "1g50s" 15000, "50s" 5000, "30c" 30, "2.5g" 25000, "123" 123 (copper, as
---- the game counts it); nil when it isn't one. (0.66.5: value:>1g)
+--- the game counts it); nil when it isn't one.
 local MONEY_UNIT = { g = 10000, s = 100, c = 1 }
 local function Copper(v)
 	if type(v) ~= "string" or v == "" then return nil end
@@ -203,7 +202,7 @@ local function RowHas(e, lw)
 	local ln = rawget(e, "_lname")
 	if not ln then
 		local n = e.name
-		-- (a compact row's from the kept copies: loot's 30k rows, every keystroke of a -word; review, 0.53.6)
+		-- (a compact row's from the kept copies: loot's 30k rows, every keystroke of a -word)
 		ln = type(n) == "string" and (rawget(e, "_compact") and LowerText(n) or Lower(n)) or ""
 	end
 	if ln:find(lw, 1, true) then return true end
@@ -216,8 +215,8 @@ local function RowHas(e, lw)
 end
 F.RowHas = RowHas
 
--- a "not": - or ! before a letter, any language's ("-малое", "!épée"; %a is only a-z: those were search words, and close
--- spellings then listed the very word to leave out; 0.49.2, review). "-30" stays a range.
+-- a "not": - or ! before a letter, any language's ("-малое", "!épée"; %a is only a-z: those were search words, and
+-- close spellings then listed the very word to leave out). "-30" stays a range.
 local NEG = "^[-!][%a\128-\255]"
 
 --- A word's filter, or nil when it's a plain search word. key:value ("q:rare"), and ways to combine:
@@ -270,8 +269,8 @@ function F.Parse(word, plain)
 	traced = false
 	if type(word) ~= "string" or word == "" then return nil end
 	local neg = false
-	-- ("-a|b": neither, the word's "-"; "-a|-b", "-a&-b": a piece of its own carries one, so each piece's "-" is
-	-- its own, as Simple mode's "not a or not b" writes it. Review, 1.0.18: it read "not (a or not b)")
+	-- ("-a|b": neither, the word's "-"; "-a|-b", "-a&-b": a piece of its own carries one, so each piece's "-" is its
+	-- own, as Simple mode's "not a or not b" writes it. it read "not (a or not b)")
 	if word:find(NEG) and not word:find("[|&][-!]") then neg, word = true, word:sub(2) end
 	local f
 	if word:find("[|&]") then

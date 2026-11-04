@@ -142,7 +142,7 @@ ns:RegisterProvider("camp", {
 		local out, casts = {}, {} -- (the spell opening each profession's window: worked out once per profession)
 		for _, def in ipairs(ALL) do
 			local hit = idx[def.lname]
-			if hit and hit.r.learned ~= false then -- (as the index keeps it: an older one has no learned field; review, 0.53.6)
+			if hit and hit.r.learned ~= false then -- (as the index keeps it: an older one has no learned field)
 				local label = def.prof
 				if def.tier then label = L["%s T%s"]:format(label, def.tier) end
 				if def.skill then label = label .. " (" .. def.skill .. ")" end
@@ -164,9 +164,9 @@ ns:RegisterProvider("camp", {
 					if casts[pd] == nil then casts[pd] = pd.spell or P.WindowSpell(pd.skillLine, pd.name, pd) or false end
 					local re = P.RecipeOpenFields(hit.profID, pd, hit.r, casts[pd])
 					e.recipeID, e.profID = re.recipeID, re.profID
-					-- (0.49.2, review: the window's names too: RecipeIsOpen matches a trade spell's window (Bait and
-					-- Tackle, keyed "spell:...") or one whose info says id 0 only by them, and RecipeAfter reads profSpell.
-					-- Without them an open window counted as closed: Enter's /cast shut it, Shift+Enter's toggled it)
+					-- (the window's names too: RecipeIsOpen matches a trade spell's window (Bait and Tackle, keyed
+					-- "spell:...") or one whose info says id 0 only by them, and RecipeAfter reads profSpell. Without
+					-- them an open window counted as closed: Enter's /cast shut it, Shift+Enter's toggled it)
 					e.profName, e.profWindow, e.profSpell = re.profName, re.profWindow, re.profSpell
 					e.secure, e.isOpen, e.after = re.secure, re.isOpen, re.after
 					e.recipeSecure, e.recipeIsOpen, e.recipeAfter = re.secure, re.isOpen, re.after

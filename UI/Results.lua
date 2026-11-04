@@ -146,7 +146,7 @@ end
 
 --- The same row, or the same row made again (kind, key and name).
 -- (a worn piece and the same item in your bags share their kind, name and key, as the history wants: the slot tells
--- them apart, or Enter found the worn one again after a bag update and opened the character window; 1.0.90, review)
+-- them apart, or Enter found the worn one again after a bag update and opened the character window)
 local function SameRow(e, keep)
 	return e == keep or (e.kind == keep.kind and e.name == keep.name and e.key == keep.key
 		and rawget(e, "slotId") == rawget(keep, "slotId"))
@@ -178,10 +178,9 @@ local function PutUp(list)
 	KeepSelection(keep, keptRow)
 end
 
--- A search run again because item data came in (UI:RetryWhenLoaded) runs in the background: the list shown stays as
--- it is, and what it found waits (UI.held) for F5 (UI.UPDATE_KEY), the footer saying so; unless nothing was shown but
--- "keep typing" lines (0.51.8, the player: "just generate a result list and stick with it; let the updating happen in
--- the background or on a key press rather than while I am searching").
+-- A search run again because item data came in (UI:RetryWhenLoaded) runs in the background: the list shown stays as it
+-- is, and what it found waits (UI.held) for F5 (UI.UPDATE_KEY), the footer saying so; unless nothing was shown but
+-- "keep typing" lines.
 UI.UPDATE_KEY = "F5"
 local function Real(list)
 	for i = 1, #list do if not list[i].noActivate then return true end end
@@ -194,8 +193,7 @@ function UI.RealCount(list)
 	return n
 end
 -- What a search sets beside its rows, read with the rows shown (the footer, Enter, >>> sending): a background search
--- whose rows are held mustn't change them under the shown list (review, 0.51.25: ">>> party" sent the new rows while the
--- list said the old ones; Simple mode's category label changed with the list staying)
+-- whose rows are held mustn't change them under the shown list
 local LIST_FIELDS = { "sendTo", "groupList", "groupRows", "aggregate", "linked", "answerNote", "pipeTrail",
 	"flightNote", "missingNote", "weightsNote", "overviewWinner", "category", "categoryAuto", "softRelaxed" }
 local NONE = {}
@@ -209,11 +207,9 @@ local function SetFields(self, t)
 	for _, k in ipairs(LIST_FIELDS) do local v = t[k] if v == NONE then self[k] = nil else self[k] = v end end
 end
 --- A background search's rows: "held" for F5 (the shown list and what it was searched with kept), "same" (the same
---- rows: put up in their place, nothing moving, so a stack's count is the new one; review, 0.51.25), or nil: nothing
---- real was shown, so they're shown.
---- What the list on screen was searched with: kept whenever rows are put up (UI.shownFields), so a background search's
---- held rows give back the shown list's, whichever search ran in between (review, 0.51.25: a background search started
---- again, or F5 pressed while one ran, gave back another's).
+--- rows: put up in their place, nothing moving, so a stack's count is the new one), or nil: nothing real was shown, so
+--- they're shown. What the list on screen was searched with: kept whenever rows are put up (UI.shownFields), so a
+--- background search's held rows give back the shown list's, whichever search ran in between.
 local function Shown(self) self.shownFields = Fields(self) end
 --- The same rows, in the same order (SameRow each).
 local function SameRows(a, b)
@@ -221,14 +217,12 @@ local function SameRows(a, b)
 	for i = 1, #a do if not SameRow(a[i], b[i]) then return false end end
 	return true
 end
--- F5 only for a list that's sure (0.52.9, the player: after a /reload "upgrades" jumped between result sets, F5 coming
--- and going while item data came in: "if an F5 result appears it should be because we definitely have a new stable
--- set"): a background search's rows unlike what's shown are a candidate; the same search again UI.CONFIRM_S s later
--- (or the next one data coming in starts) finding the same rows confirms them, and only then is F5 offered. Likewise
--- an offered list is taken back only once the shown one is found again twice. At most UI.CONFIRM_TRIES checks a search.
--- (release review: the checks are counted per candidate, a new one starting over, so data coming in for a while (a
--- /reload's "upgrades": a new candidate each time) can't use them all up before the list settles; CONFIRM_ALL caps a
--- search's checks all the same)
+-- F5 only for a list that's sure: a background search's rows unlike what's shown are a candidate; the same search again
+-- UI.CONFIRM_S s later (or the next one data coming in starts) finding the same rows confirms them, and only then is F5
+-- offered. Likewise an offered list is taken back only once the shown one is found again twice. At most
+-- UI.CONFIRM_TRIES checks a search. (release review: the checks are counted per candidate, a new one starting over, so
+-- data coming in for a while (a /reload's "upgrades": a new candidate each time) can't use them all up before the list
+-- settles; CONFIRM_ALL caps a search's checks all the same)
 UI.CONFIRM_S, UI.CONFIRM_TRIES, UI.CONFIRM_ALL = 1.5, 6, 30
 local confirm = { gen = 0, tries = 0, all = 0 }
 local function Confirm(self)
@@ -270,9 +264,8 @@ local function Hold(self, shown, new)
 	return "held"
 end
 
--- A category stepped into from the list of categories, listing another number than its row counted (0.51.11, the
--- player: "Dungeon loot" said 100+ upgrades and listed a steady 52, item data having come in meanwhile): the footer
--- says the list was updated as you stepped in, for UI.COUNT_NOTE_S s.
+-- A category stepped into from the list of categories, listing another number than its row counted: the footer says the
+-- list was updated as you stepped in, for UI.COUNT_NOTE_S s.
 UI.COUNT_NOTE_S = 6
 function UI:NoteCountChange()
 	local want = self.expectCount
@@ -288,10 +281,10 @@ function UI:NoteCountChange()
 	end)
 end
 
--- A list changes while its rows are shown (bags while you loot, the loot log, mail; 0.51.12): searched again in the
--- background UI.LIVE_WAIT s after the last change, what it finds held for F5 as data coming in is (Hold); shown at
--- once only when nothing real was. A list that keeps changing as it's read (its own events) is searched again at
--- most UI.LIVE_SAME times in a row while nothing new comes of it.
+-- A list changes while its rows are shown (bags while you loot, the loot log, mail): searched again in the background
+-- UI.LIVE_WAIT s after the last change, what it finds held for F5 as data coming in is (Hold); shown at once only when
+-- nothing real was. A list that keeps changing as it's read (its own events) is searched again at most UI.LIVE_SAME
+-- times in a row while nothing new comes of it.
 UI.LIVE_WAIT, UI.LIVE_SAME, UI.LIVE_FRESH = 1, 3, 10
 local live = { kinds = {}, timer = false, same = 0 }
 UI.live = live -- (tests)
@@ -335,8 +328,7 @@ function ns.OnDirty(p)
 	if not (UI.IsShown and UI:IsShown()) or UI.mode ~= "search" then return end
 	live.kinds[p.id] = true
 	live.at = GetTime()
-	-- (a change a while after the last search again is a new one, not the list changing as it's read: counted afresh;
-	-- review, 0.51.25: three unrelated changes stopped them for good)
+	-- (a change a while after the last search again is a new one, not the list changing as it's read: counted afresh)
 	-- (UI.LIVE_FRESH s: longer than a server's answer to the read itself, which would start it over and over)
 	if live.redoneAt and live.at - live.redoneAt > UI.LIVE_FRESH then live.same = 0 end
 	if live.timer then return end
@@ -371,10 +363,8 @@ function UI:ShowNewResults()
 	self:Render()
 end
 
--- a search done: its full results replace the early ones; the selected result stays selected if it's still there,
--- and the list stays where you scrolled it
--- (the same row made again counts: kind, key and name, as Refresh has it; 0.51.7: a category row, made anew by every
--- search, lost the selection to the top row whenever item data came in)
+-- a search done: its full results replace the early ones; the selected result stays selected if it's still there, and
+-- the list stays where you scrolled it (the same row made again counts: kind, key and name, as Refresh has it)
 local function Completed(self, job, final)
 	final = self:CollapseGroup(final)
 	if job.quiet then -- (run in the background: held for F5)
@@ -402,7 +392,7 @@ end
 function UI:ContinueSearch(job)
 	if self.searchJob ~= job then return end -- typed again, or closed: this search is stale
 	-- (armed, it goes on: Enter presses the armed entry whatever the list shows; dropped, the list stayed at its first
-	-- slice for good, review 0.48.6)
+	-- slice for good)
 	if not self:IsShown() or self.closing then self.searchJob = nil return end
 	local final, done = self:StepSearch(job)
 	if not done then
@@ -525,8 +515,7 @@ local function TakeSendTo(self, text, first)
 		self.sendTo.all = send.all -- (">>> party": every result at once, Share.SendAll)
 		return r.base
 	end
-	-- Simple mode: copying said in plain words at the end: "linen to csv", "linen as text" (every result; 0.52.12, the
-	-- player's call).
+	-- Simple mode: copying said in plain words at the end: "linen to csv", "linen as text" (every result).
 	local copy = r.copy
 	if copy then
 		local to = ns.Share.Channel(copy.how)
@@ -537,8 +526,8 @@ local function TakeSendTo(self, text, first)
 	return text
 end
 
---- "| sum value", "| group zone" (0.52.13; Simple mode too since 0.55.9): the steps after a "|" standing alone, read
---- into UI.aggregate (the search sums its results up: Aggregate.lua's ns.Aggregate); gives the text to search. Simple mode's
+--- "| sum value", "| group zone" (Simple mode too since 0.55.9): the steps after a "|" standing alone, read into
+--- UI.aggregate (the search sums its results up: Aggregate.lua's ns.Aggregate); gives the text to search. Simple mode's
 --- bar's Group when none is typed ("| group by zone" as Advanced writes it; not over the categories, Bar.lua).
 local function TakeAggregate(self, text, first)
 	self.aggregate, self.typedGroup, self.barGroupIgnored = nil, nil, nil
@@ -547,15 +536,15 @@ local function TakeAggregate(self, text, first)
 	-- (the line as TakeSendTo read it, its send off: this text)
 	local r = self.reading
 	if not (r and r.base == text) then r = ns.Phrase.ReadLine(text, { simple = EasyOn() }) end
-	-- ("quests per zone": searched as "@questie | group by zone", its groups' Enter stepping in; 0.61.5, the player)
+	-- ("quests per zone": searched as "@questie | group by zone", its groups' Enter stepping in)
 	local per = r.per
 	local query, steps
 	if per then query, steps = per.query, per.list
 	elseif r.steps then query, steps = r.steps.query, r.steps.list end
 	if steps then
-		-- (steps typed that sum, count or group: theirs, not the bar's Group, which says so (Bar.lua; 0.55.18, review). Steps
-		-- that only keep rows, a group stepped into ("| faction:\"Nightclaw Druids\""): the bar's Group groups what they
-		-- keep, as it does a search (1.0.29, the player: "step into a group and then group by standing still")
+		-- (steps typed that sum, count or group: theirs, not the bar's Group, which says so (Bar.lua). Steps that only
+		-- keep rows, a group stepped into ("| faction:\"Nightclaw Druids\""): the bar's Group groups what they keep, as
+		-- it does a search
 		local bar = EasyOn() and ns.Bar and ns.Bar.Active()
 		self.aggregate = A.Parse(steps, query)
 		local fromBar = false
@@ -579,7 +568,7 @@ local function TakeAggregate(self, text, first)
 	end
 	local bar = EasyOn() and ns.Bar and ns.Bar.Active()
 	-- (top N in words, "the 3 nearest mailboxes": the first three of "nearest mailboxes"; 0.66.7, StepWords.lua; a comparison
-	-- said at the end, "but not in my bank": "| except @bank", 0.66.10. Simple mode's: the reading has them only there)
+	-- said at the end, "but not in my bank": "| except @bank". Simple mode's: the reading has them only there)
 	local n, setStep = r.top and r.top.n, r.setop and r.setop.step
 	local rest = r.query
 	if n or setStep then
@@ -613,8 +602,7 @@ local function ListFor(self, text, first, edit)
 		local picked = self:SyntaxRows(edit:GetText())
 		if picked then
 			UI.results = picked -- (typing "@" or "stat:": what fits, to pick from)
-			-- (the search before it said things in the footer: not about this list; 0.50.7, review: "no exact match: close
-			-- spellings" and "Use ·" stayed on after " q:")
+			-- (the search before it said things in the footer: not about this list)
 			local Scan = UI._Scan
 			if Scan and Scan.ResetFlags then Scan.ResetFlags(self) end
 			self.action, self.noPosition = nil, nil
@@ -629,11 +617,9 @@ local function ListFor(self, text, first, edit)
 	end
 end
 
--- (0.55.9, the player: "if things are written in simple mode let's try to keep them in simple mode as much as we can,
--- because then we lose the ability to go back") Advanced syntax typed in Simple mode no longer turns the line Advanced
--- (0.54.1-0.55.8: UI:AutoAdvanced rewrote the Simple words before it in Advanced syntax): Simple mode searches @kinds,
--- key:value, sort:, do:, ">>", a chain's ">" and "| group by" as they're typed, and the words around them as Simple
--- words; the bar shows what they pick (Bar.lua). Alt+` is the one way over, and back.
+-- Advanced syntax typed in Simple mode no longer turns the line Advanced: Simple mode searches @kinds, key:value,
+-- sort:, do:, ">>", a chain's ">" and "| group by" as they're typed, and the words around them as Simple words; the bar
+-- shows what they pick (Bar.lua). Alt+` is the one way over, and back.
 
 function UI:Refresh()
 	local frame, edit = UI.frame, UI.edit
@@ -655,13 +641,13 @@ function UI:Refresh()
 	self.refreshCount = (self.refreshCount or 0) + 1
 	if edit:GetText() ~= "" then self.showRecent = nil end -- (Down's recent picks last until you type)
 	if self.searchJob then ns:Trace("search: started again before the last one finished (" .. (self.searchJob.slices or 0) .. " frames in)") end
-	-- (a search of yours still going: one asked for in the background now runs as yours, its first frame's best not held
-	-- behind F5 as if it were the list; review, 0.51.25)
+	-- (a search of yours still going: one asked for in the background now runs as yours, its first frame's best not
+	-- held behind F5 as if it were the list)
 	local yours = self.searchJob and not self.searchJob.quiet
 	self.searchJob = nil -- a search still going on is for the old text
 	self.searchedText = edit:GetText()
 	-- the same text searched again (a list finished loading, item data came in): the row selected stays selected, and
-	-- what was armed stays armed (review, 0.48.6: the selection jumped back to the first row every 1.1 s while data loaded)
+	-- what was armed stays armed
 	local same = self.refreshText == self.searchedText
 	local keep = same and (UI.sel > 1 or UI.offset > 0) and UI.results[UI.sel] or nil
 	local keptRow = UI.sel - UI.offset
@@ -669,21 +655,20 @@ function UI:Refresh()
 	local t0 = debugprofilestop and debugprofilestop()
 	if self.armedEntry and not same then self:Disarm() end -- the query changed: whatever was armed is stale
 	-- (a press finishing (FinishSoon) is kept through the same text searched again: the data retry, the spinner's
-	-- refresh, a queued one; 0.49.2, review: it was dropped, and the terminal stayed over the window it opened)
+	-- refresh, a queued one)
 	if not same then self.pendingAfter = nil end
 	self.args = nil
 	self.mode = "search"
 	local text = edit:GetText():gsub("^%s+", "")
 	if text == "" and ns.Bar then ns.Bar.Reset() end -- (the prompt cleared: what the bar picked goes too)
-	-- (a .command or /slash line: no search for the bar's picks; they'd come back on the next search; 0.55.18)
+	-- (a .command or /slash line: no search for the bar's picks; they'd come back on the next search)
 	if ns.Bar and (text:sub(1, 1) == "." or text:sub(1, 1) == "/") and not self.fzf then ns.Bar.Reset() end
 	local first = text:sub(1, 1)
 	if self.fzf or self.histSearch then first = "" end -- (pure fuzzy finding, Ctrl+R: every line is a search, nothing in it is syntax)
 	text = TakeSendTo(self, text, first)
 	text = TakeAggregate(self, text, first)
-	-- searched again because item data came in (RetryWhenLoaded): the list shown stays as it is till the search is done,
-	-- not its first frame's best put up meanwhile (0.51.7, the player: "upgrades" jumped about and back to the top
-	-- every couple of seconds while the items loaded)
+	-- searched again because item data came in (RetryWhenLoaded): the list shown stays as it is till the search is
+	-- done, not its first frame's best put up meanwhile
 	local quiet = same and self.quietRedo and not yours
 	self.quietRedo = nil
 	if not quiet then
@@ -726,10 +711,9 @@ function UI:Refresh()
 end
 
 ----------------------------------------------------------------------
--- Back (0.45.16, the player: from a recipe's sources there was no easy way back to the recipes you don't know): a row
--- whose Enter writes a new search (a recipe -> "where to learn it", a chain's next step, Shift+Right's "write it") keeps
--- the search it left; Shift+Left (0.45.17: the one key for going back, wherever the cursor is) goes back to it while
--- its text is untouched, the row picked selected again (Keys.lua).
+-- Back: a row whose Enter writes a new search (a recipe -> "where to learn it", a chain's next step, Shift+Right's
+-- "write it") keeps the search it left; Shift+Left goes back to it while its text is untouched, the row picked selected
+-- again (Keys.lua).
 ----------------------------------------------------------------------
 UI.walks = {}
 UI.WALKS_MAX = 10
@@ -778,7 +762,7 @@ function UI:GoBack()
 	if self.fzf or self.histSearch then return false end
 	if self:WalkBack() then return true end
 	if self:HistoryBack() then return true end
-	-- (0.55.9) Alt+`'s Advanced line, as it wrote it: back to the Simple words it came from (as Alt+` again does)
+	-- Alt+`'s Advanced line, as it wrote it: back to the Simple words it came from (as Alt+` again does)
 	if self:CanUndoAdvanced() then self:BackToSimple() return true end
 	if EasyOn() and self.category and not self.categoryAuto and UI.mode == "search" then
 		self:SetCategory(nil)
@@ -825,7 +809,7 @@ function UI:History(dir)
 		idx = (idx or 0) - 1
 	end
 	local text = idx >= 1 and h[idx] or ""
-	if ns.Bar then ns.Bar.Reset() end -- (another line: what the bar picked was for the last one; 0.55.18)
+	if ns.Bar then ns.Bar.Reset() end -- (another line: what the bar picked was for the last one)
 	-- the game may report this change a frame later: the walk goes on while the text is the one it set
 	self.histText = text
 	self._histSet = true
@@ -850,8 +834,8 @@ function UI:HistoryBack(dry)
 	return self:History(1)
 end
 
---- Up: the list's selection goes up; from the first row of an empty prompt, or of a line it brought back, it goes
---- back through the history instead (0.48.3, the player: Down then goes into that line's results, as on any search).
+--- Up: the list's selection goes up; from the first row of an empty prompt, or of a line it brought back, it goes back
+--- through the history instead.
 function UI:Up()
 	local edit = UI.edit
 	if self.fzf or self.histSearch then return self:Move(-1) end -- (pure fuzzy finding, Ctrl+R: the arrows only go through the list)
@@ -907,7 +891,7 @@ function UI:Scroll(delta)
 	UI.offset = math.max(0, math.min(maxOffset, UI.offset - delta * 3))
 	local was = UI.sel
 	UI.sel = math.max(UI.offset + 1, math.min(UI.offset + LY.ROWS, UI.sel))
-	-- (the selection moved: what a click armed is another row's now, as Move does; review, 0.48.6)
+	-- (the selection moved: what a click armed is another row's now, as Move does)
 	if UI.sel ~= was and self.armedEntry then self:Disarm() end
 	self:Render()
 end

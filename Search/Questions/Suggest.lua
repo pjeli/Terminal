@@ -1,11 +1,7 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- "What should I do?" (0.61.0, the player's ask: "if someone types a 'what should i do now' type search, or maybe by
--- default / empty, they can be presented with some suggestion results that detail leveling a certain profession, or a
--- certain dungeon for upgrades, or nearest repair if dura low, or nearest class / weapon trainer if missing something";
--- then "nearby vendor if player has junk to sell", "quest if their zone has a lot of quests available their level",
--- "class quest if it is time").
+-- "What should I do?".
 --
 -- What's worth doing now, from what Terminal already knows of your character, the most pressing first. Each row says
 -- why, and Enter searches for it (plain words, so Simple and Advanced mode alike; its tooltip writes the search in
@@ -46,8 +42,8 @@ local function Has(addon)
 end
 
 --- A list's rows: built when asked (`build`); else only if it's been read and is up to date: the empty prompt builds no
---- list (tests/smoke/opencost.lua: the player's CPU spike on opening, 0.53.1) and says nothing from one out of date (a
---- spell learned since). `stale`: the last one read will do (the caller checks what it takes from it).
+--- list (tests/smoke/opencost.lua: the player's CPU spike on opening) and says nothing from one out of date (a spell
+--- learned since). `stale`: the last one read will do (the caller checks what it takes from it).
 local function Entries(id, build, stale)
 	local p = ns.providers[id]
 	if not p then return {} end
@@ -268,7 +264,7 @@ CHECKS[#CHECKS + 1] = function(build)
 	if not best or not Str(best.e.name) then return end
 	local parts = { L["Lv %d"]:format(best.need), best.pct > 0 and L["%d%% done"]:format(best.pct) or L["not started"] }
 	return { id = "classquest", name = L["Class quest: %s"]:format(Str(best.e.name) or "?"), detail = table.concat(parts, SEP),
-		-- (Enter: that quest's steps, each Enter opening Attune on it; 0.61.0, the player's ask)
+		-- (Enter: that quest's steps, each Enter opening Attune on it)
 		icon = "Interface\\Icons\\INV_Misc_Note_01", search = "steps for " .. Lower(Str(best.e.name)), score = 60 }
 end
 
@@ -387,7 +383,7 @@ for _, s in ipairs({ "what should i do", "what should i do now", "what should i 
 	"what should i work on", "what should i be doing", "what else", "anything to do", "something to do", "suggest",
 	"suggestions", "suggest something", "ideas", "im bored", "i am bored", "bored", "now what", "next steps",
 	"what should i do today" }) do ASKS[s] = true end
--- ("help me", "todo list": a search and is:todo's word, as before; release review, 0.63.0)
+-- ("help me", "todo list": a search and is:todo's word, as before)
 
 function SG.Question(text)
 	local t = ns.QuestionText(text)
@@ -462,9 +458,9 @@ local function Band(level) return math.max(1, level - 2), level + 3 end
 --- Your level or zone not known (QH.Line has none): said so.
 function QH.Answer() return { ns.NoteRow(L["Your zone isn't known here"]) }, L["Quests here"] end
 
---- '@questie lvl:21-26 in:"the barrens" is:todo is:cantake sort:level,name': its answer and its Alt+` (docs/QUESTIONS.md
---- 4.1), the quests you can take at your level here, not done (1.0.79: the Alt+` line listed done ones and others'
---- too); nil (its own answer: says why) when your level or zone isn't known.
+--- '@questie lvl:21-26 in:"the barrens" is:todo is:cantake sort:level,name': its answer and its Alt+`
+--- (docs/QUESTIONS.md 4.1), the quests you can take at your level here, not done; nil (its own answer: says why) when
+--- your level or zone isn't known.
 function QH.Line()
 	local level = Level()
 	local zone = Str(Safe(GetRealZoneText))
@@ -494,7 +490,7 @@ local CRAFT_FILL = { what = true, whats = true, can = true, i = true, could = tr
 	things = true, stuff = true, recipes = true, items = true, my = true, me = true, with = true, from = true, the = true,
 	have = true, all = true, which = true, to = true, ["for"] = true, ["in"] = true }
 -- (what you craft from: filler only after with, from, in, my: "what can i make with my mats"; "craft bags", "craftable
--- bags" are searches for bags; release review, 0.63.0)
+-- bags" are searches for bags)
 local CRAFT_FROM = { bags = true, mats = true, materials = true, reagents = true, inventory = true }
 local CRAFT_FROM_AFTER = { with = true, from = true, ["in"] = true, my = true, the = true }
 
@@ -532,7 +528,7 @@ function CC.Question(text)
 end
 
 --- As Advanced syntax: its answer and its Alt+` (docs/QUESTIONS.md 4.1); its professions by prof:, the recipe's own
---- (Smelting's recipes are Mining's: the word "mining" missed them, 1.0.78).
+--- (Smelting's recipes are Mining's: the word "mining" missed them).
 function CC.Line(q)
 	local parts = { "@recipe", "is:craftable" }
 	if #q.profs > 0 then parts[#parts + 1] = "prof:" .. table.concat(q.profs, "|"):gsub(" ", "_") end
@@ -567,9 +563,8 @@ local function ListFor(word, mine)
 		return (not mine and ns.providers.questie and Has("Questie")) and "@questie" or "@questlog"
 	end
 	-- (a list's own name or alias, whole, as it's written: not the start of one, "a by zone" isn't @achievements, nor a
-	-- plural made up, "keys"; release review, 0.63.0)
-	-- (written as the kind's own word, as Alt+` writes every other list: "items by zone" is @item, not @items; Alt+` of
-	-- it read @item, FRONT_END.md 10.8)
+	-- plural made up, "keys") (written as the kind's own word, as Alt+` writes every other list: "items by zone" is
+	-- @item, not @items; Alt+` of it read @item, FRONT_END.md 10.8)
 	if not ns.aliasMap then ns:ResolveProvider("") end
 	local map = ns.aliasMap or {}
 	local one = word:sub(-1) == "s" and word:sub(1, -2)
@@ -608,9 +603,8 @@ end
 -- stage, the filters typed after it before its "|")
 
 ----------------------------------------------------------------------
--- "who gives the defias brotherhood", "where do i turn in the defias brotherhood": a quest's giver or turn-in NPC
--- (1.0.47, the reach audit: "who gives ..." was the /who list). Questie's startedBy / finishedBy; "who" alone and "who
--- 20-30" stay the /who list.
+-- "who gives the defias brotherhood", "where do i turn in the defias brotherhood": a quest's giver or turn-in NPC.
+-- Questie's startedBy / finishedBy; "who" alone and "who 20-30" stay the /who list.
 ----------------------------------------------------------------------
 
 local QP = {}
@@ -630,7 +624,7 @@ local function QuestNamed(said)
 		for _, e in ipairs(list) do
 			local n = type(e.name) == "string" and Plain(Lower(e.name):gsub("'", ""):gsub("%p", " ")) or nil
 			local id = e.qid
-			-- (every quest of the name: a chain's parts and the other faction's twin share one; review, 1.0.68)
+			-- (every quest of the name: a chain's parts and the other faction's twin share one)
 			if n and id then
 				local b = byName[n]
 				if not b then b = { id = id, name = e.name, ids = {} }; byName[n] = b end
@@ -691,8 +685,7 @@ end
 
 ----------------------------------------------------------------------
 -- "quests near me", "nearest quests": Questie's quests at your level, not done, whose giver is nearest; "turn ins near
--- me": your quests ready to turn in, by how near their turn-in NPC is (1.0.48, the reach audit: both were NPCs named
--- "quests", "turn ins")
+-- me": your quests ready to turn in, by how near their turn-in NPC is
 ----------------------------------------------------------------------
 
 local NQ = {}
@@ -771,8 +764,7 @@ function NQ.Answer(q)
 end
 
 ----------------------------------------------------------------------
--- "deadmines bosses", "bosses in the deadmines": an instance's bosses from AtlasLoot, each leading to its loot (1.0.50,
--- the reach audit)
+-- "deadmines bosses", "bosses in the deadmines": an instance's bosses from AtlasLoot, each leading to its loot
 ----------------------------------------------------------------------
 
 local IB = {}
@@ -796,8 +788,8 @@ function IB.Question(text)
 	local P = ns.Pipes
 	if not (P and P.BossLoot) then return nil end
 	local want = table.concat(rest, " ")
-	-- (the instance's whole name, with or without "the", or its shorthand's; or the start of its name, 4 letters or more:
-	-- "st bosses" listed the Stockade's with Stratholme's, "boss a" every instance's; review, 1.0.68)
+	-- (the instance's whole name, with or without "the", or its shorthand's; or the start of its name, 4 letters or
+	-- more: "st bosses" listed the Stockade's with Stratholme's, "boss a" every instance's)
 	local S = ns.Shorthand -- ("vc bosses": its full name, Shorthand.lua)
 	local exp = S and type(S[want]) == "table" and S[want] or {}
 	local names = { [want] = true, ["the " .. want] = true }
@@ -834,8 +826,7 @@ end
 
 ----------------------------------------------------------------------
 -- "how many linen do i have", "do i have linen cloth", "count my linen": the items with that name, how many in all and
--- where (your bags, your bank, your alts: @stored's count when a bag addon keeps them), the most first (1.0.51, the
--- reach audit)
+-- where (your bags, your bank, your alts: @stored's count when a bag addon keeps them), the most first
 ----------------------------------------------------------------------
 
 local HV = {}
@@ -908,7 +899,7 @@ function HV.Answer(q)
 	return rows, title
 end
 --- The same items, where they are: your bags' (@item), and with a bag addon's records your bank's and alts' (@stored:
---- only what isn't in your bags; review, 1.0.70: @stored alone left an item only in your bags out).
+--- only what isn't in your bags).
 function HV.ToAdvanced(q)
 	-- (the words as Advanced mode writes them, "linen cloth|type:cloth": Alt+` again reads the same; its own lists left out)
 	local words = ns.LineToAdvanced and ns.LineToAdvanced(q.what) or q.what
@@ -918,7 +909,7 @@ end
 
 ----------------------------------------------------------------------
 -- "quests that start from an item", "quests started by items": the quests Questie says an item starts (startedBy's
--- items), each with the item (1.0.52, the reach audit)
+-- items), each with the item
 ----------------------------------------------------------------------
 
 local QS = {}
@@ -945,7 +936,7 @@ end
 
 ----------------------------------------------------------------------
 -- "what level is hogger", "what level is the stockade", "duskwood level": the level Terminal has for it (an NPC's from
--- Questie, a dungeon's or a raid's, a zone's range), its row saying it (1.0.55, the reach audit)
+-- Questie, a dungeon's or a raid's, a zone's range), its row saying it
 ----------------------------------------------------------------------
 
 local LV = {}
@@ -972,7 +963,7 @@ function LV.Question(text)
 			what = what:gsub("^the ", "")
 			if what ~= "" and what ~= "my" and what ~= "your" then
 				-- a dungeon or a raid, a zone, an NPC (Questie's), in that order. (Asked on every keystroke: the small
-				-- instance lists, the zones' table, the NPCs' names text; no map or NPC list built here, review 1.0.67)
+				-- instance lists, the zones' table, the NPCs' names text; no map or NPC list built here)
 				for _, kind in ipairs({ "dungeon", "raid" }) do
 					local e = ns.providers[kind] and Named(Entries(kind, true), what)
 					if e and e.minLevel then return { row = e, said = LevelSaid(e.minLevel, e.level) } end
@@ -1008,8 +999,7 @@ end
 
 ----------------------------------------------------------------------
 -- "what are my bags worth", "bag value", "what's my stuff worth": what your bags sell to a vendor for, summed (with
--- Auctionator, AuctionValues.lua's AhValueQ answers first, with the auction house's worth). The search runs the line
--- (1.0.56, the reach audit).
+-- Auctionator, AuctionValues.lua's AhValueQ answers first, with the auction house's worth). The search runs the line.
 ----------------------------------------------------------------------
 
 local BW = {}
@@ -1028,13 +1018,13 @@ function BW.Question(text)
 		elseif not BW_FILL[w] then return nil end
 	end
 	if not (list and worth) then return nil end
-	return { line = "@item in:bags | sum value " } -- (@item: its list named, as every question's; 1.0.82, review)
+	return { line = "@item in:bags | sum value " } -- (@item: its list named, as every question's)
 end
 
 ----------------------------------------------------------------------
 -- "bigger bags", "bags with more slots": bags bigger than your smallest one, the most slots first, each saying where it
 -- comes from (its loot row's boss, its recipe, its quest), from your bags, AtlasLoot, your recipes and those you could
--- learn (1.0.57, the reach audit). Its own answer: no one Advanced line lists the same rows (review, 1.0.70).
+-- learn. Its own answer: no one Advanced line lists the same rows.
 ----------------------------------------------------------------------
 
 local BB = {}
@@ -1084,7 +1074,7 @@ function BB.Answer(q)
 			end
 		end
 	end
-	-- (the most slots first, then cut: Bar.SortRows only scores the rows, so the cut kept the lists' order; review, 1.0.68)
+	-- (the most slots first, then cut: Bar.SortRows only scores the rows, so the cut kept the lists' order)
 	if ns.Bar and ns.Bar.Order then rows = ns.Bar.Order(rows, "slots") end
 	for i = #rows, BB.MAX + 1, -1 do rows[i] = nil end
 	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
@@ -1094,7 +1084,7 @@ end
 
 ----------------------------------------------------------------------
 -- "achievements almost done", "quests almost done": those under way, the closest to done first (sort:progress: an
--- achievement's criteria, a quest's objectives; 1.0.59, the reach audit)
+-- achievement's criteria, a quest's objectives)
 ----------------------------------------------------------------------
 
 local AD = {}
@@ -1118,7 +1108,7 @@ function AD.Question(text)
 	return { kind = kind }
 end
 --- As Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): those under way and not done, the most done
---- first ("@achievement is:todo sort:progress" listed the ones not begun too, review 1.0.70: is:started, 1.0.79).
+--- first ("@achievement is:todo sort:progress" listed the ones not begun too).
 function AD.Line(q)
 	if q.kind == "achievements" then return "@achievement is:started is:todo sort:progress,name " end
 	return "@questlog is:started -is:complete sort:progress,name " -- (as Alt+` names the quest log: one line either way)
@@ -1128,7 +1118,7 @@ function AD.None() return { ns.NoteRow(L["Nothing has that. Check the spelling, 
 
 ----------------------------------------------------------------------
 -- "where is my hearth", "my hearthstone location": where your hearthstone takes you (the game's GetBindLocation) and
--- whether it's ready (1.0.60, the reach audit)
+-- whether it's ready
 ----------------------------------------------------------------------
 
 local HB = {}
@@ -1152,7 +1142,7 @@ function HB.Cooldown()
 	if not (start and dur) then return nil end
 	local left = start > 0 and dur > 1.5 and (start + dur - GetTime()) or 0
 	if left <= 0 then return L["ready"] end
-	return L["%s left"]:format(ns.Left(left)) -- (Util.lua's one "how long is left"; review, 1.0.73)
+	return L["%s left"]:format(ns.Left(left)) -- (Util.lua's one "how long is left")
 end
 function HB.Answer()
 	local where = Str(Safe(_G.GetBindLocation))
@@ -1168,7 +1158,7 @@ end
 
 ----------------------------------------------------------------------
 -- "how long to level", "xp per hour", "time to level": experience an hour this session, and the time to your next level
--- at that rate (Providers/Experience.lua's X.Rate; 1.0.61, the reach audit)
+-- at that rate (Providers/Experience.lua's X.Rate)
 ----------------------------------------------------------------------
 
 local XR = {}

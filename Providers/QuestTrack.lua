@@ -121,7 +121,7 @@ function QK.Here(e)
 end
 
 --- Whether every word names the quest: its title or its log header, or a place it's short for ("rfc": Ragefire Chasm).
---- A name typed as one word is found too ("thunderbluff": Thunder Bluff; "zulfarrak": Zul'Farrak; 0.63.4, the player).
+--- A name typed as one word is found too ("thunderbluff": Thunder Bluff; "zulfarrak": Zul'Farrak).
 local function Named(e, words, zoneOnly)
 	if #words == 0 then return true end
 	local name = zoneOnly and "" or tostring(e.name or "")
@@ -139,8 +139,8 @@ local function Named(e, words, zoneOnly)
 end
 
 --- The log's headings the words name together ("thunder bluff", "rfc": { ["Thunder Bluff"] = true }), or nil when they
---- name none: then they're a quest's name. A place named finds the quests listed under it, not every quest whose
---- title says it, as its Advanced form (in:"Thunder Bluff") does (0.63.5).
+--- name none: then they're a quest's name. A place named finds the quests listed under it, not every quest whose title
+--- says it, as its Advanced form (in:"Thunder Bluff") does.
 function QK.Places(words, groups)
 	if not words or #words == 0 then return nil end
 	local p = ns.providers.quests
@@ -201,7 +201,7 @@ function QK.Question(text)
 	if not t then return nil end
 	t = " " .. t .. " "
 	t = t:gsub(" stop tracking ", " untrack "):gsub(" stop watching ", " untrack ")
-	-- ("quests to turn in", "i can turn in": the complete ones; 0.63.7, review: "turn" was read as a quest's name)
+	-- ("quests to turn in", "i can turn in": the complete ones)
 	t = t:gsub(" turn in ", " complete "):gsub(" turnin ", " complete "):gsub(" hand in ", " complete ")
 	t = t:gsub(" this zone ", " here "):gsub(" this area ", " here "):gsub(" my zone ", " here "):gsub(" current zone ", " here ")
 	local list = {}
@@ -298,8 +298,7 @@ function QK.Plan(rows, how)
 			end
 		end
 	end
-	-- ("only" with nothing it names: nothing untracked either; 0.63.7, review: "track rcf quests only", a typo,
-	-- emptied the tracker)
+	-- ("only" with nothing it names: nothing untracked either)
 	if how == "only" and plan.matched > 0 then
 		for _, o in ipairs(all) do
 			if type(o.questID) == "number" and not seen[o.questID] and QK.Tracked(o.questID, questie) then

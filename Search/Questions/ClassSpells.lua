@@ -1,7 +1,7 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Questions about every class's spells (0.54.1; the rows: Providers/ClassSpells.lua):
+-- Questions about every class's spells (the rows: Providers/ClassSpells.lua):
 --
 --   "druid spells", "shaman spells at level 20", "mage abilities"   that class's spells, by the level each is learned
 --   "upcoming spells", "new spells", "spells at level 30"            your class's, the next ones you learn (or at that
@@ -9,7 +9,7 @@ local L = ns.L
 --   "when do i learn travel form"                                    the spell, the level it's learned at
 --
 --   "my spells", "known spells"                                      your spellbook, as @spell was before it listed
---                                                                    every class's (0.54.6)
+--                                                                    every class's
 --
 -- In Advanced syntax: @spell class:druid lvl:20, @spell is:known.
 
@@ -105,7 +105,7 @@ function Q.Answer(q)
 	lvl = type(lvl) == "number" and lvl or 1
 	local rows, note = {}, nil
 	if q.class then
-		-- (its words too, "mage frost spells": they were left out of the answer, not out of its Alt+`; 1.0.82, review)
+		-- (its words too, "mage frost spells": they were left out of the answer, not out of its Alt+`)
 		for _, e in ipairs(CS.Rows(q.class, q.class == mine, true)) do
 			if (not q.level or RankAt(e, q.level)) and Has(e, q.words) then rows[#rows + 1] = e end
 		end
@@ -162,11 +162,10 @@ end
 function Q.None() return { ns.NoteRow(L["No spell that fits"]) } end
 
 function Q.ToAdvanced(q)
-	-- (as said, 0.55.7: the next level you learn something new at, which lvl:N+ didn't say, nor "when do i learn":
-	-- your class's first. Search.lua's ns.QuestionToAdvanced)
+	-- (as said)
 	if q.upcoming or (not q.class and #(q.words or {}) > 0) then return nil end
-	-- (a level: a spell whose later rank comes then is in, lvl: reads its first; your own class: its class spells, not your
-	-- spellbook's rows too. No Advanced line finds the same: kept as said. 0.63.7, review)
+	-- (a level: a spell whose later rank comes then is in, lvl: reads its first; your own class: its class spells, not
+	-- your spellbook's rows too. No Advanced line finds the same: kept as said.)
 	if q.class and (q.level or q.class == CS.MyClass()) then return nil end
 	local parts = { "@spell" }
 	if q.class then parts[#parts + 1] = "class:" .. Lower(q.class)

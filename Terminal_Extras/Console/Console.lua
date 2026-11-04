@@ -65,7 +65,7 @@ local function History()
 	if not d then return {} end
 	d.history = type(d.history) == "table" and d.history or {}
 	local h = d.history
-	-- (a password kept before they were left out; a friend's folder named, review, 1.0.32)
+	-- (a password kept before they were left out; a friend's folder named)
 	for i = #h, 1, -1 do if SH.Secret(h[i]) or (SH.SharedLine and SH.SharedLine(h[i])) then table.remove(h, i) end end
 	return h
 end
@@ -264,8 +264,8 @@ end
 
 C.PROMPT_ROOM = 10 -- (characters of room the input line keeps for typing: a prompt taking more is shortened)
 
---- The input line's prompt, shortened in a narrow pane (0.68.13, the player's screenshot: user@host ran on over the
---- next pane): as set, else where you are and the prompt's end, else its end alone.
+--- The input line's prompt, shortened in a narrow pane: as set, else where you are and the prompt's end, else its end
+--- alone.
 function C.InputPrompt(p, room)
 	local text = PromptText(p)
 	if p.pager or p.isearch then return text end
@@ -397,8 +397,7 @@ end
 C.CutLeft = CutLeft
 
 --- One piece of a line (a row, a cell, an art line's rest) drawn x px right of the sheet's left edge and y down, cut to
---- the pane: nothing past either edge is drawn. (0.68.13: neither SetClipsChildren nor the ScrollFrame cut text in the
---- game, and lines ran on over the next pane, seen twice.)
+--- the pane: nothing past either edge is drawn.
 local function Fit(p, fs, text, x, y)
 	local room = Room(p)
 	if text == "" or x >= room or x + Width(text, p) <= 0 then
@@ -2299,10 +2298,10 @@ function C.Reset()
 end
 
 ----------------------------------------------------------------------
--- Through a /reload: the panes as they were (each one's place, its text size, its last lines), the layout and which pane
--- had the keyboard, kept in the cache file (SH.Data().session) when the interface goes (PLAYER_LOGOUT: a /reload sends it too) and put
--- back the next time the console opens. Apps and commands running then aren't kept: their panes come back as shells.
--- The last pane closed (exit) and .console reset forget it.
+-- Through a /reload: the panes as they were (each one's place, its text size, its last lines), the layout and which
+-- pane had the keyboard, kept in the cache file (SH.Data.session) when the interface goes (PLAYER_LOGOUT: a /reload
+-- sends it too) and put back the next time the console opens. Apps and commands running then aren't kept: their panes
+-- come back as shells. The last pane closed (exit) and .console reset forget it.
 ----------------------------------------------------------------------
 
 C.SAVE_LINES = 150 -- (lines kept per pane)
@@ -2316,7 +2315,7 @@ function C.SaveSession()
 	if #panes == 0 then cdb.session = nil return end
 	local s = { layout = layout, zoomed = zoomed or nil, focus = IndexOf(focus) or 1, panes = {}, tree = C.TreeSave(tree) }
 	-- (a session that showed friends' things, their bags or names (/shared, df, mount, share): no lines kept, and no
-	-- folder of theirs: "nothing a friend sends is ever saved", docs/SHARE.md; review, 1.0.17)
+	-- folder of theirs: "nothing a friend sends is ever saved", docs/SHARE.md)
 	local private = FS.sawShared
 	local function Where(path)
 		if private and type(path) == "string" and SH.IsShared and SH.IsShared(path) then return "/" end

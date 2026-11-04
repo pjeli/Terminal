@@ -9,7 +9,7 @@ local Theme = ns.Theme
 local LY = UI.layout
 local Forget, TAB_LATE = UI.Forget, UI.TAB_LATE
 
--- Tab+` (Tab held, then `) is pure fuzzy finding (0.42.31; the Windows key never reached the game reliably). Tab held:
+-- Tab+` (Tab held, then `) is pure fuzzy finding (the Windows key never reached the game reliably). Tab held:
 -- IsKeyDown("TAB") where the client answers it, else its own key-down seen while the terminal reads keys (UI.tabHeld,
 -- the time it went down, trusted for TAB_HOLD s; cleared on its key-up)
 local TAB_HOLD = 3
@@ -35,7 +35,7 @@ local function DropTick(want)
 	if UI.keys then return end
 	C_Timer.After(0, function()
 		local text = edit:GetText()
-		-- (the key's character: ` or the one the terminal's bound to, ^ on a German keyboard; 0.65.1)
+		-- (the key's character: ` or the one the terminal's bound to, ^ on a German keyboard)
 		if #text > #want and text:sub(1, #want) == want and ns.IsTickKey(text:sub(#want + 1)) then UI:SetQuery(want, #want) end
 	end)
 end
@@ -47,13 +47,13 @@ UI.DropTick = DropTick -- (UI:Toggle: the toggle key that opened it)
 function UI:StartFuzzy()
 	local frame, edit = UI.frame, UI.edit
 	if self.fzf or not frame then return end
-	self.histSearch = nil -- (Tab+` from Ctrl+R: fuzzy finding over what's typed; 0.63.7, review: both were on)
+	self.histSearch = nil -- (Tab+` from Ctrl+R: fuzzy finding over what's typed)
 	local text = edit:GetText()
 	local plain = UI.FuzzyPlain(text)
 	self.fzf = true
-	if ns.Bar then ns.Bar.Reset() end -- (picked for the search left: not the one fuzzy finding hands back; 0.55.18)
+	if ns.Bar then ns.Bar.Reset() end -- (picked for the search left: not the one fuzzy finding hands back)
 	DropTick(plain)
-	ns:Trace(("fuzzy find: on (%q -> %q)"):format(ns.MaskSecret(text), ns.MaskSecret(plain))) -- (a password typed: *s; review, 0.58.16)
+	ns:Trace(("fuzzy find: on (%q -> %q)"):format(ns.MaskSecret(text), ns.MaskSecret(plain))) -- (a password typed: *s)
 	self.category, self.categoryAuto, self.action, self.place, self.sendTo = nil, nil, nil, nil, nil
 	self.showRecent, self.recalled, self.histIdx = nil, nil, nil
 	Forget(self, true)
@@ -82,11 +82,10 @@ function UI:EndFuzzy(stay)
 end
 
 ----------------------------------------------------------------------
--- Ctrl+R: searching the history (0.63.6, the player: "a Ctrl+R history search like a real shell"). The prompt finds
--- among the lines you ran (ns:HistoryLines), newest first, fuzzy as you type ("thor blt": "thorium belt > mats");
--- Ctrl+R again (or Down) goes to an older match; Enter puts the line in the prompt and searches it, as a shell's does;
--- Esc goes back to what the prompt said. A row clicked does as Enter. Nothing in it is syntax: ".mail", "@npc" and
--- ">> party" are words to find. The terminal closing ends it.
+-- Ctrl+R: searching the history. The prompt finds among the lines you ran (ns:HistoryLines), newest first, fuzzy as you
+-- type ("thor blt": "thorium belt > mats"); Ctrl+R again (or Down) goes to an older match; Enter puts the line in the
+-- prompt and searches it, as a shell's does; Esc goes back to what the prompt said. A row clicked does as Enter.
+-- Nothing in it is syntax: ".mail", "@npc" and ">> party" are words to find. The terminal closing ends it.
 ----------------------------------------------------------------------
 
 --- The history's lines that match `text` (every word, letters in order), the best first, then the newest: rows.
@@ -106,7 +105,7 @@ function UI:HistorySearch(text)
 			total = total + sc
 		end
 		if ok then
-			e._score = total -- (equal matches: the newest first, by the sort below; 0.63.7, review: a recency weight here outweighed better matches)
+			e._score = total -- (equal matches: the newest first, by the sort below)
 			out[#out + 1] = e
 		end
 	end
@@ -125,7 +124,7 @@ function UI:HistoryKey()
 	if self.fzf then self:EndFuzzy() end -- (out of fuzzy finding: the history is searched below, once)
 	local edit = UI.edit
 	local text = edit:GetText()
-	-- (what Esc puts back: the text, its caret, the category picked and the bar's picks; 0.63.7, review)
+	-- (what Esc puts back: the text, its caret, the category picked and the bar's picks)
 	self.histSearch = { saved = text, cursor = UI.CursorNow and UI.CursorNow() or #text,
 		category = (not self.categoryAuto) and self.category or nil, bar = ns.Bar and ns.Bar.Active() and ns.Bar.Save() or nil }
 	ns:Trace(("history search: on (%q)"):format(ns.MaskSecret(text)))
@@ -207,7 +206,7 @@ end
 --- already, the terminal closes (as Alt+` pressed again does).
 function UI:FuzzyOnce(text)
 	if self.fzf and self:IsShown() then return self:Hide() end -- (Tab+` again closes, as Alt+` again does)
-	-- (in combat too: Tab+` isn't a key hit by accident, unlike ` alone; the author's call, 0.57.0)
+	-- (in combat too: Tab+` isn't a key hit by accident, unlike ` alone)
 	if not self:IsShown() then self:Open("") end -- (an empty prompt, not the tab you were on)
 	self:StartFuzzy()
 	if type(text) == "string" and text:find("%S") then
@@ -228,7 +227,7 @@ function UI:FuzzyPop(e, advanced)
 	self.sendTo = nil
 	local text
 	if advanced then
-		-- ("@kind name": Simple mode searches it as typed, so a Simple player stays in it; 0.55.9)
+		-- ("@kind name": Simple mode searches it as typed, so a Simple player stays in it)
 		if E then E.tempSimple = nil end
 		text = self:ResultText(e) or name
 		self.category, self.categoryAuto = nil, nil
@@ -263,8 +262,7 @@ function UI:SelectPopTarget(final)
 			return
 		end
 	end
-	-- (a search queued for the next frame is still to come: not given up yet; review, 0.48.6: fuzzy finding's way back
-	-- from F1 or a fight searched the restored text a frame later, and the row it came back to was lost)
+	-- (a search queued for the next frame is still to come: not given up yet)
 	if final and not self.refreshQueued then self.popTarget = nil end
 end
 
@@ -346,9 +344,9 @@ function UI:ColorGlow()
 end
 
 ----------------------------------------------------------------------
--- Leaving for a moment (F1's keys window, 0.45.20): what the terminal shows is kept and put back as it was: the text
--- and cursor, the mode of this run (fuzzy finding, Alt+`'s Advanced, fuzzy finding's Simple), the category picked,
--- the selected row. A panel takes the terminal's place (Panel.Opening hides it), so this is what comes back.
+-- Leaving for a moment (F1's keys window): what the terminal shows is kept and put back as it was: the text and cursor,
+-- the mode of this run (fuzzy finding, Alt+`'s Advanced, fuzzy finding's Simple), the category picked, the selected
+-- row. A panel takes the terminal's place (Panel.Opening hides it), so this is what comes back.
 ----------------------------------------------------------------------
 
 --- A Simple-mode category's id as it is now (one a category took over: that category's), or nil.
@@ -396,7 +394,7 @@ function UI:SaveState()
 		temp = E and E.temp, tempSimple = E and E.tempSimple,
 		category = hs and hs.category or ((not self.categoryAuto) and self.category or nil), sel = (not hs) and UI.results[UI.sel] or nil,
 		recent = self.showRecent and true or nil, recalled = self.recalled, -- (what Down brought up)
-		bar = (hs and hs.bar) or (ns.Bar and ns.Bar.Active() and ns.Bar.Save()) or nil, -- (the bar's picks: F1, combat, back as they were; 0.55.18)
+		bar = (hs and hs.bar) or (ns.Bar and ns.Bar.Active() and ns.Bar.Save()) or nil, -- (the bar's picks: F1, combat, back as they were)
 	}
 end
 
@@ -433,9 +431,9 @@ function UI:KeysWindow()
 end
 
 ----------------------------------------------------------------------
--- Combat (0.46.14, the player's ask): open when a fight starts, the terminal goes at once (with .zen the interface
--- is back at once too), and once it's over it comes back as it was (UI:SaveState). Opened by hand during the fight
--- (` or Alt+`): as it was, then nothing comes back later; any other way of opening it (Tab+`, a link) starts afresh.
+-- Combat: open when a fight starts, the terminal goes at once (with .zen the interface is back at once too), and once
+-- it's over it comes back as it was (UI:SaveState). Opened by hand during the fight (` or Alt+`): as it was, then
+-- nothing comes back later; any other way of opening it (Tab+`, a link) starts afresh.
 ----------------------------------------------------------------------
 UI.COMEBACK_STEP = 0.25 -- (s: another text box holding the keyboard as the fight ended, looked at again this often)
 UI.COMEBACK_WAIT = 20 -- (s: waited for that long, then the terminal stays closed)
@@ -522,26 +520,23 @@ function UI:BackToSimple()
 	self:UpdateGhost()
 end
 
---- Alt+`: Advanced mode for this run only. Open in Simple mode, what the prompt says is written in Advanced
---- syntax (Easy.ToAdvanced: the lists the results come from as @kinds, of those the action word or the category
---- looks in) and the search goes on from there, in Advanced mode while the line has its syntax. Closed, it opens as `
---- does (0.54.3). Simple comes back when the terminal closes (Hide). Already Advanced (for good or for this run): the
---- same as `.
+--- Alt+`: Advanced mode for this run only. Open in Simple mode, what the prompt says is written in Advanced syntax
+--- (Easy.ToAdvanced: the lists the results come from as @kinds, of those the action word or the category looks in) and
+--- the search goes on from there, in Advanced mode while the line has its syntax. Closed, it opens as ` does. Simple
+--- comes back when the terminal closes (Hide). Already Advanced (for good or for this run): the same as `.
 function UI:AdvancedOnce()
 	local edit = UI.edit
 	local E = ns.Easy
-	-- closed: nothing (0.57.0, the author's call: Alt+` only switches what's typed between Simple and Advanced; it opened
-	-- the terminal as ` did since 0.54.3)
+	-- closed: nothing
 	if not self:IsShown() then return end
-	if self.histSearch then self:EndHistorySearch() end -- (Ctrl+R: back to what was typed first; 0.63.7, review)
+	if self.histSearch then self:EndHistorySearch() end -- (Ctrl+R: back to what was typed first)
 	-- in pure fuzzy finding: out of it first (to Advanced, the plain words kept)
 	if self.fzf then
 		self:EndFuzzy(true)
 		if not (E and E.On()) then return end
 	end
-	-- (0.55.9, the player: "we lose the ability to go back") Alt+` again, in the Advanced it made: back to Simple, with
-	-- the words and the bar's picks it came from while the line is as Alt+` wrote it; edited, the line as it is now
-	-- (Simple mode searches Advanced syntax as typed)
+	-- Alt+` again, in the Advanced it made: back to Simple, with the words and the bar's picks it came from while the
+	-- line is as Alt+` wrote it; edited, the line as it is now (Simple mode searches Advanced syntax as typed)
 	if E and E.temp and not E.tempSimple then return self:BackToSimple() end
 	if not (E and E.On()) then return end -- (Advanced for good: nothing to switch; it closed the terminal before 0.57.0)
 	local text = edit:GetText()

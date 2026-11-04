@@ -85,7 +85,7 @@ local function CompleteCommand(text)
 	local args = rest:gsub("^%s+", "")
 	local argWord = args:match("(%S*)$") or ""
 	-- (a password being typed: nothing completes it. Its ghost would show letters after the *s, and accepting one would
-	-- put another word in its place, unseen. 0.60.0 review)
+	-- put another word in its place, unseen.)
 	local masked = ns.MaskSecret and ns.MaskSecret(text) or text
 	if #argWord > 0 and masked ~= text and masked:sub(-#argWord) ~= argWord then return true, nil end
 	local ok, cands = pcall(c.complete, args)
@@ -102,7 +102,7 @@ local function CompleteSlash(text)
 	if text:find("%s") then return true, nil end
 	local p = ns.providers.slash
 	local list = p and ns:GetEntries(p)
-	-- (the names kept while the list is the same: made again on every keystroke of "/xyz"; review, 0.53.6)
+	-- (the names kept while the list is the same: made again on every keystroke of "/xyz")
 	if slashFor ~= list then
 		slashFor, slashNames = list, {}
 		for _, e in ipairs(list or {}) do slashNames[#slashNames + 1] = e.name end

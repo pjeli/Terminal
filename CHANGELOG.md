@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.92 (in testing)
+
+- Code comments (review): the version tags and stories of past versions are out of the comments (435 lines fewer; what each comment says the code does is kept; git keeps the history).
+
 ## 1.0.91 (in testing)
 
 - Code (review): the questions layer's own answers that their Advanced lines replaced, and its Alt+` functions that only said "as typed", are gone (about 250 lines, no change in what any question answers).

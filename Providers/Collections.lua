@@ -4,15 +4,14 @@ local H = ns.Highlight
 
 -- Toys, companion pets and titles: what you own, like the mounts (Mounts.lua).
 --
--- Everything that uses one or opens a window is pressed by the game: Enter is a line on the secure
--- macro button (/use a toy, summon a pet, set a title), Shift+Enter opens the Collections journal with
--- the collections key, and Terminal points at the toy or pet when it shows (at its tab while another
--- one is showing). Until 0.46.2 a /run line opened the journal on the tab and typed the name into its
--- search box; but a /run line runs tainted (0.46.1), and the list it rebuilt held what it wrote (the
--- toy buttons are secure: using a toy from them could be blocked). Its tabs here are plain frames, so
--- /click can't pick one, and no game call does. Rows are compact
--- (a few hundred toys, a thousand pets): every function here is shared, reading what it needs from
--- the row. A client without the toy box, pet journal or titles has no such @kind.
+-- Everything that uses one or opens a window is pressed by the game: Enter is a line on the secure macro button (/use a
+-- toy, summon a pet, set a title), Shift+Enter opens the Collections journal with the collections key, and Terminal
+-- points at the toy or pet when it shows (at its tab while another one is showing). Until 0.46.2 a /run line opened the
+-- journal on the tab and typed the name into its search box; but a /run line runs tainted, and the list it rebuilt held
+-- what it wrote (the toy buttons are secure: using a toy from them could be blocked). Its tabs here are plain frames,
+-- so /click can't pick one, and no game call does. Rows are compact (a few hundred toys, a thousand pets): every
+-- function here is shared, reading what it needs from the row. A client without the toy box, pet journal or titles has
+-- no such @kind.
 
 local Safe, Num, Str = ns.Safe, ns.Num, ns.Str
 
@@ -70,11 +69,11 @@ ns.Collections = { JOURNAL_SPEC = JOURNAL_SPEC, JournalShown = JournalShown, Poi
 
 local Left = ns.Left -- (time left on a cooldown: "4 min", "35 s")
 
---- Runs read() with a journal's filters opened up (collected shown, every type/source/expansion,
---- no search), then puts each back as it was. The journals' C calls list only what passes their
---- filters, so a toy hidden in the journal would be missing here otherwise. Filters are C state
---- (no window is touched); each step is guarded, so a call this client lacks is skipped.
---- spec.flags: { get, set, want, arg }; spec.lists: { count, get, set, all }; spec.search: { text, set }.
+--- Runs read with a journal's filters opened up (collected shown, every type/source/expansion, no search), then puts
+--- each back as it was. The journals' C calls list only what passes their filters, so a toy hidden in the journal would
+--- be missing here otherwise. Filters are C state (no window is touched); each step is guarded, so a call this client
+--- lacks is skipped. spec.flags: { get, set, want, arg }; spec.lists: { count, get, set, all }; spec.search: { text,
+--- set }.
 local function Widened(spec, read)
 	local undo = {}
 	for _, f in ipairs(spec.flags or {}) do
@@ -405,7 +404,7 @@ local KIND = { mounts = "mounts", mount = "mounts", pets = "pets", pet = "pets",
 local PLURAL = { mounts = true, pets = true, companions = true, minipets = true, battlepets = true, toys = true }
 local FAV = { favorite = true, favorites = true, favourite = true, favourites = true, fav = true, favs = true, faves = true }
 -- words that ask for the list ("my mount", "all pets", "how many toys"), and words only around it ("which mounts do i
--- have"): "how do i mount", "what is a mount", "mount battle" are no list (review, 0.64.3)
+-- have"): "how do i mount", "what is a mount", "mount battle" are no list
 local SAID, GLUE = {}, {}
 for w in ([[my all show list every own owned collected collection many much got ive mine]]):gmatch("%a+") do SAID[w] = true end
 for w in ([[me the i have what whats which do does are is of how im a an in please]]):gmatch("%a+") do GLUE[w] = true end
@@ -518,7 +517,7 @@ end
 --- Named by words: as said, which Advanced mode answers the same.
 function CQ.ToAdvanced(q)
 	-- (named by words: the line as said, which Advanced mode answers the same; "@mount raptor" would be a search of
-	-- letters, finding more; review, 0.64.3)
+	-- letters, finding more)
 	if #q.words > 0 then return nil end
 	local parts = { ADV[q.kind] }
 	if q.fav then parts[#parts + 1] = "is:favorite" end

@@ -4,9 +4,7 @@ if not ns then return end
 local L = ns.L
 
 -- What the games (.snake, .tetris, .lootrun) and the typing test share: opening (not in combat), the best score kept,
--- telling your guild once, the game-over keys and footer, their commands as the stand-ins name them. One copy each (review,
--- 0.53.6: three or four copies of each, which had started to drift: Tetris never cleared "a new best" on a game that
--- wasn't one).
+-- telling your guild once, the game-over keys and footer, their commands as the stand-ins name them. One copy each.
 
 local Panel = ns.Panel
 local G = {}

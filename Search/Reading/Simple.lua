@@ -15,7 +15,7 @@ local L = ns.L
 --   - The first word can say what to do: use, cast, summon, equip, target, where, nearest (E.ACTIONS).
 --   - .help in plain sentences. Advanced syntax (@kind, key:value, >> channel) isn't taken: a row on top says
 --     it's Advanced mode's and offers the switch. .commands and /slash still run.
--- Advanced syntax typed in Simple mode is searched as typed, Simple mode kept (0.55.9; 0.54.1-0.55.8 it switched).
+-- Advanced syntax typed in Simple mode is searched as typed, Simple mode kept (0.54.1-0.55.8 it switched).
 -- The empty prompt's faint examples (both modes, and the ones made for the character) are in Examples.lua.
 -- What its words mean is beside it in Reading/: single words in Words.lua, phrases in PlainNumbers.lua (numbers, dates,
 -- levels, orders), StepWords.lua (top N, comparisons) and Joins.lua (pairs, "not", "or"); .explain in Explain.lua.
@@ -65,7 +65,6 @@ local function NotEmote(e) return e.emote == nil end
 -- dropped for you, how you died). `was` = the ids a category took over (a pick kept from before, another addon's
 -- simpleCategory "game": E.BY_ID finds them).
 E.CATEGORIES = {
-	-- (0.55.16, the player: "separate out Items / inventory from Stored / bank & alts": two again, as before 0.48.4)
 	{ id = "items", label = L["Items"], kinds = { "items" }, icon = "Interface\\Icons\\INV_Misc_Bag_08", was = { "bags" } },
 	{ id = "stored", label = L["Bank & alts"], kinds = { "stored", "shared" }, icon = "Interface\\Icons\\INV_Misc_Bag_10", was = { "alts" } },
 	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie", "attune", "book" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
@@ -94,7 +93,7 @@ E.CATEGORIES = {
 }
 E.BY_ID = {}
 for _, c in ipairs(E.CATEGORIES) do
-	c.label = ns.TitleCase(c.label) -- ("Guild & Friends", as the kinds' names: English clients; 1.0.24, the player's ask)
+	c.label = ns.TitleCase(c.label) -- ("Guild & Friends", as the kinds' names: English clients)
 	E.BY_ID[c.id] = c
 	for _, old in ipairs(c.was or {}) do E.BY_ID[old] = E.BY_ID[old] or c end
 end
@@ -135,10 +134,9 @@ function E.Visible()
 end
 
 --- The category a row belongs in (the first shown one listing its kind that keeps it), or nil. (Every category holding
---- a row's own list is shown: its list is loaded. Not E.Visible() made again per row: review, 0.53.6.)
---- (0.59.0, the stress test: tests/stress.py) The categories listing each kind, in order, made once (E.Adopt starts it
---- again): every category's every kind was walked for each match, 200,000 matches a frame of half a second in Simple
---- mode's overview.
+--- a row's own list is shown: its list is loaded. Not E.Visible made again per row: review.) (0.59.0, the stress test:
+--- tests/stress.py) The categories listing each kind, in order, made once (E.Adopt starts it again): every category's
+--- every kind was walked for each match, 200,000 matches a frame of half a second in Simple mode's overview.
 local function ByKind()
 	if not byKind then
 		byKind = {}
@@ -171,7 +169,7 @@ function E.CategoryOf(e)
 end
 
 --- The category every row of this kind goes to, when that doesn't hang on the row (its first category keeps them all);
---- else nil (CategoryOf, row by row). For the overview: a kind's 50,000 rows looked up once (0.63.7, review).
+--- else nil (CategoryOf, row by row). For the overview: a kind's 50,000 rows looked up once.
 function E.FixedCategory(kind)
 	local list = kind and ByKind()[kind]
 	local c = list and list[1]
@@ -198,8 +196,8 @@ end
 -- that differ: a worn item, a passive spell, an addon with a minimap button...). Shift+Enter's is said only when the
 -- row has a Shift+Enter (E.Verbs). Printing in your own chat window is "show in chat" everywhere; the game's chat box
 -- is "put in the chat box", or "link in chat" when it carries a link.
---- An item's, and gear's alike (0.45.21: equipment found with @item does what @gear's does, Items.lua GearActions): a
---- bag piece of equipment equips, a worn one is used only when it has a use (nothing to equip: no Shift+Enter).
+--- An item's, and gear's alike: a bag piece of equipment equips, a worn one is used only when it has a use (nothing to
+--- equip: no Shift+Enter).
 local function ItemVerbs(e)
 	local enter = e.slotId and L["show on character"] or L["show in bags"]
 	if e.equipLoc then
@@ -260,14 +258,13 @@ local function GroupVerbs(e) -- (Shift+Enter: your buff they're missing, when yo
 	return L["target"], e.buffWith and L["cast %s"]:format(e.buffWith) or nil
 end
 local PLACE = { L["show on map"], L["set waypoint"] }
--- (0.49.2, review: a zone only moves a waypoint you have, Maps.lua's PinOnly: "set waypoint" was said with none set)
 local function MapVerbs(e) return L["show on map"], ns.Maps and ns.Maps.PinVerb(e) or nil end
 local TO_CHAT = { L["show in chat"], L["put in the chat box"] } -- ("put in the chat box", "link in chat": RowMenu.lua compares them, translated alike)
 E.VERBS = {
 	items = ItemVerbs, consumables = ItemVerbs, mats = ItemVerbs, gear = ItemVerbs, reagent = { L["show in bags"] },
 	source = SourceVerbs,
 	stored = { L["show in bags"], L["show in chat"] }, bank = { L["show in bags"], L["show in chat"] }, shared = { L["whisper"], L["show in chat"] }, lootlog = { L["show in bags"], L["link in chat"] },
-	-- (OneForAll's planner's rows: a quest's Wowhead page, else the link in chat; review, 1.0.38)
+	-- (OneForAll's planner's rows: a quest's Wowhead page, else the link in chat)
 	loot = function(e)
 		if rawget(e, "lootSource") then
 			if e.qid then return L["Wowhead link"], L["link in chat"] end
@@ -288,7 +285,7 @@ E.VERBS = {
 	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
 	questie = { L["Wowhead link"], L["show in game"] },
 	attune = { L["show in Attune"], L["put in the chat box"] },
-	-- (TrainerSpells' rows, What's Training not there: Enter lists who teaches it, Shift+Enter links it; 0.57.2)
+	-- (TrainerSpells' rows, What's Training not there: Enter lists who teaches it, Shift+Enter links it)
 	training = function(e)
 		if rawget(e, "fromTrainerSpells") then return L["who teaches it"], L["link in chat"] end
 		return L["show in What's Training"], L["who teaches it"]
@@ -308,8 +305,8 @@ E.VERBS = {
 	equipmentset = { L["equip"], L["show in manager"] },
 	macros = { L["run"], L["show in Macros"] },
 	cvars = { L["edit"], L["reset to default"] },
-	-- (a quartermaster's reward, Providers/Integrations/OneForAll/Armory.lua: the map's)
-	-- (a reward: OneForAll's quartermaster on the map; AtlasLoot's faction loot opens AtlasLoot, review 1.0.38)
+	-- (a quartermaster's reward, Providers/Integrations/OneForAll/Armory.lua: the map's) (a reward: OneForAll's
+	-- quartermaster on the map; AtlasLoot's faction loot opens AtlasLoot)
 	reputation = function(e)
 		if e.repReward then
 			if type(e.key) == "string" and e.key:find("^al:") then return L["show in AtlasLoot"], L["link in chat"] end
@@ -397,11 +394,10 @@ function E.IsAdvancedWord(w)
 end
 
 ----------------------------------------------------------------------
--- One mode (0.54.1, the player's call: "we don't need .simple and .advanced anymore; we just start simple and have it
--- switch to advanced when syntax is used"): Simple mode; since 0.55.9 (the player: "keep them in simple mode as much
--- as we can") a line with Advanced syntax is searched as typed in Simple mode, no switch. Alt+` writes the line as
--- Advanced syntax (closed, nothing: 0.57.0); Alt+` again or Shift+Left brings the Simple words back. db.easyMode == false (Advanced for good) is no longer
--- offered, and a saved one from before is dropped at load (Core.lua).
+-- One mode: Simple mode; since 0.55.9 (the player: "keep them in simple mode as much as we can") a line with Advanced
+-- syntax is searched as typed in Simple mode, no switch. Alt+` writes the line as Advanced syntax (closed, nothing:
+-- 0.57.0); Alt+` again or Shift+Left brings the Simple words back. db.easyMode == false (Advanced for good) is no
+-- longer offered, and a saved one from before is dropped at load (Core.lua).
 ----------------------------------------------------------------------
 
 ns:RegisterCommand("fuzzy", {
@@ -450,7 +446,6 @@ function E.HelpLines()
 		L["Follow the chain: \"mats for thorium belt\", \"what uses copper bar\", \"where to get thorium bar\", \"where to learn thorium belt\" (its recipe, or a trainer). Enter on a row goes one step further, Shift+Enter opens it."],
 		L["Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites)."],
 		L["Gear: upgrades lists what you can get that beats what you wear, the biggest first, and its tooltip says why; quest upgrades lists the quests whose reward is one (with Questie). .weights shows how they're judged and picks your talent tree (.weights arms, .weights resto), or sets your own weights (.weights set, or a Pawn scale string)."],
-		-- (1.0.41, the player's ask: the newer words said here too)
 		L["Loot by where it comes from: \"raid loot\", \"dungeon gear\", \"crafted gear\", \"reputation gear\"; what quartermasters sell: \"argent dawn rewards\", \"what can i buy at honored\"; a hunter's pets (with OneForAll): \"tameable cats\", \"where to learn bite 4\", \"cat abilities\"."],
 		L["When a list changes while you look at it (your bags as you loot, item data coming in), it stays put and the footer says so: F5 shows the new one."],
 		L["Alt+click an item (or a spell, quest, achievement) in chat to look it up here."],

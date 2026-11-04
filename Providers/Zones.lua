@@ -192,13 +192,12 @@ function Z.Question(text)
 	local function any(set) for _, w in ipairs(t) do if set[w] then return true end end return false end
 	-- "where should i ...", "where to ...", "where can i ...", "where do i ..."
 	local where = has.where and (has.should or has.to or has.can or has["do"])
-	-- ("dungeons at my level", 0.61.0: as "for my level"; "quests at my level" stays a search)
+	-- ("dungeons at my level", as "for my level"; "quests at my level" stays a search)
 	local at = has.at and (any(DUNGEON_WORDS) or any(RAID_WORDS)) and not (has.quest or has.quests) -- ("dungeon quests at my level": a search)
 	local cue = where or any(CUES) or (has["for"] or at) and (has.my or has.me or level) or (any(PLACE_CUES) and any(PLACE_ASKS))
 	if not cue then return nil end
-	-- ("best dungeon for upgrades", 0.61.0: the dungeon for your level; "quest upgrades" are QuestUpgrades.lua's)
-	-- (and asked which: "best dungeon for upgrades"; "dungeon upgrades for my level" stays is:upgrade's search; release
-	-- review, 0.63.0)
+	-- ("best dungeon for upgrades", the dungeon for your level; "quest upgrades" are QuestUpgrades.lua's) (and asked
+	-- which: "best dungeon for upgrades"; "dungeon upgrades for my level" stays is:upgrade's search)
 	if (has.upgrade or has.upgrades) and not ((any(DUNGEON_WORDS) or any(RAID_WORDS)) and any(CUES)) then return nil end
 	if any(FISH_WORDS) then return "fish", level end
 	if any(DUNGEON_WORDS) then return "dungeon", level end
@@ -269,8 +268,8 @@ function Z.QuestFitter(level)
 	local DB = QD and QD.DB and QD.DB()
 	local raceBit, classBit = RaceClassBits()
 	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
-	-- (and what it needs: a profession's skill, a standing; Rewards.lua's QR.MeetsRequires, 1.0.64. "tailoring quests",
-	-- "quests that need honored with stormwind" list them)
+	-- (and what it needs: a profession's skill, a standing; Rewards.lua's QR.MeetsRequires. "tailoring quests", "quests
+	-- that need honored with stormwind" list them)
 	local QR = ns.QuestRewards
 	local meets = QR and QR.MeetsRequires
 	local memo = {}
@@ -293,8 +292,7 @@ function Z.QuestCounts(level)
 	if not (p and level) then return nil end
 	local list = ns:GetEntries(p)
 	if #list == 0 then return nil end
-	-- (until Questie's list or your quest log is made again, a quest turned in: not every time any list is; review,
-	-- 0.57.7: entriesGen counts every list's, and @quests is read again on every open)
+	-- (until Questie's list or your quest log is made again, a quest turned in: not every time any list is)
 	local qp = ns.providers.quests
 	local log = qp and rawget(qp, "_entries") or false
 	local c = questCounts[level]

@@ -1,11 +1,9 @@
 local ns = select(2, ...)
 local UI = ns.UI
 
--- The / key opens Terminal on a slash command (0.56.9, the player's ask: "have Terminal open on a / character as well;
--- as if the player is trying to type a slash command"). The game's own / (open the chat box with "/") is taken over only
--- while you're out of combat, and only when / still does that: another binding of yours on / is left alone. In combat
--- / opens the chat box as ever (Terminal closes in combat). Off unless turned on (0.56.14): .set slashKey on, or Options:
--- Open on /.
+-- The / key opens Terminal on a slash command. The game's own / (open the chat box with "/") is taken over only while
+-- you're out of combat, and only when / still does that: another binding of yours on / is left alone. In combat / opens
+-- the chat box as ever (Terminal closes in combat). Off unless turned on: .set slashKey on, or Options: Open on /.
 --
 -- An override binding of Terminal's own (never saved to your key bindings): set out of combat, taken off as combat
 -- starts (PLAYER_REGEN_DISABLED comes before the game locks bindings), set again after.

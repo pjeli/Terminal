@@ -2,7 +2,7 @@ local ns = select(2, ...)
 local L = ns.L
 
 -- The rows a search lists that aren't a list's own: the .commands and the arguments one takes as you type them, and the
--- empty terminal's recent picks (split from Search.lua as they were, 0.69.8). Search.lua is the search engine.
+-- empty terminal's recent picks (split from Search.lua as they were). Search.lua is the search engine.
 
 local UI = ns.UI
 local Scan = UI._Scan
@@ -18,7 +18,7 @@ local function RunCmd(e, args) return e.cmd.run(args or "", ns) end
 local cmdList, cmdGen, cmdKey -- the command rows, made again only when a command is registered (Core's commandsGen)
 
 function UI:CommandEntries()
-	-- (made again when the terminal's key changes too: their details say it; 0.65.1)
+	-- (made again when the terminal's key changes too: their details say it)
 	local keyNow = ns.ToggleLabel()
 	if cmdList and cmdGen == ns.commandsGen and cmdKey == keyNow then return cmdList end
 	local list = {}
@@ -53,8 +53,8 @@ local function RunArg(e) return e.cmd.run(e.argLine, ns) end
 --- the arrows to pick one). With nothing typed yet, the command itself comes first, so Enter
 --- still runs it as typed. Nil when the command takes no listed arguments, or none match.
 function UI:ArgEntries(text)
-	-- (a password being typed: nothing offered for its words, Enter running what's typed. 0.59.0, review: ".share join raid
-	-- correct horse at" + Enter joined with "correct horse mats", the completion's)
+	-- (a password being typed: nothing offered for its words, Enter running what's typed. ".share join raid correct
+	-- horse at" + Enter joined with "correct horse mats", the completion's)
 	if ns.SecretLine("." .. text) then return nil end
 	local word, rest = text:match("^%s*(%S+)%s(.*)$")
 	local c = word and ns:FindCommand(word)
@@ -65,8 +65,7 @@ function UI:ArgEntries(text)
 	local lw = ns.Lower(argWord)
 	local whole = ns.Lower((rest:gsub("^%s+", "")))
 	-- (a list with an argument of several words, "share on": its arguments are whole ones, matched against all that's
-	-- typed; else each is the last word's, after the words before it. 0.51.5: "share on" matched by "on" ran
-	-- "share share on")
+	-- typed; else each is the last word's, after the words before it. "share on" matched by "on" ran "share share on")
 	local several = false
 	for _, cand in ipairs(list) do
 		local v = type(cand) == "table" and cand[1] or cand
@@ -203,8 +202,8 @@ function UI:FrequentEntries()
 					local fk = e.freqKey
 					r, f = rank[fk], freq[fk]
 				else
-					-- (a compact row: its "kind:key" made only when it can be a recent pick, its count looked up by its own
-					-- key; review, 0.53.6: two strings made per row of achievements, toys, maps... each time)
+					-- (a compact row: its "kind:key" made only when it can be a recent pick, its count looked up by its
+					-- own key)
 					keys = keys or RecentKeys(rank)
 					local fk = CompactFreqKey(e, keys)
 					r = fk ~= nil and rank[fk] or nil

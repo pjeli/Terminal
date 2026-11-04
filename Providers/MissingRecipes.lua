@@ -1,9 +1,9 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Recipes you don't have yet, and where to learn them (0.45.14, the player's ask). "blacksmithing recipes i'm missing"
--- (both modes; Advanced: @recipe is:unknown) lists every recipe of your professions you don't know, each with the skill
--- it needs and how it's learned; "recipes i can learn now" (is:learnable) keeps those your skill already allows.
+-- Recipes you don't have yet, and where to learn them. "blacksmithing recipes i'm missing" (both modes; Advanced:
+-- @recipe is:unknown) lists every recipe of your professions you don't know, each with the skill it needs and how it's
+-- learned; "recipes i can learn now" (is:learnable) keeps those your skill already allows.
 --
 -- What you don't know is the game's own answer: its profession window lists the recipes you haven't learned too, and
 -- Professions.lua keeps them (`unknown`) as it indexes a window; one learned since is told by IsPlayerSpell. So a
@@ -11,7 +11,7 @@ local L = ns.L
 -- How each is learned, and where that's from (each said in the tooltip):
 -- - a trainer and its cost: what a trainer's window showed you (its services' names, costs and skill needed are kept
 --   when you open one: `db.recipeTrainers`), else TrainerSpells' (which also lists a trainer's recipes your window
---   hasn't, 0.57.1); a craft AtlasLoot knows with no recipe item is a trainer's too (its cost not seen yet)
+--   hasn't); a craft AtlasLoot knows with no recipe item is a trainer's too (its cost not seen yet)
 -- - its recipe item (AtlasLoot's Data.Recipe): sold by Questie's vendors (limited supply as a vendor's window showed
 --   it: `db.recipeVendors`), dropped by Questie's NPCs and AtlasLoot's bosses, a quest's reward, found in an object
 -- - the skill it needs: AtlasLoot's (the craft's, else its recipe item's), else what a trainer showed
@@ -121,7 +121,7 @@ end
 function MR.TrainerFor(name, id)
 	local seen = ns.db and ns.db.recipeTrainers
 	local r = type(name) == "string" and seen and seen[Lower(name)] or nil
-	-- (no trainer window seen for it: TrainerSpells' cost and skill, when it lists the spell; 0.57.1)
+	-- (no trainer window seen for it: TrainerSpells' cost and skill, when it lists the spell)
 	if not r and id and ns.TrainerSpells and ns.TrainerSpells.Taught then r = ns.TrainerSpells.Taught(id) end
 	return r
 end
@@ -138,7 +138,7 @@ local events = CreateFrame("Frame")
 MR.events = events -- (tests)
 for _, ev in ipairs({ "TRAINER_SHOW", "TRAINER_UPDATE", "MERCHANT_SHOW", "MERCHANT_UPDATE" }) do pcall(events.RegisterEvent, events, ev) end
 -- (a moment later: the window fills in after it shows. One read for a burst: a vendor's window sends MERCHANT_UPDATE on
--- every buy, sell and buyback, and each read walks every item it sells; review, 0.53.6: each one read it again)
+-- every buy, sell and buyback, and each read walks every item it sells)
 MR.READ_WAIT = 0.2
 local pending = {}
 events:SetScript("OnEvent", function(_, ev)
@@ -230,9 +230,9 @@ local CHATBOX -- (made once ns.ChatBoxSpec is there: below)
 
 local GREY = "|cff8a8a8a"
 
--- (0.49.2, review) A recipe item the client hasn't loaded has no name yet (the tooltip said "item 92700"): asked for, and
--- the tooltip drawn again once it's in. Only that id is listened for, only while it's awaited (MR.NAME_WAIT s at most),
--- each id asked twice at most, and never again once the server says it has no such item.
+-- A recipe item the client hasn't loaded has no name yet (the tooltip said "item 92700"): asked for, and the tooltip
+-- drawn again once it's in. Only that id is listened for, only while it's awaited (MR.NAME_WAIT s at most), each id
+-- asked twice at most, and never again once the server says it has no such item.
 MR.NAME_WAIT = 10
 local nameWait = { gen = 0, asked = {}, failed = {} }
 MR.nameWait = nameWait -- (tests)
@@ -313,7 +313,7 @@ function MR.Tooltip(e, t)
 			local said = ns.Plain(tostring(l.detail or "")) -- ("Boss  Instance": "Boss in Instance")
 			local I = ns.Integrations
 			local boss, place = nil, nil
-			if I and I.LootSplit then boss, place = I.LootSplit(l.detail) end -- (the one reading of it; review, 1.0.73)
+			if I and I.LootSplit then boss, place = I.LootSplit(l.detail) end -- (the one reading of it)
 			t:AddLine("  " .. (boss and L["Drops from %s in %s"]:format(boss, place) or L["Drops from %s"]:format(said)), 1, 1, 1)
 		end
 		if s.drops and #s.drops > 0 then
@@ -373,7 +373,7 @@ local function Row(u, pd, pr, Rc, Pr)
 	local rid = Rc and Rc.GetRecipeForSpell and Safe(Rc.GetRecipeForSpell, id)
 	rid = type(rid) == "number" and rid or nil
 	local s = Sources(id, u.name, data, rid)
-	-- (bought with the Merchant's Favor, OneForAll says: Providers/Integrations/OneForAll/World.lua, 1.0.12)
+	-- (bought with the Merchant's Favor, OneForAll says: Providers/Integrations/OneForAll/World.lua)
 	s.favor = MR.FavorOf and MR.FavorOf(u.name, pr.name) or nil
 	local need = data and Num(data[3])
 	if not need and rid then
@@ -429,8 +429,8 @@ function MR.Rows()
 			end
 		end
 	end
-	-- what a trainer teaches that you don't know, as TrainerSpells lists it (0.57.1): a window not opened yet, its
-	-- trainer's recipes are still listed (with their cost and the skill they need: TrainerFor)
+	-- what a trainer teaches that you don't know, as TrainerSpells lists it: a window not opened yet, its trainer's
+	-- recipes are still listed (with their cost and the skill they need: TrainerFor)
 	local TS = ns.TrainerSpells
 	if TS and TS.Unknown then
 		for _, pr in ipairs(profs) do
@@ -454,7 +454,7 @@ function MR.Rows()
 end
 
 ----------------------------------------------------------------------
--- Nothing listed: why (0.45.15, the player: "learnable and unknown showing 0 results": no window read since)
+-- Nothing listed: why
 ----------------------------------------------------------------------
 
 -- a line that says something (not a result: Enter does nothing, nothing to send)
@@ -558,8 +558,6 @@ local function ResultText(e) return REACH .. " " .. tostring(e.name) end
 ns:RegisterProvider("missing", {
 	label = L["Recipe to learn"],
 	color = "ff9ec9b4", -- (a grey of the recipes' mint)
-	-- (0.45.16, the player's call: not a kind of its own, no @missing: a filter on @recipe reaches it, is:unknown /
-	-- is:learnable; Alt+` and Shift+Right write @recipe)
 	noKind = true, reach = REACH, resultText = ResultText,
 	explicit = true, -- (only asked for: "recipes i'm missing", @recipe is:unknown)
 	lazy = true,
@@ -583,9 +581,9 @@ local SUBJECT = { recipe = true, recipes = true, pattern = true, patterns = true
 -- (not "need": "recipes that need copper bar" is what uses it)
 local MISSING = { missing = true, miss = true, unknown = true, unlearned = true, dont = true, havent = true, lack = true,
 	learn = true, learnable = true, new = true, yet = true, still = true, range = true, within = true, reach = true }
--- (0.49.15, the player's ask: "recipe to learn" listed 600 and more, most beyond your skill) the words that keep to what
--- your skill allows ("recipes in my skill range", "within my skill"); "to learn" does too, unless every one is asked
--- for ("all recipes to learn") or the words say missing ("recipes i'm missing", "recipes i don't know")
+-- the words that keep to what your skill allows ("recipes in my skill range", "within my skill"); "to learn" does too,
+-- unless every one is asked for ("all recipes to learn") or the words say missing ("recipes i'm missing", "recipes i
+-- don't know")
 local RANGE = { range = true, within = true, reach = true }
 local EVERY = { all = true, every = true, missing = true, miss = true, unknown = true, unlearned = true, dont = true,
 	havent = true, lack = true }
@@ -621,8 +619,8 @@ function MR.Question(text)
 	local P = ns.Professions
 	local profs = P and P.PlayerProfessions and P.PlayerProfessions() or {}
 	local q = { profs = {}, words = {} }
-	-- "recipes i can learn (now)", "learnable recipes", "recipes available to learn", "recipes in my skill range"; "recipes
-	-- to learn" too, unless "all recipes to learn" or "recipes i'm missing" asks for every one (0.49.15)
+	-- "recipes i can learn (now)", "learnable recipes", "recipes available to learn", "recipes in my skill range";
+	-- "recipes to learn" too, unless "all recipes to learn" or "recipes i'm missing" asks for every one
 	local hasLearn, range, every = false, false, false
 	for _, w in ipairs(list) do
 		if w == "learn" or w == "learnable" or w == "available" then hasLearn = true end
@@ -693,7 +691,7 @@ function MR.Answer(q, shown)
 		if ok then rows[#rows + 1] = e end
 	end
 	-- (the footer's count of the rows the search found: not sorted and scored again, which was a second full sort per
-	-- keystroke and wrote _score over the search's own on the same rows; 1.0.87, review)
+	-- keystroke and wrote _score over the search's own on the same rows)
 	if shown then rows = shown else
 		table.sort(rows, Order)
 		ns.ScoreInOrder(rows)

@@ -16,7 +16,7 @@ local NearLimit, NearWord = Score.NearLimit, Score.NearWord
 
 --- The matches kept for the next keystroke; nothing matched: Simple mode's closest by the everyday words, else close
 --- spellings (added to out).
--- (noNear: no close spellings, a name elsewhere has the words as typed: Overview.lua; 0.68.15)
+-- (noNear: no close spellings, a name elsewhere has the words as typed: Overview.lua)
 function Scan.Fallbacks(self, q, out, included, sig, noNear)
 	local empty, tokens, hard, softs, overBudget = q.empty, q.tokens, q.hard, q.softs, q.overBudget
 	if not empty then
@@ -32,9 +32,9 @@ function Scan.Fallbacks(self, q, out, included, sig, noNear)
 		-- easy mode, nothing passed every everyday word ("rare shield wailing caverns" for a green shield):
 		-- the rows with the typed words, those passing more of the everyday words first
 		if #out == 0 and softs then self:RelaxSoft(included, tokens, hard, softs, out, overBudget) end
-		-- nothing has every word: names within an edit or two of them ("hearhtstone"); not for a sum the calculator answered
-		-- (nor for a sum: "lnen clth | count" counts nothing, not the close spellings; review, 0.53.6)
-		-- (with the hard filters only: an everyday word, relaxed above, is no reason to leave a close spelling out)
+		-- nothing has every word: names within an edit or two of them ("hearhtstone"); not for a sum the calculator
+		-- answered (nor for a sum: "lnen clth | count" counts nothing, not the close spellings) (with the hard filters
+		-- only: an everyday word, relaxed above, is no reason to leave a close spelling out)
 		if not noNear and not self.calcAnswered and not (ns.Aggregate and ns.Aggregate.Summing(self.aggregate)) then
 			if #out == 0 then self:CloseSpellings(included, tokens, hard, out, overBudget)
 			else Scan.NearBeforeScattered(self, included, tokens, hard, out, overBudget) end
@@ -58,7 +58,7 @@ local function AnyWhole(out, tokens)
 end
 
 --- Matches only by letters scattered ("linrn" in Wailing Caverns): a name one slip of the hand away from the words
---- ("linrn": Linen Cloth, r beside e) is what was meant, and goes above them (0.68.15, the player's call). Adds to out.
+--- ("linrn": Linen Cloth, r beside e) is what was meant, and goes above them. Adds to out.
 function Scan.NearBeforeScattered(self, included, tokens, hard, out, overBudget)
 	if #out == 0 or AnyWhole(out, tokens) then return end
 	local near = {}
@@ -80,8 +80,7 @@ end
 local SOFT_PASS = 2.0 -- easy mode's relaxed pass: each everyday word a row passes (beats any score gap)
 
 --- How many of Simple mode's everyday words a row passes, each counted by its weight (Easy.Weight: "shield" counts for
---- more than "rare"). `weights`: SoftWeights(softs), worked out once per search, not per row (review, 0.53.6: the
---- overview and RelaxSoft each had a copy, weighing every filter again for every row).
+--- more than "rare"). `weights`: SoftWeights(softs), worked out once per search, not per row.
 local function SoftWeights(softs)
 	local w = {}
 	for k = 1, #softs do w[k] = ns.Easy.Weight(softs[k]) end
@@ -147,7 +146,7 @@ function UI:CloseSpellings(included, tokens, filters, out, overBudget, cap)
 		local list = RowsOf(included, p)
 		if overBudget() then coroutine.yield(out) end
 		local id = p.id
-		local mode = Scan.NameMode(included, p) -- (by their names only: not their text; 1.0.39)
+		local mode = Scan.NameMode(included, p) -- (by their names only: not their text)
 		for r = 1, #list do
 			local e = list[r]
 			local byName = mode == 1 or (mode == 2 and rawget(e, "namesOnly"))

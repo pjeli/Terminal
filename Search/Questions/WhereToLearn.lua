@@ -1,7 +1,7 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- What's Training's spells in searches (0.53.7; the rows themselves: Providers/Integrations/WhatsTraining.lua):
+-- What's Training's spells in searches (the rows themselves: Providers/Integrations/WhatsTraining.lua):
 --
 --   fireball > learn          where a spell is taught: the nearest of your class's trainers (a pet trainer for a pet
 --                             ability), its weapon masters, its quest, or where to get its book ("where to learn fireball")
@@ -84,7 +84,7 @@ local function Trainers(word)
 	local here = I and I.Here and I.Here() or nil
 	local found = {}
 	for _, e in ipairs(P.Trainers(word)) do
-		-- (I.RowYards: Questie's spawns, or a row's own place: TrainerSpells' trainers without Questie; 0.57.1)
+		-- (I.RowYards: Questie's spawns, or a row's own place: TrainerSpells' trainers without Questie)
 		found[#found + 1] = { e = e, d = here and I.RowYards and I.RowYards(e, here) or nil }
 	end
 	table.sort(found, function(a, b)

@@ -8,8 +8,8 @@ local L = ns.L
 local UI = ns.UI
 local rows = UI.rows
 local catcher -- TerminalClickCatcher, made the first time a row needs it (see "Mouse clicks" below)
--- (a row of a person, guild, friends, /who, group, shared: their name never in a trace, which .report copies; review,
--- 1.0.19. Rows of things keep theirs: a trace says what was opened)
+-- (a row of a person, guild, friends, /who, group, shared: their name never in a trace, which .report copies. Rows of
+-- things keep theirs: a trace says what was opened)
 local PEOPLE = { guild = true, friends = true, who = true, group = true, shared = true, people = true }
 function UI.IsPerson(e) return type(e) == "table" and PEOPLE[e.kind or ""] == true end
 function UI.TraceName(e) if UI.IsPerson(e) then return "(a person)" end return tostring(e and e.name) end
@@ -48,9 +48,9 @@ local function HoldFor(se, ctrl)
 end
 UI.HoldFor = HoldFor
 
---- (review, 0.48.6) as FinishSecure does after Enter: a press that asks for more stays open (@who's ask: the answer comes
---- into the list), and Ctrl held on a press that opens no window keeps it open (F1 says Ctrl+click is Ctrl+Enter); it
---- always closed before.
+--- as FinishSecure does after Enter: a press that asks for more stays open (@who's ask: the answer comes into the
+--- list), and Ctrl held on a press that opens no window keeps it open (F1 says Ctrl+click is Ctrl+Enter); it always
+--- closed before.
 local function FinishClicked(e, se)
 	local edit = UI.edit
 	ns:Bump(e.freqKey)
@@ -93,7 +93,7 @@ function UI:TryArmSecure(e)
 	local frame, edit = UI.frame, UI.edit
 	local S = ns.Secure
 	-- (asked before the press is worked out: an open window needs none, and a spec may have nothing to press then: the
-	-- Legacy window open on another page. 0.48.8, the player: its tab was never pointed at, the row's fallback ran)
+	-- Legacy window open on another page. its tab was never pointed at, the row's fallback ran)
 	if e.isOpen and e.isOpen(e) then -- nothing to click, just point at the thing
 		ns:Trace("secure: window already open, highlighting " .. UI.TraceName(e))
 		self:HideAfterRun()
@@ -154,9 +154,8 @@ function UI:FinishSoon(e)
 			ns.Secure.Disarm()
 			AfterSoon(e, 0.1)
 		elseif self.armedEntry == nil then
-			-- disarmed since (a Down arrow, the wheel, the pointer on another row): the press was made all the same (Enter
-			-- went on to the binding in it), so it's finished as if still armed. (0.49.2, review: the window opened, and the
-			-- terminal stayed over it with Enter still bound, its after-step never run)
+			-- disarmed since (a Down arrow, the wheel, the pointer on another row): the press was made all the same
+			-- (Enter went on to the binding in it), so it's finished as if still armed.
 			self:FinishSecure(e)
 		end
 	end)
@@ -211,12 +210,11 @@ local function DropTarget(e)
 	return o
 end
 
---- The entry to open through the game's own key for this press, or nil. Shift+Enter uses the
---- entry's secondary action; one that opens a window itself (secondarySecure) is armed like
---- Enter is, with its own isOpen/after (e.g. an equipment set: the character window's sets).
---- `own`: the row's own action even in ">>" mode (the row menu's first lines say the row's verbs; review, 0.48.6: they
---- sent it to the channel, the menu's own channel lines being for that).
---- A row that's a step before what's sent, copied or dropped: a category to pick, a word to write in, a heading.
+--- The entry to open through the game's own key for this press, or nil. Shift+Enter uses the entry's secondary action;
+--- one that opens a window itself (secondarySecure) is armed like Enter is, with its own isOpen/after (e.g. an
+--- equipment set: the character window's sets). `own`: the row's own action even in ">>" mode (the row menu's first
+--- lines say the row's verbs). A row that's a step before what's sent, copied or dropped: a category to pick, a word to
+--- write in, a heading.
 function UI.PicksFirst(e)
 	return type(e) == "table" and (e.catId or e.syntaxRow or e.lead) and true or false
 end
@@ -224,9 +222,8 @@ end
 local function SecureView(e, shift, own)
 	if not e then return nil end
 	-- ">> party": the selected result goes to the channel (the game presses the chat line), Enter or Shift+Enter
-	-- (">>>"'s one row has no action of its own: the menu's first line sends them too; 0.50.7, review)
-	-- (a category to pick, a word to write in: their own Enter, never sent nor copied; 0.63.7, review: Simple mode's
-	-- "linen >> party" sent the word "Items")
+	-- (">>>"'s one row has no action of its own: the menu's first line sends them too) (a category to pick, a word to
+	-- write in: their own Enter, never sent nor copied)
 	if UI.sendTo and (not own or e.sendAll) and not UI.PicksFirst(e) then
 		-- (">> drop" presses nothing: Terminal asks, then drops it with C calls; see SendSelected)
 		if UI.sendTo.drop or UI.sendTo.quests then return nil end
@@ -237,7 +234,7 @@ local function SecureView(e, shift, own)
 			return setmetatable({ secure = PRESS_ALL_SPEC, isOpen = NeverOpen, after = SentAfter, noClick = true }, { __index = e })
 		end
 		if not UI.sendTo.cmd or UI.sendTo.all or e.noActivate or e.raw or e.completion then return nil end
-		-- (its verb for the armed line: "Press Enter: send it to Party", not the row's own; review, 0.48.6)
+		-- (its verb for the armed line: "Press Enter: send it to Party", not the row's own)
 		return setmetatable({ secure = SEND_SPEC, isOpen = NeverOpen, after = SentAfter,
 			actionVerb = L["send it to %s"]:format(tostring(UI.sendTo.label)) }, { __index = e })
 	end
@@ -270,7 +267,7 @@ UI.SecureView = SecureView
 
 
 -- (">> party" on a resting pointer: the chat line is worked out on the click itself, the catcher's PreClick: working it
--- out sets an NPC's map pin to link it, and hovering moved your waypoint row by row; review, 0.48.6)
+-- out sets an NPC's map pin to link it, and hovering moved your waypoint row by row)
 local SEND_LATER = "\001send"
 UI.SEND_LATER = SEND_LATER
 
@@ -337,11 +334,10 @@ function UI:PlaceCatcher(i)
 	if InCombatLockdown() or self.closing or not frame or not frame:IsShown() then return end
 	if self.fzf then self:HideCatcher() return end -- (a click hands the result over; nothing is opened)
 	local row, e = rows[i], UI.results[UI.offset + i]
-	-- the same result on the same row (the list redrawn under a resting pointer): its macros
-	-- stand, the catcher only follows the row. Not when where it's sent changed (" >> party" typed after it keeps the
-	-- same rows: the click opened the quest log instead of sending it; 0.49.2, review)
-	-- Nor when the words after a command changed (a slash row's or a /slash alias's line is made from them: ".wh bob"
-	-- typed on under a resting pointer clicked "/w  hi"; 0.50.7, review)
+	-- the same result on the same row (the list redrawn under a resting pointer): its macros stand, the catcher only
+	-- follows the row. Not when where it's sent changed (" >> party" typed after it keeps the same rows: the click
+	-- opened the quest log instead of sending it) Nor when the words after a command changed (a slash row's or a /slash
+	-- alias's line is made from them: ".wh bob" typed on under a resting pointer clicked "/w  hi")
 	if catcher and e and catcher.entry == e and catcher.row == i and catcher.sendTo == self.sendTo and catcher.args == self.args
 		and catcher:IsShown() then
 		if not AnchorCatcher(catcher, row) then self:HideCatcher() end
@@ -359,7 +355,7 @@ function UI:PlaceCatcher(i)
 	c:SetAttribute("shift-type1", shifted and "macro" or "")
 	c:SetAttribute("shift-macrotext1", shifted ~= SEND_LATER and shifted or "")
 	-- Ctrl and Ctrl+Shift do what plain and Shift do (a ctrl-click found no ctrl- attribute and fell back to type1:
-	-- Ctrl+Shift+click ran Enter's action; review, 0.48.6)
+	-- Ctrl+Shift+click ran Enter's action)
 	c:SetAttribute("ctrl-type1", plain and "macro" or "")
 	c:SetAttribute("ctrl-macrotext1", plain ~= SEND_LATER and plain or "")
 	c:SetAttribute("ctrl-shift-type1", shifted and "macro" or "")
@@ -368,9 +364,9 @@ function UI:PlaceCatcher(i)
 	c:Show()
 end
 
---- Before the catcher's click acts: a chat line to send (">> party") is worked out now, for the row clicked. Only for the
---- left button: a right-click opens the row's menu, which works nothing out (an NPC's line moves your waypoint to link
---- it; 0.49.2, review).
+--- Before the catcher's click acts: a chat line to send (">> party") is worked out now, for the row clicked. Only for
+--- the left button: a right-click opens the row's menu, which works nothing out (an NPC's line moves your waypoint to
+--- link it).
 function UI:CatcherPreClick(c, button)
 	if button ~= "LeftButton" then return end
 	if InCombatLockdown() or not c.entry then return end
@@ -396,8 +392,7 @@ function UI:CatcherClicked(button)
 		return
 	end
 	self:HideCatcher()
-	-- (the row where it is now: the list may have been made again since the pointer came to rest; review, 0.53.6: a
-	-- click the game had pressed then never finished, the terminal left open)
+	-- (the row where it is now: the list may have been made again since the pointer came to rest)
 	if UI.results[idx] ~= e then
 		idx = nil
 		for i, r in ipairs(UI.results) do if UI.SameRow(r, e) then idx = i break end end
@@ -422,8 +417,8 @@ function UI:CatcherClicked(button)
 			end
 		end)
 		FinishClicked(e, se)
-		-- kept open (Ctrl on a press that opens no window, a press that asks for more): the catcher back over the row the
-		-- pointer rests on, so the next click is pressed by the game too (0.49.2, review: it only armed Enter)
+		-- kept open (Ctrl on a press that opens no window, a press that asks for more): the catcher back over the row
+		-- the pointer rests on, so the next click is pressed by the game too
 		if self:IsShown() then self:PlaceCatcher(c.row) end
 	elseif idx then
 		ns:Trace("click: no window macro for " .. UI.TraceName(e) .. ", running its usual action")
@@ -541,14 +536,14 @@ function UI:Activate(idx, opts)
 	local edit = UI.edit
 	opts = opts or {}
 	local e = UI.results[idx or UI.sel]
-	-- (a summed-up total has nothing to open, but ">> text" copies it: "in:bags | sum value >> text", 0.52.13)
+	-- (a summed-up total has nothing to open, but ">> text" copies it: "in:bags | sum value >> text")
 	local copyable = e and e.kind == "aggregate" and self.sendTo and self.sendTo.copy
 	if self.histSearch then return self:HistoryAccept(e) end -- (Ctrl+R: the line goes in the prompt; none matched: what's typed)
 	if not e or (e.noActivate and not copyable) then return end
 	if self.fzf then return self:FuzzyPop(e, opts.secondary) end -- (a click: as Enter / Shift+Enter)
 	-- ">>> channel": every result at once, sent by Terminal inside this press (a macro runs 255 characters at most)
-	-- (own: the row menu's first lines, the row's own action; ">>>"'s one row has none: it sends, as Enter does. 0.50.7,
-	-- review: its menu's "Send" closed the terminal and sent nothing)
+	-- (own: the row menu's first lines, the row's own action; ">>>"'s one row has none: it sends, as Enter does. its
+	-- menu's "Send" closed the terminal and sent nothing)
 	local to = (not opts.own or e.sendAll) and not UI.PicksFirst(e) and self.sendTo or nil
 	if to and to.copy and not e.completion then return CopyOut(self, e, to) end
 	if to and to.all and not e.completion then return SendEveryResult(self, to) end

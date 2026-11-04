@@ -41,8 +41,7 @@ local function SettingsCategories()
 	return out
 end
 
--- (the game's C call, fine from here; 0.50.7, review: an old client's InterfaceOptionsFrame_OpenToCategory, Blizzard Lua,
--- is no longer called, nor is the AddOn list shown from Terminal's own code: both taint. Where to open it is said.)
+-- (the game's C call, fine from here)
 local function OpenCategory(c) return ns.Secure.OpenSettings(c.id or c.name) end
 
 ----------------------------------------------------------------------
@@ -162,8 +161,8 @@ end
 
 local function Character() return ns.CharacterName() end -- (with the surname where characters have one: Util.lua)
 
---- Whether the addon is turned on for the character named `who` (nil: the client doesn't say). The list asks for
---- every addon with the name worked out once (Character()), not once per addon.
+--- Whether the addon is turned on for the character named `who` (nil: the client doesn't say). The list asks for every
+--- addon with the name worked out once (Character), not once per addon.
 local function EnabledFor(name, who)
 	local get = C_AddOns.GetAddOnEnableState
 	local st = get and ns.Num(ns.Safe(get, name, who))
@@ -182,7 +181,7 @@ local function Detail(e)
 	else
 		state = e.enabled and L["enabled"] or L["disabled"]
 		-- (on and not loaded: a load-on-demand addon, or one the game wouldn't load, says why as the AddOn list does; a
-		-- reload changes neither. Review, 0.48.6: every AtlasLoot module said ".reload to apply")
+		-- reload changes neither. Review)
 		if e.enabled and not e.loaded and e.why then state = state .. ns.DETAIL_SEP .. e.why
 		elseif e.enabled ~= e.loaded then state = L["%s (.reload to apply)"]:format(state) end
 	end
@@ -229,8 +228,7 @@ ns:RegisterProvider("addons", {
 	color = "ffb0b0b0",
 	aliases = { "addon", "addons", "plugin" },
 	noCombat = true, -- opening windows is protected in combat
-	-- options panels and minimap buttons appear as addons load: read again then, and on an open a minute on (0.63.7,
-	-- review: read on every open, 300 addons each time)
+	-- options panels and minimap buttons appear as addons load: read again then, and on an open a minute on
 	refreshOnOpen = 60,
 	events = { "ADDON_LOADED", "PLAYER_ENTERING_WORLD" },
 	collect = function()

@@ -3,7 +3,7 @@ local L = ns.L
 local I = ns.Integrations
 local OA = ns.OneForAll
 
--- A hunter's pets on WoW Forever (1.0.2, the player's ask), from OneForAll's lists of them, only on a hunter. No kind of
+-- A hunter's pets on WoW Forever, from OneForAll's lists of them, only on a hunter. No kind of
 -- their own since 1.0.37 (the player: "fold beasts into @npc ... the pet abilities in @spell and get rid of tame
 -- entirely"; was @tame, before 1.0.9 @petability and @tame):
 -- - each rank of each pet ability is an @spell row (`ability` set, is:ability: its level, its training points, the
@@ -419,7 +419,7 @@ local function AbilityAt(words, i, by)
 	end
 end
 
--- families and abilities by their lowercase names: made once (P.Forget), not per keystroke (review, 1.0.21)
+-- families and abilities by their lowercase names: made once (P.Forget), not per keystroke
 local function Index()
 	if not famIndex then
 		famIndex, abIndex = {}, {}
@@ -479,7 +479,7 @@ function P.Question(text)
 	-- "tameable cats", "where to tame a wolf", "rare pets in the barrens", "what can i tame at my level"
 	if (tame or (q.rare and (pet or q.family))) and P.Families() then
 		if #q.words > 0 and not P.AnyTame(q.words) then return nil end
-		-- (a spell of yours by its name, "tame beast": the spell, not the beasts; review, 1.0.36)
+		-- (a spell of yours by its name, "tame beast": the spell, not the beasts)
 		local sp = ns.providers.spells
 		for _, e in ipairs(sp and ns:GetEntries(sp) or {}) do if rawget(e, "_lname") == t then return nil end end
 		q.what = "tame"

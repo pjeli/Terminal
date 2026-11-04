@@ -110,8 +110,7 @@ local function Says(ways, name, tab, desc)
 	return best
 end
 
--- (kept by the text: a talent's name, tree and description are the same on every keystroke; 0.63.7, review: three
--- made for each of 540 talents per keystroke, ~40 ms)
+-- (kept by the text: a talent's name, tree and description are the same on every keystroke)
 local whereOf, whereN = {}, 0
 local function Where(s)
 	s = tostring(s or "")
