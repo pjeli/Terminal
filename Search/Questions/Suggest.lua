@@ -1232,3 +1232,45 @@ function HB.Answer()
 end
 --- Not a search: the question stays as typed (Advanced mode answers it the same).
 function HB.ToAdvanced() return nil end
+
+----------------------------------------------------------------------
+-- "how long to level", "xp per hour", "time to level": experience an hour this session, and the time to your next level
+-- at that rate (Providers/Experience.lua's X.Rate; 1.0.61, the reach audit)
+----------------------------------------------------------------------
+
+local XR = {}
+ns.XpRate = XR
+local XR_SET = {}
+for _, s in ipairs({ "how long to level", "how long until i level", "how long till i level", "how long to next level",
+	"how long to ding", "time to level", "time to next level", "time until next level", "xp per hour", "exp per hour",
+	"experience per hour", "xp an hour", "xp rate", "xp hr", "exp hr", "leveling speed", "levelling speed", "my xp rate",
+	"how fast am i leveling", "how fast am i levelling" }) do XR_SET[s] = true end
+function XR.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = t:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+	return XR_SET[t] and {} or nil
+end
+local function Dur(secs)
+	secs = math.max(0, math.floor(secs + 0.5))
+	local h, m = math.floor(secs / 3600), math.floor(secs % 3600 / 60)
+	if h == 0 then return L["%d min"]:format(math.max(1, m)) end
+	return m == 0 and L["%d h"]:format(h) or L["%d h %d min"]:format(h, m)
+end
+function XR.Answer()
+	local X = ns.Experience
+	local rate, secs, me
+	if X and X.Rate then rate, secs, me = X.Rate() end -- (an "and" keeps only the first of several results)
+	local title = L["Experience"]
+	if me and me.maxed then return { ns.NoteRow(L["Max level"]) }, title end
+	if not rate then return { ns.NoteRow(L["No experience gained this session yet"]) }, title end
+	if rate <= 0 then return { ns.NoteRow(L["No experience gained this session yet"], L["this session: %s"]:format(Dur(secs))) }, title end
+	local left = math.max(0, me.max - me.xp)
+	return {
+		ns.NoteRow(L["%s experience an hour"]:format(ns.Thousands and ns.Thousands(math.floor(rate)) or tostring(math.floor(rate))),
+			L["this session: %s"]:format(Dur(secs))),
+		ns.NoteRow(L["Level %d in about %s"]:format(me.level + 1, Dur(left / rate * 3600))),
+	}, title
+end
+--- Not a search: the question stays as typed (Advanced mode answers it the same).
+function XR.ToAdvanced() return nil end

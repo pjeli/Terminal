@@ -537,3 +537,7 @@ quests almost done
 where is my hearth
 my hearthstone location
 hearthstone
+
+# (1.0.61) experience an hour (the reach audit)
+how long to level
+xp per hour

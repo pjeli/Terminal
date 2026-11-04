@@ -99,6 +99,21 @@ local ok, err = pcall(function()
 	local hs = hrows and hrows[1]
 	check(hs and (tostring(hs.detail) .. tostring(hs.name)):find("Goldshire", 1, true) and (tostring(hs.detail) .. tostring(hs.name)):find(ns.L["ready"], 1, true)
 		and HB.Question("hearthstone") == nil, "where is my hearth: Goldshire, ready: " .. tostring(hs and hs.detail))
+	-- (1.0.61) experience an hour this session, and the time to the next level
+	local X, XR = ns.Experience, ns.XpRate
+	local readWas, sessWas = X.ReadMe, X.session
+	X.ReadMe = function() return { level = 20, xp = 1000, max = 7000 } end
+	X.session = nil
+	X.SessionTick()
+	X.SessionTick({ level = 20, xp = 4000, max = 7000 })
+	X.SessionTick({ level = 21, xp = 500, max = 7500 }) -- (a level's rollover: the rest of 20, then 500)
+	X.session.since = ns.Now() - 3600
+	X.ReadMe = function() return { level = 21, xp = 500, max = 7500 } end
+	local rate = X.Rate()
+	local xrows = XR.Question("how long to level") and XR.Answer()
+	X.ReadMe, X.session = readWas, sessWas
+	check(rate and math.floor(rate + 0.5) == 6500 and xrows and xrows[2] and tostring(xrows[2].name):find("22", 1, true) and XR.Question("level") == nil,
+		"how long to level: 6500 an hour this session, level 22 in about an hour: " .. tostring(rate) .. " / " .. tostring(xrows and xrows[2] and xrows[2].name))
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))

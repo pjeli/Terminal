@@ -292,6 +292,32 @@ function X.AltNames()
 	return out
 end
 
+-- This session's experience (1.0.61, the reach audit: "how long to level", "xp per hour"): what you gained since you
+-- logged in, a level's rollover counted, kept in memory only. { since (Now()), gained, level, xp, max } of the last read.
+X.session = nil
+--- Notes what changed since the last read (called on every experience event).
+function X.SessionTick(me)
+	me = me or X.ReadMe()
+	if not (me and me.xp and me.max) then return end
+	local s = X.session
+	if not s then X.session = { since = Now(), gained = 0, level = me.level, xp = me.xp, max = me.max } return end
+	if me.level == s.level then
+		if me.xp > s.xp then s.gained = s.gained + (me.xp - s.xp) end
+	elseif me.level == s.level + 1 then
+		s.gained = s.gained + math.max(0, s.max - s.xp) + me.xp -- (the rest of the old level, then the new one's)
+	end
+	s.level, s.xp, s.max = me.level, me.xp, me.max
+end
+--- Experience an hour this session, the seconds it's been, and your xp and the level's (nil: not read yet).
+function X.Rate()
+	local s = X.session
+	local me = X.ReadMe()
+	if not (s and me and me.xp and me.max) then return nil end
+	local secs = Now() - s.since
+	if secs < 60 then return 0, secs, me end
+	return s.gained / secs * 3600, secs, me
+end
+
 -- the note on each change, and at logout (the time and whether you're resting: the estimate starts there)
 local ev = CreateFrame("Frame")
 for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_XP_UPDATE", "UPDATE_EXHAUSTION", "PLAYER_LEVEL_UP",
@@ -307,4 +333,5 @@ ev:SetScript("OnEvent", function(_, event)
 	else
 		pcall(X.Record)
 	end
+	if event ~= "PLAYER_LOGOUT" then pcall(X.SessionTick) end
 end)

@@ -53,6 +53,8 @@ Scan.ANSWERS = {
 	Asks("AlmostDone"),
 	-- "where is my hearth": where your hearthstone takes you, and its cooldown (Suggest.lua; 1.0.60)
 	Asks("HearthBind"),
+	-- "how long to level", "xp per hour": this session's experience an hour (Suggest.lua; 1.0.61)
+	Asks("XpRate"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;

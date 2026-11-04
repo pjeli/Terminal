@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.61 (in testing)
+
+- "how long to level", "xp per hour", "time to level": the experience you've gained an hour this session and when you'll reach your next level at that rate (counted from login, in memory only; the reach audit).
+
 ## 1.0.60 (in testing)
 
 - "where is my hearth", "my hearthstone location", "where am i bound": where your hearthstone takes you and whether it's ready, on your Hearthstone's row (the reach audit).

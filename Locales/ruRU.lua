@@ -3327,4 +3327,8 @@ L["Item ID"] = "ID предмета"
 L["Quest ID"] = "ID задания"
 L["NPC ID"] = "ID НИП"
 L["ID of %s"] = "ID: %s"
+L["No experience gained this session yet"] = "За этот сеанс опыта пока нет"
+L["this session: %s"] = "за сеанс: %s"
+L["%s experience an hour"] = "%s опыта в час"
+L["Level %d in about %s"] = "Уровень %d примерно через %s"
 --@end-do-not-package@

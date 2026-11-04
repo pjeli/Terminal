@@ -3327,4 +3327,8 @@ L["Item ID"] = "物品ID"
 L["Quest ID"] = "任务ID"
 L["NPC ID"] = "NPC ID"
 L["ID of %s"] = "%s的ID"
+L["No experience gained this session yet"] = "本次登录尚未获得经验"
+L["this session: %s"] = "本次登录：%s"
+L["%s experience an hour"] = "每小时%s经验"
+L["Level %d in about %s"] = "%d级：约%s后"
 --@end-do-not-package@

@@ -3327,4 +3327,8 @@ L["Item ID"] = "ID de objeto"
 L["Quest ID"] = "ID de misión"
 L["NPC ID"] = "ID de PNJ"
 L["ID of %s"] = "ID de %s"
+L["No experience gained this session yet"] = "Aún no has ganado experiencia en esta sesión"
+L["this session: %s"] = "esta sesión: %s"
+L["%s experience an hour"] = "%s de experiencia por hora"
+L["Level %d in about %s"] = "Nivel %d en unos %s"
 --@end-do-not-package@
