@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.73 (in testing)
+
+- Tidying (review): AtlasLoot's faction rewards name their standing as the game does with OneForAll off too; the hearthstone's cooldown is said as other times left are, and "where is my hearth" says when the game won't tell.
+
 ## 1.0.72 (in testing)
 
 - Console (review): cat and grep on /npc say what an NPC sells again after ten idle minutes (the list behind it is read again, not taken as empty); it is never read twice at once.

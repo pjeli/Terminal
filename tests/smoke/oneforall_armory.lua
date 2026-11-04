@@ -272,6 +272,16 @@ do
 		-- (review, 1.0.38) said as OneForAll's are; its faction a question of its own; the answer has it, as Alt+`'s line does
 		check((brood[1].detail or ""):find(A.StandingName(8), 1, true) and (rawget(brood[1], "_ltext") or rawget(brood[1], "text") or ""):find(ns.Lower(L["reputation reward"]), 1, true),
 			"AtlasLoot's reward said as OneForAll's: " .. tostring(brood[1].detail))
+		-- (review, 1.0.73) the standing's name is Util.lua's, whatever OneForAll's says (and without it)
+		do
+			local snWas = A.StandingName
+			A.StandingName = function() return "OFAWORD" end
+			local one
+			for _, e in ipairs(I.FactionLoot({}, {})) do if e.itemID == 21210 then one = e end end
+			A.StandingName = snWas
+			check(one and (one.detail or ""):find(ns.StandingName(8), 1, true) and not (one.detail or ""):find("OFAWORD", 1, true),
+				"AtlasLoot's reward: the standing named by ns.StandingName: " .. tostring(one and one.detail))
+		end
 		local can
 		for _, e in ipairs(I.FactionLoot({ ["brood of nozdormu"] = 8 }, {})) do if e.itemID == 21210 then can = e end end
 		check(can and can.canBuy and (can.detail or ""):find(L["you can buy it"], 1, true) and (rawget(can, "text") or ""):find("canbuy", 1, true),

@@ -542,12 +542,11 @@ function P.QuestNamed(what)
 	n = questNames[lo]
 	return n ~= nil and n:sub(1, #t) == t
 end
---- An item's row in a chain's answer (what an NPC drops or sells, what a quest rewards), or nil while its name loads.
---- Do these (lowercase) words name an NPC or a place rather than a thing ("where do i find hogger", "where can i find
---- the stockade": where they are, not sources)?
 -- (the last words of an NPC's role said, not a thing: "flight master", "mage trainer", "quest giver"; review, 1.0.65)
 local ROLE_LAST = { trainer = true, trainers = true, master = true, masters = true, giver = true, givers = true,
 	keeper = true, keepers = true, healer = true, healers = true, house = true, houses = true }
+--- Do these (lowercase) words name an NPC or a place rather than a thing ("where do i find hogger", "where can i find
+--- the stockade": where they are, not sources)?
 function P.NotAThing(what)
 	if P.NpcNamed(what) then return true end
 	-- (an NPC's role or a kind of object: where the nearest is, not its sources: "where do i find an innkeeper", "where
@@ -564,6 +563,7 @@ function P.NotAThing(what)
 	end
 	return false
 end
+--- An item's row in a chain's answer (what an NPC drops or sells, what a quest rewards), or nil while its name loads.
 local function NpcItemRow(id, detail, how)
 	local name = ItemName(id)
 	if not name then return nil end

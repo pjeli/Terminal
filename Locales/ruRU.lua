@@ -3343,4 +3343,5 @@ L["Rare"] = "Редкий"
 L["Rare Elite"] = "Редкий элитный"
 L["Repeatable"] = "Повторяемое"
 L["a profession"] = "профессия"
+L["The game doesn't say where your hearthstone is set"] = "Игра не сообщает, где привязан ваш камень возвращения"
 --@end-do-not-package@

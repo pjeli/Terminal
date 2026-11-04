@@ -174,8 +174,6 @@ function I.FactionLoot(mine, have)
 		fl = {}
 		for _, r in ipairs(ns:GetEntries(lp)) do Read(r, fl) end
 	end
-	local AR = ns.OneForAll and ns.OneForAll.Armory
-	local SN = AR and AR.StandingName
 	for _, x in ipairs(fl) do
 		local r = x.r
 		local id = r.itemID
@@ -189,8 +187,8 @@ function I.FactionLoot(mine, have)
 			local need = x.need
 			local can = my ~= nil and my >= need
 			-- (said as OneForAll's are: the game's name for the standing, "you can buy it", the words its filters and Group
-			-- read; review, 1.0.38)
-			local st = (SN and SN(need)) or x.st
+			-- read; review, 1.0.38. ns.StandingName, OneForAll on or not: review, 1.0.73)
+			local st = ns.StandingName(need) or x.st
 			out[#out + 1] = setmetatable({ key = "al:" .. id .. ":" .. tostring(r.content), name = name, repReward = true, namesOnly = true,
 				faction = x.fac, reaction = need, mine = my, canBuy = can,
 				detail = x.fac .. SEP .. st .. (can and (SEP .. L["you can buy it"]) or ""),
@@ -594,7 +592,7 @@ local function SetupAtlasLoot()
 				if type(d) == "string" and not d:find(ns.DETAIL_SEP, 1, true) then -- (said already: not again)
 					local at = byDetail[d]
 					if at == nil then
-						local boss, inst = d:match("^(.-)  (.+)$")
+						local boss, inst = I.LootSplit(d) -- (the one reading of "Boss  Instance")
 						at = boss and W.BossChances(inst, boss) or false
 						byDetail[d] = at
 					end

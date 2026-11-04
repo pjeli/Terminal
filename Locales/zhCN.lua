@@ -3343,4 +3343,5 @@ L["Rare"] = "稀有"
 L["Rare Elite"] = "稀有精英"
 L["Repeatable"] = "可重复"
 L["a profession"] = "某个专业"
+L["The game doesn't say where your hearthstone is set"] = "游戏没有说明你的炉石绑定在哪里"
 --@end-do-not-package@

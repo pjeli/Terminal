@@ -189,6 +189,21 @@ local ok, err = pcall(function()
 	local hs = hrows and hrows[1]
 	check(hs and (tostring(hs.detail) .. tostring(hs.name)):find("Goldshire", 1, true) and (tostring(hs.detail) .. tostring(hs.name)):find(ns.L["ready"], 1, true)
 		and HB.Question("hearthstone") == nil, "where is my hearth: Goldshire, ready: " .. tostring(hs and hs.detail))
+	-- (review, 1.0.73) its cooldown said as every "left" is (ns.Left); no bind place: said so
+	do
+		local cdWas2 = C_Container and C_Container.GetItemCooldown
+		local timeWas = _G.GetTime
+		_G.GetTime = function() return 5000 end
+		if C_Container then C_Container.GetItemCooldown = function() return 1490, 3600, 1 end end
+		local left = HB.Cooldown()
+		if C_Container then C_Container.GetItemCooldown = cdWas2 end
+		_G.GetTime = timeWas
+		_G.GetBindLocation = function() return nil end
+		local none = HB.Answer()
+		_G.GetBindLocation = bindWas
+		check(left == ns.L["%s left"]:format(ns.Left(90)) and none[1] and none[1].name == ns.L["The game doesn't say where your hearthstone is set"],
+			"the hearthstone's cooldown as ns.Left says it; no bind place: " .. tostring(left))
+	end
 	-- (1.0.61) experience an hour this session, and the time to the next level
 	local X, XR = ns.Experience, ns.XpRate
 	local readWas, sessWas = X.ReadMe, X.session

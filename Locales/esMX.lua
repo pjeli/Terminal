@@ -3343,4 +3343,5 @@ L["Rare"] = "Raro"
 L["Rare Elite"] = "Élite raro"
 L["Repeatable"] = "Repetible"
 L["a profession"] = "una profesión"
+L["The game doesn't say where your hearthstone is set"] = "El juego no dice dónde está vinculada tu piedra de hogar"
 --@end-do-not-package@

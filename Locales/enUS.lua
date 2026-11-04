@@ -1886,6 +1886,7 @@ L["The game doesn't let addons open profession windows, so Terminal can't scan t
 L["The game doesn't let addons send chat right now (in combat in an instance)."] = true
 L["The game doesn't say what repairing it costs here: a repair vendor shows it."] = true
 L["The game doesn't say where your corpse is here (inside an instance it doesn't)."] = true
+L["The game doesn't say where your hearthstone is set"] = true
 L["The game doesn't say who's on your quests here: sharing tells (\"is already on that quest\")."] = true
 L["The game won't let you share this quest"] = true
 L["The game's options are found by name too (nameplates, the damage meter, class colors...): Enter opens the options window on the setting and points at it, no clicking through pages."] = true

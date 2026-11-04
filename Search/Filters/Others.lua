@@ -199,7 +199,7 @@ F._.StandingWords = StandingWords -- (OneForAll's reputation rewards question re
 local function StandingNames()
 	local out = {}
 	for i = 1, 8 do
-		local g = _G["FACTION_STANDING_LABEL" .. i]
+		local g = ns.StandingName and ns.StandingName(i) -- (Util.lua's: the game's, else English; review, 1.0.73)
 		out[i] = type(g) == "string" and g ~= "" and Lower(g):gsub(" ", "_") or STANDING_ENGLISH[i]
 	end
 	return out

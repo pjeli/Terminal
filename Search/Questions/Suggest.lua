@@ -1103,6 +1103,7 @@ function LV.ToAdvanced() return nil end
 
 local BW = {}
 ns.BagWorth = BW
+-- (junk: not what it's worth here, "what is my junk worth" is the junk search's; a word that turns the question away)
 local BW_LISTS = { bags = true, bag = true, stuff = true, inventory = true, items = true, things = true, junk = false }
 local BW_FILL = { the = true, my = true, of = true, what = true, whats = true, are = true, is = true, how = true, much = true,
 	["in"] = true, total = true, all = true, me = true, i = true, ["do"] = true, have = true, vendor = true, sell = true, ["for"] = true }
@@ -1254,13 +1255,14 @@ function HB.Cooldown()
 	if not (start and dur) then return nil end
 	local left = start > 0 and dur > 1.5 and (start + dur - GetTime()) or 0
 	if left <= 0 then return L["ready"] end
-	return L["%s left"]:format(L["%d min"]:format(math.ceil(left / 60)))
+	return L["%s left"]:format(ns.Left(left)) -- (Util.lua's one "how long is left"; review, 1.0.73)
 end
 function HB.Answer()
 	local where = Str(Safe(_G.GetBindLocation))
 	local title = ns.UpperFirst(L["in %s"]:format(where or "?"))
-	if not where then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
-	local said = where .. ((HB.Cooldown() and (SEP .. HB.Cooldown())) or "")
+	if not where then return { ns.NoteRow(L["The game doesn't say where your hearthstone is set"]) }, title end
+	local cd = HB.Cooldown()
+	local said = where .. (cd and (SEP .. cd) or "")
 	for _, e in ipairs(Entries("items", true)) do
 		if e.itemID == HB.ITEM then return { setmetatable({ detail = said }, { __index = e }) }, title end
 	end

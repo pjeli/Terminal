@@ -311,7 +311,9 @@ function MR.Tooltip(e, t)
 		for k, l in ipairs(s.bosses or {}) do
 			if k > 3 then break end
 			local said = ns.Plain(tostring(l.detail or "")) -- ("Boss  Instance": "Boss in Instance")
-			local boss, place = said:match("^(.-)%s%s+(.*)$")
+			local I = ns.Integrations
+			local boss, place = nil, nil
+			if I and I.LootSplit then boss, place = I.LootSplit(l.detail) end -- (the one reading of it; review, 1.0.73)
 			t:AddLine("  " .. (boss and L["Drops from %s in %s"]:format(boss, place) or L["Drops from %s"]:format(said)), 1, 1, 1)
 		end
 		if s.drops and #s.drops > 0 then
