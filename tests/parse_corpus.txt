@@ -571,3 +571,10 @@ where do i find the flight master
 how many mounts do i have
 how much gold do i have
 do i have mail
+
+# (1.0.66, review) Simple-mode readings
+nearest recipe vendor
+nearest achievement
+quests not undone
+what alt has linen
+rare swords westfall

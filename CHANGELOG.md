@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.66 (in testing)
+
+- Simple mode reads some lines right again (review): "nearest recipe vendor" is the nearest recipe vendors (not your recipes by distance), "rare swords westfall" green swords, "quests not undone" the done ones, "what alt has linen" as "which alt"; OneForAll's item sets, books and boats are found by a close spelling of their name again ("zanzils concentation").
+
 ## 1.0.65 (in testing)
 
 - Questions no longer take lines meant for others (review): "how many mounts do i have" and "do i have mail" are the collections' and the mail's again, not an item count; "how much gold do i have" counts no items called gold; "where do i find an innkeeper", "where can i find a mailbox", "where to find a mage trainer" find the nearest one, not an item's sources; "heavy chain", "what does stamina give" are searches again (a quest's chain and rewards in words need the words to name a quest).

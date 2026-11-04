@@ -721,6 +721,13 @@ do
 	got = List("@npc in:barrens is:vendor")
 	check(table.concat(got, ","):find("Zargh", 1, true) and table.concat(got, ","):find("Jazzik", 1, true) and not table.concat(got, ","):find("Pestle", 1, true),
 		"in:barrens: the zone's vendors, not Elwynn's: " .. table.concat(got, ", "))
+	-- (review, 1.0.66) "rare" beside a place and an item word is the quality ("rare swords ratchet"); alone with a place,
+	-- the rank ("rare in ratchet")
+	do
+		local sw, rr = ns.Easy.ToAdvanced("rare swords ratchet"), ns.Easy.ToAdvanced("rare in ratchet")
+		check(sw:find("q:rare", 1, true) and not sw:find("@npc", 1, true) and not sw:find("is:rare", 1, true) and rr:find("is:rare", 1, true),
+			"rare swords ratchet: the quality; rare in ratchet: the rank: " .. sw .. " / " .. rr)
+	end
 	local conv = ns.Easy.ToAdvanced("vendor ratchet")
 	-- (0.55.4: what the search does, printed: a place's vendors are every vendor there, as Simple mode lists them; review,
 	-- 0.48.6. Easy.lua's own converter said faction:friendly, which the search never asked for)

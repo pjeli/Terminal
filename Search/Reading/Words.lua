@@ -581,8 +581,8 @@ for w in ([[log q ui window frame panel token tokens set sets outfit outfits tre
 	command option options setting settings binding bindings hotkey hotkeys keybind standing faction factions language
 	languages proficiency map maps instance instances raid raids dungeon dungeons rested exp xp ah token who bnet ssh
 	shared stored syndicator bagnon terminal gmember allspells classabilities classspell classspells spellbook n mob
-	vendor ach achieve tree flight flights fp taxi place corpse dura repaircost lockout saved raidinfo inbox letters
-	mybank ability abilities skill skills proficiency weaponskill]]):gmatch("%S+") do KIND_DENY[w] = true end
+	vendor ach achieve flight flights fp taxi corpse dura repaircost lockout raidinfo inbox letters
+	mybank ability abilities skill skills weaponskill]]):gmatch("%S+") do KIND_DENY[w] = true end
 -- (your bags: your items in them; 1.0.45)
 local KIND_FILTER = { bag = "in:bags", bags = "in:bags", inventory = "in:bags" }
 -- (words that are a list's and an ordinary word's, "gold map", "10 slot bag", "gear for next level": the list only as

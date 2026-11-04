@@ -11,7 +11,9 @@ local ok, err = pcall(function()
 	-- (1.0.46) "haven't", "not yet" before a state word turn it round; "i have" goes
 	for line, want in pairs({ ["quests i haven't done"] = "@questlog -is:done", ["quests i havent done"] = "@questlog -is:done",
 		["quests i have done"] = "@questlog is:done", ["undone quests"] = "@questlog -is:done", ["quests not yet done"] = "@questlog -is:done",
-		["quests i havent done in westfall"] = "@questlog westfall -is:done", ["achievements i havent earned"] = "@achievement -is:done" }) do
+		["quests i havent done in westfall"] = "@questlog westfall -is:done", ["achievements i havent earned"] = "@achievement -is:done",
+		-- (review, 1.0.66: a state already turned round, turned round again)
+		["quests not undone"] = "@questlog is:done", ["quests not incomplete"] = "@questlog is:done" }) do
 		check(Adv(line) == want, line .. ": " .. want .. " (got " .. Adv(line) .. ")")
 	end
 	-- (1.0.48) near you: a list that isn't NPCs, by distance; quests and turn-ins by their NPC's; NPCs as before
@@ -25,6 +27,16 @@ local ok, err = pcall(function()
 		and Adv("dungeons near me") == "@dungeon sort:distance" and Adv("nearest innkeeper"):find("@npc is:innkeeper", 1, true),
 		"camps nearby: @camp nearest first; dungeons, innkeepers as before: " .. Adv("camps nearby"))
 	-- (1.0.49) your alts': "items on my alts" is @stored (not your bags), "which alt has linen" the alts' linen
+	check(Adv("what alt has linen") == "@stored linen", "what alt has linen: as which alt (review, 1.0.66): " .. Adv("what alt has linen"))
+	-- (review, 1.0.66) "nearest" and a list's name: only a list whose rows have a place, never beside an NPC's role
+	check(Adv("nearest recipe vendor"):find("@npc", 1, true) and Adv("nearest recipe vendor"):find("is:vendor", 1, true)
+		and not Adv("nearest achievement"):find("@achievement", 1, true) and not Adv("nearest macro"):find("@macro", 1, true),
+		"nearest recipe vendor: vendors; nearest achievement: no distance: " .. Adv("nearest recipe vendor") .. " / " .. Adv("nearest achievement"))
+	-- (review, 1.0.66) a list matched by names only: close spellings of the name too
+	local Scan = ns.UI._Scan
+	local zan = { name = "Zanzil's Concentration" }
+	check(not Scan.NameLeftOut(1, zan, { "zanzils", "concentration" }) and not Scan.NameLeftOut(1, zan, { "zanzil", "concentation" })
+		and Scan.NameLeftOut(1, zan, { "linen" }) and not Scan.NameLeftOut(0, zan, { "linen" }), "names only: close spellings of the name count, other words don't")
 	check(Adv("items on my alts") == "@stored" and Adv("which alt has linen") == "@stored linen" and Adv("linen on my alts") == "@stored linen",
 		"items on my alts, which alt has linen: @stored: " .. Adv("items on my alts") .. " / " .. Adv("which alt has linen"))
 	-- (1.0.51) how many you have, and where

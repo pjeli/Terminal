@@ -8024,3 +8024,86 @@ pick sort: -
 category: -
 advanced: "do i have mail "
 explain: "Everything matching do i have mail"
+
+== nearest recipe vendor
+question: -
+tokens: recipe
+filter: soft is:vendor  sig=~vendor  word=vendor
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:vendor word=vendor
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc recipe is:vendor faction:friendly sort:distance "
+explain: "Friendly vendors matching recipe, nearest first"
+
+== nearest achievement
+question: -
+tokens: achievement
+sort: -
+kinds: -
+action: Nearest  word=nearest
+place: -
+send: -
+steps: -
+group: -
+pick sort: id=distance word=nearest
+category: -
+advanced: "@npc achievement sort:distance "
+explain: "NPCs matching achievement, nearest first"
+
+== quests not undone
+question: -
+tokens: -
+filter: soft is:done  sig=~done  word=done
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:done word=done
+pick sort: -
+category: -
+advanced: "@questlog is:done "
+explain: "Done quests in your log"
+
+== what alt has linen
+question: -
+tokens: linen
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@stored linen "
+explain: "Your alts' and bank's items matching linen"
+
+== rare swords westfall
+question: -
+tokens: westfall
+filter: soft q:rare  sig=~rare  word=rare
+filter: soft type:sword  sig=~swords  word=swords
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=q:rare word=rare
+pick: spec=type:sword word=swords
+pick sort: -
+category: places
+advanced: "@flight westfall rare swords "
+explain: "Flight paths matching westfall rare swords"

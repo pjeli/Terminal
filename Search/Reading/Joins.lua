@@ -116,7 +116,7 @@ local function JoinOrIn(r, units)
 	end
 end
 -- A state said in a sentence (1.0.46, the reach audit: "quests i haven't done" read is:done, the opposite): "haven't",
--- "not", "never", "not yet" before a state word (done, completed, finished, earned, learned, known, ready, tracked...)
+-- "not", "never", "not yet" before a state word (done, completed, finished, earned, learned, known, ready...)
 -- turn it round, and the sentence's own words around it go ("i have", "you", "yet" after it): "quests i haven't done" ->
 -- -done, "quests not yet done" -> -done, "quests i have done" -> done; "mail i haven't read" -> unread.
 local STATE_NOT = { ["not"] = true, never = true, ["haven't"] = true, havent = true, ["hasn't"] = true, hasnt = true,
@@ -128,6 +128,23 @@ local function StateOf(lw)
 	local spec = E.WORDS[lw]
 	if type(spec) == "string" and spec:find("^%-?is:") then return true end
 	return STATE_ONLY_NOT[lw] ~= nil
+end
+-- (a state word that is already turned round, "undone" -> -is:done, turned round again: the word for is:done,
+-- "done", not "--is:done"; review, 1.0.66)
+local positiveOf = {}
+local function Positive(lw)
+	local spec = E.WORDS[lw]
+	if type(spec) ~= "string" or not spec:find("^%-is:") then return nil end
+	local want = spec:sub(2)
+	local got = positiveOf[want]
+	if got == nil then
+		got = false
+		for k, v in pairs(E.WORDS) do
+			if v == want and not k:find(" ", 1, true) and (not got or #k < #got) then got = k end
+		end
+		positiveOf[want] = got
+	end
+	return got or nil
 end
 local function JoinStateIn(r, units)
 	local Low = ns.Phrase.Low
@@ -145,7 +162,8 @@ local function JoinStateIn(r, units)
 			if units[i + 1] and Low(units[i + 1]) == "yet" and (neg or from < i) then to = i + 1 end
 			local only = STATE_ONLY_NOT[lw]
 			if (from < i or to > i) and not (only and not neg) then
-				local word = only or ((neg and "-" or "") .. units[i].word)
+				local pos = neg and Positive(lw)
+				local word = only or pos or ((neg and "-" or "") .. units[i].word)
 				local parts = {}
 				for k = from, to do parts[#parts + 1] = units[k] end
 				local u = ns.Phrase.Join(r, parts, word, "not")

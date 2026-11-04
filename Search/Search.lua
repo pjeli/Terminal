@@ -459,10 +459,18 @@ function Scan.RowNameHas(e, tokens)
 	return true
 end
 local RowNameHas = Scan.RowNameHas
---- A row a list's NameMode leaves out of this search?
+--- A row a list's NameMode leaves out of this search: a word its name hasn't, close spellings and all ("zanzils
+--- concentation" is Zanzil's Concentration; a plain find each left those out: review, 1.0.66)?
+local TokenScore = Score.TokenScore
 function Scan.NameLeftOut(mode, e, tokens)
 	if mode == 0 or (mode == 2 and not rawget(e, "namesOnly")) then return false end
-	return not RowNameHas(e, tokens)
+	if RowNameHas(e, tokens) then return false end
+	local name = type(e.name) == "string" and e.name or ""
+	local lname = rawget(e, "_lname") or ns.Lower(name)
+	for i = 1, #tokens do
+		if not TokenScore(tokens[i], nil, name, lname, nil, nil) then return true end
+	end
+	return false
 end
 local NameLeftOut = Scan.NameLeftOut
 

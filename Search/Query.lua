@@ -471,14 +471,16 @@ function Scan.ActionAndPlace(self, q)
 		-- (1.0.48, the reach audit: "camps nearby", "mailbox near me" were NPCs named so) nearest and a list's own name that
 		-- isn't NPCs: that list, nearest first (the kind word is taken below, Scan.KindWord)
 		local Ih = ns.Integrations
-		if act and act.nearest and ns.Easy.KindWord then
+		-- (only lists whose rows have a place, and never beside an NPC role read: "nearest recipe vendor" is a vendor,
+		-- "nearest achievement" no list's; review, 1.0.66)
+		if act and act.nearest and ns.Easy.KindWord and not Scan.RoleRead(q) then
 			for i, w in ipairs(q.tokens) do
 				local k = ns.Easy.KindWord(w)
 				if not k and q.tokens[i + 1] then k = ns.Easy.KindWord(w .. " " .. q.tokens[i + 1]) end
 				-- (a place's list, mailboxes, dungeons, with where you are not known: as before, "can't tell where you are")
 				local place = Ih and ((Ih.OBJECT_KINDS and Ih.OBJECT_KINDS[w]) or (Ih.ENTRANCE_KINDS and Ih.ENTRANCE_KINDS[w]))
 				if place and not (Ih.Here and Ih.Here()) then k = nil end
-				if k and k.ids and not k.ids.npc and not k.ids.quests and not k.ids.questie and not k.mine then
+				if k and k.ids and not k.ids.npc and not k.ids.quests and not k.ids.questie and not k.mine and Scan.Placed(k.ids) then
 					q.sortNear, q.sortFar = true, act.far or nil -- ("farthest mailbox": the other way round)
 					act, q.actWord, q.srcAction = nil, nil, nil
 					q.fsig[#q.fsig + 1] = "^near"
@@ -574,6 +576,31 @@ function Scan.ActionAndPlace(self, q)
 	self.action = act
 end
 
+--- Do all these lists' rows have a place ("nearest" sorts them by distance): sort:distance's lists (Others.lua's
+--- F.APPLIES), and camps.
+function Scan.Placed(ids)
+	local F = ns.Filters
+	local spots = F and F.APPLIES and F.APPLIES.sort and F.APPLIES.sort.distance or {}
+	local any = false
+	for id in pairs(ids) do
+		local ok = id == "camp"
+		for _, s in ipairs(spots) do if s == id then ok = true break end end
+		if not ok then return false end
+		any = true
+	end
+	return any
+end
+--- Was an NPC's role read among the words (is:vendor, is:trainer, trainer:...)?
+function Scan.RoleRead(q)
+	local E = ns.Easy
+	for _, list in ipairs({ q.softWords or {}, q.strictWords or {} }) do
+		for _, w in ipairs(list) do
+			if E.ROLE_WORDS[w] or (E.PROF_PEOPLE and E.PROF_PEOPLE[w]) then return true end
+		end
+	end
+	return false
+end
+
 --- Simple mode: "hogger quest", "quests in westfall", "npcs in westfall", "linen recipes" (0.68.14, the player's call:
 --- the word was searched as a word, and "quests in westfall" found an NPC named Quartermaster Lewis). The first word
 --- that names a kind (E.KindWord) is taken out and its category kept as q.kindCat (q.kindOnly: the one list a word like
@@ -584,7 +611,7 @@ end
 local ALONE = { my = true, list = true, show = true, all = true, every = true, me = true, the = true, your = true, mine = true }
 -- (a list said with what it holds, "which alt has linen", "my bank has copper": those words go with it; 1.0.49)
 local KIND_FILLER = { has = true, have = true, had = true, got = true, holds = true, hold = true, carries = true, carry = true,
-	keeps = true, which = true }
+	keeps = true, which = true, what = true }
 -- (a thing's general word beside a list said as yours, "items on my alts": the list's rows are those; 1.0.49)
 local KIND_GENERAL = { item = true, items = true, thing = true, things = true, stuff = true }
 --- Is anything (not a window, not one of `ids`' rows) named `lname` in the lists built?
@@ -599,11 +626,18 @@ local function NameTaken(lname, ids)
 	end
 	return false
 end
+local NPC_WORDS = { mob = true, mobs = true, npc = true, npcs = true, spawn = true, spawns = true, creature = true, creatures = true }
 --- Simple mode's "rare" and "elite" as an NPC's rank: beside an NPC word, the nearest NPCs, or a place said alone with them.
 function Scan.RankWords(self, q, act)
 	local npcs = q.kindCat == "npcs" or (q.kindIds and q.kindIds.npc) or (act and act.map and act.map.npc)
+	-- (with a place, only when nothing else is said: a sentence's little words aside, no other everyday word: "rare
+	-- swords westfall" is green swords; review, 1.0.66)
 	local onlyRank = true
-	for _, w in ipairs(q.tokens) do if w ~= "elite" and w ~= "rare" then onlyRank = false end end
+	local STOP = ns.Easy.STOP or {}
+	for _, w in ipairs(q.tokens) do if w ~= "elite" and w ~= "rare" and not STOP[w] then onlyRank = false end end
+	for _, list in ipairs({ q.softWords or {}, q.strictWords or {} }) do
+		for _, w in ipairs(list) do if w ~= "rare" and w ~= "elite" then onlyRank = false end end
+	end
 	if not (npcs or (self.place and onlyRank)) then return end
 	local F = ns.Filters
 	if not F then return end
@@ -616,7 +650,6 @@ function Scan.RankWords(self, q, act)
 			rare = true
 		end
 	end
-	local NPC_WORDS = { mob = true, mobs = true, npc = true, npcs = true, spawn = true, spawns = true, creature = true, creatures = true }
 	for i = #q.tokens, 1, -1 do
 		local w = q.tokens[i]
 		if w == "elite" or w == "elites" then elite = true; table.remove(q.tokens, i); q.tokenSrc = nil
