@@ -495,6 +495,7 @@ F.SORTS = { distance = "distance", dist = "distance", nearest = "distance", near
 	-- (0.55.1: by what the rows have, as Simple mode's bar sorts; Bar.lua's B.SortRows)
 	name = "name", alpha = "name", az = "name", level = "level", lvl = "level", ilvl = "ilvl", itemlevel = "ilvl",
 	quality = "quality", q = "quality", value = "value", worth = "value", count = "count", qty = "count",
+	progress = "progress", done = "progress", -- (1.0.59: the closest to done first)
 	damage = "damage", hit = "damage", biggest = "damage", line = "line", lines = "line", owner = "owner", owners = "owner",
 	standing = "standing", rep = "standing", reputation = "standing" }
 -- the sorts that don't turn round: the plan's, the biggest upgrades (a field's do: sort:-level; distance too, 0.65.7)

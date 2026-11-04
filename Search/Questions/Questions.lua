@@ -49,6 +49,8 @@ Scan.ANSWERS = {
 	Asks("LevelOf"),
 	-- "bigger bags": bags bigger than your smallest (Suggest.lua; 1.0.57)
 	Asks("BiggerBags"),
+	-- "achievements almost done", "quests almost done": the closest to done first (Suggest.lua; 1.0.59)
+	Asks("AlmostDone"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;

@@ -80,6 +80,14 @@ local ok, err = pcall(function()
 		and OI.Question("linen cloth item id").kind == "item" and OI.Question("item linen") == nil,
 		"itemid linen cloth: its id: " .. tostring(irows and irows[1] and irows[1].objID))
 	check(Adv("itemid linen cloth") == "itemid linen cloth", "...Alt+`: the question: " .. Adv("itemid linen cloth"))
+	-- (1.0.59) almost done: the closest to done first; sort:progress
+	local A = ns.Aggregate
+	check(A.Progress({ kind = "achievements", progress = "3/4" }) == 0.75 and A.Progress({ kind = "quests", objectives = { { "Gnoll Paw: 3/8" }, { "Flank: 1/2" } } }) == 0.4
+		and ns.Filters.SortOf("sort:progress") == "progress", "progress: an achievement's criteria, a quest's objectives; sort:progress")
+	local AD = ns.AlmostDone
+	check(AD.Question("achievements almost done").kind == "achievements" and AD.Question("quests almost done").kind == "quests"
+		and AD.Question("achievements") == nil and Adv("achievements almost done") == "@achievement is:todo sort:progress"
+		and type(AD.Answer(AD.Question("achievements almost done"))) == "table", "achievements almost done: the question, its Advanced line")
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))

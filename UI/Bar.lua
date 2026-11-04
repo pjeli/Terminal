@@ -89,6 +89,7 @@ B.SORTS = {
 	{ id = "line", label = L["Line by line"], field = "line", asc = true },
 	{ id = "owner", label = L["Owner"], field = "owner", asc = true }, -- (friends' items, Terminal: Share; 0.58.6)
 	{ id = "standing", label = L["Standing"], field = "standing", asc = true }, -- (reputations and their rewards; 1.0.27)
+	{ id = "progress", label = L["Progress"], field = "progress" }, -- (achievements, quests: the closest to done first; 1.0.59)
 }
 B.DISTANCE_FIELD = { id = "distance", field = "distance", asc = true } -- (a later part of a sort: SortSpec)
 -- what Group offers: Aggregate's fields that name something

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.59 (in testing)
+
+- "achievements almost done", "quests almost done": those under way, the closest to done first (an achievement's criteria, a quest's objectives); a new sort, `sort:progress` (and Progress in the bar's Sort), does the same in any search of them (the reach audit).
+
 ## 1.0.58 (in testing)
 
 - Item, quest and NPC ids, as spell ids are (the reach audit): "itemid linen cloth", "item id 2589", "questid the defias brotherhood", "npcid hogger" list each one with its id, Enter shows the id to copy, an item's Shift+Enter links it in chat.

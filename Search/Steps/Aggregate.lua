@@ -29,6 +29,23 @@ end
 local function Num(n) return type(n) == "number" and n or nil end
 local function Count(e) return FP.Count and FP.Count(e) or Num(e.total) or Num(e.count) end
 local function Str(s) return type(s) == "string" and s ~= "" and s or nil end
+--- How far along a row is, 0 to 1, or nil: an achievement's criteria, a quest's objectives (their "a/b" counts added up).
+function A.Progress(e)
+	if e.kind == "achievements" then
+		local a, b = tostring(e.progress or ""):match("^(%d+)/(%d+)$")
+		a, b = tonumber(a), tonumber(b)
+		return a and b and b > 0 and math.min(1, a / b) or nil
+	end
+	if e.kind == "quests" and type(e.objectives) == "table" then
+		local have, need = 0, 0
+		for _, o in ipairs(e.objectives) do
+			local a, b = tostring(o[1] or ""):match("(%d+)%s*/%s*(%d+)")
+			a, b = tonumber(a), tonumber(b)
+			if a and b and b > 0 then have, need = have + math.min(a, b), need + b end
+		end
+		return need > 0 and have / need or nil
+	end
+end
 
 --- A loot row's boss, place and the place's kind ("dungeon", "raid", "world": AtlasLoot's World Bosses; nil: not
 --- known, an index from before 0.51.9)
@@ -111,6 +128,9 @@ A.FIELDS = {
 	level = { label = L["level"], num = function(e) return FP.Levels and (FP.Levels(e)) or nil end, order = true },
 	ilvl = { label = L["item level"], num = function(e) local i = Info(e); return i and Num(i.ilvl) end, order = true },
 	count = { label = L["count"], num = function(e) return Count(e) or 1 end },
+	-- (how far along, 0 to 1: an achievement's criteria ("3/10"), a quest's objectives in your log ("Gnoll Paw: 3/8");
+	-- sort:progress, the closest to done first; 1.0.59, the reach audit)
+	progress = { label = ns.Lower(L["Progress"]), num = function(e) return A.Progress(e) end },
 	-- (how far, where it was worked out: the rows of a search sorted by distance; sort:level,distance. 0.66.16)
 	distance = { label = L["distance"], num = function(e) return Num(rawget(e, "_dist")) end },
 	-- (an attunement's steps, line by line as Attune's tree reads them: sort:line; 0.55.21)

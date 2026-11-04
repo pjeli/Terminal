@@ -1147,3 +1147,47 @@ function BB.Answer(q)
 	return rows, title
 end
 function BB.ToAdvanced(q) return q.line end
+
+----------------------------------------------------------------------
+-- "achievements almost done", "quests almost done": those under way, the closest to done first (sort:progress: an
+-- achievement's criteria, a quest's objectives; 1.0.59, the reach audit)
+----------------------------------------------------------------------
+
+local AD = {}
+ns.AlmostDone = AD
+local AD_NEAR = { almost = true, nearly = true, closest = true, close = true }
+local AD_FILL = { done = true, finished = true, complete = true, completed = true, to = true, my = true, the = true, i = true,
+	am = true, im = true, that = true, are = true, which = true, what = true, show = true, list = true, me = true, ["in"] = true,
+	progress = true }
+local AD_KINDS = { achievement = "achievements", achievements = "achievements", quest = "quests", quests = "quests" }
+AD.MAX = 50
+function AD.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	local near, kind = false, nil
+	for w in t:gmatch("%S+") do
+		if AD_NEAR[w] then near = true
+		elseif AD_KINDS[w] then kind = AD_KINDS[w]
+		elseif not AD_FILL[w] then return nil end
+	end
+	if not (near and kind) then return nil end
+	return { kind = kind }
+end
+function AD.Answer(q)
+	local A = ns.Aggregate
+	local found = {}
+	for _, e in ipairs(Entries(q.kind, true)) do
+		local f = A and A.Progress and A.Progress(e)
+		if f and f > 0 and f < 1 and not rawget(e, "completed") and not e.complete then found[#found + 1] = { f = f, e = e } end
+	end
+	table.sort(found, function(a, b) if a.f ~= b.f then return a.f > b.f end return tostring(a.e.name) < tostring(b.e.name) end)
+	local rows = {}
+	for i = 1, math.min(#found, AD.MAX) do rows[i] = found[i].e end
+	local title = L["Progress"] .. SEP .. L["the most first"]
+	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
+	ns.ScoreInOrder(rows)
+	return rows, title
+end
+function AD.ToAdvanced(q)
+	return q.kind == "achievements" and "@achievement is:todo sort:progress " or "@questlog -is:complete sort:progress "
+end

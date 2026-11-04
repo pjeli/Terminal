@@ -671,7 +671,7 @@ F.VALUES = {
 	-- (no "warband": WoW Forever has no warband bank; 0.50.5, the player)
 	["in"] = { "bags", "bank", "mail", "guild", "equipped" },
 	faction = { "horde", "alliance", "neutral", "friendly" },
-	sort = { "distance", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner", "standing" },
+	sort = { "distance", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner", "standing", "progress" },
 	fish = { "mine", "75", "150", "225", "300" },
 	cast = { "instant", "channeled", "<2", ">=3" }, cost = { "0", "mana", "rage", "energy", "<100" },
 	range = { "melee", "self", "30", ">=30" }, cd = { "0", "<10", ">60" },
@@ -740,7 +740,7 @@ F.APPLIES = {
 	faction = { ["*"] = { "npc", "flight" } },
 	sort = { distance = SPOTS, plan = RECIPES, best = UPGRADES, ilvl = MADE, quality = MADE, value = MADE, count = MADE,
 		name = { "items", "spells", "classspells", "talents", "quests", "recipes" }, level = { "quests", "classspells", "recipes" },
-		damage = { "combatlog" }, line = { "attune" }, owner = { "shared" }, standing = { "reputation" } },
+		damage = { "combatlog" }, line = { "attune" }, owner = { "shared" }, standing = { "reputation" }, progress = { "achievements", "quests" } },
 	near = { ["*"] = SPOTS },
 	fish = { ["*"] = { "maps" } },
 	cast = { ["*"] = { "spells", "classspells" } }, cost = { ["*"] = { "spells", "classspells" } },

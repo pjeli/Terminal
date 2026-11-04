@@ -528,3 +528,7 @@ itemid linen cloth
 item id 2589
 questid 176
 npcid hogger
+
+# (1.0.59) almost done (the reach audit)
+achievements almost done
+quests almost done
