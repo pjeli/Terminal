@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.76 (in testing)
+
+- Questions (docs/QUESTIONS.md, phase 1): one registry with an id per question; when several could take a line, the one that understands more of its words gets it, or the one a review said should (`over`), not whichever came first in a list. No answer changes.
+
 ## 1.0.75 (in testing)
 
 - .changelog: one line for the plain-word questions and filters added since 1.0.45.

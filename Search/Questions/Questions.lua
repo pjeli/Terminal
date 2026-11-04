@@ -1,20 +1,26 @@
 local ns = select(2, ...)
 
--- The plain-word questions and chains (Scan.ANSWERS), answered before any search: their one list, the order a line is
--- read as one (Scan.ReadQuestion, for the answer and for Alt+`), their rows filtered and sorted as a search's
--- (Scan.AnswerView). Moved out of Search.lua as it was.
+-- The plain-word questions and chains (Scan.ANSWERS), answered before any search: one registry of them (ns.Questions),
+-- which one gets a line when several could (Q.Ranked), how a line is read as one (Scan.ReadQuestion, for the answer and
+-- for Alt+`), their rows filtered and sorted as a search's (Scan.AnswerView). docs/QUESTIONS.md is the design.
 
 local Scan = ns.UI._Scan
 local function EasyOn() return ns.Easy ~= nil and ns.Easy.On() end
 local EASY_NONE, PseudoEntries = Scan.EASY_NONE, Scan.PseudoEntries
 
--- The plain-word questions and chains, answered before any search, in this order. Each: `ask(text, converting)` gives
--- what the line asks (and a second value for answer/toAdvanced) or nil when it isn't its kind; `answer` gives rows and
--- the footer's note (true third: the note is a chain's path); `toAdvanced` the same question as Advanced mode writes it
--- (Alt+`, Easy.ToAdvanced). One list for both (review, 0.53.6: Easy.lua kept its own copy in the same order by hand,
--- and the two had drifted before).
-local function Asks(name) -- a module with Question, Answer and ToAdvanced of its own (ns[name])
-	return {
+local Q = {}
+ns.Questions = Q
+
+-- An entry (docs/QUESTIONS.md, section 2): `id`; `ask(text, converting)` gives what the line asks (and a second value
+-- for answer/toAdvanced) or nil when it isn't its kind; `answer` gives rows and the footer's note (true third: the note
+-- is a chain's path), or nil to pass the line on; `toAdvanced` the same question as Advanced mode writes it (Alt+`, nil:
+-- the words as typed); `examples`, the lines it must answer (tests/smoke/question_registry.lua); `over`, the entries it beats
+-- when both understand a line as well (section 3); `custom`, why its answer is its own. One list for the answer and
+-- Alt+` (review, 0.53.6: Easy.lua kept its own copy in the same order by hand, and the two had drifted before).
+--- A module with Question, Answer and ToAdvanced of its own (ns[name]); `more`: the entry's other fields.
+local function Asks(name, more)
+	local a = {
+		id = name,
 		ask = function(text) -- (both its values: the zones' level said, "where should i level at 30")
 			local m = ns[name]
 			if m and m.Question then return m.Question(text) end
@@ -22,109 +28,123 @@ local function Asks(name) -- a module with Question, Answer and ToAdvanced of it
 		answer = function(q, extra) return ns[name].Answer(q, extra) end,
 		toAdvanced = function(q, extra) return ns[name].ToAdvanced(q, extra) end,
 	}
+	for k, v in pairs(more or {}) do a[k] = v end
+	return a
 end
+Q.Asks = Asks
 local function Words(list) return #list > 0 and (table.concat(list, " ") .. " ") or "" end
+-- (the list's order is only the last tie-break now: Q.Ranked; the notes say where a line was settled by it before)
 Scan.ANSWERS = {
-	-- "what should i do", "what now", "suggestions": what's worth doing now (Search/Questions/Suggest.lua; first: its lines are its own)
-	Asks("Suggest"),
-	-- "untrack quests", "track completed quests", "track rfc quests only", "untrack red quests": QuestTrack.lua (its
-	-- lines start with what to do)
-	Asks("QuestTrack"),
+	-- "what should i do", "what now", "suggestions": what's worth doing now (Search/Questions/Suggest.lua)
+	Asks("Suggest", { examples = { "what should i do", "what now", "suggestions" },
+		custom = "rows made from the game's state: no list holds them" }),
+	-- "untrack quests", "track completed quests", "track rfc quests only", "untrack red quests": QuestTrack.lua
+	Asks("QuestTrack", { over = { "GroupQuests" }, examples = { "untrack quests", "track completed quests", "untrack red quests" },
+		custom = "its rows are the plan (to track, to untrack) with the row that does it" }),
 	-- "history", "my history", "recent searches": what you ran, newest first (Providers/History.lua)
-	Asks("History"),
-	-- "quests to turn in", "turn in quests": your quest log's ready ones; "quests here": Questie's at your level in
-	-- your zone (Search/Questions/Suggest.lua)
-	Asks("TurnIn"),
+	Asks("History", { examples = { "history", "recent searches" } }),
+	-- "quests to turn in", "turn in quests": your quest log's ready ones (Search/Questions/Suggest.lua)
+	Asks("TurnIn", { examples = { "quests to turn in", "which quests are ready" } }),
 	-- "who gives the defias brotherhood", "where do i turn in ...": its giver, its turn-in NPC (Suggest.lua; 1.0.47)
-	Asks("QuestPeople"),
+	Asks("QuestPeople", { custom = "a quest's giver or turn-in NPC: no relation in the search for it" }),
 	-- "quests near me", "turn ins near me": the quests whose giver (turn-in) is nearest (Suggest.lua; 1.0.48)
-	Asks("NearQuests"),
+	Asks("NearQuests", { examples = { "quests near me", "turn ins near me" },
+		custom = "quests by their giver's distance, turn-ins as NPCs" }),
 	-- "deadmines bosses": an instance's bosses from AtlasLoot, each leading to its loot (Suggest.lua; 1.0.50)
-	Asks("InstanceBosses"),
+	Asks("InstanceBosses", { custom = "boss rows whose Enter walks to the drops chain" }),
 	-- "quests that start from an item": the quests an item starts (Suggest.lua; 1.0.52)
-	Asks("ItemQuests"),
+	Asks("ItemQuests", { examples = { "quests that start from an item" } }),
 	-- "what level is hogger", "duskwood level": the level Terminal has for it (Suggest.lua; 1.0.55)
-	Asks("LevelOf"),
+	Asks("LevelOf", { custom = "one row from three kinds: the level is the answer" }),
 	-- "bigger bags": bags bigger than your smallest (Suggest.lua; 1.0.57)
-	Asks("BiggerBags"),
+	Asks("BiggerBags", { examples = { "bigger bags", "bags with more slots" } }),
 	-- "achievements almost done", "quests almost done": the closest to done first (Suggest.lua; 1.0.59)
-	Asks("AlmostDone"),
+	Asks("AlmostDone", { examples = { "achievements almost done", "quests almost done" } }),
 	-- "where is my hearth": where your hearthstone takes you, and its cooldown (Suggest.lua; 1.0.60)
-	Asks("HearthBind"),
+	Asks("HearthBind", { examples = { "where is my hearth", "where am i bound" }, custom = "a game value, not a list" }),
 	-- "how long to level", "xp per hour": this session's experience an hour (Suggest.lua; 1.0.61)
-	Asks("XpRate"),
+	Asks("XpRate", { examples = { "xp per hour", "how long to level" }, custom = "this session's experience" }),
 	-- "quests for stormwind rep", "how do i get exalted with timbermaw": Rewards.lua's ns.RepQuests (1.0.63)
 	Asks("RepQuests"),
 	-- "tailoring quests", "daily quests", "quests that need honored with stormwind": Rewards.lua's ns.QuestNeeds (1.0.64)
-	Asks("QuestNeeds"),
-	Asks("QuestsHere"),
-	Asks("CanCraft"),
-	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;
-	-- before the auctions' question: "what can i sell on the ah" isn't about what you've posted)
+	Asks("QuestNeeds", { examples = { "tailoring quests", "daily quests" } }),
+	Asks("QuestsHere", { over = { "Zones" }, examples = { "quests here", "zone quests" } }),
+	Asks("CanCraft", { examples = { "what can i craft", "what can i cook" } }),
 	-- "argent dawn rewards", "what can i buy at honored", "my class sets", "pieces of battlegear of might": OneForAll's
-	-- armory (Providers/Integrations/OneForAll/Armory.lua; before the auctions' "what can i buy")
-	Asks("Armory"),
+	-- armory (Providers/Integrations/OneForAll/Armory.lua; was before the auctions' "what can i buy")
+	Asks("Armory", { over = { "Auctions" } }),
 	-- "favor recipes i don't know", "nearest boat", "zeppelin to orgrimmar", "zone exits": OneForAll's world (World.lua)
 	Asks("OneForAllWorld"),
-	Asks("AuctionatorQ"),
-	Asks("AhUpgradesQ"), -- ("ah upgrades", "cheapest upgrades on the ah": AuctionValues.lua, 0.66.13)
-	Asks("AhValueQ"), -- ("ah value of my mats": "@mats | sum ahvalue", ahead of the chains' "... mats")
-	Asks("BagWorth"), -- ("what are my bags worth": "in:bags | sum value", after Auctionator's AH worth; Suggest.lua, 1.0.56)
+	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;
+	-- was before the auctions' question: "what can i sell on the ah" isn't about what you've posted)
+	Asks("AuctionatorQ", { over = { "Auctions" } }),
+	Asks("AhUpgradesQ", { custom = "gain per gold over one row per item" }), -- ("ah upgrades": AuctionValues.lua, 0.66.13)
+	Asks("AhValueQ", { over = { "Chains" } }), -- ("ah value of my mats": "@mats | sum ahvalue", was ahead of the chains' "... mats")
+	Asks("BagWorth", { examples = { "what are my bags worth", "bag value" } }), -- ("in:bags | sum value"; Suggest.lua, 1.0.56)
 	-- "what is in my bank": this character's bank (@bank, Providers/Stored.lua)
-	Asks("MyBankQ"),
+	Asks("MyBankQ", { examples = { "what is in my bank", "my bank" } }),
 	-- "where to learn bite 4", "cat abilities", "tameable cats", "rare pets in the barrens": a hunter's pets, OneForAll's
-	-- (Providers/Integrations/OneForAll/Pets.lua; before the collections' "my pets" and the chains' "... learn")
-	Asks("HunterPets"),
+	-- (Providers/Integrations/OneForAll/Pets.lua; was before the collections' "my pets" and the chains' "... learn")
+	Asks("HunterPets", { over = { "CollectionsQ", "Chains" }, custom = "OneForAll's beasts aren't @npc rows; one row per ability" }),
 	-- "mounts", "my pets", "toys", "favorite mounts", "raptor mounts": the list, by name (Providers/Collections.lua)
-	Asks("CollectionsQ"),
+	Asks("CollectionsQ", { over = { "HaveQ" }, examples = { "mounts", "favorite mounts", "how many mounts do i have" } }),
 	-- "buyback", "what did i sell": what you sold since you logged in (Providers/Buyback.lua)
-	Asks("BuybackQ"),
-	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (before chains: "what drops did we get" isn't "what drops <item>")
-	{ ask = function(text) return ns.LootLog and ns.LootLog.Question(text) end,
+	Asks("BuybackQ", { over = { "Auctions" }, examples = { "buyback", "what did i sell" } }),
+	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (was before chains: "what drops did we get" isn't
+	-- "what drops <item>")
+	{ id = "LootLog", over = { "Chains" }, examples = { "what dropped", "what did i loot", "what drops did we get" },
+		ask = function(text) return ns.LootLog and ns.LootLog.Question(text) end,
 		answer = function(q) return ns.LootLog.Answer(q) end,
 		toAdvanced = function(q)
 			return "@drop " .. ((q.who == "me" and "is:mine ") or (q.who and ("looter:" .. ns.Lower(q.who):gsub("%s+", "_") .. " ")) or "")
 		end },
-	-- "how do i get into mc", "how do i get attuned to onyxia": its steps (Attunements.lua; before the chains, whose "how
-	-- do i get" is where to get an item)
-	{ ask = function(text) local Q = ns.Attune and ns.Attune.Q return Q and Q.How(text) end,
+	-- "how do i get into mc", "how do i get attuned to onyxia": its steps (Attunements.lua; was before the chains, whose
+	-- "how do i get" is where to get an item)
+	{ id = "AttuneHow", over = { "Chains" }, custom = "a chain already: the same pipeline either way",
+		ask = function(text) local A = ns.Attune and ns.Attune.Q return A and A.How(text) end,
 		answer = function(q) return ns.Attune.Q.Answer(q) end,
 		toAdvanced = function(q) return ns.Attune.Q.ToAdvanced(q) end },
-	-- "spellid claw", "spell id 1082": SpellIds.lua (before the chains and searches: the words are a spell's name)
-	{ ask = function(text) local S = ns.SpellIds return S and S.Question(text) end,
+	-- "spellid claw", "spell id 1082": SpellIds.lua (was before the chains and searches: the words are a spell's name)
+	{ id = "SpellIds", over = { "Chains" }, examples = { "spellid claw", "spell id 1082" }, custom = "rows made on the spot from four sources",
+		ask = function(text) local S = ns.SpellIds return S and S.Question(text) end,
 		answer = function(q) return ns.SpellIds.Answer(q) end,
 		toAdvanced = function(q) return ns.SpellIds.ToAdvanced(q) end },
 	-- "itemid linen cloth", "questid 176", "npcid hogger": SpellIds.lua's ns.ObjectIds (1.0.58)
-	Asks("ObjectIds"),
-	-- "healing talents", "shaman crit talents", "druid regen talents": talents by what they do (Search/Questions/Talents.lua; before
-	-- the chains and searches: "talents for crit" isn't a chain, "crit" and "healing" aren't an item's stats here)
-	{ ask = function(text) local Q = ns.TalentsQ return Q and Q.Question(text) end,
+	Asks("ObjectIds", { examples = { "itemid linen cloth", "questid 176" }, custom = "rows made on the spot: no list of ids" }),
+	-- "healing talents", "shaman crit talents", "druid regen talents": talents by what they do (Search/Questions/Talents.lua;
+	-- was before the chains and searches: "talents for crit" isn't a chain, "crit" and "healing" aren't an item's stats here)
+	{ id = "Talents", over = { "Chains" }, custom = "descriptions read with families of like words, yours first",
+		ask = function(text) local T = ns.TalentsQ return T and T.Question(text) end,
 		answer = function(q) return ns.TalentsQ.Answer(q) end,
 		toAdvanced = function(q) return ns.TalentsQ.ToAdvanced(q) end },
-	-- a chain ("thorium belt > mats", "mats for thorium belt"): Chains.lua. (Simple mode takes only the plain words: a ">"
-	-- typed there is refused like any Advanced syntax; written for Advanced mode, a ">" chain is one too)
-	-- (a ">" chain runs whichever way it came, in either mode; 0.55.4)
-	{ ask = function(text) return ns.Pipes and ns.Pipes.Canonical(text) end,
+	-- a chain ("thorium belt > mats", "mats for thorium belt"): Chains.lua. (a ">" chain runs whichever way it came, in
+	-- either mode; 0.55.4)
+	{ id = "Chains", examples = { "mats for thorium belt", "thorium belt > mats" }, custom = "a chain: one pipeline either way",
+		ask = function(text) return ns.Pipes and ns.Pipes.Canonical(text) end,
 		answer = function(chain)
 			local rows, trail = ns.Pipes.Search(chain)
 			return rows, trail, true
 		end,
 		toAdvanced = function(chain) return chain .. " " end },
 	-- "what killed me", "who crit me": CombatLog.lua
-	{ ask = function(text) return ns.CombatLog and ns.CombatLog.Question(text) end,
+	{ id = "CombatLog", examples = { "what killed me", "who crit me" },
+		ask = function(text) return ns.CombatLog and ns.CombatLog.Question(text) end,
 		answer = function(q) return ns.CombatLog.Answer(q) end,
 		toAdvanced = function(q)
 			return "@combatlog is:mine " .. ((q == "killed" and "is:death") or (q == "crit" and "is:taken sort:damage") or "is:dealt sort:damage") .. " "
 		end },
 	-- "where should i level", "what dungeon should i do", "where should i fish": Zones.lua
-	Asks("Zones"),
+	Asks("Zones", { examples = { "where should i level", "what dungeon should i do" },
+		custom = "zones ranked by fit, quest counts and distance" }),
 	-- "spells not on my bars": Spells.lua
-	{ ask = function(text) return ns.Spells and ns.Spells.Question(text) end,
+	{ id = "UnplacedSpells", examples = { "spells not on my bars" },
+		ask = function(text) return ns.Spells and ns.Spells.Question(text) end,
 		answer = function(q) return ns.Spells.Answer(q) end,
 		toAdvanced = function(q) return "@spell is:unplaced " .. Words(q) end },
-	-- "blacksmithing recipes i'm missing", "recipes i can learn now": MissingRecipes.lua (before the group's: "who is missing
-	-- recipes" is about recipes)
-	{ ask = function(text) return ns.MissingRecipes and ns.MissingRecipes.Question(text) end,
+	-- "blacksmithing recipes i'm missing", "recipes i can learn now": MissingRecipes.lua (was before the group's: "who is
+	-- missing recipes" is about recipes)
+	{ id = "MissingRecipes", over = { "Group", "WhatsTraining", "ClassSpells" }, examples = { "recipes i can learn now", "recipes i dont know" },
+		ask = function(text) return ns.MissingRecipes and ns.MissingRecipes.Question(text) end,
 		answer = function(q) return ns.MissingRecipes.Answer(q) end,
 		toAdvanced = function(q)
 			local rest = {}
@@ -133,82 +153,164 @@ Scan.ANSWERS = {
 			return "@recipe " .. (q.learnable and "is:learnable" or "is:unknown") .. " " .. Words(rest)
 		end },
 	-- "what can i train in tailoring", "tailoring training", "profession training": the recipes a trainer teaches you
-	-- don't know (Search/Questions/ProfTraining.lua; before What's Training's, whose "what can i train" is your class's spells)
-	Asks("ProfTraining"),
+	-- don't know (Search/Questions/ProfTraining.lua; was before What's Training's, whose "what can i train" is your
+	-- class's spells)
+	Asks("ProfTraining", { over = { "WhatsTraining" }, custom = "can-learn first, then the skill needed, with the next rank's text" }),
 	-- "what can i train", "what do i learn next level", "how much is training", "when do i learn fireball": What's
 	-- Training's spells (WhereToLearn.lua; after the recipes': "recipes i can learn" is theirs)
-	{ ask = function(text) local Q = ns.WhatsTraining and ns.WhatsTraining.Q return Q and Q.Question(text) end,
+	{ id = "WhatsTraining", over = { "ClassSpells" },
+		ask = function(text) local W = ns.WhatsTraining and ns.WhatsTraining.Q return W and W.Question(text) end,
 		answer = function(q) return ns.WhatsTraining.Q.Answer(q) end,
 		toAdvanced = function(q) return ns.WhatsTraining.Q.ToAdvanced(q) end },
 	-- "druid spells", "upcoming spells", "when do i learn travel form": every class's spells (Search/Questions/ClassSpells.lua;
 	-- after What's Training's, which answers for your class when it's there)
-	{ ask = function(text) local Q = ns.ClassSpells and ns.ClassSpells.Q return Q and Q.Question(text) end,
+	{ id = "ClassSpells",
+		ask = function(text) local C = ns.ClassSpells and ns.ClassSpells.Q return C and C.Question(text) end,
 		answer = function(q) return ns.ClassSpells.Q.Answer(q) end,
 		toAdvanced = function(q) return ns.ClassSpells.Q.ToAdvanced(q) end },
 	-- "blacksmithing plan", "level blacksmithing", "leveling plan": Plan.lua (sort:plan's question)
-	Asks("Plan"),
+	Asks("Plan", { examples = { "leveling plan" } }),
 	-- "quests to drop", "grey quests": QuestDrop.lua
-	{ ask = function(text) return ns.QuestDrop and ns.QuestDrop.Question(text) end,
+	{ id = "QuestDrop", over = { "Attunements" }, examples = { "quests to drop", "grey quests" },
+		ask = function(text) return ns.QuestDrop and ns.QuestDrop.Question(text) end,
 		answer = function(q) return ns.QuestDrop.Answer(q) end,
 		toAdvanced = function(q)
 			local which = (q.grey and "is:grey -is:complete") or (q.behind and "is:leftbehind -is:complete") or "is:drop"
 			return "@quest " .. which .. " " .. Words(q.words)
 		end },
-	-- "party quests", "quests to share", "same quests as my group": GroupQuests.lua (before the group's: "party members
-	-- missing quests" is about quests)
-	Asks("GroupQuests"),
+	-- "party quests", "quests to share", "same quests as my group": GroupQuests.lua (was before the group's: "party
+	-- members missing quests" is about quests)
+	Asks("GroupQuests", { over = { "Group", "Attunements" }, examples = { "party quests", "quests to share" } }),
 	-- "my lockouts", "raid lockouts", "am i saved", "raid id": Lockouts.lua
-	Asks("Lockouts"),
+	Asks("Lockouts", { examples = { "my lockouts", "am i saved", "lockouts by raid" } }),
 	-- "library books", "books i still need", "nearest library book": OneForAll's Library Books (Providers/Integrations/OneForAll/Books.lua)
 	Asks("LibraryBooks"),
 	-- "where is my body", "my corpse", "where did i die": Corpse.lua (and the nearest spirit healers)
-	Asks("Corpse"),
+	Asks("Corpse", { examples = { "where is my body", "my corpse" }, custom = "your corpse, then the nearest spirit healers" }),
 	-- "durability", "repair cost", "what needs repair", "broken gear": Durability.lua
-	Asks("Durability"),
+	Asks("Durability", { examples = { "durability", "repair cost" } }),
 	-- "my auctions", "what am i selling", "auctions sold": Auctions.lua (never with a mail word: "auction mail" is the mail's)
-	Asks("Auctions"),
+	Asks("Auctions", { examples = { "my auctions", "auctions sold" } }),
 	-- "my mail", "mail running out", "cod mail": Mail.lua
-	Asks("Mail"),
-	-- "how many linen do i have", "do i have linen cloth": how many in all and where (Suggest.lua; 1.0.51. After the
+	Asks("Mail", { over = { "HaveQ" }, examples = { "my mail", "cod mail", "do i have mail" } }),
+	-- "how many linen do i have", "do i have linen cloth": how many in all and where (Suggest.lua; 1.0.51. Was after the
 	-- collections' and the mail's: "how many mounts do i have", "do i have mail" are theirs; review, 1.0.65)
-	Asks("HaveQ"),
+	Asks("HaveQ", { examples = { "how many linen do i have", "do i have linen cloth" } }),
 	-- "who is dead", "who needs fortitude", "who is out of range", "group healers": Group.lua
-	Asks("Group"),
+	Asks("Group", { examples = { "who is dead", "who is offline" } }),
 	-- "quest upgrades", "quests with upgrades": the quests near your level whose reward is an upgrade (Rewards.lua)
-	{ ask = function(text)
+	{ id = "QuestUpgrades", examples = { "quest upgrades", "quests with upgrades" },
+		ask = function(text)
 			local R = ns.QuestRewards
 			return R and R.UpgradeQuestion and R.UpgradeQuestion(text) or nil
 		end,
 		answer = function() return ns.QuestRewards.UpgradeAnswer() end,
 		toAdvanced = function() return ns.QuestRewards.UpgradeToAdvanced() end },
 	-- "upgrades i can buy", "vendor upgrades": the friendly vendors selling an upgrade for you (Rewards.lua; 0.66.12)
-	{ ask = function(text)
+	{ id = "VendorUpgrades", examples = { "upgrades i can buy", "vendor upgrades" },
+		ask = function(text)
 			local R = ns.QuestRewards
 			return R and R.BuyQuestion and R.BuyQuestion(text) or nil
 		end,
 		answer = function() return ns.QuestRewards.BuyAnswer() end,
 		toAdvanced = function() return ns.QuestRewards.BuyToAdvanced() end },
-	-- "outlaw sabre quest", "quest for outlaw sabre": the quests rewarding it (Rewards.lua; only when the words name a
-	-- quest reward, and no quest is called that)
-	-- "quests that reward bags", "bag quests" (Rewards.lua; before the one by an item's name: "bags" names no item)
-	{ ask = function(text) return ns.QuestRewards and ns.QuestRewards.BagQuestion(text) end,
+	-- "quests that reward bags", "bag quests" (Rewards.lua; was before the one by an item's name: "bags" names no item)
+	{ id = "BagQuests", over = { "RewardQuests" }, examples = { "quests that reward bags", "bag quests" },
+		ask = function(text) return ns.QuestRewards and ns.QuestRewards.BagQuestion(text) end,
 		answer = function(q) return ns.QuestRewards.BagAnswer(q) end,
 		toAdvanced = function(q) return ns.QuestRewards.BagToAdvanced(q) end },
-	{ ask = function(text) return ns.QuestRewards and ns.QuestRewards.Question(text) end,
+	-- "outlaw sabre quest", "quest for outlaw sabre": the quests rewarding it (Rewards.lua; only when the words name a
+	-- quest reward, and no quest is called that)
+	{ id = "RewardQuests",
+		ask = function(text) return ns.QuestRewards and ns.QuestRewards.Question(text) end,
 		answer = function(q) return ns.QuestRewards.Answer(q) end,
 		toAdvanced = function(q) return ns.QuestRewards.ToAdvanced(q) end },
-	-- "my attunements", "raid attunements", "my keys", "class quests": Attune's list (Attunements.lua; late: "dungeon quests
-	-- to share", "grey dungeon quests" are the group's and the quest log's)
-	{ ask = function(text) local Q = ns.Attune and ns.Attune.Q return Q and Q.List(text) end,
+	-- "my attunements", "raid attunements", "my keys", "class quests": Attune's list (Attunements.lua; was late: "dungeon
+	-- quests to share", "grey dungeon quests" are the group's and the quest log's)
+	{ id = "Attunements",
+		ask = function(text) local A = ns.Attune and ns.Attune.Q return A and A.List(text) end,
 		answer = function(q) return ns.Attune.Q.Answer(q) end,
 		toAdvanced = function(q) return ns.Attune.Q.ToAdvanced(q) end },
-	-- "holidays", "what's on this week", "today", "next darkmoon faire", "my invites": Calendar.lua (last: its words name
-	-- what's on the calendar, or it's a search)
-	(function() local a = Asks("Calendar"); a.ownDates = true; return a end)(), -- (its own today, this week: 0.66.8 review)
+	-- "holidays", "what's on this week", "today", "next darkmoon faire", "my invites": Calendar.lua (its own today, this
+	-- week: 0.66.8 review; was last: its words name what's on the calendar, or it's a search)
+	Asks("Calendar", { ownDates = true, examples = { "holidays", "whats on this week" } }),
 	-- "quests per zone", "items by quality": searched as "@questie | group by zone" (Suggest.lua; UI/Results.lua's
-	-- TakeAggregate). Last: a line another question takes is that one's ("lockouts by raid": @lockout's)
-	(function() local a = Asks("PerField"); a.perField = true; return a end)(),
+	-- TakeAggregate). Last: a line another question takes as well is that one's ("lockouts by raid": @lockout's)
+	Asks("PerField", { perField = true, last = true, examples = { "quests per zone", "items by quality" } }),
 }
+
+----------------------------------------------------------------------
+-- Which question gets a line (docs/QUESTIONS.md, section 3): every entry is asked; of those that take it, one marked
+-- `last` loses to any other; one whose `over` names the other wins (a decision made on purpose, tested); else the one
+-- that understands more of the line's words; else the earlier in the list.
+----------------------------------------------------------------------
+
+Q.PROBE = "zzqx" -- (a word nothing knows: an entry that no longer takes the line with it in a word's place understood it)
+
+--- How many of the line's words entry `a` understands: those whose place taken by Q.PROBE makes it give the line up.
+function Q.Understood(a, text)
+	local words = {}
+	for w in tostring(text):gmatch("%S+") do words[#words + 1] = w end
+	local n = 0
+	for i = 1, #words do
+		local was = words[i]
+		words[i] = Q.PROBE
+		local ok, got = pcall(a.ask, table.concat(words, " "))
+		words[i] = was
+		if not (ok and got) then n = n + 1 end
+	end
+	return n
+end
+
+local function Beats(a, b)
+	for _, id in ipairs(a.over or {}) do if id == b.id then return true end end
+	return false
+end
+
+-- (the ranking of a line, kept for one search only (UI:Search's Q.Begin/Q.Finish): the answer asks of the same line
+-- several times, as typed and as its variants; outside a search every call asks again, what it reads may have changed)
+local memo, memoN, stamp = {}, 0, nil
+function Q.Forget() memo = {} end
+function Q.Begin() stamp = {}; memo = {} end
+function Q.Finish() stamp = nil; memo = {} end
+
+--- The entries that take `text`, best first: { { a = entry, q = what it asks, extra = its second value, n = the words
+--- it understands (when another took it too), i = its place in the list } ... } (empty: none).
+function Q.Ranked(text)
+	if #Scan.ANSWERS ~= memoN then memo, memoN = {}, #Scan.ANSWERS end
+	local got = stamp and memo[text]
+	if got then return got end
+	local out = {}
+	for i, a in ipairs(Scan.ANSWERS) do
+		local q, extra = a.ask(text)
+		if q then out[#out + 1] = { a = a, q = q, extra = extra, i = i } end
+	end
+	if #out > 1 then
+		for _, c in ipairs(out) do c.n = Q.Understood(c.a, text) end
+		local function Before(x, y)
+			if (x.a.last and true or false) ~= (y.a.last and true or false) then return not x.a.last end
+			if Beats(x.a, y.a) then return true end
+			if Beats(y.a, x.a) then return false end
+			if x.n ~= y.n then return x.n > y.n end
+			return x.i < y.i
+		end
+		-- (an insertion sort: a few entries, and `over` with the counts needn't be a strict order, which table.sort
+		-- would refuse)
+		for k = 2, #out do
+			local c, j = out[k], k - 1
+			while j >= 1 and Before(c, out[j]) do out[j + 1] = out[j]; j = j - 1 end
+			out[j + 1] = c
+		end
+	end
+	if stamp then memo[text] = out end
+	return out
+end
+
+--- An entry by its id, or nil.
+function Q.ById(id)
+	for _, a in ipairs(Scan.ANSWERS) do if a.id == id then return a end end
+	return nil
+end
 
 --- A plain-word question or chain as Advanced mode writes it (Alt+`: Easy.ToAdvanced), or nil when the line is none.
 --- (0.55.7, the search's rewrite: a question whose answer no search gives, ranked or gathered its own way, "where should i
@@ -233,27 +335,21 @@ Scan.WithTail = WithTail
 function ns.QuestionToAdvancedOf(text)
 	-- (the line read as Scan.Answer reads it, Scan.ReadQuestion: the question's form, then what was typed after it)
 	local line, tail = Scan.ReadQuestion(text, function(t)
-		for _, a in ipairs(Scan.ANSWERS) do
-			local q, extra = a.ask(t, true)
-			if q then
-				local out = a.toAdvanced(q, extra)
-				if out == nil then out = (t:gsub("^%s+", ""):gsub("%s+$", "")) .. " " end
-				return out, a
-			end
-		end
+		local c = Q.Ranked(t)[1]
+		if not c then return nil end
+		local out = c.a.toAdvanced(c.q, c.extra)
+		if out == nil then out = (t:gsub("^%s+", ""):gsub("%s+$", "")) .. " " end
+		return out, c.a
 	end)
 	if line and tail then return WithTail(line, tail) end
 	return line
 end
 
---- Does a question other than "per field"'s take this line? (Suggest.lua's PF.Line: "lockouts by raid" stays @lockout's)
+--- Does a question other than "per field"'s get this line? (Suggest.lua's PF.Line: "lockouts by raid" stays @lockout's)
 function ns.PerFieldTaken(text)
-	for _, a in ipairs(Scan.ANSWERS) do
-		if a.perField then return false end
-		local ok, q = pcall(a.ask, text)
-		if ok and q then return true end
-	end
-	return false
+	local ok, ranked = pcall(Q.Ranked, text)
+	local c = ok and ranked[1]
+	return c and not c.a.perField or false
 end
 
 --- A chain or a question in plain words: its own answer (Scan.ANSWERS), not a search. The rows, or nil.
@@ -434,10 +530,10 @@ end
 
 --- The question's own answer (Scan.ANSWERS), as it gives it: the rows, or nil.
 function Scan.Ask(self, text)
-	for _, a in ipairs(Scan.ANSWERS) do
-		local q, extra = a.ask(text)
-		local rows, note, isTrail
-		if q then rows, note, isTrail = a.answer(q, extra) end
+	-- (the entries that take the line, best first: the first whose answer gives rows answers; docs/QUESTIONS.md, 3)
+	for _, c in ipairs(Q.Ranked(text)) do
+		local a = c.a
+		local rows, note, isTrail = a.answer(c.q, c.extra)
 		if rows then
 			self.noPosition, self.action, self.place = nil, nil, nil
 			if self.categoryAuto then self.category, self.categoryAuto = nil, nil end

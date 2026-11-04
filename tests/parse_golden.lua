@@ -4,7 +4,7 @@
 -- and the number and date phrases, the dearest, sit together in it), made again by
 -- `python tests/gen_parse_golden.py` (PARSE_GOLDEN_WRITE set: the blocks are kept for it, not compared).
 --
--- A block is the reading, never the results: the question that took the line (its index in Scan.ANSWERS, and the words
+-- A block is the reading, never the results: the question that took the line (its id, ns.Questions, and the words
 -- it was asked with), the query's words, filters (strength, Advanced form, signature, word), sort, lists, action and
 -- place, the send, the steps, the bar's picks, the category, Alt+`'s line and .explain's words for it.
 local T, part, parts = ...
@@ -63,7 +63,7 @@ end
 
 -- what each filter was added with (Scan.AddFilter, wrapped while the corpus is read)
 local how = setmetatable({}, { __mode = "k" })
--- the question that took the line: its index in Scan.ANSWERS, and the words it was asked with
+-- the question that took the line: its id (ns.Questions), and the words it was asked with
 local asked
 
 --- One line read, as a block of "key: value" lines.
@@ -127,7 +127,7 @@ function G.Run()
 	Scan.Ask = function(self, text)
 		local rows, a = ask(self, text)
 		if rows then
-			for i, x in ipairs(Scan.ANSWERS) do if x == a then asked = i .. "  asked=" .. text end end
+			asked = tostring(a and a.id or "?") .. "  asked=" .. text
 		end
 		return rows, a
 	end

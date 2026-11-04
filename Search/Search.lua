@@ -117,6 +117,9 @@ function UI:Search(text)
 	-- (a sum answered: its characters aren't words to look for close spellings of, nor is "Nothing has that" said
 	-- under the answer; 0.50.7, review: "3*45g" ran a close-spellings pass over every list on each keystroke)
 	self.calcAnswered = calc and true or nil
+	-- (the questions' ranking of a line kept while this search runs: Questions.lua's Q.Ranked)
+	local Qs = ns.Questions
+	if Qs then Qs.Begin() end
 	local res = self:SearchText(text)
 	-- (a date's or a level's words that are a name's, "Tonight We Dine", "Last Day of Summer", "Next Level Thinking":
 	-- read as the date or level, nothing had it; the claims that may be plain words (their alt, PlainNumbers.lua's plain
@@ -149,6 +152,7 @@ function UI:Search(text)
 	self.ungrouped = nil
 	if agg and ns.Aggregate then self.ungrouped = res; res = ns.Aggregate.Apply(agg, res, agg.base) end
 	self:RetryWhenLoaded(text)
+	if Qs then Qs.Finish() end
 	return res
 end
 

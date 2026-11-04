@@ -1116,7 +1116,7 @@ advanced: "Wall Dead "
 explain: "Everything matching Wall Dead"
 
 == mounts
-question: 26  asked=mounts
+question: CollectionsQ  asked=mounts
 place: -
 send: -
 steps: -
@@ -1738,7 +1738,7 @@ advanced: "boots|slot:boots is:unlearned spirit|stat:spirit "
 explain: "Unlearned everything matching boots|slot:boots spirit|stat:spirit"
 
 == missing stamina
-question: 51  asked=missing stamina
+question: Group  asked=missing stamina
 place: -
 send: -
 steps: -
@@ -1749,7 +1749,7 @@ advanced: "@group missing:fortitude "
 explain: "Your group, missing:fortitude"
 
 == needs int
-question: 51  asked=needs int
+question: Group  asked=needs int
 place: -
 send: -
 steps: -
@@ -1760,7 +1760,7 @@ advanced: "@group missing:intellect "
 explain: "Your group, missing:intellect"
 
 == who is without fortitude
-question: 51  asked=who is without fortitude
+question: Group  asked=who is without fortitude
 place: -
 send: -
 steps: -
@@ -1771,7 +1771,7 @@ advanced: "@group missing:fortitude "
 explain: "Your group, missing:fortitude"
 
 == party without food
-question: 51  asked=party without food
+question: Group  asked=party without food
 place: -
 send: -
 steps: -
@@ -1782,7 +1782,7 @@ advanced: "@group missing:food "
 explain: "Your group, missing:food"
 
 == needs blessing of kings
-question: 51  asked=needs blessing of kings
+question: Group  asked=needs blessing of kings
 place: -
 send: -
 steps: -
@@ -1793,7 +1793,7 @@ advanced: "@group missing:blessing_kings "
 explain: "Your group, missing:blessing_kings"
 
 == missing shadow protection
-question: 51  asked=missing shadow protection
+question: Group  asked=missing shadow protection
 place: -
 send: -
 steps: -
@@ -1804,7 +1804,7 @@ advanced: "@group missing:shadow "
 explain: "Your group, missing:shadow"
 
 == need flask
-question: 51  asked=need flask
+question: Group  asked=need flask
 place: -
 send: -
 steps: -
@@ -1815,7 +1815,7 @@ advanced: "@group missing:elixir "
 explain: "Your group, missing:elixir"
 
 == missing buffs
-question: 51  asked=missing buffs
+question: Group  asked=missing buffs
 place: -
 send: -
 steps: -
@@ -3238,7 +3238,7 @@ advanced: "@questlog lvl:me "
 explain: "Quests in your log, your level"
 
 == what killed me today
-question: 34  asked=what killed me
+question: CombatLog  asked=what killed me
 place: -
 send: -
 steps: -
@@ -3302,7 +3302,7 @@ advanced: "loot since:yesterday older:today "
 explain: "Everything matching loot, since yesterday, from before today"
 
 == loot today
-question: 28  asked=loot today
+question: LootLog  asked=loot today
 place: -
 send: -
 steps: -
@@ -3351,7 +3351,7 @@ advanced: "mail|type:mail older:2w "
 explain: "Everything matching mail|type:mail, older than 2 weeks"
 
 == auctions sold this week
-question: 48  asked=auctions sold
+question: Auctions  asked=auctions sold
 place: -
 send: -
 steps: -
@@ -4915,7 +4915,7 @@ advanced: "@gold "
 explain: "Gold"
 
 == durability
-question: 47  asked=durability
+question: Durability  asked=durability
 place: -
 send: -
 steps: -
@@ -4943,7 +4943,7 @@ advanced: "mail|type:mail "
 explain: "Everything matching mail|type:mail"
 
 == my mail
-question: 49  asked=my mail
+question: Mail  asked=my mail
 place: -
 send: -
 steps: -
@@ -5173,7 +5173,7 @@ advanced: "sword|type:sword q:epic+ | group by zone"
 explain: "Epic or better everything matching sword|type:sword, grouped by zone"
 
 == What's   dropped?
-question: 28  asked=What's   dropped?
+question: LootLog  asked=What's   dropped?
 place: -
 send: -
 steps: -
@@ -5199,7 +5199,7 @@ advanced: "@dungeon dead "
 explain: "Dungeon matching dead"
 
 == a > mats
-question: 33  asked=a > mats
+question: Chains  asked=a > mats
 place: -
 send: -
 steps: -
@@ -6358,7 +6358,7 @@ advanced: ""
 explain: ERROR nil
 
 == "tonight we
-question: 57  asked="tonight we
+question: Calendar  asked="tonight we
 place: -
 send: -
 steps: -
@@ -7090,7 +7090,7 @@ advanced: "do:who 20-30 "
 explain: "Everything matching 20-30, Enter: who"
 
 == quests near me
-question: 6  asked=quests near me
+question: NearQuests  asked=quests near me
 place: -
 send: -
 steps: -
@@ -7101,7 +7101,7 @@ advanced: "quests near me "
 explain: "Everything matching quests near me"
 
 == turn ins near me
-question: 6  asked=turn ins near me
+question: NearQuests  asked=turn ins near me
 place: -
 send: -
 steps: -
@@ -7283,7 +7283,7 @@ advanced: "deadmines bosses "
 explain: "Everything matching deadmines bosses"
 
 == how many linen do i have
-question: 50  asked=how many linen do i have
+question: HaveQ  asked=how many linen do i have
 place: -
 send: -
 steps: -
@@ -7294,7 +7294,7 @@ advanced: "@item @stored linen "
 explain: "Items and your alts' and bank's items matching linen"
 
 == do i have linen cloth
-question: 50  asked=do i have linen cloth
+question: HaveQ  asked=do i have linen cloth
 place: -
 send: -
 steps: -
@@ -7305,7 +7305,7 @@ advanced: "@item @stored linen cloth|type:cloth "
 explain: "Items and your alts' and bank's items matching linen cloth|type:cloth"
 
 == count my linen
-question: 50  asked=count my linen
+question: HaveQ  asked=count my linen
 place: -
 send: -
 steps: -
@@ -7376,7 +7376,7 @@ advanced: "@questlog next after defias brotherhood "
 explain: "Quests in your log matching next after defias brotherhood"
 
 == quests that start from an item
-question: 8  asked=quests that start from an item
+question: ItemQuests  asked=quests that start from an item
 place: -
 send: -
 steps: -
@@ -7387,7 +7387,7 @@ advanced: "quests that start from an item "
 explain: "Everything matching quests that start from an item"
 
 == where to farm linen cloth
-question: 33  asked=where to farm linen cloth
+question: Chains  asked=where to farm linen cloth
 place: -
 send: -
 steps: -
@@ -7398,7 +7398,7 @@ advanced: "linen cloth > sources "
 explain: "Everything matching linen cloth, then: sources "
 
 == where do i find red bandanas
-question: 33  asked=where do i find red bandanas
+question: Chains  asked=where do i find red bandanas
 place: -
 send: -
 steps: -
@@ -7409,7 +7409,7 @@ advanced: "red bandanas > sources "
 explain: "Everything matching red bandanas, then: sources "
 
 == where can i get linen
-question: 33  asked=where can i get linen
+question: Chains  asked=where can i get linen
 place: -
 send: -
 steps: -
@@ -7488,7 +7488,7 @@ advanced: "what level hogger "
 explain: "Everything matching what level hogger"
 
 == what level is the stockade
-question: 9  asked=what level is the stockade
+question: LevelOf  asked=what level is the stockade
 place: -
 send: -
 steps: -
@@ -7499,7 +7499,7 @@ advanced: "what level is the stockade "
 explain: "Everything matching what level is the stockade"
 
 == duskwood level
-question: 9  asked=duskwood level
+question: LevelOf  asked=duskwood level
 place: -
 send: -
 steps: -
@@ -7559,7 +7559,7 @@ advanced: "in:bags | sum value "
 explain: "Everything, in bags, the value summed up"
 
 == bigger bags
-question: 10  asked=bigger bags
+question: BiggerBags  asked=bigger bags
 place: -
 send: -
 steps: -
@@ -7570,7 +7570,7 @@ advanced: "bigger bags "
 explain: "Everything matching bigger bags"
 
 == bags with more slots
-question: 10  asked=bags with more slots
+question: BiggerBags  asked=bags with more slots
 place: -
 send: -
 steps: -
@@ -7581,7 +7581,7 @@ advanced: "bags with more slots "
 explain: "Everything matching bags with more slots"
 
 == itemid linen cloth
-question: 31  asked=itemid linen cloth
+question: ObjectIds  asked=itemid linen cloth
 place: -
 send: -
 steps: -
@@ -7592,7 +7592,7 @@ advanced: "itemid linen cloth "
 explain: "Everything matching itemid linen cloth"
 
 == item id 2589
-question: 31  asked=item id 2589
+question: ObjectIds  asked=item id 2589
 place: -
 send: -
 steps: -
@@ -7603,7 +7603,7 @@ advanced: "itemid 2589 "
 explain: "Everything matching itemid 2589"
 
 == questid 176
-question: 31  asked=questid 176
+question: ObjectIds  asked=questid 176
 place: -
 send: -
 steps: -
@@ -7614,7 +7614,7 @@ advanced: "questid 176 "
 explain: "Everything matching questid 176"
 
 == npcid hogger
-question: 31  asked=npcid hogger
+question: ObjectIds  asked=npcid hogger
 place: -
 send: -
 steps: -
@@ -7625,7 +7625,7 @@ advanced: "npcid hogger "
 explain: "Everything matching npcid hogger"
 
 == achievements almost done
-question: 11  asked=achievements almost done
+question: AlmostDone  asked=achievements almost done
 place: -
 send: -
 steps: -
@@ -7636,7 +7636,7 @@ advanced: "achievements almost done "
 explain: "Everything matching achievements almost done"
 
 == quests almost done
-question: 11  asked=quests almost done
+question: AlmostDone  asked=quests almost done
 place: -
 send: -
 steps: -
@@ -7647,7 +7647,7 @@ advanced: "quests almost done "
 explain: "Everything matching quests almost done"
 
 == where is my hearth
-question: 12  asked=where is my hearth
+question: HearthBind  asked=where is my hearth
 place: -
 send: -
 steps: -
@@ -7658,7 +7658,7 @@ advanced: "where is my hearth "
 explain: "Everything matching where is my hearth"
 
 == my hearthstone location
-question: 12  asked=my hearthstone location
+question: HearthBind  asked=my hearthstone location
 place: -
 send: -
 steps: -
@@ -7684,7 +7684,7 @@ advanced: "@item hearthstone "
 explain: "Items matching hearthstone"
 
 == how long to level
-question: 13  asked=how long to level
+question: XpRate  asked=how long to level
 place: -
 send: -
 steps: -
@@ -7695,7 +7695,7 @@ advanced: "how long to level "
 explain: "Everything matching how long to level"
 
 == xp per hour
-question: 13  asked=xp per hour
+question: XpRate  asked=xp per hour
 place: -
 send: -
 steps: -
@@ -7838,7 +7838,7 @@ advanced: "@questlog stormwind reputation "
 explain: "Quests in your log matching stormwind reputation"
 
 == how do i get exalted with timbermaw
-question: 33  asked=how do i get exalted with timbermaw
+question: Chains  asked=how do i get exalted with timbermaw
 place: -
 send: -
 steps: -
@@ -7849,7 +7849,7 @@ advanced: "exalted with timbermaw > sources "
 explain: "Everything matching exalted with timbermaw, then: sources "
 
 == tailoring quests
-question: 15  asked=tailoring quests
+question: QuestNeeds  asked=tailoring quests
 place: -
 send: -
 steps: -
@@ -7860,7 +7860,7 @@ advanced: "@questie skill:tailoring -is:done "
 explain: "Quests, that need tailoring, not done"
 
 == fishing quests
-question: 15  asked=fishing quests
+question: QuestNeeds  asked=fishing quests
 place: -
 send: -
 steps: -
@@ -7871,7 +7871,7 @@ advanced: "@questie skill:fishing -is:done "
 explain: "Quests, that need fishing, not done"
 
 == daily quests
-question: 15  asked=daily quests
+question: QuestNeeds  asked=daily quests
 place: -
 send: -
 steps: -
@@ -7882,7 +7882,7 @@ advanced: "@questie is:daily "
 explain: "Daily quests"
 
 == repeatable quests
-question: 15  asked=repeatable quests
+question: QuestNeeds  asked=repeatable quests
 place: -
 send: -
 steps: -
@@ -7989,7 +7989,7 @@ advanced: "@flight do:where do i master is:flight "
 explain: "Flight flight paths matching do i master, Enter: where"
 
 == how many mounts do i have
-question: 26  asked=how many mounts do i have
+question: CollectionsQ  asked=how many mounts do i have
 place: -
 send: -
 steps: -
@@ -8015,7 +8015,7 @@ advanced: "how much gold do i have "
 explain: "Everything matching how much gold do i have"
 
 == do i have mail
-question: 49  asked=do i have mail
+question: Mail  asked=do i have mail
 place: -
 send: -
 steps: -
