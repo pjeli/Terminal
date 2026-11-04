@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.84 (in testing)
+
+- Integrations (review): an NPC asked about while Questie is still loading gets its distance and dungeon once it's ready, not "none" for the session; "zone exits" and Alt+` no longer raise an error where your map is unknown; your class's trainers for `!t` are the asker's class's, not yours; OneForAll's drop chances show on AtlasLoot's rows on every client language (by the item when the boss's name is in another language).
+
 ## 1.0.83 (in testing)
 
 - Privacy and saved data (review): a whisper, an invite or a chat line Terminal pressed for a person is never written in its trace (what `.report` and `.debug log` copy), nor a long macro's text or an alias's line; `.report` leaves out the name on every list of people; the auction bids you placed are kept in TerminalCache.lua with the rest of the mail, not in your settings; `.saved keep items` sets the session's item cache from the start, not only after it's picked again.

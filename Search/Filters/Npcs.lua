@@ -335,6 +335,7 @@ local function MyClass()
 	if type(token) ~= "string" then return nil end
 	return (token:lower():gsub("deathknight", "death knight"):gsub("demonhunter", "demon hunter"))
 end
+P.MyClass = MyClass -- (whose class asks: yours, or !t's asker's; Chains' trainers kept per class)
 
 --- A profession by its name or the start of it (blacksm -> blacksmithing), or nil.
 local function ProfNamed(v)

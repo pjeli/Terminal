@@ -596,7 +596,8 @@ local function SetupAtlasLoot()
 						at = boss and W.BossChances(inst, boss) or false
 						byDetail[d] = at
 					end
-					local pct = at and at[r.itemID]
+					-- (the boss not found by name: by the item alone, when OneForAll lists it once; W.ItemChance)
+					local pct = (at and at[r.itemID]) or (not at and W.ItemChance and W.ItemChance(r.itemID)) or nil
 					if pct then r.detail = d .. ns.DETAIL_SEP .. W.ChanceText(pct) end
 				end
 				if rawget(r, "name") then out[#out + 1] = r end

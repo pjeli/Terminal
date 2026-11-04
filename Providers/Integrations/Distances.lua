@@ -99,6 +99,7 @@ function I.NpcDungeon(id)
 	if d ~= nil then return d or nil end
 	d = false
 	local DB = QDB()
+	if not DB then return nil end -- (Questie not ready yet: nothing kept, asked again; 1.0.84, review: "none" for the session)
 	local spawns = DB and Safe(DB.QueryNPCSingle, id, "spawns")
 	if type(spawns) == "table" then
 		local name, world
@@ -159,6 +160,7 @@ local function NpcSpots(id)
 	if t ~= nil then return t or nil end
 	t = false
 	local DB = QDB()
+	if not DB then return nil end -- (Questie not ready yet: nothing kept, asked again; 1.0.84, review)
 	EachSpot(DB and Safe(DB.QueryNPCSingle, id, "spawns"), function(cont, x, y)
 		if cont then
 			t = t or {}
@@ -255,6 +257,7 @@ end
 
 local zoneNames = {}
 local function ZoneName(ui)
+	if ui == nil then return nil end -- (where you are unknown, or a secret: "zone exits" Alt+` raised "table index is nil")
 	local n = zoneNames[ui]
 	if n == nil then
 		if not (C_Map and C_Map.GetMapInfo) then return nil end -- (no map API: nothing kept)

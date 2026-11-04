@@ -107,6 +107,27 @@ function W.BossChances(inst, boss)
 	local i = d and d[Norm(inst)]
 	return i and i[Norm(boss)] or nil
 end
+--- An item's chance to drop when OneForAll lists it under one boss only (percent), or nil: the boss's name not needed
+--- (AtlasLoot names bosses and instances in the client's language, OneForAll in English: on another client no name
+--- matched; 1.0.84, review). An item under two bosses with other chances says none.
+local byItem = { from = nil, at = {} }
+function W.ItemChance(id)
+	local d = W.DropChances()
+	if not d or type(id) ~= "number" then return nil end
+	if byItem.from ~= d then
+		local at = {}
+		for _, bosses in pairs(d) do
+			for _, items in pairs(bosses) do
+				for i, pct in pairs(items) do
+					if at[i] == nil then at[i] = pct elseif at[i] ~= pct then at[i] = false end
+				end
+			end
+		end
+		byItem.from, byItem.at = d, at
+	end
+	return byItem.at[id] or nil
+end
+
 --- An item's chance to drop from a boss of an instance (percent), or nil when OneForAll doesn't say.
 function W.DropChance(inst, boss, id)
 	local b = W.BossChances(inst, boss)

@@ -879,7 +879,11 @@ local function Trainers(word)
 	local busy = p.busy and p.busy()
 	if busy then P.loading = true; F.loading = true end -- (Questie's NPCs still being read: asked again once they're in)
 	if trainersOf.list ~= list then trainersOf.list, trainersOf.by = list, {} end
-	local got = trainersOf.by[word]
+	-- (trainer:class and trainer:pet are whose class asks, !t's asker's too: kept per class; 1.0.84, review: a guildie's
+	-- "where to learn heroic strike" got your mage trainers)
+	local key = word
+	if word == "class" or word == "pet" then key = word .. ":" .. tostring(F._ and F._.MyClass and F._.MyClass() or "") end
+	local got = trainersOf.by[key]
 	if got then return got end
 	got = {}
 	local isTrainer, friendly = F.Parse("trainer:" .. word), F.Parse("faction:friendly")
@@ -888,7 +892,7 @@ local function Trainers(word)
 			if Safe(isTrainer, e) and (not friendly or Safe(friendly, e)) then got[#got + 1] = e end
 		end
 	end
-	if not busy and #list > 0 then trainersOf.by[word] = got end
+	if not busy and #list > 0 then trainersOf.by[key] = got end
 	return got
 end
 P.Trainers = Trainers -- (What's Training's spells: trainer:class, trainer:pet; WhereToLearn.lua)

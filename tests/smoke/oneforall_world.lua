@@ -95,6 +95,8 @@ do
 		check(I.LootDetail(withChance.detail) == "Aku'mai  Blackfathom Deeps", "the detail without its chance: " .. tostring(I.LootDetail(withChance.detail)))
 		local boss, inst = ns.Share.LootWhere(withChance)
 		check(boss == "Aku'mai" and inst == "Blackfathom Deeps", "sent to chat: where, without the chance: " .. tostring(inst))
+		-- (1.0.84, review) an item's chance without its boss's name: OneForAll lists it once
+		check(W.ItemChance and W.ItemChance(6910) == 0.28 and W.ItemChance(123456) == nil, "an item's chance by the item alone")
 		local lp = ns.providers.loot
 		if lp then
 			lootRow = setmetatable({ key = "test:bfd:6909", itemID = 6909, name = "Strike of the Hydra", detail = "Aku'mai  Blackfathom Deeps" },
@@ -107,6 +109,15 @@ do
 			ns:GetEntries(lp)
 			local _, n = lootRow.detail:gsub("%%", "")
 			check(n == 1, "said once, however often the list is made: " .. lootRow.detail)
+			-- (1.0.84, review) a boss and instance named in the client's language (AtlasLoot's): by the item alone
+			local deRow = setmetatable({ key = "test:bfd:6910", itemID = 6910, name = "Leech Pants", detail = "Aku'mai  Tiefschwarze Grotte" },
+				{ __index = function() return nil end })
+			table.insert(I.loot.rows, deRow)
+			lp._dirty = true
+			ns:GetEntries(lp)
+			check((deRow.detail or ""):find(W.ChanceText(0.28), 1, true), "named in another language: its chance by the item: " .. tostring(deRow.detail))
+			for i = #I.loot.rows, 1, -1 do if I.loot.rows[i] == deRow then table.remove(I.loot.rows, i) end end
+			lp._dirty = true
 		end
 
 		-- the Merchant's Favor: on the recipes you don't know, no kind of its own

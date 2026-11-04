@@ -330,3 +330,46 @@ do
 	_G.WT_API = was
 	CS.Forget()
 end
+
+io.write("[review 1.0.84: your class's trainers kept per class, !t's asker's too]\n")
+do
+	local I = ns.Integrations
+	local save = { npcField = I.NpcField, asker = ns.Asker }
+	local NPCS = { { npcID = 990901, key = 990901, kind = "npc", name = "Zzmage", sub = "Mage Trainer" },
+		{ npcID = 990902, key = 990902, kind = "npc", name = "Zzwarrior", sub = "Warrior Trainer" } }
+	local BY = {}
+	for _, n in ipairs(NPCS) do BY[n.key] = n end
+	ns:RegisterProvider("npc", { label = "NPC", aliases = { "npc" }, explicit = true, collect = function() return NPCS end })
+	ns:AliasesChanged()
+	I.NpcField = function(id, f)
+		if f == "friendlyToFaction" then return "AH" end
+		if f == "subName" then return BY[id] and BY[id].sub end
+	end
+	ns.Pipes.ForgetTrainers()
+	ns.Asker = { class = "MAGE" }
+	local a = ns.Pipes.Trainers("class")
+	ns.Asker = { class = "WARRIOR" }
+	local b = ns.Pipes.Trainers("class")
+	ns.Asker = save.asker
+	check(a[1] and a[1].name == "Zzmage" and #a == 1 and b[1] and b[1].name == "Zzwarrior" and #b == 1,
+		"trainer:class: each asker's class's own: " .. tostring(a[1] and a[1].name) .. " / " .. tostring(b[1] and b[1].name))
+	ns.providers.npc = nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "npc" then table.remove(ns.providerOrder, i) end end
+	ns:AliasesChanged()
+	I.NpcField = save.npcField
+	ns.Pipes.ForgetTrainers()
+end
+
+io.write("[review 1.0.84: an NPC's spawns asked again once Questie is ready]\n")
+do
+	local I, QD = ns.Integrations, ns.QuestieData
+	local dbWas, calls = QD.DB, 0
+	local here = { cont = 0, x = 0, y = 0 }
+	QD.DB = function() return nil end
+	I.NpcDungeon(990911)
+	QD.DB = function() return { QueryNPCSingle = function() calls = calls + 1 return nil end } end
+	I.NpcDungeon(990911)
+	QD.DB = dbWas
+	check(calls == 1, "not ready yet: nothing kept, asked again: " .. calls)
+	check(I.ZoneName(nil) == nil, "a zone of no map: none, no error")
+end
