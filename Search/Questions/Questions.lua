@@ -58,7 +58,8 @@ Scan.ANSWERS = {
 	-- "what level is hogger", "duskwood level": the level Terminal has for it (Suggest.lua; 1.0.55)
 	Asks("LevelOf", { custom = "one row from three kinds: the level is the answer" }),
 	-- "bigger bags": bags bigger than your smallest (Suggest.lua; 1.0.57)
-	Asks("BiggerBags", { examples = { "bigger bags", "bags with more slots" } }),
+	Asks("BiggerBags", { examples = { "bigger bags", "bags with more slots" },
+		custom = "bags from four lists, one row per item, bigger than your smallest" }),
 	-- "achievements almost done", "quests almost done": the closest to done first (Suggest.lua; 1.0.59)
 	Asks("AlmostDone", { examples = { "achievements almost done", "quests almost done" } }),
 	-- "where is my hearth": where your hearthstone takes you, and its cooldown (Suggest.lua; 1.0.60)
@@ -68,17 +69,17 @@ Scan.ANSWERS = {
 	-- "quests for stormwind rep", "how do i get exalted with timbermaw": Rewards.lua's ns.RepQuests (1.0.63)
 	Asks("RepQuests", { custom = "ranked by the reputation the faction asked for gives" }),
 	-- "tailoring quests", "daily quests", "quests that need honored with stormwind": Rewards.lua's ns.QuestNeeds (1.0.64)
-	Asks("QuestNeeds", { examples = { "tailoring quests", "daily quests" } }),
-	Asks("QuestsHere", { over = { "Zones" }, examples = { "quests here", "zone quests" } }),
+	Asks("QuestNeeds", { examples = { "tailoring quests", "daily quests" }, custom = "a standing needed: no filter says it" }),
+	Asks("QuestsHere", { over = { "Zones" }, custom = "your level or zone not known: says so", examples = { "quests here", "zone quests" } }),
 	Asks("CanCraft", { examples = { "what can i craft", "what can i cook" } }),
 	-- "argent dawn rewards", "what can i buy at honored", "my class sets", "pieces of battlegear of might": OneForAll's
 	-- armory (Providers/Integrations/OneForAll/Armory.lua; was before the auctions' "what can i buy")
-	Asks("Armory", { over = { "Auctions" } }),
+	Asks("Armory", { over = { "Auctions" }, custom = "a faction's rewards by standing, sets started first, a set's pieces" }),
 	-- "favor recipes i don't know", "nearest boat", "zeppelin to orgrimmar", "zone exits": OneForAll's world (World.lua)
-	Asks("OneForAllWorld"),
+	Asks("OneForAllWorld", { custom = "a boat or zeppelin by where it goes, roads of your map, Merchant's Favor recipes" }),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;
 	-- was before the auctions' question: "what can i sell on the ah" isn't about what you've posted)
-	Asks("AuctionatorQ", { over = { "Auctions" } }),
+	Asks("AuctionatorQ", { over = { "Auctions" }, custom = "bags and bank together, your alts', everywhere: one row per item" }),
 	Asks("AhUpgradesQ", { custom = "gain per gold over one row per item" }), -- ("ah upgrades": AuctionValues.lua, 0.66.13)
 	-- ("ah value of my mats": "@mats | sum ahvalue", was ahead of the chains' "... mats")
 	Asks("AhValueQ", { over = { "Chains" }, steps = true, line = function(q) return q.line end }),
@@ -90,7 +91,7 @@ Scan.ANSWERS = {
 	-- (Providers/Integrations/OneForAll/Pets.lua; was before the collections' "my pets" and the chains' "... learn")
 	Asks("HunterPets", { over = { "CollectionsQ", "Chains" }, custom = "OneForAll's beasts aren't @npc rows; one row per ability" }),
 	-- "mounts", "my pets", "toys", "favorite mounts", "raptor mounts": the list, by name (Providers/Collections.lua)
-	Asks("CollectionsQ", { over = { "HaveQ" }, examples = { "mounts", "favorite mounts", "how many mounts do i have" } }),
+	Asks("CollectionsQ", { over = { "HaveQ" }, custom = "words name collected ones by their starts", examples = { "mounts", "favorite mounts", "how many mounts do i have" } }),
 	-- "buyback", "what did i sell": what you sold since you logged in (Providers/Buyback.lua)
 	Asks("BuybackQ", { over = { "Auctions" }, examples = { "buyback", "what did i sell" } }),
 	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (was before chains: "what drops did we get" isn't
@@ -147,7 +148,7 @@ Scan.ANSWERS = {
 	Asks("ProfTraining", { over = { "WhatsTraining" }, custom = "can-learn first, then the skill needed, with the next rank's text" }),
 	-- "what can i train", "what do i learn next level", "how much is training", "when do i learn fireball": What's
 	-- Training's spells (WhereToLearn.lua; after the recipes': "recipes i can learn" is theirs)
-	{ id = "WhatsTraining", over = { "ClassSpells" },
+	{ id = "WhatsTraining", over = { "ClassSpells" }, custom = "what training costs: the list with its total",
 		ask = function(text) local W = ns.WhatsTraining and ns.WhatsTraining.Q return W and W.Question(text) end,
 		line = function(q) return ns.WhatsTraining.Q.Line(q) end, note = function(q, rows) return ns.WhatsTraining.Q.Footer(q, rows) end,
 		empty = function(q) return ns.WhatsTraining.Q.None(q) end,
@@ -156,7 +157,7 @@ Scan.ANSWERS = {
 		toAdvanced = function(q) return ns.WhatsTraining.Q.ToAdvanced(q) end },
 	-- "druid spells", "upcoming spells", "when do i learn travel form": every class's spells (Search/Questions/ClassSpells.lua;
 	-- after What's Training's, which answers for your class when it's there)
-	{ id = "ClassSpells",
+	{ id = "ClassSpells", custom = "the next level something is learned at, a rank at a level, a name your class's first",
 		ask = function(text) local C = ns.ClassSpells and ns.ClassSpells.Q return C and C.Question(text) end,
 		line = function(q) return ns.ClassSpells.Q.Line(q) end, note = function(q) return ns.ClassSpells.Q.Footer(q) end,
 		empty = function(q) return ns.ClassSpells.Q.None(q) end,
@@ -173,7 +174,7 @@ Scan.ANSWERS = {
 	-- "my lockouts", "raid lockouts", "am i saved", "raid id": Lockouts.lua
 	Asks("Lockouts", { examples = { "my lockouts", "am i saved", "lockouts by raid" } }),
 	-- "library books", "books i still need", "nearest library book": OneForAll's Library Books (Providers/Integrations/OneForAll/Books.lua)
-	Asks("LibraryBooks"),
+	Asks("LibraryBooks", { custom = "the reward tiers, and the nearest spot of each book" }),
 	-- "where is my body", "my corpse", "where did i die": Corpse.lua (and the nearest spirit healers)
 	Asks("Corpse", { examples = { "where is my body", "my corpse" }, custom = "your corpse, then the nearest spirit healers" }),
 	-- "durability", "repair cost", "what needs repair", "broken gear": Durability.lua
@@ -181,10 +182,12 @@ Scan.ANSWERS = {
 	-- "my auctions", "what am i selling", "auctions sold": Auctions.lua (never with a mail word: "auction mail" is the mail's)
 	Asks("Auctions", { examples = { "my auctions", "auctions sold" } }),
 	-- "my mail", "mail running out", "cod mail": Mail.lua
-	Asks("Mail", { over = { "HaveQ" }, examples = { "my mail", "cod mail", "do i have mail" } }),
+	Asks("Mail", { over = { "HaveQ" }, examples = { "my mail", "cod mail", "do i have mail" },
+		custom = "your mail with the auction house's news and every mailbox" }),
 	-- "how many linen do i have", "do i have linen cloth": how many in all and where (Suggest.lua; 1.0.51. Was after the
 	-- collections' and the mail's: "how many mounts do i have", "do i have mail" are theirs; review, 1.0.65)
-	Asks("HaveQ", { examples = { "how many linen do i have", "do i have linen cloth" } }),
+	Asks("HaveQ", { examples = { "how many linen do i have", "do i have linen cloth" },
+		custom = "one row per item counting your bags, bank and alts together" }),
 	-- "who is dead", "who needs fortitude", "who is out of range", "group healers": Group.lua
 	Asks("Group", { examples = { "who is dead", "who is offline" } }),
 	-- "quest upgrades", "quests with upgrades": the quests near your level whose reward is an upgrade (Rewards.lua)
@@ -218,7 +221,7 @@ Scan.ANSWERS = {
 		toAdvanced = function(q) return ns.QuestRewards.ToAdvanced(q) end },
 	-- "my attunements", "raid attunements", "my keys", "class quests": Attune's list (Attunements.lua; was late: "dungeon
 	-- quests to share", "grey dungeon quests" are the group's and the quest log's)
-	{ id = "Attunements",
+	{ id = "Attunements", custom = "words name attunements, else their steps' text",
 		ask = function(text) local A = ns.Attune and ns.Attune.Q return A and A.List(text) end,
 		line = function(q) return ns.Attune.Q.Line(q) end, note = function(q, rows) return ns.Attune.Q.Footer(q, rows) end,
 		empty = function(q) return ns.Attune.Q.None(q) end,

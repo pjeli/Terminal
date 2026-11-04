@@ -1,6 +1,7 @@
 # Terminal: the questions layer (design, built in 1.0.76 onward)
 
-- **Status:** written November 3, 2026, against `main` at 1.0.75 (1996c8c). The player asked for the rewrite ("fix up /
+- **Status:** built, 1.0.76-1.0.80 (November 3, 2026; section 8 says what each phase did). Written against `main` at
+  1.0.75 (1996c8c). The player asked for the rewrite ("fix up /
   re-write the questions layer ... make sure this is tested against and committed to design"). It is built on `main`, one
   versioned commit per phase (CLAUDE.md's rules: TOCs bumped, a test per fix, `.changelog` kept), and each phase records
   what it actually did in section 8.
@@ -85,36 +86,41 @@ Its answer **is** the search of its Advanced line: the registry writes the line 
 the question, `Scan.WithTail`, as now) and the search runs it, in either mode. Alt+` writes the same line. The answer
 and Alt+` can't differ, because there is one of them.
 
-- A line with steps (`| group by zone`, `| sum value`) is read at the steps stage, as "quests per zone" was: the
-  `question` recognizer (was `per`, Suggest.lua) claims the line and TakeAggregate searches its query with its steps.
-  A line without steps is searched straight from `Scan.Answer` (`UI:SearchText(line)`).
-- `note(q, rows)` puts the question's title in the footer; `empty(q)` gives the row shown when nothing is found (why
-  there is none). These are the only things a question adds to the search's rows, and only when asked as a question.
+- A line with steps (`| group by zone`, `| sum value`) is read at the steps stage, as "quests per zone" was: the `per`
+  recognizer (now in Questions.lua, `Q.StepLine`) claims the line and TakeAggregate searches its query with its steps.
+  A line without steps is searched straight from `Scan.Answer` (`Scan.SearchLine`: `UI:SearchText(line)`).
+- `note(q, rows)` (a module's `Footer`) puts the question's title in the footer; `empty(q)` (`None`) gives the row shown
+  when nothing is found (why there is none); `lead(q, rows)` (`Lead`) a row on top doing it to them all ("Drop all N").
+  These are the only things a question adds to the search's rows, and only when asked as a question.
+- A field the answer showed in the detail is the search's: a sort's or a word's `ns.FIELD_DETAIL` (sort:slots,
+  sort:ahvalue, sort:cantake, is:itemstart), so Advanced mode shows it too.
 - What the search reads (Why is this here?, the bar's picks, the parse golden's fields) is the line's reading.
 
 ### 4.2 An own answer (`answer`)
 
-Kept only where no search can list the same rows, each with its reason in `custom`:
+Kept only where no search can list the same rows, each with its reason in `custom` (as built, 1.0.80; the test
+"[questions: own answers say why]" fails for an entry with no reason whose example isn't answered by its line):
 
 | Question | Why it is its own |
 |---|---|
 | Suggest | rows made from the game's state (durability, training, turn-ins...), no list holds them |
 | SpellIds, ObjectIds | rows made on the spot from four sources; no list of ids |
-| TalentsQ | descriptions read with families of like words, "yours first, then how well" |
+| Talents | descriptions read with families of like words, yours first |
 | Zones | ranked by fit, quest counts and distance, from Z.LIST |
-| LevelOf | one row from three kinds, the level is the answer |
+| LevelOf | one row from three kinds: the level is the answer |
 | HearthBind, XpRate | a game value, session state |
 | Corpse | your corpse, then the three nearest spirit healers |
-| QuestPeople, NearQuests | a quest's giver / turn-in NPC: no relation in the search for it yet |
+| QuestPeople, NearQuests | a quest's giver / turn-in NPC: no relation in the search for it |
 | QuestTrack | its rows are the plan (to track / to untrack), with the "Track N" row that does it |
 | InstanceBosses | boss rows whose Enter walks to the drops chain |
-| AhUpgradesQ | gain per gold over one row per item |
-| Mail (plain, money, auctions) | your mail and the auction house's news in one list |
-| ClassSpells (upcoming, at a level, a name) | the rank learned at a level, your class first |
-| ProfTraining (not "now") | can-learn first, then the skill needed, with the next rank's text |
-| LibraryBooks (rewards), AuctionatorQ (alts, everywhere) | rows of no list; counting only chosen holders |
-| Chains, Attune How, Armory pieces | already a chain: the same pipeline either way |
-| HunterPets | OneForAll's beasts aren't @npc rows; one row per ability |
+| AhUpgradesQ, QuestUpgrades, VendorUpgrades | what is an upgrade by how much; a giver's distance or dungeon |
+| RepQuests | ranked by the reputation the faction asked for gives (its Alt+` lists the same quests: is:foryou) |
+| RewardQuests | the quests in the order of the items they reward, with the item's chain |
+| BiggerBags, HaveQ | one row per item from several lists (bags, bank, alts; loot, recipes) |
+| Chains, AttuneHow | a chain already: the same pipeline either way |
+| Armory, OneForAllWorld, HunterPets | OneForAll's own rows and orders (a faction's rewards by standing, a boat by where it goes, beasts that aren't @npc rows) |
+| ProfTraining | can-learn first, then the skill needed, with the next rank's text |
+| Partly: Mail ("my mail", gold, auction mail), WhatsTraining (what it costs), ClassSpells (upcoming, a level, a name), Attunements and CollectionsQ (with words), QuestNeeds (a standing needed), QuestsHere (level or zone unknown), AuctionatorQ (bags and bank together, alts, everywhere), LibraryBooks (rewards, nearest) | their other forms are search questions |
 
 An own answer is still filtered and sorted by what's typed after it and by the bar (`Scan.AnswerView`).
 
@@ -123,19 +129,17 @@ An own answer is still filtered and sorted by what's typed after it and by the b
 Each a filter, sort or field anyone can type in Advanced mode, added where a question needed it:
 
 - **`sort:list`**: the rows in their lists' own order (their `_rank`, else the order the list gives them), never your
-  picks first. Spells and the quest log rows get a `_rank` (the spellbook's order, the log's).
+  picks first. (Spells and the quest log needed no `_rank`: Keyed's tie is the row's place, the list's order.)
 - **No 100-row cut for a sorted list with no words**: `@bank sort:name` lists the whole bank (up to `Score.LIST_MAX`).
 - **Quest filters**: `is:foryou` (your race, class and side may take it: `QR.ForYou`), `is:cantake` (and you meet its
-  needs: `QR.MeetsRequires`), `is:itemstart` (an item starts it), `is:started` (some progress made); `needrep:` (a
-  quest that needs a standing with a faction).
-- **Recipe filters**: `prof:` (the recipe's profession, `profName`: Smelting is Mining's), `source:` on recipes to learn
-  (trainer, vendor, drop, quest, favor).
-- **Sorts**: `sort:need` (the skill a recipe needs), `sort:rep` (the reputation a quest gives), `sort:grey` (grey quests
-  first, then level), `sort:cantake` (quests you can take first).
-- **Fields shown**: a sort's or filter's field in the detail where the answer showed it (`FIELD_DETAIL`: the needs, the
-  reputation, the counts), as `sort:slots` already does.
-- **`| unique`**: one row per item (an item in your bags and on an alt once, its count added up: `count` is bags + bank +
-  alts for it).
+  needs: `QR.MeetsRequires`), `is:itemstart` (an item starts it), `is:started` (some progress made).
+- **Recipe filter**: `prof:` (the recipe's profession, `profName`: Smelting is Mining's).
+- **Sorts**: `sort:need` (the skill a recipe needs), `sort:grey` (grey quests first, then level), `sort:cantake` (quests
+  you can take first, saying what each needs).
+- **Fields shown**: a sort's or word's field in the detail where the answer showed it (`FIELD_DETAIL`, `SHOW_FIELD_FOR`).
+- Planned and not built, the questions needing them staying own answers: `needrep:` (QuestNeeds' standing), `source:`
+  on recipes to learn, `sort:rep` (RepQuests: a sort can't know which faction was asked), `| unique` (HaveQ,
+  BiggerBags: one row per item).
 - Fixes: `reward:bag` says it is loading (`F.loading`) while the reward index builds; `is:damaged` keeps the
   "Repair all" row; Group writes several roles as one `is:a|b`.
 
@@ -265,3 +269,16 @@ What can't be moved without losing something the player sees stays an own answer
   [questions: every search question] now 45 examples; questbags.lua and questiedb.lua read the detail as shown and ask
   the registry.
 - easybench: Simple 7278.7 -> 7195.5 ms, Advanced 4902.2 -> 4884.7 ms (the same).
+
+### 1.0.80 (phase 5)
+
+- Search questions now: LibraryBooks' lists (`@book [is:todo|is:done] sort:list`; the reward tiers and the nearest stay
+  its own), AuctionatorQ for your bags or your bank alone (`@item|@bank is:auctionable sort:ahvalue`; `AN.DetailFor`, the
+  ahvalue field's detail, also says the vendor's price and how old the AH price is, as the question did).
+- Every other entry says why its answer is its own (`custom`), checked by [questions: own answers say why].
+- Fix: `QR.SlotsOfRow` reads a recipe's (or one to learn's) bag through `Filters.ItemOf` (recipe rows have `makesItem`,
+  not `itemID`): "bigger bags" and `slots:` left every craftable bag out ([questions: bags you can make]).
+- easybench: Simple 7323.2 -> 7305.4 ms, Advanced 4868.4 -> 4899.3 ms (the same). Over the whole rewrite, against
+  1.0.75: Simple 7327.5 -> 7305.4 ms, Advanced 4919.3 -> 4899.3 ms.
+- In all: 58 entries; 23 are search questions, 9 more in part (each says why the rest is its own), 26 keep their own
+  answer for a stated reason; 45 examples are checked row for row against their Alt+` line.

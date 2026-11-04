@@ -270,6 +270,28 @@ function B.Answer(q)
 	return rows, note .. SEP .. progress .. (nxt and (SEP .. L["next reward at %d"]:format(nxt.need)) or "")
 end
 
+--- The books asked for as Advanced syntax: its answer and its Alt+` (docs/QUESTIONS.md 4.1), in OneForAll's order; nil
+--- for the reward tiers (rows of no list) and the nearest (OneForAll's nearest spot of each: B.Answer's own).
+function B.Line(q)
+	q = q or {}
+	if q.rewards or q.near then return nil end
+	local parts = { "@book" }
+	if q.todo then parts[#parts + 1] = "is:todo" elseif q.done then parts[#parts + 1] = "is:done" end
+	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:list"
+	return table.concat(parts, " ") .. " "
+end
+function B.Footer(q, rows)
+	local p = ns.providers.book
+	local all = p and ns:GetEntries(p) or {}
+	local done = B.Progress(all)
+	local note = (q.todo and L["Library Books still to turn in"]) or (q.done and L["Library Books turned in"]) or L["Library Books"]
+	if #rows == 0 then return note end
+	local nxt = B.NextReward(done)
+	return note .. SEP .. L["%d of %d turned in"]:format(done, #all) .. (nxt and (SEP .. L["next reward at %d"]:format(nxt.need)) or "")
+end
+function B.None(q) return { ns.NoteRow(q.todo and L["Every Library Book is turned in"] or L["No Library Book has that"]) } end
+
 function B.ToAdvanced(q)
 	q = q or {}
 	local w = q.words and #q.words > 0 and (table.concat(q.words, " ") .. " ") or ""

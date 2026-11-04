@@ -293,7 +293,9 @@ local CONTAINER = (Enum and Enum.ItemClass and Enum.ItemClass.Container) or 1
 function QR.SlotsOfRow(e)
 	if type(e) ~= "table" then return nil end
 	if e.kind == "questie" or e.kind == "quests" then return QR.RewardSlots(e) end
+	-- (a recipe's, or one to learn's: the bag it makes, Filters' ItemOf; 1.0.80, "bigger bags" left every recipe out)
 	local id = tonumber(rawget(e, "itemID"))
+	if not id and (e.kind == "recipes" or e.kind == "missing") and ns.Filters and ns.Filters.ItemOf then id = tonumber(ns.Filters.ItemOf(e)) end
 	if not id then return nil end
 	local inst = C_Item and C_Item.GetItemInfoInstant
 	if not inst then return nil end

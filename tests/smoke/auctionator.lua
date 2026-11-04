@@ -189,10 +189,12 @@ for _, simple in ipairs({ true, false }) do
 	UI.lastScan, UI.lastExtra = nil, nil
 	UI:Open("what should i auction"); FlushAll()
 	local res = UI.Results()
+	-- (the detail as shown: sort:ahvalue's, the question's line; 1.0.80, docs/QUESTIONS.md)
+	local function D(e) local how = UI.showField and ns.FIELD_DETAIL[UI.showField] return e and (how and how(e) or e.detail) or nil end
 	check(Names(res) == "Wool Cloth | Linen Cloth", (simple and "Simple" or "Advanced") .. ": what should i auction: " .. Names(res))
-	check(res[1] and res[1].detail:find(ns.Money(120), 1, true) and res[1].detail:find(ns.Money(1200), 1, true),
-		"each says what it would bring: " .. tostring(res[1] and res[1].detail))
-	check(res[2] and res[2].detail:find(L["vendor %s"]:format(ns.Money(260)), 1, true), "and what a vendor pays: " .. tostring(res[2] and res[2].detail))
+	check(D(res[1]) and D(res[1]):find(ns.Money(120), 1, true) and D(res[1]):find(ns.Money(1200), 1, true),
+		"each says what it would bring: " .. tostring(D(res[1])))
+	check(D(res[2]) and D(res[2]):find(L["vendor %s"]:format(ns.Money(260)), 1, true), "and what a vendor pays: " .. tostring(D(res[2])))
 	check(UI.answerNote and UI.answerNote:find(AN.About(2200), 1, true), "the note: about what they come to: " .. tostring(UI.answerNote))
 	check(by["Linen Cloth"].detail == nil, "(the item's own row keeps its detail)")
 	UI:Hide(); FlushAll()
@@ -313,8 +315,12 @@ do
 	UI.lastScan, UI.lastExtra = nil, nil
 	UI:Open(""); UI:SetQuery("@item sort:ahvalue ", 19); FlushAll()
 	check(UI.showField == "ahvalue", "(sorted by AH value)")
-	UI:SetQuery("what should i auction", 21); FlushAll()
+	-- (one answered its own way: everywhere, one row per item; "what should i auction" is its line, sorted by AH value
+	-- too: 1.0.80)
+	UI:SetQuery("what should i auction everywhere", 32); FlushAll()
 	check(UI.showField == nil, "then a question: its own details")
+	UI:SetQuery("what should i auction", 21); FlushAll()
+	check(UI.showField == "ahvalue", "a search question: its line's, sorted by AH value")
 	UI:SetQuery("@item -is:auctionable ", 22); FlushAll()
 	check(UI.showField == nil, "-is:auctionable: no AH details")
 	UI:Hide(); FlushAll()

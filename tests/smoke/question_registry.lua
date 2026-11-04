@@ -250,6 +250,35 @@ local ok, err = pcall(function()
 		F.loading = nil
 	end
 
+	-- [questions: own answers say why] an entry with no `custom` reason is a search question: it has a line, and every
+	-- example it takes here is answered by it (docs/QUESTIONS.md, invariant 4)
+	do
+		local bad = {}
+		for _, a in ipairs(Scan.ANSWERS) do
+			if type(a.custom) ~= "string" then
+				if not a.line then bad[#bad + 1] = a.id .. " (no line)" end
+				for _, line in ipairs(a.examples or {}) do
+					local c = Q.Ranked(line)[1]
+					if c and c.a == a and not (a.line and a.line(c.q, c.extra)) then bad[#bad + 1] = a.id .. ": " .. line end
+				end
+			end
+		end
+		check(#bad == 0, "[questions: own answers say why] " .. table.concat(bad, ", "))
+	end
+
+	-- [questions: bags you can make] a recipe's bag is the bag it makes ("bigger bags", slots:; 1.0.80: recipes were
+	-- left out, their rows have makesItem, not itemID)
+	do
+		local QR = ns.QuestRewards
+		local save = { slots = QR.Slots, inst = C_Item.GetItemInfoInstant }
+		QR.Slots = function(id) return id == 4245 and 14 or nil end
+		C_Item.GetItemInfoInstant = function(id) if id == 4245 then return id, nil, nil, nil, nil, 1, 0 end return save.inst(id) end
+		local made = QR.SlotsOfRow({ kind = "recipes", recipeID = 3813, makesItem = 4245, name = "Small Silk Pack" })
+		local learn = QR.SlotsOfRow({ kind = "missing", recipeID = 3813, makesItem = 4245, name = "Small Silk Pack" })
+		QR.Slots, C_Item.GetItemInfoInstant = save.slots, save.inst
+		check(made == 14 and learn == 14, "[questions: bags you can make] a recipe's bag: " .. tostring(made) .. " / " .. tostring(learn))
+	end
+
 	-- [questions: step lines] a search question whose line has steps is read at the steps stage, its tail before the "|"
 	do
 		local SL = Q.StepLine

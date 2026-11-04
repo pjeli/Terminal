@@ -189,11 +189,17 @@ function AN.DetailFor(e, field)
 	local n = AN.SellableCount(e)
 	local parts = { L["AH %s each"]:format(Money(each)) }
 	if n > 1 then parts[#parts + 1] = L["x%d: %s"]:format(n, Money(each * n)) end
+	-- (what a vendor gives for them, and how old the price is: "what should i auction" said so; 1.0.80, one detail for
+	-- the question and its Alt+`)
+	local vendor = AN.VendorOf(e)
+	if vendor and vendor > 0 then parts[#parts + 1] = L["vendor %s"]:format(Money(vendor * math.max(n, 1))) end
 	local d = type(e.detail) == "string" and e.detail or ""
 	-- (its own detail without the count it starts with: "x185  Bag 4" -> "Bag 4", "x112  ·  bank" -> "bank"; none to
 	-- post, bound: its count kept)
 	if n > 0 then d = d:gsub("^x%d+", ""):gsub("^%s*·%s*", ""):gsub("^%s+", "") end
 	if d ~= "" then parts[#parts + 1] = d end
+	local age = AN.Age(ItemID(e), RowLink(e))
+	if age and age > 1 then parts[#parts + 1] = L["seen %d days ago"]:format(age) end
 	return table.concat(parts, SEP)
 end
 
@@ -429,6 +435,24 @@ function Q.Answer(q)
 	end)
 	ns.ScoreInOrder(out)
 	return out, note .. SEP .. L["about %s on the auction house"]:format(AN.About(total)) .. SEP .. L["before its cut"]
+end
+
+--- Your bags' or your bank's (one list) as Advanced syntax: its answer and its Alt+` (docs/QUESTIONS.md 4.1); nil for
+--- both at once, your alts' and everywhere (one row per item, counting only those holders: Q.Answer's own).
+function Q.Line(q)
+	local pl = (q and q.places) or { bags = true }
+	if pl.alts or pl.all or (pl.bags and pl.bank) then return nil end
+	return (pl.bank and "@bank" or "@item") .. " is:auctionable sort:ahvalue "
+end
+function Q.Footer(_, rows)
+	local total = 0
+	for _, e in ipairs(rows) do total = total + (AN.ValueOf(e) or 0) end
+	return L["Worth posting"] .. SEP .. L["about %s on the auction house"]:format(AN.About(total)) .. SEP .. L["before its cut"]
+end
+function Q.None()
+	local _, _, priced = AN.ToPost(true)
+	return { ns.NoteRow(priced and L["Nothing there sells for more on the auction house than at a vendor"]
+		or L["Auctionator has no prices for your items yet: scan the auction house with it"]) }
 end
 
 --- As Advanced syntax: your bags' @item, your bank's @bank, else @stored (your alts and banks).

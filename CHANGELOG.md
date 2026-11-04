@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.80 (in testing)
+
+- Questions (docs/QUESTIONS.md, phase 5): "library books", "books i still need" and "what should i auction" (your bags or your bank) are answered by their Advanced line; sorted by AH value, the detail also says the vendor's price and how old the AH price is. Every question answering in its own way says why (tested). Fixed: "bigger bags" and `slots:` include the bags you can craft.
+
 ## 1.0.79 (in testing)
 
 - Questions (docs/QUESTIONS.md, phase 4): "quests here", "tailoring quests", "daily quests", "quests that start from an item", "achievements almost done", "quests that reward bags" and "recipes i can learn" are answered by their Advanced line. New: `is:foryou` (your race, class and side may take it), `is:cantake` (and you meet its needs), `is:itemstart`, `is:started`, `sort:cantake` (saying what each quest needs), `sort:need` (the least skill first). Fixed: "quests here" as Advanced left out done quests and other races' only in the question; `reward:bag` searched early now waits for Questie's rewards.
