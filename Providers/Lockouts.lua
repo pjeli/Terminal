@@ -22,11 +22,7 @@ LK.BOSS_WAIT = 3 -- (s after a boss dies before asking: the save comes a moment 
 local Now = ns.Now
 local MyKey = ns.PlayerGUID
 
-local function Chars()
-	if not ns.db then return nil end
-	if type(ns.db.lockouts) ~= "table" then ns.db.lockouts = {} end
-	return ns.db.lockouts
-end
+local function Chars() return ns.DbTable("lockouts") end
 
 local function Dirty() ns:Changed("lockouts") end
 

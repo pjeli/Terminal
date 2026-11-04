@@ -30,7 +30,7 @@ local Secret, Call = ns.Secret, ns.Safe -- (Util.lua)
 
 SP.DESC_ASK = 100 -- (spells asked to load each time a list is made; the rest the next time)
 SP.DESC_WAIT = 2 -- (s after descriptions arrive before the lists are made again: they come in bursts)
-local facts, descs, asked, descDue = {}, {}, {}, false
+local facts, descs, asked = {}, {}, {}
 
 --- A spell's facts, or nil when the game can't say: { cast = seconds (0: instant or channeled), channeled, passive,
 --- cost (of its first power; 0: none), power ("mana", "rage", "energy"), range (yards, its longest; 0: on yourself),
@@ -75,11 +75,11 @@ function SP.Facts(id)
 	return f
 end
 
---- A spell's description, lowercase, one line ("" for one with none); nil while the game hasn't sent it (asked for when
---- `budget` has room: { n = how many more may be asked }).
-function SP.Desc(id, budget)
+--- A spell's description, lowercase, one line ("" for one with none), kept in `store`; nil while the game hasn't sent it
+--- (asked for, noted in `asked`, when `budget` has room: { n = how many more may be asked }). Talents.lua's too.
+function SP.DescOf(id, budget, store, asked)
 	if type(id) ~= "number" then return "" end
-	local got = descs[id]
+	local got = store and store[id]
 	if got then return got end
 	local S = C_Spell
 	if not (S and S.GetSpellDescription) then return "" end
@@ -88,7 +88,7 @@ function SP.Desc(id, budget)
 		local cached = S.IsSpellDataCached and select(2, pcall(S.IsSpellDataCached, id)) == true
 		if d ~= "" or cached or asked[id] == "in" then -- (its data in: no description is none)
 			got = ns.Lower(ns.Plain(d)):gsub("%s+", " ")
-			descs[id] = got
+			if store then store[id] = got end
 			return got
 		end
 	end
@@ -99,27 +99,34 @@ function SP.Desc(id, budget)
 	end
 	return nil
 end
+function SP.Desc(id, budget) return SP.DescOf(id, budget, descs, asked) end
 function SP.ForgetFacts() facts, descs, asked = {}, {}, {} end -- (tests)
 
-do
+--- A frame that waits for the spell data SP.DescOf asked for (`Asked()`: its asked table): once one comes in, `done()`
+--- after `Wait()` seconds (they come in bursts). Its `due` is true while that's pending.
+function SP.WatchDescs(Asked, Wait, done)
 	local f = CreateFrame("Frame")
 	pcall(f.RegisterEvent, f, "SPELL_DATA_LOAD_RESULT")
 	f:SetScript("OnEvent", function(_, _, id)
 		-- (only one asked for and not in yet: the event comes for every spell anything loads, again for one in already)
-		if asked[id] ~= true then return end
-		asked[id] = "in"
-		if descDue then return end
-		descDue = true
-		C_Timer.After(SP.DESC_WAIT, function()
-			descDue = false
-			local CS = ns.ClassSpells
-			if CS and CS.ForgetRows then CS.ForgetRows() end -- (another class's rows are made once: made again with them)
-			ns:Changed("spells")
-			ns:Changed("classspells")
+		local waiting = Asked()
+		if waiting[id] ~= true then return end
+		waiting[id] = "in"
+		if f.due then return end
+		f.due = true
+		C_Timer.After(Wait(), function()
+			f.due = false
+			done()
 		end)
 	end)
-	SP.descFrame = f -- (tests)
+	return f
 end
+SP.descFrame = SP.WatchDescs(function() return asked end, function() return SP.DESC_WAIT end, function()
+	local CS = ns.ClassSpells
+	if CS and CS.ForgetRows then CS.ForgetRows() end -- (another class's rows are made once: made again with them)
+	ns:Changed("spells")
+	ns:Changed("classspells")
+end)
 
 --- One spellbook slot's spell: id, passive, rank text; nil for anything else (flyouts, future
 --- spells, empty slots). This client can give no item info for a slot it lists, so then the

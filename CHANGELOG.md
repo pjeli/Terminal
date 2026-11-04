@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.93 (in testing)
+
+- Code (review): providers share their helpers (saved tables, spell descriptions, the mail question's footer); no change in what they do.
+
 ## 1.0.92 (in testing)
 
 - Code comments (review): the version tags and stories of past versions are out of the comments (435 lines fewer; what each comment says the code does is kept; git keeps the history).

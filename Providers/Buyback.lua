@@ -15,12 +15,7 @@ BB.ICON = "Interface\\Icons\\INV_Misc_Coin_02"
 local atVendor = false
 
 --- The kept copy: { { link, name, icon, count, price, t } }, newest first ({} with no saved variables yet).
-function BB.List()
-	local db = ns.db
-	if not db then return {} end
-	if type(db.buyback) ~= "table" then db.buyback = {} end
-	return db.buyback
-end
+function BB.List() return ns.DbTable("buyback") or {} end
 
 --- The game's buyback list now (a vendor's window open): { { link, name, icon, count, price, index } }, in its order.
 function BB.ReadGame()

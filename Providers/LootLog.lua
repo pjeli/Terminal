@@ -18,11 +18,7 @@ LL.SAME = 10 -- seconds: the same item to the same player twice in this time is 
 local Safe = ns.Safe
 
 local Now = ns.Now
-local function Log()
-	if not ns.db then return nil end
-	if type(ns.db.lootLog) ~= "table" then ns.db.lootLog = {} end
-	return ns.db.lootLog
-end
+local function Log() return ns.DbTable("lootLog") end
 
 local Pattern = ns.FormatPattern
 LL.Pattern = Pattern -- (tests)

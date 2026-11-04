@@ -23,11 +23,7 @@ X.RESTED_CAP = 1.5 -- (levels)
 
 local Now = ns.Now
 
-local function Chars()
-	if not ns.db then return nil end
-	if type(ns.db.xpChars) ~= "table" then ns.db.xpChars = {} end
-	return ns.db.xpChars
-end
+local function Chars() return ns.DbTable("xpChars") end
 
 -- the cap as the game works it out (GameRulesUtil.GetEffectiveMaxLevelForPlayer: the lower of the expansion's cap and
 -- this player's)

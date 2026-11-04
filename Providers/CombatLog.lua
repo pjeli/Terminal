@@ -17,11 +17,7 @@ CB.MAX_DEATHS = 100
 
 local Safe, Secret = ns.Safe, ns.Secret
 local Now = ns.Now
-local function Log()
-	if not ns.db then return nil end
-	if type(ns.db.combatLog) ~= "table" then ns.db.combatLog = {} end
-	return ns.db.combatLog
-end
+local function Log() return ns.DbTable("combatLog") end
 
 local me -- your GUID (read on login)
 local lastHit -- the last hit on you: { who, spell, amount, crit }, for a death with no killing blow seen

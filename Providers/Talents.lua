@@ -357,7 +357,7 @@ end
 
 TL.DESC_ASK = 100 -- (spells asked to load each time the list is made; the rest the next time)
 TL.DESC_WAIT = 2 -- (s after descriptions arrive before the list is made again: they come in bursts)
-local asked, descDue = {}, false
+local asked = {}
 
 local function DescStore()
 	local db = ns.db
@@ -373,46 +373,11 @@ end
 
 --- A talent's description (its spell's), lowercase, one line ("" for one with none); nil while the game hasn't sent it
 --- (asked for when `budget` has room: { n = how many more may be asked }).
-function TL.Desc(spellID, budget)
-	if type(spellID) ~= "number" then return "" end
-	local store = DescStore()
-	local got = store and store[spellID]
-	if got then return got end
-	local S = C_Spell
-	if not (S and S.GetSpellDescription) then return "" end
-	local ok, d = pcall(S.GetSpellDescription, spellID)
-	if ok and type(d) == "string" and not ns.Secret(d) then
-		local cached = S.IsSpellDataCached and select(2, pcall(S.IsSpellDataCached, spellID)) == true
-		if d ~= "" or cached or asked[spellID] == "in" then -- (its data in: no description is none)
-			got = ns.Lower(ns.Plain(d)):gsub("%s+", " ")
-			if store then store[spellID] = got end
-			return got
-		end
-	end
-	if not asked[spellID] and S.RequestLoadSpellData and (not budget or budget.n > 0) then
-		asked[spellID] = true
-		if budget then budget.n = budget.n - 1 end
-		pcall(S.RequestLoadSpellData, spellID)
-	end
-	return nil
-end
+function TL.Desc(spellID, budget) return ns.Spells.DescOf(spellID, budget, DescStore(), asked) end
 
-do
-	local f = CreateFrame("Frame")
-	pcall(f.RegisterEvent, f, "SPELL_DATA_LOAD_RESULT")
-	f:SetScript("OnEvent", function(_, _, spellID)
-		if asked[spellID] ~= true then return end -- (asked, not in yet: as Spells.lua's)
-		asked[spellID] = "in"
-		if descDue then return end
-		descDue = true
-		C_Timer.After(TL.DESC_WAIT, function()
-			descDue = false
-			ns:Changed("talents")
-		end)
-	end)
-	TL.descFrame = f -- (tests)
-end
-function TL.ForgetDescAsks() asked, descDue = {}, false end -- (tests)
+TL.descFrame = ns.Spells.WatchDescs(function() return asked end, function() return TL.DESC_WAIT end,
+	function() ns:Changed("talents") end)
+function TL.ForgetDescAsks() asked = {}; TL.descFrame.due = false end -- (tests)
 
 -- Wowhead has a WoW Forever section: a talent of another class is shown there (its tree isn't yours to open)
 TL.WOWHEAD_SPELL = "https://www.wowhead.com/forever/spell=%d"

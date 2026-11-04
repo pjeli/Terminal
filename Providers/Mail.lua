@@ -39,11 +39,7 @@ MA.READ_DELAY = 0.3 -- (s: an inbox update burst read once)
 local Now = ns.Now
 local MyKey = ns.PlayerGUID
 
-local function Boxes()
-	if not ns.db then return nil end
-	if type(ns.db.mailboxes) ~= "table" then ns.db.mailboxes = {} end
-	return ns.db.mailboxes
-end
+local function Boxes() return ns.DbTable("mailboxes") end
 
 local function Dirty() ns:Changed("mail"); ns:Changed("auctions") end -- (@auction lists the news too: Auctions.lua)
 
@@ -1011,7 +1007,6 @@ end
 
 -- a sent mail's or an auction's line: "  To Bob: Linen Cloth (20)  ·  1g  ·  sent 12 min ago"
 local function WayLine(e) return "  " .. e.name .. ns.DETAIL_SEP .. (e.plain or "") .. (e.mine and "" or ("  " .. GREY .. "(" .. e.who .. ")|r")) end
-MA.WayLine = WayLine
 
 local function Show(e)
 	if e.mailKind == "box" then ns:Output(BoxLines(e.boxKey)) return end
@@ -1501,19 +1496,21 @@ function MA.Answer(q)
 	end
 	for _, e in ipairs(all) do if e.mailKind == "sent" or e.mailKind == "auction" then boxes = boxes + 1 break end end
 	mails = mails + way
-	local note
-	if boxes == 0 then
-		note = MA.NONE
-	elseif mails == 0 then
-		note = (q.sent and L["Nothing sent in the last hour"]) or (q.incoming and L["No auction house news in the last hour"])
+	return rows, MA.Note(q, boxes, mails, money)
+end
+
+--- The footer of a mail question: what it lists, how many, the gold in them; else why there's none (no mailbox known,
+--- or none of what was asked).
+function MA.Note(q, boxes, mails, money)
+	if boxes == 0 then return MA.NONE end
+	if mails == 0 then
+		return (q.sent and L["Nothing sent in the last hour"]) or (q.incoming and L["No auction house news in the last hour"])
 			or (q.soon and L["Nothing in your mail runs out within 3 days"]) or (q.cod and L["No COD mail"])
 			or (q.money and L["No gold in your mail"]) or (q.unread and L["No unread mail"]) or (q.returned and L["No mail sent back to you"])
 			or (q.auction and L["No auction house mail"]) or ((q.words and #q.words > 0) and L["No mail has that"]) or L["No mail"]
-	else
-		note = (q.sent and MA.NOTE_SENT) or (q.incoming and MA.NOTE_INCOMING) or (q.soon and MA.NOTE_SOON) or MA.NOTE
-		note = note .. ("  ·  %s"):format(Plural(mails, L["mail"], L["mails"])) .. (money > 0 and (", " .. Money(money, true)) or "")
 	end
-	return rows, note
+	local note = (q.sent and MA.NOTE_SENT) or (q.incoming and MA.NOTE_INCOMING) or (q.soon and MA.NOTE_SOON) or MA.NOTE
+	return note .. ("  ·  %s"):format(Plural(mails, L["mail"], L["mails"])) .. (money > 0 and (", " .. Money(money, true)) or "")
 end
 
 --- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@mail is:expiring bob
@@ -1524,10 +1521,8 @@ function MA.Line(q)
 	local parts = { q.incoming and "@auction" or "@mail" } -- (the auction house's news is @auction's)
 	if q.soon then parts[#parts + 1] = "is:expiring" end
 	if q.cod then parts[#parts + 1] = "is:cod" end
-	if q.money then parts[#parts + 1] = "is:money" end
 	if q.unread then parts[#parts + 1] = "is:unread" end
 	if q.returned then parts[#parts + 1] = "is:returned" end
-	if q.auction then parts[#parts + 1] = "is:auction" end
 	if q.sent then parts[#parts + 1] = "is:sent" end
 	if q.incoming then parts[#parts + 1] = "is:incoming" end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
@@ -1541,20 +1536,12 @@ function MA.Footer(q, rows)
 		mails = mails + 1
 		money = money + ((e.mail and e.mail.money) or e.money or 0)
 	end
-	-- (no mailbox known at all: said so, as the answer did)
+	-- (no mailbox known at all: said so, as the answer does)
 	local boxes = 0
 	for _, e in ipairs(MailAndNews()) do
-		if e.mailKind == "box" or e.mailKind == "sent" or e.mailKind == "auction" then boxes = boxes + 1 break end
+		if e.mailKind == "box" or e.mailKind == "sent" or e.mailKind == "auction" then boxes = 1 break end
 	end
-	if boxes == 0 then return MA.NONE end
-	if mails == 0 then
-		return (q.sent and L["Nothing sent in the last hour"]) or (q.incoming and L["No auction house news in the last hour"])
-			or (q.soon and L["Nothing in your mail runs out within 3 days"]) or (q.cod and L["No COD mail"])
-			or (q.unread and L["No unread mail"]) or (q.returned and L["No mail sent back to you"])
-			or ((q.words and #q.words > 0) and L["No mail has that"]) or L["No mail"]
-	end
-	local note = (q.sent and MA.NOTE_SENT) or (q.incoming and MA.NOTE_INCOMING) or (q.soon and MA.NOTE_SOON) or MA.NOTE
-	return note .. ("  ·  %s"):format(Plural(mails, L["mail"], L["mails"])) .. (money > 0 and (", " .. Money(money, true)) or "")
+	return MA.Note(q, boxes, mails, money)
 end
 function MA.None() return {} end
 
