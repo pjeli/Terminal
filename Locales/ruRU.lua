@@ -3334,4 +3334,5 @@ L["Level %d in about %s"] = "Уровень %d примерно через %s"
 L["@questie, @quest: the quests that give reputation with that faction (Questie); \"quests for stormwind rep\" in plain words"] = "@questie, @quest: задания, дающие репутацию у этой фракции (Questie); \"quests for stormwind rep\" простыми словами"
 L["that need %s"] = "для которых нужно %s"
 L["@questie, @quest: the quests that need that profession (skill:any: any one); is:daily, is:repeatable (Questie); \"tailoring quests\", \"daily quests\" in plain words"] = "@questie, @quest: задания, для которых нужна эта профессия (skill:any: любая); is:daily, is:repeatable (Questie); \"tailoring quests\", \"daily quests\" простыми словами"
+L["Questie knows no quest like that here"] = "Questie не знает здесь таких заданий"
 --@end-do-not-package@

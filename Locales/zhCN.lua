@@ -3334,4 +3334,5 @@ L["Level %d in about %s"] = "%d级：约%s后"
 L["@questie, @quest: the quests that give reputation with that faction (Questie); \"quests for stormwind rep\" in plain words"] = "@questie、@quest：给予该阵营声望的任务（Questie）；用平常话说：\"quests for stormwind rep\""
 L["that need %s"] = "需要%s的"
 L["@questie, @quest: the quests that need that profession (skill:any: any one); is:daily, is:repeatable (Questie); \"tailoring quests\", \"daily quests\" in plain words"] = "@questie、@quest：需要该专业的任务（skill:any：任一专业）；is:daily、is:repeatable（Questie）；用平常话说：\"tailoring quests\"、\"daily quests\""
+L["Questie knows no quest like that here"] = "Questie在这里不知道这样的任务"
 --@end-do-not-package@

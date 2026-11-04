@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.69 (in testing)
+
+- Quest needs and reputation (review): right after login a quest's tooltip no longer loses what it needs and gives for the session; a standing needed that isn't a standing's start says the points ("Friendly, 4000/5500"); factions you haven't met can be named ("quests for ravenholdt rep"), and one or two letters name none; "tailoring quests" lists those you can take first, lowest level first, and says how many more; "quests needing tailoring" is asked too.
+
 ## 1.0.68 (in testing)
 
 - Answers fixed (review): "bigger bags" lists the bags with the most slots first; "stockade bosses" lists the Stockade's bosses only (each instance's trash on its own, no faction's standing as a boss); "xp per hour" says so at the level cap and counts a level-up once; "who gives ..." for a name several quests share answers for the one in your log, else those you can take.

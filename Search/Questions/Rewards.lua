@@ -1124,7 +1124,9 @@ function QR.RepRewards(id)
 	-- (a QuestieDB not in the shape expected gives nothing, never an error: asked from every quest tooltip)
 	local okDB, db = pcall(DB)
 	db = okDB and db or nil
-	local raw = db and db.QueryQuestSingle and Safe(db.QueryQuestSingle, id, "reputationReward")
+	-- (Questie not ready yet, right after login: nothing kept, asked again later; review, 1.0.69)
+	if not (db and db.QueryQuestSingle) then return nil end
+	local raw = Safe(db.QueryQuestSingle, id, "reputationReward")
 	local out
 	if type(raw) == "table" then
 		for _, p in ipairs(raw) do
@@ -1157,12 +1159,42 @@ function QR.FactionName(fid)
 	return n
 end
 --- The faction ids whose name has these words (lowercase): your reputations', and OneForAll's factions.
+--- The factions Questie's quests name (what they give, what they need), with the game's names: the ones you haven't
+--- met are in no reputation list (review, 1.0.69: "quests for ravenholdt rep" found nothing). Made once, when
+--- Questie's quests are in.
+local questFactions
+function QR.QuestFactions()
+	if questFactions then return questFactions end
+	local qp = ns.providers.questie
+	local list = qp and rawget(qp, "_entries")
+	if not (list and DB()) then return {} end
+	local seen, out = {}, {}
+	for _, e in ipairs(list) do
+		local id = QuestIdOf(e)
+		for _, r in ipairs(id and QR.RepRewards(id) or {}) do
+			if not seen[r[1]] then seen[r[1]] = true; out[#out + 1] = r[1] end
+		end
+		local need = id and QR.Requires(id)
+		if need and need.rep and not seen[need.rep[1]] then seen[need.rep[1]] = true; out[#out + 1] = need.rep[1] end
+	end
+	local named = {}
+	for _, fid in ipairs(out) do
+		local n = QR.FactionName(fid)
+		if n then named[#named + 1] = { id = fid, name = n } end
+	end
+	questFactions = named
+	return named
+end
+function QR.ForgetQuestFactions() questFactions = nil end -- (tests)
+--- (each word the start of one of the name's words, three letters or more: "quests for s rep" named Stormwind and
+--- Darnassus; review, 1.0.69)
 function QR.FactionsNamed(words)
 	local out, any = {}, false
+	for _, w in ipairs(words) do if #w < 3 then return nil end end
 	local function Try(fid, name)
 		if not (fid and name) then return end
-		local ln = Lower(name)
-		for _, w in ipairs(words) do if not ln:find(w, 1, true) then return end end
+		local ln = " " .. Lower(name)
+		for _, w in ipairs(words) do if not ln:find(" " .. w, 1, true) then return end end
 		out[fid], any = true, true
 		factionNames[fid] = factionNames[fid] or name
 	end
@@ -1170,6 +1202,7 @@ function QR.FactionsNamed(words)
 	for _, e in ipairs(p and ns:GetEntries(p) or {}) do if not e.repReward then Try(e.factionID, e.name) end end
 	local A = ns.Armory
 	for _, f in ipairs(A and A.Factions and A.Factions() or {}) do Try(f.id, f.name) end
+	if not any then for _, f in ipairs(QR.QuestFactions()) do Try(f.id, f.name) end end
 	return any and out or nil
 end
 --- The reputation a quest gives with these factions, the most of them (0: none).
@@ -1272,8 +1305,9 @@ function QR.Requires(id)
 	if kept ~= nil then return kept or nil end
 	local okDB, db = pcall(DB)
 	db = okDB and db or nil
+	if not (db and db.QueryQuestSingle) then return nil end -- (not ready: nothing kept; review, 1.0.69)
 	local out
-	if db and db.QueryQuestSingle then
+	do
 		local skill = Pair(Safe(db.QueryQuestSingle, id, "requiredSkill"))
 		local rep = Pair(Safe(db.QueryQuestSingle, id, "requiredMinRep"))
 		local repeatable = Bit(Safe(db.QueryQuestSingle, id, "specialFlags"), 1)
@@ -1305,10 +1339,10 @@ end
 function QR.MyRep(fid)
 	local C = rawget(_G, "C_Reputation")
 	local d = C and C.GetFactionDataByID and Safe(C.GetFactionDataByID, fid)
-	if type(d) == "table" and tonumber(d.currentStanding) then return tonumber(d.currentStanding) end
+	if type(d) == "table" and ns.Num(d.currentStanding) then return ns.Num(d.currentStanding) end
 	if _G.GetFactionInfoByID then
 		local v = select(6, Safe(_G.GetFactionInfoByID, fid))
-		return tonumber(v)
+		return ns.Num(v)
 	end
 	return nil
 end
@@ -1350,8 +1384,13 @@ function QR.RequiresSaid(id)
 		local fname = QR.FactionName(r.rep[1]) or tostring(r.rep[1])
 		local points = QR.MyRep(r.rep[1])
 		local mine = QR.StandingOfValue(points)
+		-- (a need that isn't a standing's start, Darkmoon's 5500: the points too, so a red line says why; review, 1.0.69)
+		local floor = false
+		for _, f in ipairs(REP_FLOOR) do if f[1] == r.rep[2] then floor = true end end
+		local have = mine and ns.StandingName(mine) or nil
+		if have and not floor then have = have .. ", " .. points .. "/" .. r.rep[2] end
 		out[#out + 1] = L["Needs %s"]:format((ns.StandingName(need) or "?") .. " " .. L["with %s"]:format(fname))
-			.. (mine and (" (" .. ns.StandingName(mine) .. ")") or "")
+			.. (have and (" (" .. have .. ")") or "")
 		met[#out] = points == nil or points >= r.rep[2]
 	end
 	if r.daily then out[#out + 1] = ns.GameText("DAILY", "Daily") end
@@ -1368,8 +1407,9 @@ if Fk and Fk.KEYS then
 			return function(e) local id = QuestIdOf(e) local r = id and QR.Requires(id) return r ~= nil and r.skill ~= nil end
 		end
 		local pr = P and P.ProfOfName and P.ProfOfName(want)
-		if not pr and P and P.AL_PROFS and #want >= 3 then
-			for _, x in pairs(P.AL_PROFS) do if x[1]:sub(1, #want) == want:gsub(" ", "") then pr = x break end end
+		local squashed = want:gsub(" ", "") -- ("skill:first_a": the start of firstaid; review, 1.0.69)
+		if not pr and P and P.AL_PROFS and #squashed >= 3 then
+			for _, x in pairs(P.AL_PROFS) do if x[1]:sub(1, #squashed) == squashed then pr = x break end end
 		end
 		if not pr then return nil end
 		local line = pr[2]
@@ -1388,7 +1428,8 @@ local QN = {}
 ns.QuestNeeds = QN
 QN.MAX = 50
 local QN_FILL = { quest = true, quests = true, i = true, can = true, ["do"] = true, my = true, the = true, ["for"] = true, show = true,
-	list = true, all = true, any = true, some = true, that = true, which = true, what = true, are = true }
+	list = true, all = true, any = true, some = true, that = true, which = true, what = true, are = true,
+	need = true, needs = true, needing = true, require = true, requires = true, requiring = true } -- ("quests needing tailoring")
 function QN.Question(text)
 	local t = ns.QuestionText(text)
 	if not t then return nil end
@@ -1429,22 +1470,34 @@ function QN.Answer(q)
 	local title = L["Quests"]
 	if not db then return { ns.NoteRow(L["Needs Questie: it knows every quest and where it starts"]) }, title end
 	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
-	local rows = {}
+	-- (every match, then those you can take first, the lowest level first, then cut: the first 50 by id were the
+	-- answer; review, 1.0.69)
+	local found = {}
 	local qp = ns.providers.questie
+	local memo = {}
 	for _, e in ipairs(qp and ns:GetEntries(qp) or {}) do
-		if #rows >= QN.MAX then break end
 		local id = QuestIdOf(e)
 		local r = id and QR.Requires(id)
 		local ok = r and ((q.what == "daily" and r.daily) or (q.what == "repeatable" and r.repeatable)
 			or (q.what == "skill" and r.skill and (not q.prof or r.skill[1] == q.prof[2]))
 			or (q.what == "rep" and r.rep and q.fids[r.rep[1]] and QR.StandingOfValue(r.rep[2]) >= q.need))
 		if ok and not (done and Safe(done, id) and not r.daily and not r.repeatable) and QR.ForYou(id) then
-			local said = QR.RequiresSaid(id)
-			rows[#rows + 1] = setmetatable({ detail = table.concat(said, ns.DETAIL_SEP) }, { __index = e })
+			found[#found + 1] = { e = e, id = id, can = QR.MeetsRequires(id, memo), lv = tonumber(e.level) or 0 }
 		end
 	end
-	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
+	table.sort(found, function(a, b)
+		if a.can ~= b.can then return a.can end
+		if a.lv ~= b.lv then return a.lv < b.lv end
+		return tostring(a.e.name) < tostring(b.e.name)
+	end)
+	local rows = {}
+	for i = 1, math.min(#found, QN.MAX) do
+		local said = QR.RequiresSaid(found[i].id)
+		rows[i] = setmetatable({ detail = table.concat(said, ns.DETAIL_SEP) }, { __index = found[i].e })
+	end
+	if #found == 0 then return { ns.NoteRow(L["Questie knows no quest like that here"]) }, title end
 	ns.ScoreInOrder(rows)
+	if #found > #rows then rows[#rows + 1] = ns.NoteRow(L["+%d more"]:format(#found - #rows)) end
 	return rows, title
 end
 function QN.ToAdvanced(q)

@@ -181,6 +181,36 @@ do
 		check(sk[1] and sk[1].qid == 176 and not (sm[1] and sm[1].qid == 176) and sd[1] and sd[1].qid == 176,
 			"@questie skill:tailoring, is:daily: the quest; skill:mining: not it")
 		check(ns.Easy.SayFilter("skill:tailoring") == "that need tailoring", "explain: skill:tailoring: " .. tostring(ns.Easy.SayFilter("skill:tailoring")))
+		-- (review, 1.0.69) nothing kept while Questie isn't ready; a need off a standing's start says the points; a
+		-- faction you haven't met, by the quests' own ids; words that start no faction name's word; the cut and its note
+		do
+			local readyWas = QD.Ready
+			QD.Ready = function() return false end
+			QRr.ForgetRequires(); QRr.ForgetRep()
+			local early, earlyRep = QRr.Requires(176), QRr.RepRewards(176)
+			QD.Ready = readyWas
+			check(early == nil and earlyRep == nil and QRr.Requires(176) and QRr.RepRewards(176), "Questie not ready: nothing kept; ready: read")
+			q176.requiredMinRep = { 529, 5500 }
+			QRr.ForgetRequires()
+			local apiWas = _G.C_Reputation
+			_G.C_Reputation = { GetFactionDataByID = function(fid)
+				if fid == 529 then return { name = "Argent Dawn", currentStanding = 4000 } end
+				if fid == 72 then return { name = "Stormwind", currentStanding = stand } end
+			end }
+			local said2, met2 = QRr.RequiresSaid(176)
+			QRr.ForgetQuestFactions()
+			local ad = QRr.FactionsNamed({ "argent" })
+			check(said2[2] and said2[2]:find("4000/5500", 1, true) and met2[2] == false and ad and ad[529]
+				and QRr.FactionsNamed({ "s" }) == nil and QRr.FactionsNamed({ "wind" }) == nil and QRr.FactionsNamed({ "storm" }),
+				"5500 with Argent Dawn: the points said; a faction not met named by its quests: " .. tostring(said2[2]))
+			_G.C_Reputation = apiWas
+			local maxWas = QN.MAX
+			QN.MAX = 0
+			local cut = QN.Answer(QN.Question("tailoring quests"))
+			QN.MAX = maxWas
+			check(cut[1] and tostring(cut[1].name):find("1", 1, true) and QN.Question("quests needing tailoring") and QN.Question("quests that need tailoring").prof[2] == 197
+				and ns.Filters._.KEYS.skill("first_a") ~= nil, "the cut says how many more; quests needing tailoring; skill:first_a")
+		end
 		q176.requiredSkill, q176.requiredMinRep, q176.questFlags = nil, nil, nil
 		ns.Professions.PlayerProfessions, _G.C_Reputation = profWas, repApiWas
 		QRr.ForgetRequires()

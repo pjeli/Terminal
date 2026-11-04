@@ -1509,6 +1509,7 @@ L["Quest items"] = true
 L["Quest log"] = true
 L["Quest reward"] = true
 L["Questie has no known location for %s."] = true
+L["Questie knows no quest like that here"] = true
 L["Questie's NPCs"] = true
 L["Questie's figure"] = true
 L["Questie's mailboxes and objects"] = true
