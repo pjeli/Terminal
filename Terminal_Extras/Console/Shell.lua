@@ -694,9 +694,12 @@ end
 -- What the commands share
 ----------------------------------------------------------------------
 
---- What NPCs sell, read once (Questie's items, every one): the first cat or grep on /npc waits for it.
+--- What NPCs sell (Questie's items, every one): the first cat or grep on /npc waits for it, and the first after the
+--- idle sweep let it go (review, 1.0.72).
 local function EnsureSold(io, d)
-	if FS.sold or not (d and d.p and d.p.id == "npc") or not FS.HasQuestie() then return end
+	local I = ns.Integrations
+	local ready = FS.sold and not (I and I.NpcItemsReady and not I.NpcItemsReady())
+	if ready or not (d and d.p and d.p.id == "npc") or not FS.HasQuestie() then return end
 	io.sh:Print(Paint("dim", L["reading what every NPC sells (once a session)..."]))
 	FS.BuildSold(function() io.sh:Check() end)
 end

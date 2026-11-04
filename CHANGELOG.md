@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.72 (in testing)
+
+- Console (review): cat and grep on /npc say what an NPC sells again after ten idle minutes (the list behind it is read again, not taken as empty); it is never read twice at once.
+
 ## 1.0.71 (in testing)
 
 - standing: after a question's words ("exalted rewards standing:exalted") keeps its quartermaster rewards whatever you searched before (review).

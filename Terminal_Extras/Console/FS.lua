@@ -951,8 +951,9 @@ function FS.Roles(e)
 end
 function FS.ForgetRoles() rolesOf = setmetatable({}, { __mode = "k" }) end -- (tests)
 
--- What each NPC sells, by NPC: Questie keeps it by item (each item's vendors), so the whole list is read once
--- (FS.BuildSold, the shell waiting while it does) and kept for the session. npc id -> item names, sorted.
+-- What each NPC sells, by NPC: Questie keeps it by item (each item's vendors), so the search's index of it is read
+-- (FS.BuildSold, the shell waiting while it does) and each NPC's item names are made when first asked for, then kept.
+-- npc id -> item names, sorted.
 FS.sold = nil
 local function QuestieDB()
 	local DB = ns.QuestieData and ns.QuestieData.DB()
@@ -960,14 +961,15 @@ local function QuestieDB()
 end
 FS.HasQuestie = function() return QuestieDB() ~= nil end
 
---- Reads every Questie item's vendors once. `step(i, n)` is called every so often (the shell's: it may wait a frame;
---- never inside a pcall here). False without Questie.
--- (the search's index of what NPCs sell, Providers/Integrations/QuestieQuests.lua's I.BuildNpcItems: one read for both,
--- 1.0.50; here as each NPC's item names, sorted)
+--- Has the search's index of what NPCs sell (QuestieQuests.lua's I.BuildNpcItems: one read for both, 1.0.50) read,
+--- again when the idle sweep let it go (review, 1.0.72: an NPC not asked for before then said it sold nothing).
+--- `step(i, n)` is called every so often (the shell's: it may wait a frame; never inside a pcall here). False without
+--- Questie.
 function FS.BuildSold(step)
-	if FS.sold then return true end
+	if FS.sold and I and I.NpcItemsReady and I.NpcItemsReady() then return true end
 	local DB = QuestieDB()
 	if not (DB and I and I.BuildNpcItems and I.BuildNpcItems(step)) then return false end
+	if FS.sold then return true end -- (read again: the names made so far are still right)
 	local names, sold = {}, {}
 	local mt = { __index = function(t, npc)
 		local ids = I.NpcItems(npc, "sold")
@@ -1322,9 +1324,6 @@ FS.MOUNTS = {
 		end },
 }
 
---- Every mount as it stands: { m, source (the addon in use, or nil), points (its directories' paths), size, used
---- (rows: all of them, those ready; nil when no list is made yet), opts (mount's: ro, lazy, loading...), note }. A mount
---- with `remotes` (Share) is one a remote (a friend connected), or one with no source and a note when there's none.
 --- A mount's lists now (FS.MOUNTS: a list, or a function giving one).
 function FS.ListsOf(m)
 	local l = m.lists
@@ -1335,6 +1334,9 @@ function FS.ListsOf(m)
 	return type(l) == "table" and l or {}
 end
 
+--- Every mount as it stands: { m, source (the addon in use, or nil), points (its directories' paths), size, used
+--- (rows: all of them, those ready; nil when no list is made yet), opts (mount's: ro, lazy, loading...), note }. A mount
+--- with `remotes` (Share) is one a remote (a friend connected), or one with no source and a note when there's none.
 function FS.Mounts()
 	local out = {}
 	for _, m in ipairs(FS.MOUNTS) do

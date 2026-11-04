@@ -126,6 +126,11 @@ local ok, err = pcall(function()
 	o = Run("cat /npc/Ammo\\ Vendor")
 	check(Has(o, "role: repair,vendor") and Has(o, "sells: Light Shot, Rough Arrow") and not Has(o, "reading what"),
 		"cat on an NPC: its roles and what it sells; read once only: " .. table.concat(o, " / "))
+	-- (review, 1.0.72) the search's index let go by the idle sweep: read again, not "sells nothing"
+	for k in pairs(FS.sold) do rawset(FS.sold, k, nil) end
+	ns:DropIdle(GetTime() + I.NPC_ITEMS_IDLE + 1)
+	o = Run("cat /npc/Gun\\ Vendor")
+	check(Has(o, "sells:") and Has(o, "Shot"), "after the index was let go: read again, what it sells: " .. table.concat(o, " / "))
 	local realNpcPin = I.NpcPin
 	I.NpcPin = function(e) ns:Print("pinned " .. e.name) end
 	o = Run("ls -lN /npc | where title~reagent | head -1 | field path | xargs pin")

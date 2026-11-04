@@ -151,7 +151,9 @@ function I.NpcItems(npcID, which)
 	if not ids then return nil, nil end
 	t = { sold = {}, drops = {}, building = true }
 	npcItems = t
-	RunSliced("questie: what NPCs sell and drop", #ids, function(i) NpcItemsAdd(DB, t, ids[i]) end, function()
+	-- (t.dropped: the Console read it all at once meanwhile, I.BuildNpcItems; this one stops)
+	RunSliced("questie: what NPCs sell and drop", #ids, function(i) if not t.dropped then NpcItemsAdd(DB, t, ids[i]) end end, function()
+		if t.dropped then return end
 		t.building, t.done, t.usedAt = nil, true, GetTime()
 		if ns.UI and ns.UI:IsShown() and ns.UI.RetryWhenLoaded and ns.UI.edit then ns.UI:RetryWhenLoaded(ns.UI.edit:GetText()) end
 	end)
@@ -163,6 +165,8 @@ function I.BuildNpcItems(step)
 	local DB = QDB()
 	local ids = ItemIds(DB)
 	if not ids then return false end
+	-- (a search's read in frames under way: let go, not read twice at once; review, 1.0.72)
+	if npcItems and npcItems.building then npcItems.dropped = true end
 	local t = { sold = {}, drops = {} }
 	for i, id in ipairs(ids) do
 		NpcItemsAdd(DB, t, id)
@@ -173,6 +177,8 @@ function I.BuildNpcItems(step)
 	return true
 end
 function I.ForgetNpcItems() npcItems = nil end -- (tests)
+--- Is the index read and held now (not let go by the idle sweep, not being read)?
+function I.NpcItemsReady() return npcItems ~= nil and npcItems.done == true end
 
 local function InLog(id)
 	return C_QuestLog and C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(id) and true or false
