@@ -738,3 +738,86 @@ function QP.Answer(q)
 end
 --- Not a search: the question stays as typed (Advanced mode answers it the same).
 function QP.ToAdvanced() return nil end
+
+----------------------------------------------------------------------
+-- "quests near me", "nearest quests": Questie's quests at your level, not done, whose giver is nearest; "turn ins near
+-- me": your quests ready to turn in, by how near their turn-in NPC is (1.0.48, the reach audit: both were NPCs named
+-- "quests", "turn ins")
+----------------------------------------------------------------------
+
+local NQ = {}
+ns.NearQuests = NQ
+local NEAR_SAID = { "near me", "nearby", "nearest", "closest", "close to me", "around me", "near here", "close by" }
+local NQ_FILL = { i = true, can = true, ["do"] = true, take = true, to = true, that = true, me = true, my = true, ["for"] = true,
+	level = true, at = true, the = true, get = true, pick = true, up = true, show = true, list = true, any = true, some = true,
+	what = true, which = true, are = true, near = true, quest = true, quests = true }
+local TURN_SAID = { "turn ins", "turn in", "turnins", "turnin", "hand ins", "hand in" }
+NQ.MAX = 30
+function NQ.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = " " .. t:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "") .. " "
+	local near
+	for _, p in ipairs(NEAR_SAID) do
+		local a, b = t:find(" " .. p .. " ", 1, true)
+		if a then near = true; t = t:sub(1, a) .. t:sub(b) end
+	end
+	if not near then return nil end
+	local turn = false
+	for _, p in ipairs(TURN_SAID) do
+		local a, b = t:find(" " .. p .. " ", 1, true)
+		if a then turn = true; t = t:sub(1, a) .. t:sub(b) end
+	end
+	local quest = turn
+	for w in t:gmatch("%S+") do
+		if w == "quest" or w == "quests" then quest = true
+		elseif not NQ_FILL[w] then return nil end
+	end
+	if not quest then return nil end
+	return { turn = turn }
+end
+function NQ.Answer(q)
+	local I = ns.Integrations
+	local here = I and I.Here and I.Here()
+	local title = (q.turn and L["Ready to turn in"] or L["Quests here"]) .. SEP .. L["nearest first"]
+	if not Has("Questie") then return { ns.NoteRow(L["Needs Questie: it knows every quest and where it starts"]) }, title end
+	if not here then return { ns.NoteRow(ns.UpperFirst(L["where you are isn't known here"])) }, title end
+	local QD = ns.QuestieData
+	local DB = QD and QD.DB and QD.DB()
+	local found = {}
+	local function Add(row, npcID, note)
+		local d = npcID and I.NpcDistance and I.NpcDistance(npcID, here)
+		if d then found[#found + 1] = { d = d, v = I.NearView(row, d, note) } end
+	end
+	if q.turn then
+		local seen = {}
+		for _, e in ipairs(Entries("quests", true)) do
+			if e.complete and e.questID then
+				local by = DB and Safe(DB.QueryQuestSingle, e.questID, "finishedBy")
+				local npc = type(by) == "table" and type(by[1]) == "table" and by[1][1]
+				local row = npc and not seen[npc] and I.NpcRow and I.NpcRow(npc)
+				if row then seen[npc] = true; Add(row, npc, e.name) end
+			end
+		end
+	else
+		local Z = ns.Zones
+		local level = Level()
+		local fits = Z and Z.QuestFitter and level and Z.QuestFitter(level)
+		for _, e in ipairs(fits and Entries("questie", true) or {}) do
+			if fits(e) then
+				local npc, giver = I.QuestGiver and I.QuestGiver(e.qid)
+				if npc then Add(e, npc, giver) end
+			end
+		end
+	end
+	table.sort(found, function(a, b) return a.d < b.d end)
+	local rows = {}
+	for i = 1, math.min(#found, NQ.MAX) do rows[i] = found[i].v end
+	if #rows == 0 then
+		return { ns.NoteRow(q.turn and L["No quest in your log is ready to turn in"] or L["No quests at your level here: try \"where should i quest\""]) }, title
+	end
+	ns.ScoreInOrder(rows)
+	return rows, title
+end
+--- Not a search: the question stays as typed (Advanced mode answers it the same).
+function NQ.ToAdvanced() return nil end

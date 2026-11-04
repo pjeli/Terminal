@@ -37,6 +37,8 @@ Scan.ANSWERS = {
 	Asks("TurnIn"),
 	-- "who gives the defias brotherhood", "where do i turn in ...": its giver, its turn-in NPC (Suggest.lua; 1.0.47)
 	Asks("QuestPeople"),
+	-- "quests near me", "turn ins near me": the quests whose giver (turn-in) is nearest (Suggest.lua; 1.0.48)
+	Asks("NearQuests"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;

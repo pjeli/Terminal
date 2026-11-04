@@ -468,6 +468,25 @@ function Scan.ActionAndPlace(self, q)
 		local taken
 		act, q.actWord, taken = Scan.TakeAction(q.tokens, q.filters, src)
 		if act then q.srcAction = ns.Phrase.Note(q.reading, taken, "action", { spec = act.label, word = q.actWord }) end
+		-- (1.0.48, the reach audit: "camps nearby", "mailbox near me" were NPCs named so) nearest and a list's own name that
+		-- isn't NPCs: that list, nearest first (the kind word is taken below, Scan.KindWord)
+		local Ih = ns.Integrations
+		if act and act.nearest and ns.Easy.KindWord then
+			for i, w in ipairs(q.tokens) do
+				local k = ns.Easy.KindWord(w)
+				if not k and q.tokens[i + 1] then k = ns.Easy.KindWord(w .. " " .. q.tokens[i + 1]) end
+				-- (a place's list, mailboxes, dungeons, with where you are not known: as before, "can't tell where you are")
+				local place = Ih and ((Ih.OBJECT_KINDS and Ih.OBJECT_KINDS[w]) or (Ih.ENTRANCE_KINDS and Ih.ENTRANCE_KINDS[w]))
+				if place and not (Ih.Here and Ih.Here()) then k = nil end
+				if k and k.ids and not k.ids.npc and not k.ids.quests and not k.ids.questie and not k.mine then
+					q.sortNear, q.sortFar = true, act.far or nil -- ("farthest mailbox": the other way round)
+					act, q.actWord, q.srcAction = nil, nil, nil
+					q.fsig[#q.fsig + 1] = "^near"
+					q.nearList = true
+					break
+				end
+			end
+		end
 	end
 	Scan.UseAction(q, act)
 	-- Simple mode: a place named among the words ("vendor ratchet", "trainer in booty bay", "food barrens"): NPCs
@@ -547,6 +566,8 @@ function Scan.ActionAndPlace(self, q)
 	if simple and not (act and act.map) and not q.trainerAsked and not (self.category and not self.categoryAuto) then
 		Scan.KindWord(q)
 	end
+	-- (the nearest of a list named: where you are, for its rows' distances; Scan.Nearest)
+	if q.nearList and not q.here then q.here = I and I.Here and I.Here() or nil end
 	self.action = act
 end
 

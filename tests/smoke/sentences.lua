@@ -14,6 +14,16 @@ local ok, err = pcall(function()
 		["quests i havent done in westfall"] = "@questlog westfall -is:done", ["achievements i havent earned"] = "@achievement -is:done" }) do
 		check(Adv(line) == want, line .. ": " .. want .. " (got " .. Adv(line) .. ")")
 	end
+	-- (1.0.48) near you: a list that isn't NPCs, by distance; quests and turn-ins by their NPC's; NPCs as before
+	local NQ = ns.NearQuests
+	check(NQ.Question("quests near me") and NQ.Question("nearest quests") and NQ.Question("turn ins near me").turn
+		and not NQ.Question("quests") and not NQ.Question("nearest innkeeper") and not NQ.Question("quests near hogger"),
+		"quests near me, turn ins near me: the questions; not quests alone, nor an NPC")
+	local rows = NQ.Answer(NQ.Question("quests near me"))
+	check(type(rows) == "table" and rows[1] ~= nil, "quests near me: an answer (a note without Questie)")
+	check(Adv("camps nearby") == "@camp sort:distance" and Adv("nearest camp") == "@camp sort:distance"
+		and Adv("dungeons near me") == "@dungeon sort:distance" and Adv("nearest innkeeper"):find("@npc is:innkeeper", 1, true),
+		"camps nearby: @camp nearest first; dungeons, innkeepers as before: " .. Adv("camps nearby"))
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))
