@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.94 (in testing)
+
+- Code (review): exports nothing reads are gone, and the integrations read other addons' data tables with one shared reader; no change in what they do.
+
 ## 1.0.93 (in testing)
 
 - Code (review): providers share their helpers (saved tables, spell descriptions, the mail question's footer); no change in what they do.

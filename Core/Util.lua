@@ -622,7 +622,6 @@ local function Base(binding)
 	end
 	return rest, words
 end
-ns.KeyBase = Base
 
 --- The key with the modifiers held now, as the game names a binding ("CTRL-SPACE"), and whether Alt, Ctrl or Meta is.
 local function ChordNow(key)

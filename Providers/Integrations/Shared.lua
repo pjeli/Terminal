@@ -33,6 +33,37 @@ I.HINT_FEW = 2 -- (UI.HINT_FEW: a list with this many matches or fewer shows the
 -- or on I._ (Terminal's own, between these files only); a later file takes it into a local when it loads.
 I._ = {}
 
+--- A reader of an addon's data tables, each read once: Part(key, field, lost, make, optional) -> the part `make(raw,
+--- lib)` makes of `lib[field]`, or nil (said once through I.Failed: `lost` is what's unavailable without it; `optional`:
+--- a table some versions don't have, left out quietly). Lib(): the table holding them, nil while the addon isn't there;
+--- label: how a failure names the table ("OneForAll." .. field). Also gives Forget, for tests.
+function I._.Parts(name, Lib, label)
+	local parts = {}
+	local function Part(key, field, lost, make, optional)
+		local got = parts[key]
+		if got ~= nil then return got or nil end
+		local lib = Lib()
+		if not lib then return nil end
+		local raw = rawget(lib, field)
+		local res, why
+		if type(raw) ~= "table" then
+			why = label .. field .. " is " .. (raw == nil and "missing" or ("a " .. type(raw)))
+			if raw == nil and optional then parts[key] = false return nil end
+		else
+			local ok, a, b = pcall(make, raw, lib)
+			if ok then res, why = a, b else why = tostring(a) end
+		end
+		if res == nil then
+			I.Failed(name, lost, why or (label .. field .. ": nothing in the shape expected"))
+			parts[key] = false
+			return nil
+		end
+		parts[key] = res
+		return res
+	end
+	return Part, function() for k in pairs(parts) do parts[k] = nil end end
+end
+
 local Safe = ns.Safe -- (Util.lua)
 local L = ns.L
 

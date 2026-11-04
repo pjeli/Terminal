@@ -772,7 +772,6 @@ local function FilesOf(io, d)
 	if said and d.p then ns:Changed(d.p.id) end
 	return FS.Files(d)
 end
-SH.FilesOf = FilesOf
 
 --- Resolves a path, waiting first while its list says it's loading (Questie's NPCs at login): a file not there yet
 --- may be once it has.
@@ -1212,7 +1211,6 @@ local function EverythingAsked(args)
 	if recursive and not root and paths > 0 and paths >= #(FS.Dirs()) then root = true end -- (/* expanded)
 	return recursive and root
 end
-SH.EverythingAsked = EverythingAsked
 
 SH.Command("sudo", {
 	desc = L["no"],

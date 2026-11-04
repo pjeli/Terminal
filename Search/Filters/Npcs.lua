@@ -294,7 +294,6 @@ local function PvpVendor(e)
 	for _, w in ipairs(F.PVP_VENDOR_TITLES) do if t:find(w, 1, true) then return true end end
 	return false
 end
-F.Battlemaster, F.PvpVendor = Battlemaster, PvpVendor
 
 -- "Warrior Trainer", "Undead Mage Trainer", "Master Mage", "Grand Master Rogue", "High Priest" (whole words)
 local CLASS_FINDS = {}

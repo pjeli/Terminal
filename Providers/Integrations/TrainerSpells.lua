@@ -37,35 +37,11 @@ function TS.Loaded()
 	return ok and yes == true
 end
 
-local parts = {} -- each part read once: its result, or false (not usable)
 local spellNames, profSplit, classStatic = {}, {}, {} -- (the caches below: a spell's name, each profession's ranks and
 -- crafts, your class's spells by name; none of these change in a session)
-function TS.Forget() parts, spellNames, profSplit, classStatic, TS.demonNames = {}, {}, {}, {}, nil end -- (tests)
-
---- One part of its data: `global` read and made usable by `make(raw)` (which gives the part, or nil and why). A part
---- whose table is missing or not in the shape expected is said once (`lost`: what's unavailable without it); `optional`:
---- a table some builds don't have, left out quietly when missing.
-local function Part(key, global, lost, make, optional)
-	local got = parts[key]
-	if got ~= nil then return got or nil end
-	if not TS.Loaded() then return nil end
-	local raw = rawget(_G, global)
-	local res, why
-	if type(raw) ~= "table" then
-		why = global .. " is " .. (raw == nil and "missing" or ("a " .. type(raw)))
-		if raw == nil and optional then parts[key] = false return nil end
-	else
-		local ok, a, b = pcall(make, raw)
-		if ok then res, why = a, b else why = tostring(a) end
-	end
-	if res == nil then
-		I.Failed(TS.NAME, lost, why or (global .. ": nothing in the shape expected"))
-		parts[key] = false
-		return nil
-	end
-	parts[key] = res
-	return res
-end
+--- One part of its data: a global table made usable by make(raw) (I._.Parts: read once, said once when it's missing).
+local Part, ForgetParts = I._.Parts(TS.NAME, function() return TS.Loaded() and _G or nil end, "")
+function TS.Forget() ForgetParts(); spellNames, profSplit, classStatic, TS.demonNames = {}, {}, {}, nil end -- (tests)
 
 ----------------------------------------------------------------------
 -- Class spells
@@ -84,7 +60,6 @@ local function Races(v)
 	for _, r in ipairs(v) do if type(r) == "string" then set = set or {}; set[r] = true end end
 	return set
 end
-TS.Races = Races
 
 --- Every class's spells: CLASS -> { { id, level, raceFiles (a set, or nil: every race), faction ("a"/"h"), rank, cost },
 --- ... }, or nil. Weapon skills and

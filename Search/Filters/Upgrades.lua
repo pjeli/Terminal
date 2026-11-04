@@ -235,7 +235,6 @@ local PAWN = { strength = "str", agility = "agi", stamina = "sta", intellect = "
 	dodgerating = "dodge", parry = "parry", parryrating = "parry", block = "block", blockrating = "block", blockvalue = "blockv",
 	firespelldamage = "fire", frostspelldamage = "frost", arcanespelldamage = "arcane", naturespelldamage = "nature",
 	shadowspelldamage = "shadow", holyspelldamage = "holy" }
-F.PAWN_STATS = PAWN
 
 --- "str=2 agi=1.5, sta 0.5" -> { str = 2, agi = 1.5, sta = 0.5 }, and the words that aren't a stat and its number.
 function F.ParseWeights(text)

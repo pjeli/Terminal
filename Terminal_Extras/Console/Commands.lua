@@ -68,7 +68,6 @@ local function LongLine(cols, painted, show)
 	end
 	return FS.Hidden(cols) .. table.concat(out, "\t")
 end
-SH.LongLine = LongLine
 
 local function LsRoot(io, opts)
 	local list = FS.Dirs()
@@ -725,7 +724,6 @@ local function Number(s)
 	s = tostring(s or ""):gsub("(%d),(%d)", "%1%2")
 	return tonumber(s:match("%-?%d+%.?%d*"))
 end
-SH.Number = Number
 
 SH.Command("sort", {
 	desc = L["sort lines (-r reverse, -n by number, -u once each, -k N by the Nth word or an ls -l column: -k dist)"],
@@ -875,7 +873,6 @@ local function ColumnValue(line, col, delim)
 	if v == nil or v == "-" or v == "" then return nil, true end
 	return v, true
 end
-SH.ColumnValue = ColumnValue
 
 SH.Command("field", {
 	desc = L["pick columns: ls -l's by name (mode kind id role title lvl count dist zone name), or any line's Nth word"],

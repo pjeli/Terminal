@@ -231,8 +231,6 @@ function D.Log(n)
 	return lines
 end
 
---- The whole log as one text for the copy window: where it ran, every recorded event,
---- then the latest trace lines.
 --- The calls the game blocked once and Terminal no longer tries (ns.Guarded), sorted: { "abandonquest", ... }.
 function D.BlockedCalls()
 	local out = {}

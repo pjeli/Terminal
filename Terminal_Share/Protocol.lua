@@ -109,7 +109,6 @@ local function To36(n)
 	end
 	return string.reverse(concat(out))
 end
-SSH.To36 = To36
 
 -- A snapshot: { places = { { who, where } }, items = { [itemID] = { [place] = count } }, gold = copper or nil }.
 -- where: b bags, k bank, m mail, v void storage, w warband bank. As text, three parts split by "!" (never "|", chat's
@@ -286,7 +285,6 @@ end
 local function Mac(key, label, nA, nB, idA, idB)
 	return C.Hex(C.HMAC(key, label .. "|" .. nA .. "|" .. nB .. "|" .. idA .. "|" .. idB)):sub(1, SSH.MAC_HEX)
 end
-SSH.Mac = Mac
 
 ----------------------------------------------------------------------
 -- Groups

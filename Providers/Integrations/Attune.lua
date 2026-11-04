@@ -904,7 +904,6 @@ local function Visible(rec, faction, cls, D)
 	if rec.group == "class" and not (D and D.showAllClassQuests) and a.CLASS ~= cls then return false end
 	return true
 end
-AT.Visible = Visible
 
 --- The row's name: Attune's, a key's with "key" after it ("Scholomance key": the dungeon's quests are "Scholomance").
 local function RowName(rec)

@@ -70,7 +70,6 @@ local function KindsOf(e, kinds)
 end
 
 --- How many real rows a list has (not notes, not leads).
-function T.Count(list) return UI.RealCount(list) end
 
 --- The prompt as it is now, as a tab (what's saved: text, cursor, the mode for this run, category, the selected row's
 --- kind, key and name), and what it showed (not saved: the lists its rows came from).
@@ -88,7 +87,7 @@ local function Snapshot()
 	for _, e in ipairs(UI.results) do
 		if not (e.noActivate or e.lead) then KindsOf(e, kinds) end
 	end
-	tab.n = T.Count(UI.results)
+	tab.n = UI.RealCount(UI.results)
 	-- (a sum's rows are of no list: whatever it summed may change)
 	run[tab] = { kinds = kinds, any = UI.aggregate ~= nil, at = Stamp() }
 	return tab
@@ -296,7 +295,7 @@ end
 local countFor, countLen, countN
 local function CountShown()
 	local r = UI.results
-	if r ~= countFor or #r ~= countLen then countFor, countLen, countN = r, #r, T.Count(r) end
+	if r ~= countFor or #r ~= countLen then countFor, countLen, countN = r, #r, UI.RealCount(r) end
 	return countN
 end
 

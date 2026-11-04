@@ -61,7 +61,6 @@ local function Compare(a, b, op)
 	elseif op == ">=" then return x >= y elseif op == "==" then return x == y else return x ~= y end
 end
 
-AWK.Num, AWK.Str = Num, Str
 
 ----------------------------------------------------------------------
 -- Reading the program

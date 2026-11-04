@@ -65,7 +65,6 @@ local function Holders(e)
 	end)
 	return list
 end
-SSH.Holders = Holders
 
 --- The item's own tooltip (the game's, as any item row's), then who has how many and where, as @stored's.
 local function Tooltip(e, t)
@@ -1177,7 +1176,6 @@ end
 local function Consumable(id)
 	return ClassOf(id) == ((_G.Enum and _G.Enum.ItemClass and _G.Enum.ItemClass.Consumable) or 0)
 end
-SSH.Consumable = Consumable
 
 --- Crafting mats: trade goods, reagents, and anything the game calls a crafting reagent, as @mats.
 local function Mat(id)
@@ -1189,7 +1187,6 @@ local function Mat(id)
 	local ok, r = pcall(function() return select(17, f(id)) end)
 	return ok and r == true
 end
-SSH.Mat = Mat
 
 -- each mode's items from this character's bags (all: every one)
 local WANT = {
@@ -1213,7 +1210,6 @@ local function BagItems()
 	end
 	return out
 end
-SSH.BagItems = BagItems
 
 -- where @stored keeps things, as a snapshot says it (worn gear, auctions and guild banks aren't shared)
 local WHERE_CODE = { bags = "b", bank = "k", mail = "m", void = "v", warband = "w" }

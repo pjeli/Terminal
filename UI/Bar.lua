@@ -107,7 +107,6 @@ local function SortParts(id)
 	if type(id) == "string" and id:sub(1, 1) == "-" then return id:sub(2), true end
 	return id, false
 end
-B.SortParts = SortParts
 --- Which way a sort goes: true for ascending (A-Z, the lowest first), from its field's own way and the - before it.
 local function Ascending(s, rev)
 	local asc = s.asc and true or false
@@ -590,7 +589,6 @@ local function ShownKinds()
 	end
 	return kinds, overview
 end
-B.ShownKinds = ShownKinds
 
 --- Do these rows show Simple mode's categories (nothing picked yet)?
 function B.Overview(rows)

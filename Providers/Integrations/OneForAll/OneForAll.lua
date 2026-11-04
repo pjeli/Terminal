@@ -40,34 +40,11 @@ end
 --- Its TOC Version, as text.
 function OA.Version() return I._.AddOnVersion(OA.ADDON) end
 
-local parts = {} -- each part read once: its result, or false (not usable)
-function OA.Forget() parts = {} end -- (tests)
-
---- One part of its data: its namespace's `field` made usable by `make(raw, lib)` (which gives the part, or nil and why).
---- A part whose table is missing or not in the shape expected is said once (`lost`: what's unavailable without it);
---- `optional`: a table some versions don't have, left out quietly when missing.
-function OA.Part(key, field, lost, make, optional)
-	local got = parts[key]
-	if got ~= nil then return got or nil end
-	local lib = OA.Lib()
-	if not lib then return nil end
-	local raw = rawget(lib, field)
-	local res, why
-	if type(raw) ~= "table" then
-		why = "OneForAll." .. field .. " is " .. (raw == nil and "missing" or ("a " .. type(raw)))
-		if raw == nil and optional then parts[key] = false return nil end
-	else
-		local ok, a, b = pcall(make, raw, lib)
-		if ok then res, why = a, b else why = tostring(a) end
-	end
-	if res == nil then
-		I.Failed(OA.NAME, lost, why or ("OneForAll." .. field .. ": nothing in the shape expected"))
-		parts[key] = false
-		return nil
-	end
-	parts[key] = res
-	return res
-end
+--- One part of its data: its namespace's `field` made usable by `make(raw, lib)` (I._.Parts: read once, said once when
+--- it's missing or not in the shape expected).
+local ForgetParts
+OA.Part, ForgetParts = I._.Parts(OA.NAME, function() return OA.Lib() end, "OneForAll.")
+function OA.Forget() ForgetParts() end -- (tests)
 
 --- One of its functions called (its own code, in a pcall): its results, or nil when it's not there or errors.
 function OA.Call(fn, ...)
