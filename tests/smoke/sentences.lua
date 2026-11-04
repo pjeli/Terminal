@@ -39,6 +39,12 @@ local ok, err = pcall(function()
 	local P = ns.Pipes
 	check(P.Canonical("where to farm linen cloth") == "linen cloth > sources" and P.Canonical("where do i find red bandanas") == "red bandanas > sources"
 		and P.Canonical("where can i find linen") == "linen > sources", "where to farm / find a thing: its sources: " .. tostring(P.Canonical("where to farm linen cloth")))
+	-- (1.0.54) flight paths you don't know: as "unknown flight paths"
+	local unknown = Adv("unknown flight paths")
+	for _, line in ipairs({ "flight paths i don't know", "flight paths i dont have", "flight paths i haven't got" }) do
+		local a = Adv(line)
+		check(a:find("is:unlearned", 1, true) and a:find("is:flightpath", 1, true) and not a:find("%f[%a]i%f[%A]"), line .. ": as " .. unknown .. " (got " .. a .. ")")
+	end
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))

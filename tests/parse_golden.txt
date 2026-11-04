@@ -7431,3 +7431,41 @@ pick sort: -
 category: -
 advanced: "do:where hogger "
 explain: "Everything matching hogger, Enter: where"
+
+== flight paths i don't know
+question: -
+tokens: -
+filter: soft is:flightpath  sig=~flight paths  word=flight paths
+filter: soft is:unlearned  sig=~don't know  word=don't know
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:flightpath word=flight paths
+pick: spec=is:unlearned word=don't know
+pick sort: -
+category: places
+advanced: "@flight is:flightpath is:unlearned "
+explain: "Flightpath, unlearned flight paths"
+
+== flight paths i haven't got
+question: -
+tokens: -
+filter: soft is:flightpath  sig=~flight paths  word=flight paths
+filter: soft is:unlearned  sig=~haven't got  word=haven't got
+sort: -
+kinds: corpse dungeon flight maps raid
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:flightpath word=flight paths
+pick: spec=is:unlearned word=haven't got
+pick sort: -
+category: places
+advanced: "@flight is:flightpath is:unlearned "
+explain: "Flightpath, unlearned flight paths"

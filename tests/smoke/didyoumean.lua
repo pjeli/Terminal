@@ -38,8 +38,9 @@ do
 
 	-- a phrase it's like, by the words they share
 	UI:Open("flight paths i dont have"); FlushAll()
-	check(Rows():find("unlearned flight paths/suggestion", 1, true) and not Rows():find("done", 1, true),
-		"flight paths i dont have: unlearned flight paths (and \"dont\" left as it is): " .. Rows())
+	-- (1.0.54, the reach audit: "i dont have" reads as not learned, so the flight paths themselves, not a suggestion)
+	check(Rows():find("/flight", 1, true) and not Rows():find("suggestion", 1, true) and not Rows():find("done", 1, true),
+		"flight paths i dont have: the unlearned flight paths: " .. Rows():sub(1, 120))
 	-- a word every phrase has isn't enough
 	UI:SetQuery("my atunements"); FlushAll()
 	check(not Rows():find("my mail", 1, true), "my atunements: not my mail: " .. Rows())

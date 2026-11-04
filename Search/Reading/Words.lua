@@ -22,6 +22,10 @@ E.WORDS = {
 	done = "is:done", completed = "is:done", finished = "is:done", earned = "is:done",
 	todo = "is:todo", unfinished = "is:todo", unearned = "is:todo",
 	undone = "-is:done", uncompleted = "-is:done", incomplete = "-is:done", -- ("undone quests"; 1.0.46)
+	-- ("flight paths i don't know", "... i don't have", "... i haven't got": not learned; 1.0.54, the reach audit)
+	["dont know"] = "is:unlearned", ["don't know"] = "is:unlearned", ["dont have"] = "is:unlearned", ["don't have"] = "is:unlearned",
+	["havent got"] = "is:unlearned", ["haven't got"] = "is:unlearned", ["havent learned"] = "is:unlearned",
+	["haven't learned"] = "is:unlearned", ["dont own"] = "is:unlearned", ["don't own"] = "is:unlearned",
 	-- consumables and stats: "stamina food", "agility elixir", "mana potion"
 	food = "type:food", drink = "type:drink", potion = "type:potion", potions = "type:potion", elixir = "type:elixir",
 	elixirs = "type:elixir", flask = "type:flask", bandage = "type:bandage", bandages = "type:bandage", scroll = "type:scroll",

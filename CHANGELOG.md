@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.54 (in testing)
+
+- "flight paths i don't know", "… i don't have", "… i haven't got" list the flight paths you haven't learned, as "unknown flight paths" does (the reach audit).
+
 ## 1.0.53 (in testing)
 
 - "where to farm linen cloth", "where do i find red bandanas", "where can i find …" are where to get it (its sources: who drops, sells or rewards it), as "where to get" is; an NPC or a place named so ("where do i find hogger") stays where it is (the reach audit).

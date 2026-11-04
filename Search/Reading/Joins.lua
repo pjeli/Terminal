@@ -139,7 +139,8 @@ local function JoinStateIn(r, units)
 			if j >= 1 and Low(units[j]) == "yet" then j = j - 1 end
 			if j >= 1 and STATE_NOT[Low(units[j])] then neg, from, j = true, j, j - 1 end
 			if j >= 1 and STATE_HAVE[Low(units[j])] then from, j = j, j - 1 end
-			if j >= 1 and STATE_WHO[Low(units[j])] and from < i then from = j end
+			-- ("i" before a state said in two words, "i don't know": the sentence's too; 1.0.54)
+			if j >= 1 and STATE_WHO[Low(units[j])] and (from < i or lw:find(" ", 1, true)) then from = j end
 			local to = i
 			if units[i + 1] and Low(units[i + 1]) == "yet" and (neg or from < i) then to = i + 1 end
 			local only = STATE_ONLY_NOT[lw]
@@ -156,7 +157,7 @@ local function JoinStateIn(r, units)
 		i = i + 1
 	end
 end
-ns.Phrase.Register({ id = "notstate", stage = "join", priority = 30, pass = function(r) JoinStateIn(r, r.units) end })
+ns.Phrase.Register({ id = "notstate", stage = "join", priority = 25, pass = function(r) JoinStateIn(r, r.units) end })
 ns.Phrase.Register({ id = "not", stage = "join", priority = 20, pass = function(r) JoinNotIn(r, r.units) end })
 ns.Phrase.Register({ id = "or", stage = "join", priority = 10, pass = function(r) JoinOrIn(r, r.units) end })
 
