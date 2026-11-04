@@ -47,6 +47,8 @@ Scan.ANSWERS = {
 	Asks("ItemQuests"),
 	-- "what level is hogger", "duskwood level": the level Terminal has for it (Suggest.lua; 1.0.55)
 	Asks("LevelOf"),
+	-- "bigger bags": bags bigger than your smallest (Suggest.lua; 1.0.57)
+	Asks("BiggerBags"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;

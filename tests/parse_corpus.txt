@@ -518,3 +518,7 @@ my level
 # (1.0.56) what your bags are worth (the reach audit)
 what are my bags worth
 bag value
+
+# (1.0.57) bigger bags (the reach audit)
+bigger bags
+bags with more slots

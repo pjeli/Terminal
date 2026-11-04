@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.57 (in testing)
+
+- "bigger bags", "bags with more slots": the bags bigger than your smallest one (your bags', AtlasLoot's, your recipes' and those you could learn), the most slots first, each saying where it comes from (the reach audit). Alt+` writes `bag slots:>N sort:slots`.
+
 ## 1.0.56 (in testing)
 
 - "what are my bags worth", "bag value", "what's my stuff worth": what your bags sell to a vendor for, summed (`in:bags | sum value`); with Auctionator, their auction house worth, as "ah value of my mats" (the reach audit).

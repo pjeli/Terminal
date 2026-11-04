@@ -60,6 +60,17 @@ local ok, err = pcall(function()
 	check(wr[1] and wr[1].kind == "aggregate" and Adv("what are my bags worth") == "in:bags | sum value" and ns.BagWorth.Question("bags") == nil,
 		"what are my bags worth: in:bags | sum value: " .. tostring(wr[1] and wr[1].kind))
 	UI:Hide(); T.FlushAll()
+	-- (1.0.57) bigger bags than your smallest
+	local BB = ns.BiggerBags
+	local numWas = C_Container and C_Container.GetContainerNumSlots
+	if C_Container then C_Container.GetContainerNumSlots = function(b) return ({ 16, 6, 10, 10 })[b] end end
+	local bq = BB.Question("bigger bags")
+	local bwas = ns.providers.items
+	local brows = bq and BB.Answer(bq)
+	local badv = Adv("bigger bags")
+	if C_Container then C_Container.GetContainerNumSlots = numWas end
+	check(bq and bq.least == 6 and badv:find("slots:>6", 1, true) and BB.Question("bags") == nil and BB.Question("bags with more slots")
+		and type(brows) == "table" and brows[1], "bigger bags: than your smallest (6): " .. tostring(bq and bq.least))
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))

@@ -1087,3 +1087,63 @@ function BW.Question(text)
 end
 function BW.Answer() return nil end -- (the search runs the line: UI/Results.lua's TakeAggregate)
 function BW.ToAdvanced(q) return q.line end
+
+----------------------------------------------------------------------
+-- "bigger bags", "bags with more slots": bags bigger than your smallest one, the most slots first, each saying where it
+-- comes from (its loot row's boss, its recipe, its quest). The search runs the line (1.0.57, the reach audit).
+----------------------------------------------------------------------
+
+local BB = {}
+ns.BiggerBags = BB
+local BB_BIG = { bigger = true, larger = true, better = true, biggest = true, largest = true, more = true }
+local BB_FILL = { bags = true, bag = true, with = true, slots = true, slot = true, ["for"] = true, me = true, my = true, the = true,
+	than = true, mine = true, some = true, any = true, a = true, show = true, find = true, where = true, to = true, get = true }
+--- Your smallest bag's slots (bags 1-4; an empty bag slot: 0, any bag is bigger), or nil when the game won't say.
+function BB.Smallest()
+	local num = (C_Container and C_Container.GetContainerNumSlots) or _G.GetContainerNumSlots
+	if not num then return nil end
+	local least
+	for bag = 1, 4 do
+		local n = Num(Safe(num, bag)) or 0
+		if not least or n < least then least = n end
+	end
+	return least
+end
+function BB.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	local big, bag = false, false
+	for w in t:gmatch("%S+") do
+		if BB_BIG[w] then big = true
+		elseif w == "bag" or w == "bags" then bag = true end
+		if not (BB_BIG[w] or BB_FILL[w]) then return nil end
+	end
+	if not (big and bag) then return nil end
+	local n = BB.Smallest() or 0
+	return { least = n, line = ("bag slots:>%d sort:slots "):format(n) }
+end
+BB.MAX = 50
+BB.LISTS = { "items", "loot", "recipes", "missing" } -- (your bags', AtlasLoot's, your recipes', those you could learn)
+function BB.Answer(q)
+	local F = ns.Filters
+	local bigger = F and F.Parse(("slots:>%d"):format(q.least))
+	local title = ns.UpperFirst(L["bags"]) .. SEP .. L["with %s slots"]:format("> " .. q.least)
+	if not bigger then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
+	local rows, seen = {}, {}
+	for _, kind in ipairs(BB.LISTS) do
+		for _, e in ipairs(ns.providers[kind] and Entries(kind, true) or {}) do
+			local id = F.ItemOf and F.ItemOf(e) or e.itemID
+			local ok, yes = pcall(bigger, e)
+			if ok and yes and not (id and seen[id]) then
+				if id then seen[id] = true end
+				rows[#rows + 1] = e
+			end
+		end
+	end
+	if ns.Bar and ns.Bar.SortRows then ns.Bar.SortRows(rows, "slots", #rows) end
+	for i = #rows, BB.MAX + 1, -1 do rows[i] = nil end
+	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
+	ns.ScoreInOrder(rows)
+	return rows, title
+end
+function BB.ToAdvanced(q) return q.line end
