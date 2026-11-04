@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.44 (in testing)
+
+- Clean-up, nothing changes in game (the player's ask): one helper each for a standing's name (`ns.StandingName`, `ns.STANDING_ENGLISH`: Reputation, the armory, Group by standing and the `standing:` filter had their own) and for a loot row's "boss  instance" (`I.LootSplit`: Group, sending to chat, the Console and the faction loot each split it); OneForAll's gear rows are named as `@loot`'s are.
+
 ## 1.0.43 (in testing)
 
 - The Console with OneForAll and no AtlasLoot (the player's ask): `/loot` is on OneForAll's mount in `/etc/fstab`, `df` and `mount`, and AtlasLoot's line no longer claims it. With AtlasLoot, `/loot` stays AtlasLoot's (OneForAll's rows in it).

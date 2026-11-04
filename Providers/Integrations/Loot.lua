@@ -155,29 +155,24 @@ function I.FactionLoot(mine, have)
 	local F = ns.Filters
 	local words = F and F._ and F._.StandingWords and F._.StandingWords() or {}
 	local SEP = ns.DETAIL_SEP
+	local function Read(r, into) -- (a faction table's row: its standing and faction, from "<standing>  <faction>")
+		if r.itemID and I.LootSource(r) == "reputation" then
+			local st, fac = I.LootSplit(r.detail)
+			local need = st and words[ns.Lower(st)]
+			if need and fac then into[#into + 1] = { r = r, st = st, fac = fac, lfac = ns.Lower(fac), need = need } end
+		end
+	end
 	local fl
 	if lp.atlasLoot then
 		fl = loot.factionRows
 		if not (fl and fl.of == loot.rows and fl.n == #loot.rows and fl.words == words) then
 			fl = { of = loot.rows, n = #loot.rows, words = words }
-			for _, r in ipairs(loot.rows) do
-				if r.itemID and I.LootSource(r) == "reputation" then
-					local st, fac = tostring(I.LootDetail(r.detail) or ""):match("^(.-)  (.+)$")
-					local need = st and words[ns.Lower(st)]
-					if need and fac then fl[#fl + 1] = { r = r, st = st, fac = fac, lfac = ns.Lower(fac), need = need } end
-				end
-			end
+			for _, r in ipairs(loot.rows) do Read(r, fl) end
 			loot.factionRows = fl
 		end
 	else -- (another list called loot: tests')
 		fl = {}
-		for _, r in ipairs(ns:GetEntries(lp)) do
-			if r.itemID and I.LootSource(r) == "reputation" then
-				local st, fac = tostring(I.LootDetail(r.detail) or ""):match("^(.-)  (.+)$")
-				local need = st and words[ns.Lower(st)]
-				if need and fac then fl[#fl + 1] = { r = r, st = st, fac = fac, lfac = ns.Lower(fac), need = need } end
-			end
-		end
+		for _, r in ipairs(ns:GetEntries(lp)) do Read(r, fl) end
 	end
 	local AR = ns.OneForAll and ns.OneForAll.Armory
 	local SN = AR and AR.StandingName
@@ -554,6 +549,18 @@ function I.LootDetail(d)
 	if type(d) ~= "string" then return d end
 	local cut = d:find(ns.DETAIL_SEP, 1, true)
 	return cut and d:sub(1, cut - 1) or d
+end
+
+--- A loot row's detail as its two parts, "<boss>  <instance>" (or a faction table's "<standing>  <faction>"): without a
+--- drop chance, colour codes and the spaces around; nil and the whole of it when it has one part. (One copy since
+--- 1.0.44: Aggregate's LootParts, Share's LootWhere, the Console's LootPlace and I.FactionLoot each split it; the
+--- player's ask. GroupText above makes it.)
+function I.LootSplit(d)
+	if type(d) ~= "string" then return nil, nil end
+	d = ns.Plain(I.LootDetail(d)):match("^%s*(.-)%s*$") -- (trimmed first: "  Onyxia  " is one part)
+	local a, b = d:match("^(.-)%s%s+(.+)$")
+	if a then return a, b end
+	return nil, d
 end
 
 local function SetupAtlasLoot()

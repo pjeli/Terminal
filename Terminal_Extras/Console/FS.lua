@@ -1032,11 +1032,9 @@ end
 --- An AtlasLoot row's boss and instance: its detail is "<boss>  <instance>" (Loot.lua's GroupText). nil, nil else.
 function FS.LootPlace(e)
 	if e.kind ~= "loot" then return nil end
-	local d = e.detail or ""
-	if I and I.LootDetail then d = I.LootDetail(d) end -- (without a drop chance after it)
-	local detail = FS.Strip(d)
-	local boss, inst = detail:match("^(.-)  +(.+)$")
-	if not boss then return nil, detail ~= "" and detail or nil end
+	if not (I and I.LootSplit) then return nil end
+	local boss, inst = I.LootSplit(FS.Strip(e.detail or "")) -- (Loot.lua: without a drop chance after it)
+	if not boss then return nil, inst ~= "" and inst or nil end
 	if boss == "?" or boss == "" then boss = nil end
 	return boss, inst
 end

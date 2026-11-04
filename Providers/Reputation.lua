@@ -62,12 +62,7 @@ local function ReadAll()
 	return rows
 end
 
-local function Standing(reaction)
-	if not reaction then return nil end
-	local sex = UnitSex and UnitSex("player") or nil
-	local label = GetText and Safe(GetText, "FACTION_STANDING_LABEL" .. reaction, sex)
-	return Str(label) or Str(_G["FACTION_STANDING_LABEL" .. reaction])
-end
+local Standing = ns.StandingName -- (Util.lua)
 
 local function Hex(reaction)
 	local c = _G.FACTION_BAR_COLORS and _G.FACTION_BAR_COLORS[reaction]

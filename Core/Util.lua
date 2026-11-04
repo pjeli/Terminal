@@ -396,6 +396,19 @@ function ns.ChatLocked()
 	return lock ~= nil and ns.Safe(lock) == true
 end
 
+--- Reputation standings 1-8 (Hated .. Exalted) in English, and a standing's name: the game's (your character's gender's
+--- form where it differs), else English; nil for none. (One copy since 1.0.44: Reputation.lua, Armory.lua, Aggregate.lua
+--- and the standing: filter each had their own; the player's ask.)
+ns.STANDING_ENGLISH = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted" }
+function ns.StandingName(n)
+	n = tonumber(n)
+	if not n then return nil end
+	local sex = _G.UnitSex and ns.Safe(_G.UnitSex, "player") or nil
+	local label = _G.GetText and ns.Safe(_G.GetText, "FACTION_STANDING_LABEL" .. n, sex)
+	label = ns.Str(label) or ns.Str(rawget(_G, "FACTION_STANDING_LABEL" .. n))
+	return label or ns.STANDING_ENGLISH[n]
+end
+
 --- ns.db[name] as a table (made when it isn't one), or nil before the saved variables are there. (Mail's and
 --- MissingRecipes' copies: review, 0.53.6.)
 function ns.DbTable(name)

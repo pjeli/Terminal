@@ -84,11 +84,8 @@ function G.Index(list)
 	return out
 end
 
-local function ItemName(id)
-	local f = (C_Item and C_Item.GetItemNameByID) or nil
-	local n = f and ns.Safe(f, id)
-	return type(n) == "string" and n ~= "" and n or nil
-end
+-- (as @loot's rows are named: Loot.lua's I.LootName, the game's name or the one the name pump got; 1.0.44)
+local function ItemName(id) return I.LootName and I.LootName(id) or nil end
 
 local function Tooltip(e, t)
 	if not pcall(t.SetHyperlink, t, "item:" .. e.itemID) then t:SetText(e.name, 1, 1, 1) end

@@ -41,9 +41,9 @@ local function LootParts(e)
 	local where = I and I.LootPlace and I.LootPlace(e)
 	local kind = where and where.kind
 	if where and kind ~= "dungeon" and kind ~= "raid" and kind ~= "world" then return nil end
-	local d = Str(I and I.LootDetail and I.LootDetail(e.detail) or e.detail) -- (without a drop chance after it)
-	if not d then return nil end
-	local boss, place = d:match("^(.-)  (.+)$")
+	if not (I and I.LootSplit) then return nil end
+	local boss, place = I.LootSplit(e.detail) -- (Loot.lua: without a drop chance after it)
+	if not boss then return nil end
 	return Str(boss), Str(place), kind
 end
 
@@ -126,8 +126,7 @@ A.FIELDS = {
 	standing = { label = L["standing"], num = function(e) return e.kind == "reputation" and Num(e.reaction) or nil end,
 		text = function(e, f)
 			local n = f.num(e)
-			local g = n and rawget(_G, "FACTION_STANDING_LABEL" .. n)
-			return type(g) == "string" and g ~= "" and g or (n and tostring(n)) or nil
+			return n and (ns.StandingName(n) or tostring(n)) or nil -- (Util.lua)
 		end, order = true },
 	-- (the combat log's hits: sort:damage; 0.55.7)
 	damage = { label = L["damage"], num = function(e) return e.kind == "combatlog" and Num(e.amount) or nil end },

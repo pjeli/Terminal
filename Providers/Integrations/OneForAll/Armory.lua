@@ -24,7 +24,7 @@ ns.Armory = A
 local Safe, Lower, Num = ns.Safe, ns.Lower, ns.Num
 local SEP = ns.DETAIL_SEP
 local ICONS = "Interface\\Icons\\"
-local STANDING_ENGLISH = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted" }
+local STANDING_ENGLISH = ns.STANDING_ENGLISH -- (Util.lua)
 
 -- an icon as OneForAll gives it: a file id, or an icon's name
 local function Icon(v, fallback)
@@ -35,11 +35,8 @@ local function Icon(v, fallback)
 	return s and (ICONS .. s) or fallback
 end
 
---- A standing's name (1-8): the game's, else English.
-function A.StandingName(st)
-	local g = st and rawget(_G, "FACTION_STANDING_LABEL" .. st)
-	return type(g) == "string" and g ~= "" and g or STANDING_ENGLISH[st or 0] or "?"
-end
+--- A standing's name (1-8): the game's, else English (ns.StandingName, Util.lua).
+function A.StandingName(st) return ns.StandingName(st) or "?" end
 
 --- Your standing with a faction (1-8), or nil (not met, or the game won't say).
 function A.Standing(fid)

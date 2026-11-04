@@ -180,7 +180,8 @@ end
 
 -- Reputation standings 1-8 (Hated .. Exalted): the game's names (both genders' where they differ), and English
 -- always. Rows carry reaction (Reputation.lua); friendship and renown factions have none and are left out.
-local STANDING_ENGLISH = { "hated", "hostile", "unfriendly", "neutral", "friendly", "honored", "revered", "exalted" }
+local STANDING_ENGLISH = {} -- (lowercase: ns.STANDING_ENGLISH's, Util.lua)
+for i, w in ipairs(ns.STANDING_ENGLISH) do STANDING_ENGLISH[i] = Lower(w) end
 local standingWords -- lowercase name -> 1-8 (made on first use: the game's globals are all in by then)
 local function StandingWords()
 	if standingWords then return standingWords end

@@ -66,3 +66,16 @@ do
 	SP.Desc, CS.Spells = was, spellsWas
 	CS.ForgetRows()
 end
+do
+	-- (1.0.44, the player's ask) one copy each: a loot detail's two parts, a standing's name
+	local I = ns.Integrations
+	local SEP = ns.DETAIL_SEP
+	local a, b = I.LootSplit("Garr  Molten Core" .. SEP .. "12%")
+	local c, d = I.LootSplit("  Onyxia  ")
+	local g = rawget(_G, "FACTION_STANDING_LABEL6")
+	check(a == "Garr" and b == "Molten Core" and c == nil and d == "Onyxia" and I.LootSplit(nil) == nil,
+		"I.LootSplit: boss and instance, without the chance; one part: nil and it")
+	check(ns.StandingName(6) == ((type(g) == "string" and g ~= "") and g or "Honored") and ns.StandingName(nil) == nil
+		and ns.STANDING_ENGLISH[8] == "Exalted" and ns.Armory and ns.Armory.StandingName(6) == ns.StandingName(6),
+		"ns.StandingName: the game's, else English; Armory's the same")
+end
