@@ -3322,4 +3322,5 @@ L["Its beasts to tame are unavailable."] = "其可驯服野兽不可用。"
 L["Loot by where it comes from: \"raid loot\", \"dungeon gear\", \"crafted gear\", \"reputation gear\"; what quartermasters sell: \"argent dawn rewards\", \"what can i buy at honored\"; a hunter's pets (with OneForAll): \"tameable cats\", \"where to learn bite 4\", \"cat abilities\"."] = "按来源找装备：\"raid loot\"、\"dungeon gear\"、\"crafted gear\"、\"reputation gear\"；军需官出售什么：\"argent dawn rewards\"、\"what can i buy at honored\"；猎人的宠物（需OneForAll）：\"tameable cats\"、\"where to learn bite 4\"、\"cat abilities\"。"
 L["what a vendor sells (Questie)"] = "商人出售的物品（Questie）"
 L["what an NPC drops: a boss's loot (AtlasLoot), a creature's (Questie)"] = "NPC的掉落：首领的战利品（AtlasLoot），生物的掉落（Questie）"
+L["what a quest rewards (Questie)"] = "任务的奖励（Questie）"
 --@end-do-not-package@

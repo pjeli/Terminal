@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.52 (in testing)
+
+- A quest's rewards and chain in words (the reach audit, with Questie): "what does the defias brotherhood give", "rewards for …" list what it rewards (Advanced: `the defias brotherhood > rewards`, the link OneForAll's faction rewards use too); "the defias brotherhood chain", "next quest after …" its quest chain; "quests that start from an item" the quests an item starts, each with the item.
+
 ## 1.0.51 (in testing)
 
 - "how many linen do i have", "do i have linen cloth", "count my linen": the items with that name, the most first, each saying how many in your bags, your bank and on your alts (with a bag addon that records them); Alt+` writes `@stored linen` (the reach audit).

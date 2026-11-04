@@ -3376,6 +3376,7 @@ L["what Terminal sees in the open talent window (for bug reports)"] = true
 L["what Terminal would answer you, sent nowhere: .ask test nearest innkeeper"] = true
 L["what a faction's quartermaster sells, and the standing each needs (OneForAll)"] = true
 L["what a file says: its tooltip, line by line"] = true
+L["what a quest rewards (Questie)"] = true
 L["what a vendor sells (Questie)"] = true
 L["what an NPC drops: a boss's loot (AtlasLoot), a creature's (Questie)"] = true
 L["what crit you and what killed you"] = true

@@ -955,3 +955,43 @@ function HV.ToAdvanced(q)
 	repeat local n; words, n = words:gsub("^%s*@%S+%s*", "") until n == 0
 	return (ns.providers.stored and "@stored " or "@item ") .. (words:gsub("%s+$", "")) .. " "
 end
+
+----------------------------------------------------------------------
+-- "quests that start from an item", "quests started by items": the quests Questie says an item starts (startedBy's
+-- items), each with the item (1.0.52, the reach audit)
+----------------------------------------------------------------------
+
+local QS = {}
+ns.ItemQuests = QS
+local QS_SAID = { "quests that start from an item", "quests that start from items", "quests started by an item",
+	"quests started by items", "quests from items", "item started quests", "quests an item starts", "quests items start",
+	"quest starting items", "items that start quests", "items that start a quest" }
+local QS_SET = {}
+for _, s in ipairs(QS_SAID) do QS_SET[s] = true end
+function QS.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = t:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+	return QS_SET[t] and {} or nil
+end
+function QS.Answer()
+	local QD = ns.QuestieData
+	local DB = QD and QD.DB and QD.DB()
+	local title = L["Started by %s"]:format(L["an item"])
+	if not (DB and Has("Questie")) then return { ns.NoteRow(L["Needs Questie: it knows every quest and where it starts"]) }, title end
+	local rows = {}
+	for _, e in ipairs(Entries("questie", true)) do
+		local by = Safe(DB.QueryQuestSingle, e.qid, "startedBy")
+		local items = type(by) == "table" and type(by[3]) == "table" and by[3]
+		local id = items and items[1]
+		if id then
+			local name = DB.QueryItemSingle and Str(Safe(DB.QueryItemSingle, id, "name"))
+			rows[#rows + 1] = setmetatable({ detail = name and L["Started by %s"]:format(name) or L["Started by %s"]:format(L["an item"]) }, { __index = e })
+		end
+	end
+	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
+	ns.ScoreInOrder(rows)
+	return rows, title
+end
+--- Not a search: the question stays as typed (Advanced mode answers it the same).
+function QS.ToAdvanced() return nil end

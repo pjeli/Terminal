@@ -491,3 +491,10 @@ deadmines bosses
 how many linen do i have
 do i have linen cloth
 count my linen
+
+# (1.0.52) a quest's rewards and chain in words (the reach audit)
+what does the defias brotherhood give
+rewards for the defias brotherhood
+the defias brotherhood chain
+next quest after the defias brotherhood
+quests that start from an item

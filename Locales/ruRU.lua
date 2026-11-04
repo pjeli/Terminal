@@ -3322,4 +3322,5 @@ L["Its beasts to tame are unavailable."] = "Его приручаемые зве
 L["Loot by where it comes from: \"raid loot\", \"dungeon gear\", \"crafted gear\", \"reputation gear\"; what quartermasters sell: \"argent dawn rewards\", \"what can i buy at honored\"; a hunter's pets (with OneForAll): \"tameable cats\", \"where to learn bite 4\", \"cat abilities\"."] = "Добыча по происхождению: \"raid loot\", \"dungeon gear\", \"crafted gear\", \"reputation gear\"; что продают интенданты: \"argent dawn rewards\", \"what can i buy at honored\"; питомцы охотника (с OneForAll): \"tameable cats\", \"where to learn bite 4\", \"cat abilities\"."
 L["what a vendor sells (Questie)"] = "что продаёт торговец (Questie)"
 L["what an NPC drops: a boss's loot (AtlasLoot), a creature's (Questie)"] = "что выпадает с НИП: добыча босса (AtlasLoot), существа (Questie)"
+L["what a quest rewards (Questie)"] = "что даёт в награду задание (Questie)"
 --@end-do-not-package@

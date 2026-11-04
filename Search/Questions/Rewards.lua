@@ -1042,6 +1042,34 @@ local function ChainView(row, i, n, last, before)
 end
 
 if ns.RegisterRelation then
+	-- "the defias brotherhood > rewards", "what does the defias brotherhood give": what a quest rewards, Questie's (1.0.52,
+	-- the reach audit); a faction's quartermaster's rewards are this link's too (OneForAll, Armory.lua)
+	ns:RegisterRelation("rewards", {
+		aliases = { "reward", "gives", "questrewards" },
+		desc = L["what a quest rewards (Questie)"],
+		available = function() return ns.providers.questie ~= nil end, addon = "Questie",
+		seedKinds = { "questie", "quests" },
+		applies = function(e) return QuestIdOf(e) ~= nil end,
+		run = function(rows)
+			local P = ns.Pipes
+			local out, seen = {}, {}
+			for _, e in ipairs(rows) do
+				local list = QR.RewardsOf(QuestIdOf(e))
+				if list == nil and not QR.Index() then
+					QR.Build()
+					if P then P.loading = true end -- (Questie's rewards still being read: asked again once they're in)
+				end
+				for _, it in ipairs(list or {}) do
+					if not seen[it.id] and P and P.ItemRow then
+						local r = P.ItemRow(it.id, L["Rewards"] .. ns.DETAIL_SEP .. tostring(e.name), L["Rewards"])
+						if r then seen[it.id] = true; out[#out + 1] = r end
+					end
+				end
+			end
+			return out
+		end,
+	})
+	if ns.Pipes then ns.Pipes.LABELS.rewards = "rewards" end
 	ns:RegisterRelation("chain", {
 		aliases = { "questchain", "prereqs", "prereq", "prequests", "before", "leadup" },
 		desc = L["the quests that lead up to a quest, first to last (Questie)"],

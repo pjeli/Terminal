@@ -43,6 +43,8 @@ Scan.ANSWERS = {
 	Asks("InstanceBosses"),
 	-- "how many linen do i have", "do i have linen cloth": how many in all and where (Suggest.lua; 1.0.51)
 	Asks("HaveQ"),
+	-- "quests that start from an item": the quests an item starts (Suggest.lua; 1.0.52)
+	Asks("ItemQuests"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;

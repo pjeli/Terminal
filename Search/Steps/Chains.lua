@@ -111,6 +111,10 @@ P.PHRASES = {
 	-- (1.0.50, the reach audit) what an NPC drops, what a vendor sells: only when the words name one (P.PHRASE_NPC)
 	{ "^what does (.+) drop$", "drops" }, { "^what do (.+) drop$", "drops" }, { "^drops from (.+)$", "drops" },
 	{ "^loot from (.+)$", "drops" }, { "^(.+) loot$", "drops" }, { "^(.+) drops$", "drops" },
+	-- (1.0.52, the reach audit) a quest's rewards and its chain in words
+	{ "^what does (.+) give$", "rewards" }, { "^what does (.+) reward$", "rewards" }, { "^rewards for (.+)$", "rewards" },
+	{ "^rewards from (.+)$", "rewards" }, { "^what do i get for (.+)$", "rewards" },
+	{ "^next quests? after (.+)$", "chain" }, { "^what comes after (.+)$", "chain" },
 	{ "^what does (.+) sell$", "sells" }, { "^what do (.+) sell$", "sells" }, { "^items sold by (.+)$", "sells" },
 	{ "^what is sold by (.+)$", "sells" }, { "^whats sold by (.+)$", "sells" }, { "^(.+) wares$", "sells" },
 	{ "^what does (.+) have for sale$", "sells" },
@@ -125,7 +129,7 @@ P.PHRASES = {
 	-- the quests before one (Rewards.lua, 0.49.16): "quest chain for the missing diplomat", "quest chain for outlaw sabre"
 	{ "^quest chain for (.+)$", "chain" }, { "^quest chain of (.+)$", "chain" }, { "^chain for (.+)$", "chain" },
 	{ "^quests? before (.+)$", "chain" }, { "^what leads to (.+)$", "chain" }, { "^prereqs? for (.+)$", "chain" },
-	{ "^(.+) quest chain$", "chain" },
+	{ "^(.+) quest chain$", "chain" }, { "^(.+) chain$", "chain" }, -- (after "quest chain": its name without "quest")
 }
 
 -- (the phrases whose words must name an NPC or a boss: "hogger loot" is Hogger's, "deadmines loot" and "raid loot" not)
@@ -133,10 +137,10 @@ P.PHRASE_NPC = { drops = true, sells = true }
 
 -- Simple mode's words for a one-link chain (it never shows ">"): what Enter writes and what the footer says
 P.SIMPLE = { mats = "mats for %s", uses = "what uses %s", sources = "where to get %s", learn = "where to learn %s",
-	chain = "quest chain for %s", drops = "what does %s drop", sells = "what does %s sell" }
+	chain = "quest chain for %s", drops = "what does %s drop", sells = "what does %s sell", rewards = "rewards for %s" }
 P.SIMPLE_LABEL = { mats = L["Mats for %s"], uses = L["What uses %s"], sources = L["Where to get %s"], alts = L["%s on your alts"],
 	learn = L["Where to learn %s"], chain = L["Quest chain for %s"], ["?"] = L["Which %s?"], drops = L["Drops from %s"],
-	sells = L["Sold by %s"] }
+	sells = L["Sold by %s"], rewards = L["%s rewards"] }
 
 local function SimpleOn() return ns.Easy and ns.Easy.On and ns.Easy.On() end
 
@@ -472,6 +476,7 @@ function P.NpcNamed(what)
 	end
 	return npcNames[what] == true
 end
+--- An item's row in a chain's answer (what an NPC drops or sells, what a quest rewards), or nil while its name loads.
 local function NpcItemRow(id, detail, how)
 	local name = ItemName(id)
 	if not name then return nil end
@@ -480,6 +485,7 @@ local function NpcItemRow(id, detail, how)
 		link = "item:" .. id, icon = Icon(id), color = ns.QualityHex and ns.QualityHex(q) or nil, detail = detail,
 		pipeHow = how, activate = ShowItem }
 end
+P.ItemRow = NpcItemRow
 local function NpcOf(e) return e.kind == "npc" and (e.npcID or rawget(e, "key")) or nil end
 ns:RegisterRelation("drops", {
 	aliases = { "drop", "loot", "dropped" },
@@ -1339,6 +1345,16 @@ end
 local function SeedRows(key, stages)
 	local def, name = FirstDef(stages)
 	local kinds = def and def.seedKinds
+	-- (a link two parts give, "> rewards": a quest's (Rewards.lua) and a faction's (OneForAll): each one's lists; 1.0.52)
+	if kinds and name and #P.relations[name] > 1 then
+		local all, seen = {}, {}
+		for _, d in ipairs(P.relations[name]) do
+			if not d.available or d.available() then
+				for _, k in ipairs(d.seedKinds or P.SEED_KINDS) do if not seen[k] then seen[k] = true; all[#all + 1] = k end end
+			end
+		end
+		kinds = all
+	end
 	local also = not kinds and P.AlsoSeeds(name) or nil
 	-- (the same words start another list there; and the names to pick from are those the first link takes: kept by it
 	-- too. 0.63.7, review: "copper > mats" then "copper > uses" offered mats' names, Copper Ore missing)

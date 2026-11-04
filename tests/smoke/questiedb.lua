@@ -111,6 +111,14 @@ do
 		local bq = IB.Question("deadmines bosses")
 		local brows = bq and IB.Answer(bq)
 		check(brows and brows[1] and brows[1].name == "Edwin VanCleef" and IB.Question("bosses") == nil, "deadmines bosses: Edwin VanCleef: " .. tostring(brows and brows[1] and brows[1].name))
+		-- (1.0.52) a quest's rewards and chain in words; the quests an item starts
+		check(P.Canonical("what does the defias brotherhood give") == "defias brotherhood > rewards"
+			and P.Canonical("rewards for wanted hogger") == "wanted hogger > rewards" and P.Canonical("the defias brotherhood chain") == "defias brotherhood > chain"
+			and P.Canonical("next quest after wanted hogger") == "wanted hogger > chain",
+			"a quest's rewards and chain in words: " .. tostring(P.Canonical("what does the defias brotherhood give")))
+		local rew = UI:Search("wanted hogger > rewards")
+		check(type(rew) == "table", "wanted hogger > rewards: searched (Questie's rewards read)")
+		check(ns.ItemQuests.Question("quests that start from an item") and not ns.ItemQuests.Question("quests"), "quests that start from an item: the question")
 		-- (let go after a while unused, by the idle sweep: read again when next asked)
 		ns:DropIdle(GetTime() + I.NPC_ITEMS_IDLE + 1)
 		local _, again = I.NpcItems(240, "sold")
