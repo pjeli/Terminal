@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.67 (in testing)
+
+- Typing is lighter again (review): "what level is ..." and the "does this name an NPC" checks read Questie's names, not its whole NPC list (which they built, and kept from being let go, on a keystroke); a list's name said alone reads each list once. "the barrens level", "what level is the hinterlands" answer.
+
 ## 1.0.66 (in testing)
 
 - Simple mode reads some lines right again (review): "nearest recipe vendor" is the nearest recipe vendors (not your recipes by distance), "rare swords westfall" green swords, "quests not undone" the done ones, "what alt has linen" as "which alt"; OneForAll's item sets, books and boats are found by a close spelling of their name again ("zanzils concentation").

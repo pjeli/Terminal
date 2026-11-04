@@ -614,14 +614,25 @@ local KIND_FILLER = { has = true, have = true, had = true, got = true, holds = t
 	keeps = true, which = true, what = true }
 -- (a thing's general word beside a list said as yours, "items on my alts": the list's rows are those; 1.0.49)
 local KIND_GENERAL = { item = true, items = true, thing = true, things = true, stuff = true }
---- Is anything (not a window, not one of `ids`' rows) named `lname` in the lists built?
+--- Is anything (not a window, not one of `ids`' rows) named `lname` in the lists built? (Each list read once per
+--- word until a list changes: "macros" typed went over every loot row, again for Alt+`; review, 1.0.67)
+local takenSeen, takenGen = {}, nil
 local function NameTaken(lname, ids)
+	if takenGen ~= ns.entriesGen then takenSeen, takenGen = {}, ns.entriesGen end
+	local seen = takenSeen[lname]
+	if not seen then seen = {}; takenSeen[lname] = seen end
 	for _, id in ipairs(ns.providerOrder) do
 		local p = ns.providers[id]
 		if p and not p.explicit and id ~= "panels" and not ids[id] then
-			for _, e in ipairs(p._entries or {}) do
-				if rawget(e, "_lname") == lname then return true end
+			local got = seen[id]
+			if got == nil then
+				got = false
+				for _, e in ipairs(p._entries or {}) do
+					if rawget(e, "_lname") == lname then got = true break end
+				end
+				seen[id] = got
 			end
+			if got then return true end
 		end
 	end
 	return false

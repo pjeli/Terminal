@@ -199,6 +199,17 @@ do
 		ns.db.easyMode = easyR
 		check(elite:find("@npc", 1, true) and elite:find("is:elite", 1, true) and rareNear:find("is:rare", 1, true) and not rareNear:find("mobs", 1, true)
 			and swords:find("q:rare", 1, true), "elite npcs, rare mobs near me: the rank; rare swords: the quality: " .. elite .. " / " .. rareNear .. " / " .. swords)
+		-- (review, 1.0.67) asked on a keystroke, the level and "names an NPC" questions build no NPC or map list
+		do
+			local built, Get = {}, ns.GetEntries
+			ns.GetEntries = function(self, p, ...) built[p and p.id or "?"] = (built[p and p.id or "?"] or 0) + 1 return Get(self, p, ...) end
+			local lv1 = ns.LevelOf.Question("what level is hogger")
+			ns.LevelOf.Question("gear for my level")
+			ns.Pipes.NpcNamed("marshal dughan")
+			ns.GetEntries = Get
+			check(lv1 and lv1.said and not built.npc and not built.maps and ns.Pipes.NpcNamed("marshal dughan") and not ns.Pipes.NpcNamed("marshal dug"),
+				"what level is hogger, names an NPC: from the names text, no list built: " .. tostring(built.npc))
+		end
 		-- (1.0.55) what level an NPC is: Questie's
 		local lq = ns.LevelOf.Question("what level is hogger")
 		local lrows = lq and ns.LevelOf.Answer(lq)

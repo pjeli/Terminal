@@ -1010,8 +1010,7 @@ function QS.ToAdvanced() return nil end
 
 local LV = {}
 ns.LevelOf = LV
-local LV_SAID = { "^what level is (.+)$", "^what level are (.+)$", "^what lvl is (.+)$", "^what level is the (.+)$",
-	"^level of (.+)$", "^(.+) level range$", "^(.+) levels$", "^(.+) level$", "^how high is (.+)$" }
+local LV_SAID = { "^what level is (.+)$", "^what level are (.+)$", "^what lvl is (.+)$", "^level of (.+)$", "^(.+) level range$", "^(.+) levels$", "^(.+) level$", "^how high is (.+)$" }
 local function Named(list, want)
 	for _, e in ipairs(list) do
 		local n = rawget(e, "_lname") or Lower(tostring(e.name))
@@ -1032,24 +1031,26 @@ function LV.Question(text)
 		if what then
 			what = what:gsub("^the ", "")
 			if what ~= "" and what ~= "my" and what ~= "your" then
-				-- a dungeon or a raid, a zone, an NPC (Questie's), in that order
+				-- a dungeon or a raid, a zone, an NPC (Questie's), in that order. (Asked on every keystroke: the small
+				-- instance lists, the zones' table, the NPCs' names text; no map or NPC list built here, review 1.0.67)
 				for _, kind in ipairs({ "dungeon", "raid" }) do
 					local e = ns.providers[kind] and Named(Entries(kind, true), what)
 					if e and e.minLevel then return { row = e, said = LevelSaid(e.minLevel, e.level) } end
 				end
 				local Z = ns.Zones
 				for _, z in ipairs(Z and Z.LIST or {}) do
-					if z[6] and Lower(z[6]) == what and z[2] then
-						local m = ns.providers.maps and Named(Entries("maps", true), what)
+					local zn = z[6] and Lower(z[6])
+					if zn and (zn == what or zn == "the " .. what) and z[2] then
+						local m = ns.providers.maps and Named(Entries("maps"), what)
 						return { row = m, name = z[6], said = LevelSaid(z[2], z[3]) }
 					end
 				end
 				local I = ns.Integrations
-				local e = ns.providers.npc and Named(Entries("npc", true), what)
-				if e and I and I.NpcField then
-					local id = e.npcID
+				local id = I and I.NpcIdNamed and (I.NpcIdNamed(what) or I.NpcIdNamed("the " .. what))
+				if id and I.NpcField then
 					local lo, hi = Num(I.NpcField(id, "minLevel")), Num(I.NpcField(id, "maxLevel"))
-					if lo then return { row = e, said = LevelSaid(lo, hi) } end
+					local e = lo and I.NpcRow and I.NpcRow(id)
+					if e then return { row = e, said = LevelSaid(lo, hi) } end
 				end
 			end
 			return nil

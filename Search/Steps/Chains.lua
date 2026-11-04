@@ -474,19 +474,12 @@ local function BossLoot()
 	return bossBy
 end
 P.BossLoot = BossLoot
-local npcNames, npcNamesFrom -- (Questie's NPCs by their lowercase name, made once a list)
---- Do these (lowercase) words name an NPC Questie knows, or a boss AtlasLoot lists?
+--- Do these (lowercase) words name an NPC Questie knows, or a boss AtlasLoot lists? (Questie's names text, not the NPC
+--- list: asked on a keystroke, it built the list and kept it from being let go; review, 1.0.67)
 function P.NpcNamed(what)
 	if BossLoot()[what] then return true end
-	local list = ns.providers.npc and Entries("npc") or {}
-	if npcNamesFrom ~= list then
-		npcNames, npcNamesFrom = {}, list
-		for _, e in ipairs(list) do
-			local n = rawget(e, "_lname")
-			if n then npcNames[n] = true end
-		end
-	end
-	return npcNames[what] == true
+	local I = ns.Integrations
+	return (I and I.NpcIdNamed and I.NpcIdNamed(what)) ~= nil
 end
 --- Do these (lowercase) words name a quest Questie knows: its whole name, or the start of one (four letters or more)?
 --- (The quests' names kept once a list; review, 1.0.65.)

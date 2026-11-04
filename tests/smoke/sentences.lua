@@ -74,6 +74,22 @@ local ok, err = pcall(function()
 	end
 	-- (1.0.55) levels as an answer: a zone's range, a dungeon's (an NPC's: questiedb.lua)
 	local LV = ns.LevelOf
+	-- (review, 1.0.67) a zone called "The ...": with "the" or without
+	check(LV.Question("the barrens level") and LV.Question("barrens level") and LV.Question("what level is the barrens"),
+		"the barrens level: with or without the")
+	-- (review, 1.0.67) a list's name said alone: each list read once for it, not on every ask
+	do
+		local reads, rows = 0, { { name = "Zzlist", _lname = "zzlist" } }
+		local fake = setmetatable({ id = "zzfake", label = "Zz", aliases = {} }, { __index = function(_, k)
+			if k == "_entries" then reads = reads + 1 return rows end end })
+		ns.providers.zzfake = fake
+		ns.providerOrder[#ns.providerOrder + 1] = "zzfake"
+		Adv("macros"); local first = reads
+		Adv("macros"); Adv("macros")
+		ns.providers.zzfake = nil
+		table.remove(ns.providerOrder)
+		check(first >= 1 and reads == first, "macros said alone: the lists read once for it (" .. first .. ", then " .. reads .. ")")
+	end
 	local zq = LV.Question("duskwood level")
 	local zrows = zq and LV.Answer(zq)
 	check(zq and zq.said and zrows and zrows[1] and (tostring(zrows[1].name) .. " " .. tostring(zrows[1].detail)):find("Lv", 1, true)

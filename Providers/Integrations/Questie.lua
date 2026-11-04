@@ -226,6 +226,19 @@ function I.IsName(text)
 	return false
 end
 
+--- The NPC whose whole name is `lname` (lowercase), from the names text (which outlives the list: no list built, none
+--- kept alive; review, 1.0.67): its id, or nil.
+function I.NpcIdNamed(lname)
+	local blob = npc.names
+	if type(blob) ~= "string" or type(lname) ~= "string" or lname == "" then return nil end
+	local at, stop = blob:find("\n" .. lname .. "\t", 1, true)
+	if not at then at, stop = blob:find("\n" .. lname .. " <", 1, true) end
+	if not at then return nil end
+	local tab = blob:find("\t", stop, true)
+	local lineEnd = blob:find("\n", stop, true) or (#blob + 1)
+	return tab and tab < lineEnd and tonumber(blob:sub(tab + 1, lineEnd - 1)) or nil
+end
+
 --- Are these words, in this order, whole words of an NPC's or a quest's name (not a title)? "dalaran mage", "stockade
 --- guard", "orgrimmar reveler" are NPCs, not mages in Dalaran (0.68.19): Simple mode then reads no place in them.
 function I.NamedAs(tokens)
