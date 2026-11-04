@@ -560,19 +560,102 @@ E.KIND_WORDS = { quest = { cat = "quests" }, quests = { cat = "quests" }, npc = 
 -- (and these categories' names in the client's language: "Quêtes", "Zauber")
 local KIND_LABELS = { "quests", "npcs", "items", "spells", "crafting", "collections" }
 local kindLabels
---- What a (lowercase) word names, { cat, kind }, or nil.
-function E.KindWord(w)
-	local k = E.KIND_WORDS[w]
-	if k then return k end
-	if not kindLabels then
-		kindLabels = {}
-		for _, id in ipairs(KIND_LABELS) do
-			local c = E.BY_ID and E.BY_ID[id]
-			local name = c and ns.Lower(tostring(c.label))
-			if name and not name:find("%s") then kindLabels[name] = { cat = id } end
+
+-- Every list's own names are kind words too (1.0.45, the player's ask: "macros", "my addons", "guild online", "slash
+-- commands" found rows named so, or nothing): its id, label (the client's language's, as registered) and aliases, each
+-- with a plural; built from the lists themselves, so OneForAll's and other addons' are named too. Not the words of a
+-- list that mean something else as well (a window's parts, a log, a zone, a tree, a key; KIND_DENY), nor a sentence's
+-- little words or an action's; an everyday word (bank, mail, gear) only as yours: "my bank", "linen in my bank" (`mine`).
+-- An entry: { ids = { [list id] = true }, mine, filter = Advanced spec added (bags: in:bags) }.
+local KIND_DENY = {}
+for w in ([[log q ui window frame panel token tokens set sets outfit outfits tree key group party members zone zones place
+	location continent body event events theme themes drop dropped drops looted deaths crits combat everywhere storage
+	material materials mat mats tradegood tradegoods armor armour weapon weapons equip equipped consume food drink potion
+	potions flask elixir scroll craft crafts crafting reagent money coins wealth saved sold ran hist console plugin cmd
+	command option options setting settings binding bindings hotkey hotkeys keybind standing faction factions language
+	languages proficiency map maps instance instances raid raids dungeon dungeons rested exp xp ah token who bnet ssh
+	shared stored syndicator bagnon terminal gmember allspells classabilities classspell classspells spellbook n mob
+	vendor ach achieve tree flight flights fp taxi place corpse dura repaircost lockout saved raidinfo inbox letters
+	mybank ability abilities skill skills proficiency weaponskill]]):gmatch("%S+") do KIND_DENY[w] = true end
+-- (your bags: your items in them; 1.0.45)
+local KIND_FILTER = { bag = "in:bags", bags = "in:bags", inventory = "in:bags" }
+-- (words that are a list's and an ordinary word's, "gold map", "10 slot bag", "gear for next level": the list only as
+-- yours, "my gold", "my bags", "my gear")
+local KIND_MINE = { gold = true, bag = true, bags = true, inventory = true, gear = true, coins = true }
+-- (what players call some lists, in two words, whose words alone mean something else: "slash commands")
+local KIND_PHRASES = { ["slash command"] = "slash", ["slash commands"] = "slash", ["console setting"] = "cvars",
+	["console settings"] = "cvars", ["console variables"] = "cvars", ["key binding"] = "keybinds", ["key bindings"] = "keybinds",
+	["game options"] = "gameoptions", ["game settings"] = "gameoptions", ["pet abilities"] = "spells", ["guild members"] = "guild" }
+local providerKinds, providerKindsN
+local function Plural(w)
+	if w:find("s$") then return nil end
+	if w:find("[^aeiou]y$") then return w:sub(1, -2) .. "ies" end
+	return w .. "s"
+end
+--- The lists' own names, as kind words (made again when a list is registered).
+function E.ProviderKinds()
+	local order = ns.providerOrder or {}
+	if providerKinds and providerKindsN == #order then return providerKinds end
+	local map = {}
+	local function Put(word, id)
+		word = ns.Lower(tostring(word or "")):gsub("^%s+", ""):gsub("%s+$", "")
+		if #word < 3 or KIND_DENY[word] or word:find("[^%w%s\128-\255]") then return end
+		local one = not word:find("%s")
+		if one and (E.STOP[word] or E.ACTIONS[word]) then return end
+		local mine = one and (KIND_MINE[word] or E.WORDS[word] ~= nil or (E.ROLE_WORDS and E.ROLE_WORDS[word])) or false
+		local e = map[word]
+		if not e then e = { ids = {}, mine = mine, mineAlone = KIND_MINE[word], filter = KIND_FILTER[word] }; map[word] = e end
+		e.ids[id] = true
+	end
+	for _, id in ipairs(order) do
+		local p = ns.providers[id]
+		if p and not p.noKind then
+			local names = { id, p.label }
+			for _, a in ipairs(p.aliases or {}) do names[#names + 1] = a end
+			for _, n in ipairs(names) do
+				Put(n, id)
+				local low = ns.Lower(tostring(n or ""))
+				local pl = Plural(low)
+				if pl and not KIND_DENY[low] then Put(pl, id) end -- (a word left out: its plural too, "windows")
+			end
 		end
 	end
-	return kindLabels[w]
+	for phrase, id in pairs(KIND_PHRASES) do
+		if ns.providers[id] then
+			local e = map[phrase] or { ids = {} }
+			map[phrase] = e
+			e.ids[id] = true
+		end
+	end
+	providerKinds, providerKindsN = map, #order
+	return map
+end
+function E.ForgetKinds() providerKinds = nil end -- (tests; a list's names changed)
+
+--- What a (lowercase) word, or two words with a space between, names: { cat, kind } (the kind words above: a category,
+--- or the one list), and `ids`, `mine`, `filter` when it's a list's own name; or nil.
+local merged = {}
+function E.KindWord(w)
+	local k = E.KIND_WORDS[w]
+	if not k then
+		if not kindLabels then
+			kindLabels = {}
+			for _, id in ipairs(KIND_LABELS) do
+				local c = E.BY_ID and E.BY_ID[id]
+				local name = c and ns.Lower(tostring(c.label))
+				if name and not name:find("%s") then kindLabels[name] = { cat = id } end
+			end
+		end
+		k = kindLabels[w]
+	end
+	local pk = E.ProviderKinds()[w]
+	if k and pk then
+		-- (both: the category word's own, with its lists for when it's said alone)
+		local m = merged[w]
+		if not m or m.of ~= pk then m = { cat = k.cat, kind = k.kind, ids = pk.ids, of = pk }; merged[w] = m end
+		return m
+	end
+	return k or pk
 end
 
 -- the people a profession's trainer is said as ("skinner": the nearest skinning trainer; 0.56.8, a player's comment)

@@ -867,54 +867,55 @@ explain: "Items matching hearthstone"
 
 == items
 question: -
-tokens: items
+tokens: -
 sort: -
-kinds: -
+kinds: items
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: -
-advanced: "items "
-explain: "Everything matching items"
+category: items
+advanced: "@item "
+explain: "Items"
 
 == spells
 question: -
-tokens: spells
+tokens: -
 sort: -
-kinds: panels
+kinds: spells
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: windows
-advanced: "@panel spells "
-explain: "Panel matching spells"
+category: spells
+advanced: "@spell "
+explain: "Spells"
 
 == quests
 question: -
-tokens: quests
+tokens: -
+filter: hard (no spec)  sig=#window:quests
 sort: -
-kinds: panels
+kinds: panels quests
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: windows
-advanced: "@panel quests "
-explain: "Panel matching quests"
+category: quests
+advanced: "@questlog "
+explain: "Quests in your log"
 
 == keybinds
 question: -
-tokens: keybinds
+tokens: -
 sort: -
-kinds: addonoptions addons cvars gameoptions keybinds terminal
+kinds: keybinds
 action: -
 place: -
 send: -
@@ -922,8 +923,8 @@ steps: -
 group: -
 pick sort: -
 category: settings
-advanced: "@keybind keybinds "
-explain: "Key bindings matching keybinds"
+advanced: "@keybind "
+explain: "Key bindings"
 
 == loot
 question: -
@@ -1006,33 +1007,34 @@ explain: "Everything matching Kings sword|type:sword"
 
 == slash
 question: -
-tokens: slash
+tokens: -
+filter: hard (no spec)  sig=#commands
 sort: -
-kinds: -
+kinds: slash
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: -
-advanced: "slash "
-explain: "Everything matching slash"
+category: commands
+advanced: "@slash "
+explain: "Slash"
 
 == cvars
 question: -
-tokens: cvars
+tokens: -
 sort: -
-kinds: -
+kinds: cvars
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: -
-advanced: "cvars "
-explain: "Everything matching cvars"
+category: settings
+advanced: "@cvar "
+explain: "Cvar"
 
 == toys
 question: -
@@ -2042,18 +2044,18 @@ explain: "Trainers"
 
 == camp
 question: -
-tokens: camp
+tokens: -
 sort: -
-kinds: -
+kinds: camp
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: -
-advanced: "camp "
-explain: "Everything matching camp"
+category: crafting
+advanced: "@camp "
+explain: "Camp"
 
 == pets
 question: -
@@ -2106,18 +2108,19 @@ explain: "Rare everything"
 
 == professions
 question: -
-tokens: professions
+tokens: -
+filter: hard (no spec)  sig=#window:professions
 sort: -
-kinds: panels
+kinds: panels professions
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: windows
-advanced: "@panel professions "
-explain: "Panel matching professions"
+category: crafting
+advanced: "@profession "
+explain: "Professions"
 
 == nearest enchanting trainer
 question: -
@@ -3878,18 +3881,18 @@ explain: "Upgrades for you, biggest upgrades first, the first 5"
 
 == my 10 most valuable items
 question: -
-tokens: items
+tokens: -
 sort: sortField=value
-kinds: -
+kinds: items
 action: -
 place: -
 send: -
 steps: text=first 10 first=10 topWords=true
 group: -
 pick sort: id=value word=most valuable drop=true
-category: -
-advanced: "items sort:value | first 10"
-explain: "Everything matching items, most valuable first, the first 10"
+category: items
+advanced: "@item sort:value | first 10"
+explain: "Items, most valuable first, the first 10"
 
 == 5 swords
 question: -
@@ -3944,18 +3947,19 @@ explain: "Everything matching three swords"
 
 == first 3 quests
 question: -
-tokens: quests
+tokens: -
+filter: hard (no spec)  sig=#window:quests
 sort: -
-kinds: -
+kinds: panels quests
 action: -
 place: -
 send: -
 steps: text=first 3 first=3 topWords=true
 group: -
 pick sort: -
-category: -
-advanced: "quests | first 3"
-explain: "Everything matching quests, the first 3"
+category: quests
+advanced: "@questlog | first 3"
+explain: "Quests in your log, the first 3"
 
 == 3 stacks of linen
 question: -
@@ -4061,18 +4065,18 @@ explain: "Everything matching boots|slot:boots, cheapest first, the first 1"
 
 == the most valuable items
 question: -
-tokens: items
+tokens: -
 sort: sortField=value
-kinds: -
+kinds: items
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: id=value word=most valuable drop=true
-category: -
-advanced: "items sort:value "
-explain: "Everything matching items, most valuable first"
+category: items
+advanced: "@item sort:value "
+explain: "Items, most valuable first"
 
 == the highest level sword
 question: -
@@ -4251,18 +4255,18 @@ explain: "Upgrades for you, biggest upgrades first"
 
 == my most valuable items
 question: -
-tokens: items
+tokens: -
 sort: sortField=value
-kinds: -
+kinds: items
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: id=value word=most valuable drop=true
-category: -
-advanced: "items sort:value "
-explain: "Everything matching items, most valuable first"
+category: items
+advanced: "@item sort:value "
+explain: "Items, most valuable first"
 
 == swords
 question: -
@@ -4742,18 +4746,19 @@ explain: "Everything matching map"
 
 == talents
 question: -
-tokens: talents
+tokens: -
+filter: hard (no spec)  sig=#window:talents
 sort: -
-kinds: -
+kinds: panels talents
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: -
-advanced: "talents "
-explain: "Everything matching talents"
+category: spells
+advanced: "@talent "
+explain: "Talents"
 
 == keybind
 question: -
@@ -4802,18 +4807,19 @@ explain: "Cvar matching camera"
 
 == quest
 question: -
-tokens: quest
+tokens: -
+filter: hard (no spec)  sig=#window:quest
 sort: -
-kinds: -
+kinds: panels quests
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: -
-advanced: "quest "
-explain: "Everything matching quest"
+category: quests
+advanced: "@questlog "
+explain: "Quests in your log"
 
 == kobold
 question: -
@@ -4877,24 +4883,25 @@ explain: "Everything matching toy"
 
 == achievement
 question: -
-tokens: achievement
+tokens: -
+filter: hard (no spec)  sig=#window:achievement
 sort: -
-kinds: panels
+kinds: achievements panels
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: windows
-advanced: "@panel achievement "
-explain: "Panel matching achievement"
+category: collections
+advanced: "@achievement "
+explain: "Achievements"
 
 == gold
 question: -
-tokens: gold
+tokens: -
 sort: -
-kinds: auctions currency durability equipmentset experience gold lockouts mail reputation skills
+kinds: gold
 action: -
 place: -
 send: -
@@ -4902,8 +4909,8 @@ steps: -
 group: -
 pick sort: -
 category: character
-advanced: "@gold gold "
-explain: "Gold matching gold"
+advanced: "@gold "
+explain: "Gold"
 
 == durability
 question: 34  asked=durability
@@ -6639,3 +6646,281 @@ pick sort: -
 category: places
 advanced: "@dungeon deadmines "
 explain: "Dungeon matching deadmines"
+
+== macros
+question: -
+tokens: -
+filter: hard (no spec)  sig=#commands
+filter: hard (no spec)  sig=#window:macros
+sort: -
+kinds: macros panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: commands
+advanced: "@macro "
+explain: "Macros"
+
+== my macros
+question: -
+tokens: -
+filter: hard (no spec)  sig=#commands
+filter: hard (no spec)  sig=#window:macros
+sort: -
+kinds: macros panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: commands
+advanced: "@macro "
+explain: "Macros"
+
+== addons
+question: -
+tokens: -
+filter: hard (no spec)  sig=#window:addons
+sort: -
+kinds: addons panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: settings
+advanced: "@addon "
+explain: "Addon"
+
+== my addons
+question: -
+tokens: -
+filter: hard (no spec)  sig=#window:addons
+sort: -
+kinds: addons panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: settings
+advanced: "@addon "
+explain: "Addon"
+
+== slash commands
+question: -
+tokens: -
+filter: hard (no spec)  sig=#commands
+sort: -
+kinds: slash
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: commands
+advanced: "@slash "
+explain: "Slash"
+
+== addon options
+question: -
+tokens: -
+sort: -
+kinds: addonoptions
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: settings
+advanced: "@addonoption "
+explain: "Addon option"
+
+== guild
+question: -
+tokens: -
+filter: hard (no spec)  sig=#window:guild
+sort: -
+kinds: guild panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: people
+advanced: "@guild "
+explain: "Your guild"
+
+== guild online
+question: -
+tokens: -
+filter: soft is:online  sig=~online  word=online
+filter: hard (no spec)  sig=#window:guild
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:online word=online
+pick sort: -
+category: -
+advanced: "@guild is:online "
+explain: "Online your guild"
+
+== friends online
+question: -
+tokens: -
+filter: soft is:online  sig=~online  word=online
+filter: hard (no spec)  sig=#window:friends
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:online word=online
+pick sort: -
+category: -
+advanced: "@friend is:online "
+explain: "Online your friends"
+
+== my friends
+question: -
+tokens: -
+filter: hard (no spec)  sig=#window:friends
+sort: -
+kinds: friends panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: people
+advanced: "@friend "
+explain: "Your friends"
+
+== my reputation
+question: -
+tokens: -
+filter: hard (no spec)  sig=#window:reputation
+sort: -
+kinds: panels reputation
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: character
+advanced: "@reputation "
+explain: "Reputations"
+
+== reputation
+question: -
+tokens: -
+filter: hard (no spec)  sig=#window:reputation
+sort: -
+kinds: panels reputation
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: character
+advanced: "@reputation "
+explain: "Reputations"
+
+== calendar
+question: -
+tokens: -
+filter: hard (no spec)  sig=#window:calendar
+sort: -
+kinds: calendar panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: calendar
+advanced: "@calendar "
+explain: "Calendar events"
+
+== my bags
+question: -
+tokens: -
+filter: hard in:bags  sig=in:bags
+filter: hard (no spec)  sig=#window:bags
+sort: -
+kinds: items panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: items
+advanced: "@item in:bags "
+explain: "Items, in bags"
+
+== bags
+question: -
+tokens: -
+filter: hard in:bags  sig=in:bags
+filter: hard (no spec)  sig=#window:bags
+sort: -
+kinds: items panels
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: items
+advanced: "@item in:bags "
+explain: "Items, in bags"
+
+== linen on my alts
+question: -
+tokens: linen
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@stored linen "
+explain: "Your alts' and bank's items matching linen"
+
+== linen in my bank
+question: -
+tokens: linen
+sort: -
+kinds: bank
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=is:bank word=bank
+pick sort: -
+category: -
+advanced: "@bank linen "
+explain: "Your bank matching linen"

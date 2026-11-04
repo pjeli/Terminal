@@ -300,8 +300,37 @@ function Scan.FlightNote(res)
 end
 
 --- The rows a search ends with (q.kinds as they are by then): its lists' lead lines on top.
+--- A list named by its name (q.kindIds): the game's window of that name comes along, after the list's rows ("macros":
+--- your macros, then the Macros window; 1.0.45, the player's ask).
+function Scan.KindExtras(q)
+	local pp = ns.providers.panels
+	local word = q.kindWord
+	if not (pp and word and q.kinds and not q.kinds.panels) then return end
+	local forms = { [word] = true, [(word:gsub("s$", ""))] = true }
+	local keep = {}
+	for _, e in ipairs(ns:GetEntries(pp)) do
+		local ln = rawget(e, "_lname") or ns.Lower(tostring(e.name))
+		for f in pairs(forms) do
+			if #f >= 3 and (ln == f or ln:find("^" .. f:gsub("%p", "%%%0") .. "s?%f[%A]") or ln:find("%f[%a]" .. f:gsub("%p", "%%%0") .. "s?$")) then keep[e] = true end
+		end
+	end
+	if not next(keep) then return end
+	q.kinds.panels = true
+	Scan.AddFilter(q, function(e) return e.kind ~= "panels" or keep[e] == true end, "hard", "#window:" .. word)
+	q.windowLast = true
+end
+
 function Scan.Finish(q, res)
 	if q.kinds and q.kinds.flight then Scan.FlightNote(res) end
+	-- (a list's name: its rows first, then its window's; Scan.KindExtras)
+	if q.windowLast and res then
+		local rows, windows = {}, {}
+		for _, e in ipairs(res) do if e.kind == "panels" then windows[#windows + 1] = e else rows[#rows + 1] = e end end
+		if #windows > 0 and #rows > 0 then
+			for i = 1, #rows do res[i] = rows[i] end
+			for i = 1, #windows do res[#rows + i] = windows[i] end
+		end
+	end
 	-- a list that asks the server first (@who), or says why it lists nothing (@recipe is:unknown): its own row on top
 	-- (given the rows so far)
 	local function Leads(set)
@@ -331,7 +360,7 @@ function Scan.SimpleScope(self, q)
 	-- 0.55.18: the one opened for "horse" stayed on for "@item iron", the footer said Collections)
 	if self.categoryAuto then self.category, self.categoryAuto = nil, nil end
 	if q.typedKinds then return end
-	if q.empty and not q.filters then
+	if q.empty and not q.filters and not q.kindIds then
 		self.category = nil
 		-- just the prompt: its faint placeholder says what to type (UpdateGhost); Down asked for your recent picks
 		return self.showRecent and self:FrequentEntries() or {}
@@ -352,6 +381,17 @@ function Scan.SimpleScope(self, q)
 	if not easyCat and q.kindCat and ns.Easy.BY_ID[q.kindCat] then
 		self.category, self.categoryAuto = q.kindCat, true
 		easyCat = ns.Easy.BY_ID[q.kindCat]
+	end
+	-- (a list's own name, "macros", "linen in my bank": those lists, a category or none; Scan.KindWord, 1.0.45)
+	if q.kindIds and not (self.category and not self.categoryAuto and easyCat and easyCat.id ~= q.kindCat) then
+		q.kinds = {}
+		for id in pairs(q.kindIds) do if ns.providers[id] then q.kinds[id] = true end end
+		if easyCat then
+			q.easyCat = easyCat
+			Scan.AddFilter(q, easyCat.keep, "hard", easyCat.keep and ("#" .. easyCat.id))
+		end
+		Scan.KindExtras(q)
+		return
 	end
 	-- (top N said, "top 5 upgrades": the first five of every list together, not the categories to pick from; 0.66.x,
 	-- the player: "top 5" showed the categories)
@@ -655,6 +695,8 @@ function UI:SearchText(text, how)
 		out = Scan.Collect(self, q, included, sig, fresh)
 		Scan.Fallbacks(self, q, out, included, sig)
 	end
+	-- (a list named alone, or one no category shows, with nothing in it: said, not every category's rows; 1.0.45)
+	if q.kindIds and #out == 0 and (q.kindAlone or not q.easyCat) then return Scan.Finish(q, PseudoEntries({ EASY_NONE })) end
 	-- easy mode: nothing in the picked category: the categories that have it instead
 	if q.easyCat and #out == 0 then
 		local keep = q.easyCat.keep

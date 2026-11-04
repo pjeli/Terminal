@@ -434,3 +434,22 @@ repair near me
 nearest auction house
 deadmines entrance
 in the deadmines
+
+# (1.0.45) a list named by its own name (the reach audit, part 1)
+macros
+my macros
+addons
+my addons
+slash commands
+addon options
+guild
+guild online
+friends online
+my friends
+my reputation
+reputation
+calendar
+my bags
+bags
+linen on my alts
+linen in my bank

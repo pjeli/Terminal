@@ -154,6 +154,11 @@ local function ByKind()
 end
 --- The map made again (a category's lists changed some other way than E.Adopt).
 function E.Reindex() byKind = nil end
+--- The first category listing a list (its own keep aside), or nil: a list no category shows (@bank, @history).
+function E.FirstCategory(kind)
+	local list = kind and ByKind()[kind]
+	return list and list[1] and list[1].id or nil
+end
 function E.CategoryOf(e)
 	if not e or not e.kind then return nil end
 	local list = ByKind()[e.kind]

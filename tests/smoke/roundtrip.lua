@@ -5,9 +5,9 @@ local ns, UI, check = T.ns, T.UI, T.check
 io.write("[roundtrip: Simple, Alt+` and the bar find the same]\n")
 local wasEasy = ns.db.easyMode
 local E = ns.Easy
-local function Names(res)
+local function Names(res, skip)
 	local t = {}
-	for _, e in ipairs(res or {}) do if ns.Bar.Real(e) then t[#t + 1] = tostring(e.name) end end
+	for _, e in ipairs(res or {}) do if ns.Bar.Real(e) and e.kind ~= skip then t[#t + 1] = tostring(e.name) end end
 	table.sort(t)
 	return table.concat(t, " | ")
 end
@@ -27,7 +27,10 @@ for _, line in ipairs(lines) do
 	local overview = ns.Bar.Overview(simple)
 	local shown = E.ShownKinds and E.ShownKinds(simple) or nil
 	local adv = E.ToAdvanced(line, UI.category, shown)
-	local s = Names(simple)
+	-- (a list's name alone, "talents": its rows, and the game's window of that name after them, Simple mode's own extra:
+	-- Alt+` writes the list, 1.0.45)
+	local alone = E.KindWord and E.KindWord(ns.Lower(line)) and E.KindWord(ns.Lower(line)).ids
+	local s = Names(simple, alone and "panels" or nil)
 	UI:Hide(); T.FlushAll()
 	if not overview then
 		ns.db.easyMode = false; UI:EasyChanged()

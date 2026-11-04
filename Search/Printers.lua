@@ -78,6 +78,9 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 	end
 	if q.typedKinds then
 		AddKinds(q.kinds, true)
+	elseif q.kindIds then
+		-- (a list's own name, "macros", "linen on my alts": those lists; Scan.KindWord, 1.0.45)
+		AddKinds(q.kindIds, true)
 	elseif act and act.map then
 		local set = {}
 		for k in pairs(act.map) do set[k] = true end

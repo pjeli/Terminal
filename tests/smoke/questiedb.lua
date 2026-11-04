@@ -486,8 +486,9 @@ do
 	local adv = ns.Easy.ToAdvanced("raptor quest")
 	check(adv:find("@questie", 1, true) and adv:find("raptor", 1, true) and not adv:find(" quest ", 1, true),
 		"Alt+`: raptor quest -> " .. adv)
-	check(not ns.Easy.ToAdvanced("quests"):find("@", 1, true) and ns.Easy.ToAdvanced("pet trainer"):find("trainer:pet", 1, true),
-		"a kind said alone, or a trainer's word: as before: " .. ns.Easy.ToAdvanced("quests") .. " / " .. ns.Easy.ToAdvanced("pet trainer"))
+	-- (1.0.45, the player's ask: a list's name said alone lists it; was searched as a word)
+	check(ns.Easy.ToAdvanced("quests"):find("@questlog", 1, true) and ns.Easy.ToAdvanced("pet trainer"):find("trainer:pet", 1, true),
+		"a kind said alone: its list; a trainer's word: as before: " .. ns.Easy.ToAdvanced("quests") .. " / " .. ns.Easy.ToAdvanced("pet trainer"))
 	-- (0.68.15, the player's call) a word that is exactly a name is never a typo of another ("linken": the NPC, not your
 	-- Linen Cloth); a slip in a name only Questie knows still finds it ("jazik": Jazzik, a key missed)
 	UI:Hide(); FlushAll()

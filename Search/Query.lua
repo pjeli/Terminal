@@ -553,26 +553,88 @@ end
 --- Simple mode: "hogger quest", "quests in westfall", "npcs in westfall", "linen recipes" (0.68.14, the player's call:
 --- the word was searched as a word, and "quests in westfall" found an NPC named Quartermaster Lewis). The first word
 --- that names a kind (E.KindWord) is taken out and its category kept as q.kindCat (q.kindOnly: the one list a word like
---- "mounts" names); only when something else is said to look for in it (a word, a filter, a place), so "my spells" and
---- "toys" alone are searched as before.
+--- "mounts" names). 1.0.45 (the player's ask): every list's own name is one too (q.kindIds: the lists it names, searched
+--- alone, explicit ones included: "linen on my alts" @stored, "guild online" @guild), and a kind word said alone (with
+--- "my", "list", "show" and such) lists its lists ("macros", "my addons", "slash commands"), unless a row elsewhere is
+--- named the line (names stay names). A game window of that name comes along after them (Scan.KindExtras).
+local ALONE = { my = true, list = true, show = true, all = true, every = true, me = true, the = true, your = true, mine = true }
+--- Is anything (not a window, not one of `ids`' rows) named `lname` in the lists built?
+local function NameTaken(lname, ids)
+	for _, id in ipairs(ns.providerOrder) do
+		local p = ns.providers[id]
+		if p and not p.explicit and id ~= "panels" and not ids[id] then
+			for _, e in ipairs(p._entries or {}) do
+				if rawget(e, "_lname") == lname then return true end
+			end
+		end
+	end
+	return false
+end
+--- Is the word said as yours ("my bank", "linen in my bank")?
+local function Mine(text, w)
+	local pat = "%smy%s+" .. w:gsub("%p", "%%%0") .. "[%s%p]"
+	return (" " .. ns.Lower(tostring(text or "")) .. " "):find(pat) ~= nil
+end
 function Scan.KindWord(q)
 	local E = ns.Easy
 	local tokens = q.tokens
-	if not (E and E.KindWord) or #tokens == 0 then return end
+	if not (E and E.KindWord) then return end
 	local exact = q.exact
-	for i, w in ipairs(tokens) do
-		local k = not (exact and exact[w]) and E.KindWord(w)
+	local function Take(k, word, alone)
+		if k.ids and (alone or not k.cat or k.mine or not E.KIND_WORDS[word]) then
+			q.kindIds, q.kindCat = k.ids, nil
+			for id in pairs(k.ids) do q.kindCat = q.kindCat or (E.FirstCategory and E.FirstCategory(id)) end
+		else
+			q.kindCat, q.kindOnly = k.cat, k.kind
+		end
+		q.kindWord, q.kindAlone = word, alone or nil
+		-- (its filter on its own rows: the window that comes along isn't in your bags; Scan.KindExtras)
+		local f = k.filter and ns.Filters and ns.Filters.Parse(k.filter)
+		if f then Scan.AddFilter(q, function(e) return e.kind == "panels" or f(e) end, "hard", k.filter, nil, k.filter) end
+	end
+	for i = 1, #tokens do
+		local w, nx = tokens[i], tokens[i + 1]
+		local k, n = nil, 1
+		if nx and not (exact and (exact[w] or exact[nx])) then
+			k = E.KindWord(w .. " " .. nx)
+			if k then n = 2 end
+		end
+		if not k then k = not (exact and exact[w]) and E.KindWord(w) or nil end
+		-- (as yours only; "bags", "gold" said alone are yours too)
+		if k and k.mine and not Mine(q.text, w) and not (k.mineAlone and #tokens == 1 and not q.filters) then k = nil end
 		if k then
 			local more = q.filters ~= nil and #q.filters > 0
 			for j, x in ipairs(tokens) do
 				if more then break end
-				if j ~= i and not E.STOP[x] and not E.KindWord(x) then more = true end
+				if (j < i or j >= i + n) and not E.STOP[x] and not ALONE[x] and not E.KindWord(x) then more = true end
 			end
-			if not more then return end
-			table.remove(tokens, i)
+			if not more then
+				-- alone: its lists, unless it's something's name ("Bags", a quest); a category word without lists of its
+				-- own ("creatures") searched as before
+				if not k.ids then return end
+				local said = {}
+				for _, x in ipairs(tokens) do if not ALONE[x] and not E.STOP[x] then said[#said + 1] = x end end
+				if NameTaken(table.concat(said, " "), k.ids) then return end
+				for j = #tokens, 1, -1 do tokens[j] = nil end
+				q.tokenSrc = nil
+				Take(k, n == 2 and (w .. " " .. nx) or w, true)
+				return
+			end
+			for _ = 1, n do table.remove(tokens, i) end
 			local src = q.tokenSrc
-			if src and #src == #tokens + 1 then table.remove(src, i) else q.tokenSrc = nil end
-			q.kindCat, q.kindOnly = k.cat, k.kind
+			if src and #src == #tokens + n then for _ = 1, n do table.remove(src, i) end else q.tokenSrc = nil end
+			Take(k, n == 2 and (w .. " " .. nx) or w, false)
+			return
+		end
+	end
+	-- an everyday word said as yours, "linen in my bank", "my mail": that list, the word's filter let go
+	for idx, w in ipairs(q.softWords or {}) do
+		local k = E.KindWord(w)
+		if k and k.ids and k.mine and Mine(q.text, w) then
+			local f = q.softs and q.softs[idx]
+			if f then Scan.DropFilters(q, { [f] = true }, "~" .. w) end
+			table.remove(q.softWords, idx)
+			Take(k, w, #tokens == 0)
 			return
 		end
 	end
