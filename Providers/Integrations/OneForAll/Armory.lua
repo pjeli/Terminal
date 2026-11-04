@@ -214,7 +214,7 @@ function A.RewardRows()
 				local spot
 				for _, x in ipairs(#it.vendors > 0 and it.vendors or f.vendors) do if x.ui then spot = x break end end
 				local row = {
-					key = f.id .. ":" .. it.id, kind = "reputation", repReward = true, name = name, _lname = Lower(name), itemID = it.id, icon = Icon(it.icon),
+					key = f.id .. ":" .. it.id, kind = "reputation", repReward = true, namesOnly = true, name = name, _lname = Lower(name), itemID = it.id, icon = Icon(it.icon),
 					quality = it.quality, slot = it.slot, faction = f.name, factionID = f.id, reaction = it.need, mine = mine, canBuy = can,
 					what = it.what, vendors = #it.vendors > 0 and it.vendors or f.vendors, vendorName = v and v.name, order = fi * 1000 + it.need * 100 + ii,
 					tooltip = RewardTooltip, generic = false, pinName = spot and spot.name,
@@ -401,6 +401,7 @@ OA.AddSetup(function()
 		ns:RegisterProvider("itemset", {
 			label = L["Item set"], color = "ffe0c060", -- (@set: your equipment sets)
 			aliases = { "itemset", "itemsets", "tierset", "tiersets", "setpiece", "setpieces" },
+			namesOnly = true, -- (a search that doesn't name it: by the sets' names only, Search.lua's Scan.NameMode)
 			lazy = true, events = ev, guard = 1, collect = A.SetRows,
 		})
 		-- "<set> > pieces": its pieces, first to last

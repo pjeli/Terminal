@@ -259,6 +259,7 @@ OA.AddSetup(function()
 		ns:RegisterProvider("transport", {
 			label = L["Transport"], color = "ff80c0d0",
 			aliases = { "transport", "transports", "boat", "boats", "ship", "ships", "zeppelin", "zeppelins", "tram" },
+			namesOnly = true, -- (a search that doesn't name it: by the ways' names only, Scan.NameMode)
 			lazy = true, collect = W.TransportRows,
 		})
 	end

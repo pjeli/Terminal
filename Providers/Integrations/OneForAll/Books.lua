@@ -166,6 +166,7 @@ OA.AddSetup(function()
 	B.Rewards()
 	ns:RegisterProvider("book", {
 		label = L["Library Book"], color = "ffd8b070", aliases = { "book", "books", "librarybook", "librarybooks", "library" },
+		namesOnly = true, -- (a search that doesn't name it: by the books' names only, Scan.NameMode)
 		lazy = true,
 		-- (a book picked up, put in the bank, turned in)
 		events = { "BAG_UPDATE_DELAYED", "QUEST_TURNED_IN", "BANKFRAME_CLOSED" }, guard = 1,

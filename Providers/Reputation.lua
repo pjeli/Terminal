@@ -140,6 +140,7 @@ ns:RegisterProvider("reputation", {
 	label = L["Reputation"],
 	color = "fff07ef0", -- (orchid: apart from dungeons' blue)
 	aliases = { "reputation", "reputations", "rep", "reps", "faction", "factions", "standing", "repuatation" },
+	namesOnlyRows = true, -- (its quartermaster rewards, by their names only in a search that doesn't name it: 1.0.39)
 	noCombat = true, -- opening the character window is blocked in combat
 	events = { "UPDATE_FACTION" },
 	guard = 2,

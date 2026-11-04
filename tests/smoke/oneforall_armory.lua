@@ -149,6 +149,11 @@ do
 		check(#res == 3, "@itemset: the sets, not their pieces: " .. Names(res))
 		res = UI:Search("@itemset onyxia")
 		check(#res == 1 and res[1].name == "Scale of the Gods", "@itemset onyxia: the set with a piece from Onyxia: " .. Names(res))
+		-- (1.0.39, the player's call) a search that doesn't name it: a set by its name, not its text ("onyxia" isn't one's)
+		local function Sets(r) local n = 0 for _, e in ipairs(r) do if e.kind == "itemset" then n = n + 1 end end return n end
+		check(Sets(UI:Search("onyxia")) == 0 and Sets(UI:Search("scale of the gods")) == 1 and Sets(UI:Search("scale gods")) == 1,
+			"a plain search: sets by their names only")
+		check(Sets(UI:Search("onyx")) == 0 and Sets(UI:Search("@itemset onyx")) == 1, "...the narrowing too; @itemset by its text as ever")
 		res = UI:Search("battlegear of might > pieces helm")
 		check(#res == 1 and res[1].isDone and res[1].name == "Helm of Might", "> pieces helm: one, yours (worn): " .. Names(res))
 		-- the questions
@@ -227,6 +232,9 @@ do
 			"Group's faction and standing fields")
 		local timber = UI:Search("@reputation is:reward timbermaw")
 		check(#timber == 1 and timber[1].itemID == 20253, "@reputation is:reward timbermaw: a faction's: " .. #timber)
+		-- (1.0.39, the player's call) a plain search: a reward by its name, not its faction's or standing's words
+		local function Rewards(r) local n = 0 for _, e in ipairs(r) do if e.repReward then n = n + 1 end end return n end
+		check(Rewards(UI:Search("timbermaw")) == 0 and Rewards(UI:Search(ns.Lower(timber[1].name))) >= 1, "a plain search: rewards by their names only")
 		-- (1.0.28, the player's ask) AtlasLoot's faction loot in @reputation too, by the standing it needs; one OneForAll lists once
 		local lootWas = ns.providers.loot
 		ns.providers.loot = { id = "loot", label = "Loot", aliases = {}, _dirty = true, collect = function() return {

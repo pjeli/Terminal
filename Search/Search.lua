@@ -395,8 +395,36 @@ function Scan.Lists(q)
 		end
 	end
 	sig = table.concat(sig, ",") .. "|" .. table.concat(fsig, " ") -- (other filters: not a narrowing of the last scan)
+	included.namesOnly = not kinds -- (a list that asks for it is matched by its names here: Scan.NameMode)
 	return included, sig, fresh
 end
+
+--- How a list's rows may match a search that doesn't name it (no @kind, category or action): 0 as any row, 1 by their
+--- names only (`namesOnly`: OneForAll's item sets, transport, books, whose long names and texts took ordinary words,
+--- "toys", "gems", "Elixir of Giants", from the lists they meant; 1.0.39, the player's call), 2 only its rows that say
+--- `namesOnly` (`namesOnlyRows`: @reputation's quartermaster rewards, not its factions). Their @kind, their Simple-mode
+--- category and their questions match them as before.
+function Scan.NameMode(included, p)
+	if not (included and included.namesOnly and p) then return 0 end
+	if p.namesOnly then return 1 end
+	if p.namesOnlyRows then return 2 end
+	return 0
+end
+--- Has the row's name every typed word (a plain find each)?
+function Scan.RowNameHas(e, tokens)
+	local n = rawget(e, "_lname") or (type(e.name) == "string" and ns.Lower(e.name)) or ""
+	for i = 1, #tokens do
+		if not n:find(tokens[i], 1, true) then return false end
+	end
+	return true
+end
+local RowNameHas = Scan.RowNameHas
+--- A row a list's NameMode leaves out of this search?
+function Scan.NameLeftOut(mode, e, tokens)
+	if mode == 0 or (mode == 2 and not rawget(e, "namesOnly")) then return false end
+	return not RowNameHas(e, tokens)
+end
+local NameLeftOut = Scan.NameLeftOut
 
 --- The rows a search reads of a list it includes: its plain view when Scan.Lists said so, else all of them.
 local function RowsOf(included, p)
@@ -423,8 +451,9 @@ function Scan.Collect(self, q, included, sig, fresh)
 	if not empty and fresh and last and last.sig == sig and not q.volatile and Scan.Narrows(last.tokens, tokens) then
 		candidates = last.matches
 	end
-	-- kind: the list's id when known (compact rows of kinds never picked are then not read for it)
-	local function consider(e, kind, picked)
+	-- kind: the list's id when known (compact rows of kinds never picked are then not read for it); mode: Scan.NameMode's
+	local function consider(e, kind, picked, mode)
+		if not empty and mode and mode ~= 0 and NameLeftOut(mode, e, tokens) then return end
 		if empty then
 			if filters and not Pass(e, filters) then return end
 			e._score = FreqBonus(e, kind, picked) + (rawget(e, "_rank") or 0)
@@ -450,15 +479,16 @@ function Scan.Collect(self, q, included, sig, fresh)
 	local spans = {}
 	local function Span(id) spans[#spans + 1] = { from = #out + 1, id = id } end
 	if candidates then
-		local sp, j, id, picked = last.spans, 0, nil, nil
+		local sp, j, id, picked, mode = last.spans, 0, nil, nil, 0
 		for i = 1, #candidates do
 			while sp and sp[j + 1] and sp[j + 1].from <= i do
 				j = j + 1
 				id = sp[j].id
 				picked = id and ns:FreqKind(id) or nil
+				mode = id and Scan.NameMode(included, ns.providers[id]) or 0
 				Span(id)
 			end
-			consider(candidates[i], id, picked)
+			consider(candidates[i], id, picked, mode)
 			if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
 		end
 	else
@@ -468,8 +498,9 @@ function Scan.Collect(self, q, included, sig, fresh)
 			local id = p.id
 			Span(id)
 			local picked = ns:FreqKind(id) -- (what was picked of this list: once, not per row)
+			local mode = Scan.NameMode(included, p)
 			for i = 1, #list do
-				consider(list[i], id, picked)
+				consider(list[i], id, picked, mode)
 				if i % SLICE_CHECK == 0 and overBudget() then coroutine.yield(out) end
 			end
 		end

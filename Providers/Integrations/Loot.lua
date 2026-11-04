@@ -196,7 +196,7 @@ function I.FactionLoot(mine, have)
 			-- (said as OneForAll's are: the game's name for the standing, "you can buy it", the words its filters and Group
 			-- read; review, 1.0.38)
 			local st = (SN and SN(need)) or x.st
-			out[#out + 1] = setmetatable({ key = "al:" .. id .. ":" .. tostring(r.content), name = name, repReward = true,
+			out[#out + 1] = setmetatable({ key = "al:" .. id .. ":" .. tostring(r.content), name = name, repReward = true, namesOnly = true,
 				faction = x.fac, reaction = need, mine = my, canBuy = can,
 				detail = x.fac .. SEP .. st .. (can and (SEP .. L["you can buy it"]) or ""),
 				text = ns.Lower(L["reputation reward"] .. " reputation reward rep " .. x.fac .. " " .. st .. " " .. x.st .. (can and " canbuy" or "")) },

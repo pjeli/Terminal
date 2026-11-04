@@ -105,9 +105,10 @@ function UI:RelaxSoft(included, tokens, hard, softs, out, overBudget)
 	for _, p in ipairs(included) do
 		local list = RowsOf(included, p)
 		local id = p.id
+		local mode = Scan.NameMode(included, p) -- (by their names only, a list that asks for it: 1.0.39)
 		for i = 1, #list do
 			local e = list[i]
-			local sc = ScoreEntry(e, tokens)
+			local sc = not Scan.NameLeftOut(mode, e, tokens) and ScoreEntry(e, tokens)
 			if sc and (not hard or Pass(e, hard)) then
 				weights = weights or SoftWeights(softs)
 				e._score = sc + SoftPassed(softs, weights, e) * SOFT_PASS + FreqBonus(e, id) + (rawget(e, "_rank") or 0)
@@ -146,8 +147,10 @@ function UI:CloseSpellings(included, tokens, filters, out, overBudget, cap)
 		local list = RowsOf(included, p)
 		if overBudget() then coroutine.yield(out) end
 		local id = p.id
+		local mode = Scan.NameMode(included, p) -- (by their names only: not their text; 1.0.39)
 		for r = 1, #list do
 			local e = list[r]
+			local byName = mode == 1 or (mode == 2 and rawget(e, "namesOnly"))
 			local name, lname = e.name, rawget(e, "_lname")
 			if type(name) == "string" and #name >= need then
 				lname = lname or ns.Lower(name)
@@ -156,7 +159,7 @@ function UI:CloseSpellings(included, tokens, filters, out, overBudget, cap)
 					local tk = tokens[i]
 					-- (one word: nothing had it, so no row needs looking at as it is)
 					local sc
-					if not single then sc = TokenScore(tk, short and short[i], name, lname, RowText(e), exact and exact[tk]) end
+					if not single then sc = TokenScore(tk, short and short[i], name, lname, not byName and RowText(e) or nil, exact and exact[tk]) end
 					if sc then
 						total = total + sc
 					else
