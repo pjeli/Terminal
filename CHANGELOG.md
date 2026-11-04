@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.68 (in testing)
+
+- Answers fixed (review): "bigger bags" lists the bags with the most slots first; "stockade bosses" lists the Stockade's bosses only (each instance's trash on its own, no faction's standing as a boss); "xp per hour" says so at the level cap and counts a level-up once; "who gives ..." for a name several quests share answers for the one in your log, else those you can take.
+
 ## 1.0.67 (in testing)
 
 - Typing is lighter again (review): "what level is ..." and the "does this name an NPC" checks read Questie's names, not its whole NPC list (which they built, and kept from being let go, on a keystroke); a list's name said alone reads each list once. "the barrens level", "what level is the hinterlands" answer.

@@ -698,7 +698,12 @@ local function QuestNamed(said)
 		for _, e in ipairs(list) do
 			local n = type(e.name) == "string" and Plain(Lower(e.name):gsub("'", ""):gsub("%p", " ")) or nil
 			local id = e.qid
-			if n and id and not byName[n] then byName[n] = { id = id, name = e.name } end
+			-- (every quest of the name: a chain's parts and the other faction's twin share one; review, 1.0.68)
+			if n and id then
+				local b = byName[n]
+				if not b then b = { id = id, name = e.name, ids = {} }; byName[n] = b end
+				b.ids[#b.ids + 1] = id
+			end
 		end
 	end
 	local s = Plain((said:gsub("^the quest ", ""):gsub("^quest ", ""):gsub(" quest$", "")))
@@ -712,27 +717,40 @@ function QP.Question(text)
 		for _, pat in ipairs(set[1]) do
 			local rest = t:match(pat)
 			local q = rest and QuestNamed(rest)
-			if q then return { id = q.id, name = q.name, finish = set[2] } end
+			if q then return { id = q.id, ids = q.ids, name = q.name, finish = set[2] } end
 		end
 	end
 	return nil
+end
+--- Which of a name's quests the answer is about: those in your log, else those your race and class can take, else all.
+function QP.Which(ids)
+	local log = C_QuestLog and C_QuestLog.GetLogIndexForQuestID
+	local QR = ns.QuestRewards
+	local inLog, mine = {}, {}
+	for _, id in ipairs(ids) do
+		if log and Safe(log, id) then inLog[#inLog + 1] = id end
+		if not QR or not QR.ForYou or QR.ForYou(id) then mine[#mine + 1] = id end
+	end
+	return (#inLog > 0 and inLog) or (#mine > 0 and mine) or ids
 end
 function QP.Answer(q)
 	local QD = ns.QuestieData
 	local DB = QD and QD.DB and QD.DB()
 	local I = ns.Integrations
-	local by = DB and Safe(DB.QueryQuestSingle, q.id, q.finish and "finishedBy" or "startedBy")
 	local title = q.name .. SEP .. (q.finish and L["turn in"] or L["quest giver"])
-	local rows = {}
-	if type(by) == "table" then
-		for _, id in ipairs(type(by[1]) == "table" and by[1] or {}) do
-			local r = I and I.NpcRow and I.NpcRow(id)
-			if r then rows[#rows + 1] = r end
+	local rows, seen, what = {}, {}, nil
+	for _, qid in ipairs(QP.Which(q.ids or { q.id })) do
+		local by = DB and Safe(DB.QueryQuestSingle, qid, q.finish and "finishedBy" or "startedBy")
+		if type(by) == "table" then
+			for _, id in ipairs(type(by[1]) == "table" and by[1] or {}) do
+				local r = not seen[id] and I and I.NpcRow and I.NpcRow(id)
+				if r then seen[id] = true; rows[#rows + 1] = r end
+			end
+			what = what or (type(by[2]) == "table" and by[2][1] and L["an object"]) or (type(by[3]) == "table" and by[3][1] and L["an item"]) or nil
 		end
-		if #rows == 0 then
-			local what = (type(by[2]) == "table" and by[2][1] and L["an object"]) or (type(by[3]) == "table" and by[3][1] and L["an item"])
-			if what then return { ns.NoteRow(q.finish and L["Turn in: %s"]:format(what) or L["%s is started by %s."]:format(q.name, what)) }, title end
-		end
+	end
+	if #rows == 0 and what then
+		return { ns.NoteRow(q.finish and L["Turn in: %s"]:format(what) or L["%s is started by %s."]:format(q.name, what)) }, title
 	end
 	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
 	ns.ScoreInOrder(rows)
@@ -850,30 +868,38 @@ function IB.Question(text)
 	local P = ns.Pipes
 	if not (P and P.BossLoot) then return nil end
 	local want = table.concat(rest, " ")
+	-- (the instance's whole name, with or without "the", or its shorthand's; or the start of its name, 4 letters or more:
+	-- "st bosses" listed the Stockade's with Stratholme's, "boss a" every instance's; review, 1.0.68)
 	local S = ns.Shorthand -- ("vc bosses": its full name, Shorthand.lua)
-	local exp = S and type(S[want]) == "table" and S[want]
-	local full = exp and exp[1]
-	local found = {}
-	local I = ns.Integrations
-	for _, list in pairs(P.BossLoot()) do
-		local l = list[1]
-		local b, inst = I.LootSplit(rawget(l, "detail") or l.detail)
-		local li = inst and Lower(inst)
-		if li and (li:find(want, 1, true) or (type(full) == "string" and li:find(full, 1, true))) then
-			found[#found + 1] = { boss = b, inst = inst, n = #list }
+	local exp = S and type(S[want]) == "table" and S[want] or {}
+	local names = { [want] = true, ["the " .. want] = true }
+	for _, f in ipairs(exp) do if type(f) == "string" then names[f] = true end end
+	local function Fits(li)
+		if names[li] then return true end
+		if #want < 4 then return false end
+		return li:sub(1, #want) == want or li:sub(1, #want + 4) == "the " .. want
+	end
+	local found, whole = {}, {}
+	for _, pl in ipairs(P.BossPlaces and P.BossPlaces() or {}) do
+		if Fits(pl.linst) then
+			found[#found + 1] = pl
+			if names[pl.linst] then whole[#whole + 1] = pl end
 		end
 	end
+	if #whole > 0 then found = whole end -- (the instance named whole, not the others its name starts)
 	if #found == 0 then return nil end
-	return { bosses = found, place = found[1].inst }
+	local place = found[1].inst
+	for _, f in ipairs(found) do if f.linst ~= found[1].linst then place = ns.UpperFirst(want) break end end
+	return { bosses = found, place = place }
 end
 function IB.Answer(q)
 	local rows = {}
 	for _, f in ipairs(q.bosses) do
-		rows[#rows + 1] = { key = "boss:" .. f.boss, name = f.boss, kind = "pipe", kindLabel = L["Bosses"], detail = f.inst .. SEP
+		rows[#rows + 1] = { key = "boss:" .. f.boss .. ":" .. f.inst, name = f.boss, kind = "pipe", kindLabel = L["Bosses"], detail = f.inst .. SEP
 			.. (f.n == 1 and L["%d item"] or L["%d items"]):format(f.n), activate = BossWalk, staysOpen = true,
 			icon = "Interface\\Icons\\INV_Misc_Bone_ElfSkull_01" }
 	end
-	table.sort(rows, function(a, b) return a.name < b.name end)
+	table.sort(rows, function(a, b) if a.detail ~= b.detail then return a.detail < b.detail end return a.name < b.name end)
 	ns.ScoreInOrder(rows)
 	return rows, L["Bosses"] .. SEP .. q.place
 end
@@ -1146,7 +1172,8 @@ function BB.Answer(q)
 			end
 		end
 	end
-	if ns.Bar and ns.Bar.SortRows then ns.Bar.SortRows(rows, "slots", #rows) end
+	-- (the most slots first, then cut: Bar.SortRows only scores the rows, so the cut kept the lists' order; review, 1.0.68)
+	if ns.Bar and ns.Bar.Order then rows = ns.Bar.Order(rows, "slots") end
 	for i = #rows, BB.MAX + 1, -1 do rows[i] = nil end
 	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
 	ns.ScoreInOrder(rows)

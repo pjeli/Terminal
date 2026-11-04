@@ -114,6 +114,39 @@ local ok, err = pcall(function()
 	if C_Container then C_Container.GetContainerNumSlots = numWas end
 	check(bq and bq.least == 6 and badv:find("slots:>6", 1, true) and BB.Question("bags") == nil and BB.Question("bags with more slots")
 		and type(brows) == "table" and brows[1], "bigger bags: than your smallest (6): " .. tostring(bq and bq.least))
+	-- (review, 1.0.68) the most slots first, and the cut keeps those
+	do
+		local mk = function(n) return { kind = "items", name = n .. " Slot Bag", itemID = 90000 + n, slots = n } end
+		local rowsWas, maxWas, slotsWas = ns.providers.items, BB.MAX, ns.QuestRewards.SlotsOfRow
+		ns.providers.items = { id = "items", label = "Items", aliases = {}, _dirty = true,
+			collect = function() return { mk(8), mk(14), mk(10), mk(18), mk(12) } end }
+		ns.QuestRewards.SlotsOfRow = function(e) return e.slots end
+		BB.MAX = 3
+		local got = BB.Answer({ least = 6 })
+		BB.MAX, ns.providers.items, ns.QuestRewards.SlotsOfRow = maxWas, rowsWas, slotsWas
+		local said = {}
+		for i, e in ipairs(got) do said[i] = tostring(e.slots) end
+		check(table.concat(said, ",") == "18,14,12", "bigger bags: the most slots first, those kept: " .. table.concat(said, ","))
+	end
+	-- (review, 1.0.68) an instance's bosses: its whole name (or its start, 4 letters or more), each instance's own, no
+	-- faction's standing as a boss
+	do
+		local P = ns.Pipes
+		local function Row(boss, inst, src, n) return { kind = "loot", name = "Item " .. n, itemID = 80000 + n, detail = boss .. "  " .. inst, lootSource = src } end
+		local lootWas = ns.providers.loot
+		ns.providers.loot = { id = "loot", label = "Loot", aliases = {}, _dirty = true, collect = function() return {
+			Row("Baron Rivendare", "Stratholme", "dungeon", 1), Row("Trash Mobs", "Stratholme", "dungeon", 2),
+			Row("Bazil Thredd", "The Stockade", "dungeon", 3), Row("Trash Mobs", "The Stockade", "dungeon", 4),
+			Row("Honored", "Argent Dawn", "reputation", 5) } end }
+		local IB = ns.InstanceBosses
+		local st, ad, short = IB.Question("stockade bosses"), IB.Question("argent dawn bosses"), IB.Question("boss a")
+		local srows = st and IB.Answer(st)
+		ns.providers.loot = lootWas
+		local names = {}
+		for i, e in ipairs(srows or {}) do names[i] = e.name .. "@" .. tostring(e.detail):match("^(.-)%s") end
+		check(st and #st.bosses == 2 and not ad and not short and not P.BossLoot()["honored"],
+			"stockade bosses: its own two (its trash once), not Stratholme's; argent dawn: no bosses: " .. table.concat(names, ", "))
+	end
 	-- (1.0.58) item, quest and NPC ids, as spell ids
 	local OI = ns.ObjectIds
 	local iq = OI.Question("itemid linen cloth")
@@ -157,6 +190,30 @@ local ok, err = pcall(function()
 	X.ReadMe, X.session = readWas, sessWas
 	check(rate and math.floor(rate + 0.5) == 6500 and xrows and xrows[2] and tostring(xrows[2].name):find("22", 1, true) and XR.Question("level") == nil,
 		"how long to level: 6500 an hour this session, level 22 in about an hour: " .. tostring(rate) .. " / " .. tostring(xrows and xrows[2] and xrows[2].name))
+	-- (review, 1.0.68) a rollover read before the level catches up: counted once; at the level cap: said so
+	X.session = nil
+	X.SessionTick({ level = 20, xp = 6000, max = 7000 })
+	X.SessionTick({ level = 20, xp = 300, max = 7000 })
+	X.SessionTick({ level = 21, xp = 300, max = 7500 })
+	local rolled = X.session.gained
+	X.ReadMe = function() return { level = 60, maxed = true } end
+	local mrows = XR.Answer()
+	X.ReadMe, X.session = readWas, sessWas
+	check(rolled == 1300 and mrows[1] and mrows[1].name == ns.L["Max level"], "a level-up read late: 1300, not 7000 (" .. tostring(rolled)
+		.. "); at the cap: " .. tostring(mrows[1] and mrows[1].name))
+	-- (review, 1.0.68) "who gives" a name two quests share: both, those in your log first
+	do
+		local QP = ns.QuestPeople
+		local qWas = ns.providers.questie
+		ns.providers.questie = { id = "questie", _entries = { { name = "Twin Hunt", qid = 7001 }, { name = "Twin Hunt", qid = 7002 } } }
+		local q2 = QP.Question("who gives twin hunt")
+		ns.providers.questie = qWas
+		local logWas = C_QuestLog.GetLogIndexForQuestID
+		C_QuestLog.GetLogIndexForQuestID = function(id) return id == 7002 and 1 or nil end
+		local which = q2 and QP.Which(q2.ids)
+		C_QuestLog.GetLogIndexForQuestID = logWas
+		check(q2 and #q2.ids == 2 and which and #which == 1 and which[1] == 7002, "who gives twin hunt: both quests, the one in your log: " .. tostring(q2 and #q2.ids) .. " / " .. tostring(which and #which) .. " / " .. tostring(which and which[1]))
+	end
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))

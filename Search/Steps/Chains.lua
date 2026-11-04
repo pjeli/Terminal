@@ -455,25 +455,48 @@ ns:RegisterRelation("uses", {
 -- drops, sells: what an NPC drops (AtlasLoot's loot of a boss by that name; any other creature: the items whose
 -- Questie npcDrops list it) and what a vendor sells (the items whose Questie vendors list it). 1.0.50, the reach audit:
 -- "what does hogger drop", "what does innkeeper farley sell" (Advanced: "hogger > drops", "farley > sells").
-local bossBy, bossFrom -- (@loot's rows by their boss's lowercase name, made once a loot list)
+-- (@loot's rows by their boss's lowercase name, and the bosses by instance, made once a loot list. Only loot that drops:
+-- AtlasLoot's faction, crafting, PvP and collection pages name a standing or a profession where a boss goes, "Honored
+-- @ Argent Dawn"; review, 1.0.68)
+local bossBy, bossFrom, bossPlaces
+local NOT_DROPS = { reputation = true, crafted = true, pvp = true, collection = true }
 local function BossLoot()
 	local list = Entries("loot")
 	if bossFrom ~= list then
-		bossBy, bossFrom = {}, list
+		bossBy, bossFrom, bossPlaces = {}, list, {}
 		local I = ns.Integrations
+		local placeOf = {} -- ("boss\tinstance" -> its place's entry)
 		for _, l in ipairs(list) do
-			local boss = I and I.LootSplit and I.LootSplit(rawget(l, "detail") or l.detail)
+			local boss, inst = nil, nil
+			if I and I.LootSplit and not (I.LootSource and NOT_DROPS[I.LootSource(l)]) then
+				boss, inst = I.LootSplit(rawget(l, "detail") or l.detail)
+			end
 			if boss and boss ~= "" and boss ~= "?" then
 				local k = ns.Lower(boss)
 				local t = bossBy[k]
 				if not t then t = {}; bossBy[k] = t end
 				t[#t + 1] = l
+				if inst and inst ~= "" then
+					local pk = k .. "\t" .. ns.Lower(inst)
+					local pl = placeOf[pk]
+					if not pl then
+						pl = { boss = boss, inst = inst, linst = ns.Lower(inst), n = 0 }
+						placeOf[pk] = pl
+						bossPlaces[#bossPlaces + 1] = pl
+					end
+					pl.n = pl.n + 1
+				end
 			end
 		end
 	end
 	return bossBy
 end
 P.BossLoot = BossLoot
+--- Every boss with loot, by instance: { { boss, inst, linst (lowercase), n (items) } } (Trash Mobs once per instance).
+function P.BossPlaces()
+	BossLoot()
+	return bossPlaces or {}
+end
 --- Do these (lowercase) words name an NPC Questie knows, or a boss AtlasLoot lists? (Questie's names text, not the NPC
 --- list: asked on a keystroke, it built the list and kept it from being let go; review, 1.0.67)
 function P.NpcNamed(what)

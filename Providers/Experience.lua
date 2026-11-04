@@ -302,20 +302,33 @@ function X.SessionTick(me)
 	local s = X.session
 	if not s then X.session = { since = Now(), gained = 0, level = me.level, xp = me.xp, max = me.max } return end
 	if me.level == s.level then
-		if me.xp > s.xp then s.gained = s.gained + (me.xp - s.xp) end
+		if me.xp > s.xp then s.gained = s.gained + (me.xp - s.xp)
+		elseif me.xp < s.xp then
+			-- (a level's rollover read before the level: UnitLevel catches up a moment after PLAYER_LEVEL_UP. Counted now,
+			-- once: the level's own reading then adds only what came since; review, 1.0.68)
+			s.gained = s.gained + math.max(0, s.max - s.xp) + me.xp
+			s.rolled = true
+		end
 	elseif me.level == s.level + 1 then
-		s.gained = s.gained + math.max(0, s.max - s.xp) + me.xp -- (the rest of the old level, then the new one's)
+		if s.rolled then
+			if me.xp > s.xp then s.gained = s.gained + (me.xp - s.xp) end
+		else
+			s.gained = s.gained + math.max(0, s.max - s.xp) + me.xp -- (the rest of the old level, then the new one's)
+		end
 	end
+	s.rolled = me.level == s.level and s.rolled or nil
 	s.level, s.xp, s.max = me.level, me.xp, me.max
 end
 --- Experience an hour this session, the seconds it's been, and your xp and the level's (nil: not read yet).
+--- (At the level cap: nil, the seconds, you: the answer says so. Under a minute: as if a minute had gone, not "none
+--- gained"; review, 1.0.68.)
 function X.Rate()
 	local s = X.session
 	local me = X.ReadMe()
-	if not (s and me and me.xp and me.max) then return nil end
+	if not (s and me) then return nil end
 	local secs = Now() - s.since
-	if secs < 60 then return 0, secs, me end
-	return s.gained / secs * 3600, secs, me
+	if me.maxed or not (me.xp and me.max) then return nil, secs, me end
+	return s.gained / math.max(secs, 60) * 3600, secs, me
 end
 
 -- the note on each change, and at logout (the time and whether you're resting: the estimate starts there)
