@@ -7155,3 +7155,50 @@ pick sort: id=distance word=nearest
 category: -
 advanced: "@npc is:innkeeper faction:friendly sort:distance "
 explain: "Friendly innkeepers, nearest first"
+
+== items on my alts
+question: -
+tokens: -
+sort: -
+kinds: stored
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: stored
+advanced: "@stored "
+explain: "Your alts' and bank's items"
+
+== which alt has linen
+question: -
+tokens: linen
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "@stored linen "
+explain: "Your alts' and bank's items matching linen"
+
+== linen cloth on my alts
+question: -
+tokens: linen
+filter: soft type:cloth  sig=~cloth  word=cloth
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick: spec=type:cloth word=cloth
+pick sort: -
+category: -
+advanced: "@stored linen cloth|type:cloth "
+explain: "Your alts' and bank's items matching linen cloth|type:cloth"

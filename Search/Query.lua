@@ -579,6 +579,11 @@ end
 --- "my", "list", "show" and such) lists its lists ("macros", "my addons", "slash commands"), unless a row elsewhere is
 --- named the line (names stay names). A game window of that name comes along after them (Scan.KindExtras).
 local ALONE = { my = true, list = true, show = true, all = true, every = true, me = true, the = true, your = true, mine = true }
+-- (a list said with what it holds, "which alt has linen", "my bank has copper": those words go with it; 1.0.49)
+local KIND_FILLER = { has = true, have = true, had = true, got = true, holds = true, hold = true, carries = true, carry = true,
+	keeps = true, which = true }
+-- (a thing's general word beside a list said as yours, "items on my alts": the list's rows are those; 1.0.49)
+local KIND_GENERAL = { item = true, items = true, thing = true, things = true, stuff = true }
 --- Is anything (not a window, not one of `ids`' rows) named `lname` in the lists built?
 local function NameTaken(lname, ids)
 	for _, id in ipairs(ns.providerOrder) do
@@ -613,7 +618,23 @@ function Scan.KindWord(q)
 		local f = k.filter and ns.Filters and ns.Filters.Parse(k.filter)
 		if f then Scan.AddFilter(q, function(e) return e.kind == "panels" or f(e) end, "hard", k.filter, nil, k.filter) end
 	end
+	-- (a list said as yours comes first: "items on my alts" is your alts', not your bags; 1.0.49, the reach audit)
+	local first = 1
 	for i = 1, #tokens do
+		local kk = not (exact and exact[tokens[i]]) and E.KindWord(tokens[i])
+		if kk and kk.ids and Mine(q.text, tokens[i]) then
+			first = i
+			for j = #tokens, 1, -1 do
+				if j ~= i and (KIND_GENERAL[tokens[j]] or KIND_FILLER[tokens[j]]) then
+					table.remove(tokens, j)
+					if j < first then first = first - 1 end
+					q.tokenSrc = nil
+				end
+			end
+			break
+		end
+	end
+	for i = first, #tokens do
 		local w, nx = tokens[i], tokens[i + 1]
 		local k, n = nil, 1
 		if nx and not (exact and (exact[w] or exact[nx])) then
@@ -644,6 +665,10 @@ function Scan.KindWord(q)
 			for _ = 1, n do table.remove(tokens, i) end
 			local src = q.tokenSrc
 			if src and #src == #tokens + n then for _ = 1, n do table.remove(src, i) end else q.tokenSrc = nil end
+			-- (what it holds said with it: "which alt has linen" is the alts' linen)
+			if k.ids then
+				for j = #tokens, 1, -1 do if KIND_FILLER[tokens[j]] then table.remove(tokens, j); q.tokenSrc = nil end end
+			end
 			Take(k, n == 2 and (w .. " " .. nx) or w, false)
 			return
 		end

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.49 (in testing)
+
+- "items on my alts" lists your alts' and bank's items (`@stored`; it was your bags), "which alt has linen" and "linen cloth on my alts" the alts' linen with each one's count (the reach audit).
+
 ## 1.0.48 (in testing)
 
 - Near you, in Simple mode (the reach audit): "quests near me" (or "nearest quests") lists Questie's quests at your level you haven't done, by how near their giver is; "turn ins near me" your quests ready to turn in, by how near their turn-in NPC is; "camps nearby", "mailbox near me" and any list's name with nearest / nearby / near me list that list nearest first (they were NPCs named so). NPCs ("nearest innkeeper") and dungeons as before.

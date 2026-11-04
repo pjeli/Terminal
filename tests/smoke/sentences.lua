@@ -24,6 +24,9 @@ local ok, err = pcall(function()
 	check(Adv("camps nearby") == "@camp sort:distance" and Adv("nearest camp") == "@camp sort:distance"
 		and Adv("dungeons near me") == "@dungeon sort:distance" and Adv("nearest innkeeper"):find("@npc is:innkeeper", 1, true),
 		"camps nearby: @camp nearest first; dungeons, innkeepers as before: " .. Adv("camps nearby"))
+	-- (1.0.49) your alts': "items on my alts" is @stored (not your bags), "which alt has linen" the alts' linen
+	check(Adv("items on my alts") == "@stored" and Adv("which alt has linen") == "@stored linen" and Adv("linen on my alts") == "@stored linen",
+		"items on my alts, which alt has linen: @stored: " .. Adv("items on my alts") .. " / " .. Adv("which alt has linen"))
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))
