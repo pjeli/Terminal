@@ -1116,7 +1116,7 @@ advanced: "Wall Dead "
 explain: "Everything matching Wall Dead"
 
 == mounts
-question: 19  asked=mounts
+question: 20  asked=mounts
 place: -
 send: -
 steps: -
@@ -1736,7 +1736,7 @@ advanced: "boots|slot:boots is:unlearned spirit|stat:spirit "
 explain: "Unlearned everything matching boots|slot:boots spirit|stat:spirit"
 
 == missing stamina
-question: 42  asked=missing stamina
+question: 43  asked=missing stamina
 place: -
 send: -
 steps: -
@@ -1747,7 +1747,7 @@ advanced: "@group missing:fortitude "
 explain: "Your group, missing:fortitude"
 
 == needs int
-question: 42  asked=needs int
+question: 43  asked=needs int
 place: -
 send: -
 steps: -
@@ -1758,7 +1758,7 @@ advanced: "@group missing:intellect "
 explain: "Your group, missing:intellect"
 
 == who is without fortitude
-question: 42  asked=who is without fortitude
+question: 43  asked=who is without fortitude
 place: -
 send: -
 steps: -
@@ -1769,7 +1769,7 @@ advanced: "@group missing:fortitude "
 explain: "Your group, missing:fortitude"
 
 == party without food
-question: 42  asked=party without food
+question: 43  asked=party without food
 place: -
 send: -
 steps: -
@@ -1780,7 +1780,7 @@ advanced: "@group missing:food "
 explain: "Your group, missing:food"
 
 == needs blessing of kings
-question: 42  asked=needs blessing of kings
+question: 43  asked=needs blessing of kings
 place: -
 send: -
 steps: -
@@ -1791,7 +1791,7 @@ advanced: "@group missing:blessing_kings "
 explain: "Your group, missing:blessing_kings"
 
 == missing shadow protection
-question: 42  asked=missing shadow protection
+question: 43  asked=missing shadow protection
 place: -
 send: -
 steps: -
@@ -1802,7 +1802,7 @@ advanced: "@group missing:shadow "
 explain: "Your group, missing:shadow"
 
 == need flask
-question: 42  asked=need flask
+question: 43  asked=need flask
 place: -
 send: -
 steps: -
@@ -1813,7 +1813,7 @@ advanced: "@group missing:elixir "
 explain: "Your group, missing:elixir"
 
 == missing buffs
-question: 42  asked=missing buffs
+question: 43  asked=missing buffs
 place: -
 send: -
 steps: -
@@ -3236,7 +3236,7 @@ advanced: "@questlog lvl:me "
 explain: "Quests in your log, your level"
 
 == what killed me today
-question: 26  asked=what killed me
+question: 27  asked=what killed me
 place: -
 send: -
 steps: -
@@ -3300,7 +3300,7 @@ advanced: "loot since:yesterday older:today "
 explain: "Everything matching loot, since yesterday, from before today"
 
 == loot today
-question: 21  asked=loot today
+question: 22  asked=loot today
 place: -
 send: -
 steps: -
@@ -3349,7 +3349,7 @@ advanced: "mail|type:mail older:2w "
 explain: "Everything matching mail|type:mail, older than 2 weeks"
 
 == auctions sold this week
-question: 40  asked=auctions sold
+question: 41  asked=auctions sold
 place: -
 send: -
 steps: -
@@ -4913,7 +4913,7 @@ advanced: "@gold "
 explain: "Gold"
 
 == durability
-question: 39  asked=durability
+question: 40  asked=durability
 place: -
 send: -
 steps: -
@@ -4941,7 +4941,7 @@ advanced: "mail|type:mail "
 explain: "Everything matching mail|type:mail"
 
 == my mail
-question: 41  asked=my mail
+question: 42  asked=my mail
 place: -
 send: -
 steps: -
@@ -5171,7 +5171,7 @@ advanced: "sword|type:sword q:epic+ | group by zone"
 explain: "Epic or better everything matching sword|type:sword, grouped by zone"
 
 == What's   dropped?
-question: 21  asked=What's   dropped?
+question: 22  asked=What's   dropped?
 place: -
 send: -
 steps: -
@@ -5197,7 +5197,7 @@ advanced: "@dungeon dead "
 explain: "Dungeon matching dead"
 
 == a > mats
-question: 25  asked=a > mats
+question: 26  asked=a > mats
 place: -
 send: -
 steps: -
@@ -6356,7 +6356,7 @@ advanced: ""
 explain: ERROR nil
 
 == "tonight we
-question: 48  asked="tonight we
+question: 49  asked="tonight we
 place: -
 send: -
 steps: -
@@ -7385,7 +7385,7 @@ advanced: "quests that start from an item "
 explain: "Everything matching quests that start from an item"
 
 == where to farm linen cloth
-question: 25  asked=where to farm linen cloth
+question: 26  asked=where to farm linen cloth
 place: -
 send: -
 steps: -
@@ -7396,7 +7396,7 @@ advanced: "linen cloth > sources "
 explain: "Everything matching linen cloth, then: sources "
 
 == where do i find red bandanas
-question: 25  asked=where do i find red bandanas
+question: 26  asked=where do i find red bandanas
 place: -
 send: -
 steps: -
@@ -7407,7 +7407,7 @@ advanced: "red bandanas > sources "
 explain: "Everything matching red bandanas, then: sources "
 
 == where can i get linen
-question: 25  asked=where can i get linen
+question: 26  asked=where can i get linen
 place: -
 send: -
 steps: -
@@ -7469,3 +7469,55 @@ pick sort: -
 category: places
 advanced: "@flight is:flightpath is:unlearned "
 explain: "Flightpath, unlearned flight paths"
+
+== what level is hogger
+question: -
+tokens: what level hogger
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "what level hogger "
+explain: "Everything matching what level hogger"
+
+== what level is the stockade
+question: 10  asked=what level is the stockade
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "what level is the stockade "
+explain: "Everything matching what level is the stockade"
+
+== duskwood level
+question: 10  asked=duskwood level
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "duskwood level "
+explain: "Everything matching duskwood level"
+
+== my level
+question: -
+tokens: level
+sort: -
+kinds: -
+action: -
+place: -
+send: -
+steps: -
+group: -
+pick sort: -
+category: -
+advanced: "level "
+explain: "Everything matching level"

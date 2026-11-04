@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.55 (in testing)
+
+- Levels as an answer (the reach audit): "what level is hogger" shows his row with his level (Questie's), "what level is the stockade" the dungeon's (or raid's) range, "duskwood level" the zone's.
+
 ## 1.0.54 (in testing)
 
 - "flight paths i don't know", "… i don't have", "… i haven't got" list the flight paths you haven't learned, as "unknown flight paths" does (the reach audit).

@@ -45,6 +45,8 @@ Scan.ANSWERS = {
 	Asks("HaveQ"),
 	-- "quests that start from an item": the quests an item starts (Suggest.lua; 1.0.52)
 	Asks("ItemQuests"),
+	-- "what level is hogger", "duskwood level": the level Terminal has for it (Suggest.lua; 1.0.55)
+	Asks("LevelOf"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;

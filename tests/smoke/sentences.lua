@@ -45,6 +45,15 @@ local ok, err = pcall(function()
 		local a = Adv(line)
 		check(a:find("is:unlearned", 1, true) and a:find("is:flightpath", 1, true) and not a:find("%f[%a]i%f[%A]"), line .. ": as " .. unknown .. " (got " .. a .. ")")
 	end
+	-- (1.0.55) levels as an answer: a zone's range, a dungeon's (an NPC's: questiedb.lua)
+	local LV = ns.LevelOf
+	local zq = LV.Question("duskwood level")
+	local zrows = zq and LV.Answer(zq)
+	check(zq and zq.said and zrows and zrows[1] and (tostring(zrows[1].name) .. " " .. tostring(zrows[1].detail)):find("Lv", 1, true)
+		and LV.Question("my level") == nil and LV.Question("what level is nothing like this") == nil,
+		"duskwood level: its range: " .. tostring(zq and zq.said))
+	local dq = LV.Question("what level is the stockade")
+	check(not ns.providers.dungeon or (dq and dq.said), "what level is the stockade: the dungeon's: " .. tostring(dq and dq.said))
 end)
 ns.db.easyMode = easy; UI:EasyChanged()
 check(ok, "sentences: " .. tostring(err))

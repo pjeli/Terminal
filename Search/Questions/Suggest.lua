@@ -995,3 +995,67 @@ function QS.Answer()
 end
 --- Not a search: the question stays as typed (Advanced mode answers it the same).
 function QS.ToAdvanced() return nil end
+
+----------------------------------------------------------------------
+-- "what level is hogger", "what level is the stockade", "duskwood level": the level Terminal has for it (an NPC's from
+-- Questie, a dungeon's or a raid's, a zone's range), its row saying it (1.0.55, the reach audit)
+----------------------------------------------------------------------
+
+local LV = {}
+ns.LevelOf = LV
+local LV_SAID = { "^what level is (.+)$", "^what level are (.+)$", "^what lvl is (.+)$", "^what level is the (.+)$",
+	"^level of (.+)$", "^(.+) level range$", "^(.+) levels$", "^(.+) level$", "^how high is (.+)$" }
+local function Named(list, want)
+	for _, e in ipairs(list) do
+		local n = rawget(e, "_lname") or Lower(tostring(e.name))
+		if n == want or n == "the " .. want then return e end
+	end
+end
+local function LevelSaid(lo, hi)
+	if not lo then return nil end
+	hi = hi or lo
+	return lo == hi and L["Lv %d"]:format(lo) or L["Lv %d-%d"]:format(lo, hi)
+end
+function LV.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = t:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+	for _, pat in ipairs(LV_SAID) do
+		local what = t:match(pat)
+		if what then
+			what = what:gsub("^the ", "")
+			if what ~= "" and what ~= "my" and what ~= "your" then
+				-- a dungeon or a raid, a zone, an NPC (Questie's), in that order
+				for _, kind in ipairs({ "dungeon", "raid" }) do
+					local e = ns.providers[kind] and Named(Entries(kind, true), what)
+					if e and e.minLevel then return { row = e, said = LevelSaid(e.minLevel, e.level) } end
+				end
+				local Z = ns.Zones
+				for _, z in ipairs(Z and Z.LIST or {}) do
+					if z[6] and Lower(z[6]) == what and z[2] then
+						local m = ns.providers.maps and Named(Entries("maps", true), what)
+						return { row = m, name = z[6], said = LevelSaid(z[2], z[3]) }
+					end
+				end
+				local I = ns.Integrations
+				local e = ns.providers.npc and Named(Entries("npc", true), what)
+				if e and I and I.NpcField then
+					local id = e.npcID
+					local lo, hi = Num(I.NpcField(id, "minLevel")), Num(I.NpcField(id, "maxLevel"))
+					if lo then return { row = e, said = LevelSaid(lo, hi) } end
+				end
+			end
+			return nil
+		end
+	end
+	return nil
+end
+function LV.Answer(q)
+	local name = q.row and q.row.name or q.name
+	local title = L["Level"] .. SEP .. tostring(name)
+	if not q.row then return { ns.NoteRow(tostring(name) .. ": " .. q.said) }, title end
+	local d = q.row.detail
+	return { setmetatable({ detail = q.said .. ((d and d ~= "" and not tostring(d):find(q.said, 1, true)) and (SEP .. d) or "") }, { __index = q.row }) }, title
+end
+--- Not a search: the question stays as typed (Advanced mode answers it the same).
+function LV.ToAdvanced() return nil end

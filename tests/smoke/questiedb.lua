@@ -111,6 +111,10 @@ do
 		local bq = IB.Question("deadmines bosses")
 		local brows = bq and IB.Answer(bq)
 		check(brows and brows[1] and brows[1].name == "Edwin VanCleef" and IB.Question("bosses") == nil, "deadmines bosses: Edwin VanCleef: " .. tostring(brows and brows[1] and brows[1].name))
+		-- (1.0.55) what level an NPC is: Questie's
+		local lq = ns.LevelOf.Question("what level is hogger")
+		local lrows = lq and ns.LevelOf.Answer(lq)
+		check(lq and lq.said and lq.said:find("11", 1, true) and lrows[1].name == "Hogger", "what level is hogger: 11: " .. tostring(lq and lq.said))
 		-- (1.0.53) "where do i find" an NPC: where he is, not sources
 		check(P.Canonical("where do i find hogger") == nil and P.Canonical("where do i find linen cloth") == "linen cloth > sources",
 			"where do i find hogger: not sources; a thing's: " .. tostring(P.Canonical("where do i find hogger")))

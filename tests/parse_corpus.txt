@@ -508,3 +508,9 @@ where is hogger
 # (1.0.54) flight paths you don't know (the reach audit)
 flight paths i don't know
 flight paths i haven't got
+
+# (1.0.55) levels as an answer (the reach audit)
+what level is hogger
+what level is the stockade
+duskwood level
+my level
