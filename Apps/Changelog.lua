@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.0.73", when = "in testing",
+		v = "1.0.74", when = "in testing",
 		items = {
 			"With OneForAll: @book lists the Library Books, where each is and which you've turned in; \"books i still need\", \"nearest library book\".",
 			"With OneForAll, for hunters: @spell has your pet's abilities (each rank, learned or not, Enter: who teaches it; is:ability), @npc says which beasts you can tame (is:tameable); \"where to learn bite 4\", \"tameable cats\", \"rare pets\".",
@@ -24,6 +24,7 @@ CL.LOG = {
 			"With OneForAll: @attune has its dungeon keys and Onyxia's attunement when Attune isn't installed (\"my keys\", \"how do i get into onyxia\"), and quest chains add the dungeon quests' prerequisites it knows.",
 			"Inside a group you stepped into, the bar's Group and Sort work too: step into a faction, then group by standing.",
 			"Kinds and categories are in Title Case on English clients (\"Quest Log\", \"Crafting Mat\").",
+			"Console: grep -A, -B and -C show the lines around each match, and -H the file's name on every line.",
 		},
 	},
 	{

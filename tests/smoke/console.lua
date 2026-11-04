@@ -193,6 +193,18 @@ local ok, err = pcall(function()
 	check(Run("seq 4 | sum")[1]:find("sum 10", 1, true) ~= nil, "sum: " .. tostring(Run("seq 4 | sum")[1]))
 	check(Run("seq 20 | grep -c '^1\\d$'")[1] == "10", "a regular expression: ^1\\d$")
 	check(Run("seq 12 | grep -c '^3$|^12$'")[1] == "2", "a|b: either")
+	-- (1.0.74, the player's ask) the lines around each match: -A, -B, -C, "--" between groups apart; -H the file's name
+	local function J(cmd) return table.concat(Run(cmd), " ") end
+	check(J("seq 20 | grep -A1 '^5$'") == "5 6" and J("seq 20 | grep -B2 '^5$'") == "3 4 5" and J("seq 20 | grep -C1 '^5$'") == "4 5 6",
+		"grep -A1, -B2, -C1: the lines after, before, around: " .. J("seq 20 | grep -C1 '^5$'"))
+	check(J("seq 20 | grep -A1 '^5$|^15$'") == "5 6 -- 15 16" and J("seq 10 | grep -C1 '^4$|^5$'") == "3 4 5 6",
+		"groups apart get --, groups that touch are one: " .. J("seq 20 | grep -A1 '^5$|^15$'"))
+	check(J("seq 20 | grep -n -C1 '^10$'") == "9-9 10:10 11-11" and J("seq 10 | grep -m1 -A1 '^3$|^4$'") == "3 4",
+		"-n: : for a match, - around it; -m 1 still gives its lines after: " .. J("seq 20 | grep -n -C1 '^10$'"))
+	check(J("seq 20 | grep -c -A3 '^5$'") == "1" and J("seq 20 | grep -A1 -v '[0-9]'") == "", "-c counts matches only; nothing matched, nothing around")
+	check(Run("grep -H stamina '/ctest/Linen Cloth'")[1] == "/ctest/Linen Cloth:Stamina +5" and Run("grep stamina '/ctest/Linen Cloth'")[1] == "Stamina +5"
+		and Run("seq 3 | grep -H 2")[1] == "(standard input):2", "-H: the file's name for one file, and for what was piped in")
+	check(Run("grep -h -r stamina /ctest")[1] == "Stamina +5" and table.concat(Run("seq 3 | grep -A x 2"), " "):find("invalid context", 1, true) ~= nil, "-h: no names with -r; a bad number: an error: " .. table.concat(Run("seq 3 | grep -A x 2"), " ") .. " / " .. tostring(Run("grep -h -r stamina /ctest")[1]))
 	check(Run("echo hello world | sed 's/o/0/g'")[1] == "hell0 w0rld", "sed s///g")
 	check(Run("echo a:b:c | cut -d : -f 2")[1] == "b", "cut -d -f")
 	check(Run("echo abc | rev")[1] == "cba" and Run("echo abc | tr a-z A-Z")[1] == "ABC", "rev and tr")

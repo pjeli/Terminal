@@ -23,7 +23,9 @@ has stand-ins for `.console` and `.atop` (Apps/Extras.lua) that load it the firs
   alias unalias whoami hostname uname date uptime ping free sleep true false sudo touch rm mkdir vim search link pin
   font fortune murlocsay neofetch split exit layout ps kill. Any Terminal command runs too, with or without the dot
   (`top` is `.atop`); its chat output is caught into the pane. grep: smart case, a small regular-expression subset
-  turned into Lua patterns (`a|b`, `\d \w \s \b`, sets), `-ivclnrwFhm`.
+  turned into Lua patterns (`a|b`, `\d \w \s \b`, sets), `-ivclnrwFhHm`; `-A/-B/-C N` the lines around each match as GNU
+  grep prints them ("file-N-" around, "file:N:" a match, "--" between groups apart; 1.0.74), `-H` the file's name on every
+  line (one file, or "(standard input)" for what was piped in).
 - `Terminal_Extras/Console/Commands.lua` (0.69.8, split from Shell.lua as they were): the looking-around commands (ls,
   cd, pwd, tree, find, locate, cat, head, tail, stat, file) and the pipe ones (wc, sort, uniq, cut...). They read the
   shell's shared helpers through `ns.Shell` (`SH._` for those it keeps as locals).

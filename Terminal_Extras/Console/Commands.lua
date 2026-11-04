@@ -536,56 +536,89 @@ SH.Command("file", {
 
 SH.Command("grep", {
 	desc = L["lines matching a pattern: in what was piped in, or in files (-r: whole directories)"],
-	usage = "grep [-ivclnrwFh] [-m N] pattern [path...]",
+	usage = "grep [-ivclnrwFhH] [-m N] [-A N] [-B N] [-C N] pattern [path...]",
 	man = {
 		L["Without -i a pattern with no capital letter matches either case (smart case); with a capital, as typed."],
 		L["Patterns: . * + ? ^ $ [abc] [^abc] \\d \\w \\s, a|b for either (quote it: 'a|b'); -F for plain text."],
 		L["-i ignore case   -v lines that don't match   -c count   -l the files only   -n line numbers"],
 		L["-r a directory's files (or every list from ~)   -w whole words   -h no file names   -m N stop after N"],
+		L["-A N the N lines after each match, -B N before, -C N both (-- between groups)   -H the file's name on every line"],
 		L["ls /item | grep potion      grep -ri 'stamina' /item      grep -rl 'Hogger' /quest"],
 	},
 	aliases = { "egrep", "rg" },
 	args = "path",
 	run = function(io)
-		local opts, rest = SH.Opts(io.args, "ivclnrRwFEPhHsm:o", { ["--count"] = "c", ["--ignore-case"] = "i",
-			["--invert-match"] = "v", ["--recursive"] = "r", ["--files-with-matches"] = "l" })
+		local opts, rest = SH.Opts(io.args, "ivclnrRwFEPhHsm:oA:B:C:", { ["--count"] = "c", ["--ignore-case"] = "i",
+			["--invert-match"] = "v", ["--recursive"] = "r", ["--files-with-matches"] = "l", ["--after-context"] = "A",
+			["--before-context"] = "B", ["--context"] = "C", ["--with-filename"] = "H", ["--no-filename"] = "h" })
 		if not opts then io.err(rest) return 2 end
+		-- (-A/-B/-C: the lines around each match, as GNU grep prints them: "file-N-" before a line around one, "file:N:"
+		-- before a match, "--" between groups apart; 1.0.74, the player's ask)
+		local around = {}
+		for _, k in ipairs({ "A", "B", "C" }) do
+			if opts[k] ~= nil then
+				local n = tonumber(opts[k])
+				if not n or n < 0 or n % 1 ~= 0 then io.err(L["%s: invalid context length argument"]:format(tostring(opts[k]))) return 2 end
+				around[k] = n
+			end
+		end
+		local after, before = around.A or around.C or 0, around.B or around.C or 0
+		local context = (after > 0 or before > 0) and not (opts.c or opts.l)
+		local shownAny = false -- (a group printed already, in any file: the next one apart gets "--" first)
 		local pattern = table.remove(rest, 1)
 		if not pattern then io.err(L["usage: grep [options] pattern [path...]"]) return 2 end
 		local recursive = opts.r or opts.R
 		local match = SH.Matcher(pattern, { ignore = opts.i, fixed = opts.F, word = opts.w })
 		local max = tonumber(opts.m)
 		local found = 0
-		-- (label: the file, said before each line only when several are read; -l always says it)
+		-- (label: the file, said before each line only when several are read or -H; -l always says it. path false: what
+		-- was piped in, no file to link)
 		local function Lines(lines, label, path)
 			local hits = 0
+			local shown, owed = 0, 0 -- (the last line printed here; lines after a match still to print)
+			local function Out(i, text, sep)
+				if context and shownAny and shown > 0 and i > shown + 1 then io.out(Paint("cyan", "--"))
+				elseif context and shownAny and shown == 0 then io.out(Paint("cyan", "--")) end
+				local lead = ""
+				if label and not opts.h then
+					local name = Paint("magenta", SH.Literal(label))
+					lead = (path == false and name or Link(path or label, name)) .. Paint("dim", sep)
+				end
+				if opts.n then lead = lead .. Paint("green", i) .. Paint("dim", sep) end
+				io.out(lead .. text)
+				shown, shownAny = i, true
+			end
 			for i, line in ipairs(lines) do
 				local plain = Strip(line)
 				local s, e = match(plain)
-				if (s ~= nil) ~= (opts.v == true) then
+				if (s ~= nil) ~= (opts.v == true) and not (max and hits >= max) then
 					hits = hits + 1
 					if opts.l then break end
 					if not opts.c then
-						local text = (s and not opts.v) and Mark(line, s, e) or line
-						local lead = ""
-						if label and not opts.h then lead = Link(path or label, Paint("magenta", SH.Literal(label))) .. Paint("dim", ":") end
-						if opts.n then lead = lead .. Paint("green", i) .. Paint("dim", ":") end
-						io.out(lead .. text)
+						for k = math.max(shown + 1, i - before), i - 1 do Out(k, lines[k], "-") end
+						Out(i, (s and not opts.v) and Mark(line, s, e) or line, ":")
+						owed = after
 					end
-					if max and hits >= max then break end
+				elseif owed > 0 then
+					Out(i, line, "-")
+					owed = owed - 1
 				end
+				if max and hits >= max and owed == 0 then break end
 				if i % 128 == 0 then io.sh:Check() end
 			end
 			if opts.c then io.out((label and not opts.h) and (Paint("magenta", SH.Literal(label)) .. Paint("dim", ":") .. hits) or tostring(hits)) end
-			if opts.l and hits > 0 then io.out(Link(path or label, Paint("magenta", SH.Literal(path or label or "(standard input)")))) end
+			if opts.l and hits > 0 then
+				local name = Paint("magenta", SH.Literal(path or label or "(standard input)"))
+				io.out(path == false and name or Link(path or label, name))
+			end
 			found = found + hits
 		end
 		if #rest == 0 then
 			if not io.stdin then io.err(L["no input: give a file, or pipe something in (ls | grep x)"]) return 2 end
-			Lines(io.stdin, nil)
+			Lines(io.stdin, opts.H and "(standard input)" or nil, false)
 			return found > 0 and 0 or 1
 		end
-		local several = #rest > 1 or recursive
+		local several = #rest > 1 or recursive or opts.H
 		for _, path in ipairs(rest) do
 			local node, err = Resolve(io, path)
 			if not node then io.err(SH.Literal(path) .. ": " .. err)

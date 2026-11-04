@@ -3344,4 +3344,6 @@ L["Rare Elite"] = "稀有精英"
 L["Repeatable"] = "可重复"
 L["a profession"] = "某个专业"
 L["The game doesn't say where your hearthstone is set"] = "游戏没有说明你的炉石绑定在哪里"
+L["%s: invalid context length argument"] = "%s：无效的上下文行数"
+L["-A N the N lines after each match, -B N before, -C N both (-- between groups)   -H the file's name on every line"] = "-A N 每个匹配之后的N行，-B N 之前，-C N 前后都有（组之间用 -- 分隔）   -H 每行都显示文件名"
 --@end-do-not-package@

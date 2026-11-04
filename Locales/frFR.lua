@@ -3344,4 +3344,6 @@ L["Rare Elite"] = "Élite rare"
 L["Repeatable"] = "Répétable"
 L["a profession"] = "un métier"
 L["The game doesn't say where your hearthstone is set"] = "Le jeu ne dit pas où votre pierre de foyer est liée"
+L["%s: invalid context length argument"] = "%s : longueur de contexte non valide"
+L["-A N the N lines after each match, -B N before, -C N both (-- between groups)   -H the file's name on every line"] = "-A N les N lignes après chaque résultat, -B N avant, -C N les deux (-- entre les groupes)   -H le nom du fichier sur chaque ligne"
 --@end-do-not-package@

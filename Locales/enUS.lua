@@ -264,6 +264,7 @@ L["%s: connecting"] = true
 L["%s: couldn't read the list: %s"] = true
 L["%s: couldn't switch the map to it."] = true
 L["%s: in combat, the map can't be opened now."] = true
+L["%s: invalid context length argument"] = true
 L["%s: its data isn't what Terminal expects (a new version?). %s"] = true
 L["%s: its ranks"] = true
 L["%s: learned at a pet trainer"] = true
@@ -352,6 +353,7 @@ L["++ and -- need a variable"] = true
 L["- when no list of it is made yet. -h: 31k, not 31000. -a: the ones not installed too."] = true
 L["-- restored after a reload --"] = true
 L["--icons  each file's game icon before its name (a folder: its first file's); alias ls='ls --icons' for always"] = true
+L["-A N the N lines after each match, -B N before, -C N both (-- between groups)   -H the file's name on every line"] = true
 L["-L n  how deep (from the root: 1 = the lists only, the default there; elsewhere: all of it)"] = true
 L["-N  nearest first      -r  reverse order"] = true
 L["-R  every folder under it too, each after its path (ls -lR /loot | where zone~lordaeron; or find /loot -type f)"] = true
