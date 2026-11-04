@@ -442,28 +442,23 @@ function DU.Match(q)
 	return rows
 end
 
-function DU.Answer(q)
-	q = q or {}
-	local rows = DU.Match(q)
-	ns.ScoreInOrder(rows)
-	local cost, damaged = DU.Total()
-	local note = DU.NOTE .. ns.DETAIL_SEP .. ((damaged == 0 and L["nothing to repair"])
-		or (cost and L["repair all: %s"]:format(Money(cost))) or L["%d to repair"]:format(damaged))
-	local items = 0
-	for _, e in ipairs(rows) do if e.duraKind ~= "total" then items = items + 1 end end
-	if items == 0 then
-		local p = ns.providers.durability
-		local any = p and #ns:GetEntries(p) > 0
-		return { NoteRow((not any and L["Nothing wears down"]) or (q.broken and L["Nothing is broken"]) or L["Nothing to repair"]) }, note
-	end
-	return rows, note
-end
-
---- The question as Advanced syntax (Alt+`): "@durability is:broken legs".
-function DU.ToAdvanced(q)
+--- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@durability is:broken legs
+--- sort:list", the lowest first and the "Repair all" row on top (is:damaged keeps it while anything is to repair).
+function DU.Line(q)
 	local parts = { "@durability" }
 	if q.broken then parts[#parts + 1] = "is:broken" elseif q.damaged then parts[#parts + 1] = "is:damaged" end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:list"
 	return table.concat(parts, " ") .. " "
+end
+function DU.Footer()
+	local cost, damaged = DU.Total()
+	return DU.NOTE .. ns.DETAIL_SEP .. ((damaged == 0 and L["nothing to repair"])
+		or (cost and L["repair all: %s"]:format(Money(cost))) or L["%d to repair"]:format(damaged))
+end
+function DU.None(q)
+	local p = ns.providers.durability
+	local any = p and #ns:GetEntries(p) > 0
+	return { NoteRow((not any and L["Nothing wears down"]) or (q.broken and L["Nothing is broken"]) or L["Nothing to repair"]) }
 end
 

@@ -18,20 +18,18 @@ ns.Questions = Q
 -- on, with `toAdvanced` the same question as Advanced mode writes it (Alt+`, nil: the words as typed); `examples`, the lines it must answer (tests/smoke/question_registry.lua); `over`, the entries it beats
 -- when both understand a line as well (section 3); `custom`, why its answer is its own. One list for the answer and
 -- Alt+` (review, 0.53.6: Easy.lua kept its own copy in the same order by hand, and the two had drifted before).
---- A module with Question, Answer and ToAdvanced of its own (ns[name]); `more`: the entry's other fields.
+--- A module of its own (ns[name]): its Question; Line (the Advanced line answering what it asked, nil: its own answer),
+--- Footer and None (its rows when nothing is found) for a search question (section 4.1); Answer and ToAdvanced for an own answer, or where Line gives
+--- none ("my mail": the mail with the auction house's news). `more`: the entry's other fields.
 local function Asks(name, more)
+	local function Of(f) return function(...) local m = ns[name] if m and m[f] then return m[f](...) end end end
 	local a = {
 		id = name,
-		ask = function(text) -- (both its values: the zones' level said, "where should i level at 30")
-			local m = ns[name]
-			if m and m.Question then return m.Question(text) end
-		end,
-		answer = function(q, extra) return ns[name].Answer(q, extra) end,
-		toAdvanced = function(q, extra) return ns[name].ToAdvanced(q, extra) end,
+		ask = Of("Question"), -- (both its values: the zones' level said, "where should i level at 30")
+		line = Of("Line"), note = Of("Footer"), empty = Of("None"), lead = Of("Lead"),
+		answer = Of("Answer"), toAdvanced = Of("ToAdvanced"),
 	}
 	for k, v in pairs(more or {}) do a[k] = v end
-	-- (a search question: its line is its answer and its Advanced form, section 4.1)
-	if a.line then a.answer, a.toAdvanced = nil, nil end
 	return a
 end
 Q.Asks = Asks
@@ -97,12 +95,7 @@ Scan.ANSWERS = {
 	Asks("BuybackQ", { over = { "Auctions" }, examples = { "buyback", "what did i sell" } }),
 	-- "what dropped", "what did we get", "what did i loot": LootLog.lua (was before chains: "what drops did we get" isn't
 	-- "what drops <item>")
-	{ id = "LootLog", over = { "Chains" }, examples = { "what dropped", "what did i loot", "what drops did we get" },
-		ask = function(text) return ns.LootLog and ns.LootLog.Question(text) end,
-		answer = function(q) return ns.LootLog.Answer(q) end,
-		toAdvanced = function(q)
-			return "@drop " .. ((q.who == "me" and "is:mine ") or (q.who and ("looter:" .. ns.Lower(q.who):gsub("%s+", "_") .. " ")) or "")
-		end },
+	Asks("LootLog", { over = { "Chains" }, examples = { "what dropped", "what did i loot", "what drops did we get" } }),
 	-- "how do i get into mc", "how do i get attuned to onyxia": its steps (Attunements.lua; was before the chains, whose
 	-- "how do i get" is where to get an item)
 	{ id = "AttuneHow", over = { "Chains" }, custom = "a chain already: the same pipeline either way",
@@ -132,20 +125,18 @@ Scan.ANSWERS = {
 		end,
 		toAdvanced = function(chain) return chain .. " " end },
 	-- "what killed me", "who crit me": CombatLog.lua
-	{ id = "CombatLog", examples = { "what killed me", "who crit me" },
-		ask = function(text) return ns.CombatLog and ns.CombatLog.Question(text) end,
-		answer = function(q) return ns.CombatLog.Answer(q) end,
-		toAdvanced = function(q)
-			return "@combatlog is:mine " .. ((q == "killed" and "is:death") or (q == "crit" and "is:taken sort:damage") or "is:dealt sort:damage") .. " "
-		end },
+	Asks("CombatLog", { examples = { "what killed me", "who crit me" },
+		-- (CB.Line is a log line's text)
+		line = function(k) return ns.CombatLog.QuestionLine(k) end, note = function(k, rows) return ns.CombatLog.QuestionFooter(k, rows) end,
+		empty = function() return {} end }),
 	-- "where should i level", "what dungeon should i do", "where should i fish": Zones.lua
 	Asks("Zones", { examples = { "where should i level", "what dungeon should i do" },
 		custom = "zones ranked by fit, quest counts and distance" }),
 	-- "spells not on my bars": Spells.lua
 	{ id = "UnplacedSpells", examples = { "spells not on my bars" },
 		ask = function(text) return ns.Spells and ns.Spells.Question(text) end,
-		answer = function(q) return ns.Spells.Answer(q) end,
-		toAdvanced = function(q) return "@spell is:unplaced " .. Words(q) end },
+		line = function(q) return ns.Spells.UnplacedLine(q) end, note = function(q, rows) return ns.Spells.UnplacedNote(q, rows) end,
+		empty = function() return {} end },
 	-- "blacksmithing recipes i'm missing", "recipes i can learn now": MissingRecipes.lua (was before the group's: "who is
 	-- missing recipes" is about recipes)
 	{ id = "MissingRecipes", over = { "Group", "WhatsTraining", "ClassSpells" }, examples = { "recipes i can learn now", "recipes i dont know" },
@@ -165,24 +156,24 @@ Scan.ANSWERS = {
 	-- Training's spells (WhereToLearn.lua; after the recipes': "recipes i can learn" is theirs)
 	{ id = "WhatsTraining", over = { "ClassSpells" },
 		ask = function(text) local W = ns.WhatsTraining and ns.WhatsTraining.Q return W and W.Question(text) end,
+		line = function(q) return ns.WhatsTraining.Q.Line(q) end, note = function(q, rows) return ns.WhatsTraining.Q.Footer(q, rows) end,
+		empty = function(q) return ns.WhatsTraining.Q.None(q) end,
+		-- ("how much is training": the list with what it costs in all, its own; a "| sum cost" line is one row)
 		answer = function(q) return ns.WhatsTraining.Q.Answer(q) end,
 		toAdvanced = function(q) return ns.WhatsTraining.Q.ToAdvanced(q) end },
 	-- "druid spells", "upcoming spells", "when do i learn travel form": every class's spells (Search/Questions/ClassSpells.lua;
 	-- after What's Training's, which answers for your class when it's there)
 	{ id = "ClassSpells",
 		ask = function(text) local C = ns.ClassSpells and ns.ClassSpells.Q return C and C.Question(text) end,
+		line = function(q) return ns.ClassSpells.Q.Line(q) end, note = function(q) return ns.ClassSpells.Q.Footer(q) end,
+		empty = function(q) return ns.ClassSpells.Q.None(q) end,
+		-- (the next level something is learned at, a rank at a level, a name your class's first: its own answer)
 		answer = function(q) return ns.ClassSpells.Q.Answer(q) end,
 		toAdvanced = function(q) return ns.ClassSpells.Q.ToAdvanced(q) end },
 	-- "blacksmithing plan", "level blacksmithing", "leveling plan": Plan.lua (sort:plan's question)
-	Asks("Plan", { examples = { "leveling plan" } }),
+	Asks("Plan", { examples = { "leveling plan" }, note = function() return nil end }), -- (its footer is sort:plan's; PL.Note is the plan's own)
 	-- "quests to drop", "grey quests": QuestDrop.lua
-	{ id = "QuestDrop", over = { "Attunements" }, examples = { "quests to drop", "grey quests" },
-		ask = function(text) return ns.QuestDrop and ns.QuestDrop.Question(text) end,
-		answer = function(q) return ns.QuestDrop.Answer(q) end,
-		toAdvanced = function(q)
-			local which = (q.grey and "is:grey -is:complete") or (q.behind and "is:leftbehind -is:complete") or "is:drop"
-			return "@quest " .. which .. " " .. Words(q.words)
-		end },
+	Asks("QuestDrop", { over = { "Attunements" }, examples = { "quests to drop", "grey quests" } }),
 	-- "party quests", "quests to share", "same quests as my group": GroupQuests.lua (was before the group's: "party
 	-- members missing quests" is about quests)
 	Asks("GroupQuests", { over = { "Group", "Attunements" }, examples = { "party quests", "quests to share" } }),
@@ -234,6 +225,9 @@ Scan.ANSWERS = {
 	-- quests to share", "grey dungeon quests" are the group's and the quest log's)
 	{ id = "Attunements",
 		ask = function(text) local A = ns.Attune and ns.Attune.Q return A and A.List(text) end,
+		line = function(q) return ns.Attune.Q.Line(q) end, note = function(q, rows) return ns.Attune.Q.Footer(q, rows) end,
+		empty = function(q) return ns.Attune.Q.None(q) end,
+		-- (words name attunements, else their steps' text: its own answer, as said; a search's words take both)
 		answer = function(q) return ns.Attune.Q.Answer(q) end,
 		toAdvanced = function(q) return ns.Attune.Q.ToAdvanced(q) end },
 	-- "holidays", "what's on this week", "today", "next darkmoon faire", "my invites": Calendar.lua (its own today, this
@@ -312,6 +306,13 @@ function Q.Ranked(text)
 	return out
 end
 
+--- (tests, and who wants a question's rows without the window) What the search gives `text`, and the footer's note.
+function Q.Answer(text)
+	local UIs = ns.UI
+	local rows = UIs:Search(text)
+	return rows, UIs.answerNote
+end
+
 --- An entry by its id, or nil.
 function Q.ById(id)
 	for _, a in ipairs(Scan.ANSWERS) do if a.id == id then return a end end
@@ -331,14 +332,28 @@ end
 --- The question's line with the filters and sorts typed after it (`tail`, words): before its first step ("| group by
 --- zone": the search's, the steps sum up what it found) or its ">>"/">>>" part, where the search reads them (0.63.7,
 --- review: "untrack quests is:red" was written "@quest >>> untrack is:red", which untracked them all).
+--- In the order Alt+` prints a search (its filters, then its sort), so Alt+` of it is the same line: the filters typed
+--- go before the line's sort, a sort typed takes the line's place ("my auctions sort:value": by value, not the list's
+--- order).
 local function WithTail(line, tail)
 	local body = (tostring(line):gsub("%s+$", ""))
 	if not tail or #tail == 0 then return body .. " " end
-	local tailText = table.concat(tail, " ")
 	local step, send = body:find("%s|%s"), body:find("%s>>")
 	local at = (step and send) and math.min(step, send) or step or send
-	if at then return body:sub(1, at - 1) .. " " .. tailText .. " " .. body:sub(at + 1) .. " " end
-	return body .. " " .. tailText .. " "
+	local head, rest = body, ""
+	if at then head, rest = body:sub(1, at - 1), " " .. body:sub(at + 1) end
+	local F = ns.Filters
+	local filters, sort = {}, nil
+	for _, w in ipairs(tail) do
+		if F and F.SortOf and F.SortOf(w) then sort = w else filters[#filters + 1] = w end
+	end
+	local words, lineSort = {}, nil
+	for w in head:gmatch("%S+") do
+		if not lineSort and F and F.SortOf and F.SortOf(w) then lineSort = w else words[#words + 1] = w end
+	end
+	for _, w in ipairs(filters) do words[#words + 1] = w end
+	if sort or lineSort then words[#words + 1] = sort or lineSort end
+	return table.concat(words, " ") .. rest .. " "
 end
 Scan.WithTail = WithTail
 
@@ -347,8 +362,8 @@ function ns.QuestionToAdvancedOf(text)
 	local line, tail = Scan.ReadQuestion(text, function(t)
 		local c = Q.Ranked(t)[1]
 		if not c then return nil end
-		local out
-		if c.a.line then out = c.a.line(c.q, c.extra) else out = c.a.toAdvanced(c.q, c.extra) end
+		local out = c.a.line and c.a.line(c.q, c.extra) or nil
+		if out == nil and c.a.toAdvanced then out = c.a.toAdvanced(c.q, c.extra) end
 		if out == nil then out = (t:gsub("^%s+", ""):gsub("%s+$", "")) .. " " end
 		return out, c.a
 	end)
@@ -431,9 +446,24 @@ function Scan.SearchLine(self, line, got)
 	Q.lineDepth = Q.lineDepth + 1
 	local rows = self:SearchText(query)
 	Q.lineDepth = Q.lineDepth - 1
+	-- (what the bar shows as typed is the prompt's: the line's own filters weren't typed, and taking one off the bar would
+	-- cut the prompt where the line had it; a question's words typed after it are its own, as before)
+	self.typedPicks = nil
 	local a = got.entry
-	if a.empty and not Scan.AnyReal(rows) then rows = a.empty(got.q) or rows end
-	if a.note then self.answerNote = a.note(got.q, rows) end
+	local real = {}
+	local Real = ns.Bar and ns.Bar.Real
+	for _, e in ipairs(rows) do if not Real or Real(e) then real[#real + 1] = e end end
+	if #real == 0 and a.empty then rows = a.empty(got.q) or rows end
+	local note = a.note and a.note(got.q, real)
+	if note ~= nil then self.answerNote = note end
+	-- (a row on top doing it to them all, "Drop all 5": made from the rows found; not a result, the same either way)
+	local lead = #real > 0 and a.lead and a.lead(got.q, real)
+	if lead and #lead > 0 then
+		local out = {}
+		for _, e in ipairs(lead) do out[#out + 1] = e end
+		for _, e in ipairs(rows) do out[#out + 1] = e end
+		rows = out
+	end
 	return rows
 end
 

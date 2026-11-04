@@ -290,40 +290,25 @@ function AU.Question(text)
 	return { words = rest, sold = cues.sold, up = cues.up and not cues.sold or nil, undercut = cues.undercut }
 end
 
-function AU.Answer(q)
-	q = q or {}
-	local p = ns.providers.auctions
-	local all = p and ns:GetEntries(p) or {}
-	local rows = {}
-	-- (the filters Alt+` writes, is:sold and is:listed: one test for both ways of asking; Filters/Others.lua)
-	local F = ns.Filters
-	local sold, listed, undercut = F.Parse("is:sold"), F.Parse("is:listed"), q.undercut and F.Parse("is:undercut")
-	for _, e in ipairs(all) do
-		local ok = true
-		if q.sold and not sold(e) then ok = false end
-		if q.up and not listed(e) then ok = false end
-		if undercut and not undercut(e) then ok = false end
-		local hay = ok and (Lower(e.name) .. " " .. (e._ltext or Lower(e.text or ""))) or ""
-		for _, w in ipairs(q.words or {}) do if ok and not hay:find(w, 1, true) then ok = false end end
-		if ok then rows[#rows + 1] = e end
-	end
-	ns.ScoreInOrder(rows)
-	if #rows == 0 then
-		if #all == 0 then return { NoteRow(AU.NONE) }, AU.NOTE end
-		if q.undercut then return { NoteRow(L["None of your auctions is undercut, as Auctionator last saw the auction house"]) }, AU.NOTE end
-		return { NoteRow(L["No auction has that"]) }, AU.NOTE
-	end
-	local up = 0
-	for _, e in ipairs(rows) do if e.ahKind == "up" then up = up + 1 end end
-	return rows, AU.NOTE .. ns.DETAIL_SEP .. L["%d up now"]:format(up)
-end
-
---- The question as Advanced syntax (Alt+`): "@auction is:sold linen".
-function AU.ToAdvanced(q)
+--- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@auction is:sold linen sort:list".
+function AU.Line(q)
 	local parts = { "@auction" }
 	if q.sold then parts[#parts + 1] = "is:sold" end
 	if q.up then parts[#parts + 1] = "is:listed" end
 	if q.undercut then parts[#parts + 1] = "is:undercut" end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:list"
 	return table.concat(parts, " ") .. " "
+end
+function AU.Footer(_, rows)
+	if #rows == 0 then return AU.NOTE end
+	local up = 0
+	for _, e in ipairs(rows) do if e.ahKind == "up" then up = up + 1 end end
+	return AU.NOTE .. ns.DETAIL_SEP .. L["%d up now"]:format(up)
+end
+function AU.None(q)
+	local p = ns.providers.auctions
+	if #(p and ns:GetEntries(p) or {}) == 0 then return { NoteRow(AU.NONE) } end
+	if q.undercut then return { NoteRow(L["None of your auctions is undercut, as Auctionator last saw the auction house"]) } end
+	return { NoteRow(L["No auction has that"]) }
 end

@@ -424,11 +424,27 @@ function PL.Answer(q)
 	return out, note
 end
 
---- The question as Advanced syntax (Alt+`): "@recipe blacksmithing sort:plan".
-function PL.ToAdvanced(q)
+--- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@recipe prof:blacksmithing
+--- sort:plan" (the search's sort:plan says the skill in the footer); its professions by prof:, the recipe's own.
+function PL.Line(q)
 	local parts = { "@recipe" }
-	for _, n in ipairs(q.profs or {}) do parts[#parts + 1] = Lower(n) end
+	local profs = {}
+	for _, n in ipairs(q.profs or {}) do profs[#profs + 1] = (Lower(n):gsub(" ", "_")) end
+	if #profs > 0 then parts[#parts + 1] = "prof:" .. table.concat(profs, "|") end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
 	parts[#parts + 1] = "sort:plan"
 	return table.concat(parts, " ") .. " "
+end
+--- Nothing listed: the recipes aren't read yet, or the words left every one out, or none gives skill now.
+function PL.None(q)
+	local p = ns.providers.recipes
+	local want = {}
+	for _, n in ipairs(q.profs or {}) do want[Lower(n)] = true end
+	local any = false
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
+		if e.recipeID ~= nil and (not next(want) or (e.profName and want[Lower(e.profName)])) then any = true break end
+	end
+	if not any then return { ns.NoteRow(PL.NONE) } end
+	if q.words and #q.words > 0 then return { ns.NoteRow(PL.NO_MATCH) } end
+	return { ns.NoteRow(L["None of these recipes gives skill now: train new ones"]) }
 end

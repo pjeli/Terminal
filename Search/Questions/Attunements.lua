@@ -377,7 +377,35 @@ function Q.Answer(q)
 	return rows, note .. ns.DETAIL_SEP .. L["%d of %d done"]:format(done, #rows)
 end
 
---- The question as Advanced syntax (Alt+`): "@attune is:raid mc", "molten core > steps".
+--- The list asked for, as Advanced syntax: its answer and its Alt+` (docs/QUESTIONS.md 4.1), in Attune's order; nil for
+--- steps (a chain) and for words (they name attunements, else their steps' text: Q.Answer's).
+function Q.Line(q)
+	if q.steps or (q.words and #q.words > 0) then return nil end
+	local parts = { "@attune" }
+	if q.group then parts[#parts + 1] = "is:" .. q.group end
+	if q.state then parts[#parts + 1] = "is:" .. q.state end
+	if q.class then parts[#parts + 1] = "class:" .. Lower(q.class) end
+	parts[#parts + 1] = "sort:list"
+	return table.concat(parts, " ") .. " "
+end
+function Q.Footer(q, rows)
+	local note = Q.NOTE[q.group or "misc"]
+	if #rows == 0 then return note end
+	local done = 0
+	for _, e in ipairs(rows) do
+		local rec = AT.RecOf(e)
+		local pct = rec and AT.Mine(rec)
+		if pct and pct >= 100 then done = done + 1 end
+	end
+	return note .. ns.DETAIL_SEP .. L["%d of %d done"]:format(done, #rows)
+end
+function Q.None(q)
+	return { NoteRow((q.class and q.class ~= select(2, ns.Safe(UnitClass, "player")))
+		and L["No class quests for that class: Attune lists your class's (its options can list every class's)"]
+		or L["No attunement has that"]) }
+end
+
+--- The question as Advanced syntax (Alt+`) where its answer is its own: "molten core > steps", or as said (words).
 function Q.ToAdvanced(q)
 	if q.steps then return q.steps .. " > steps " end
 	-- (words: the answer takes the attunements they name, their steps' text only when none; a search's words take both,

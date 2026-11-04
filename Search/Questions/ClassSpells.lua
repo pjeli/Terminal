@@ -151,6 +151,22 @@ function Q.Answer(q)
 	return ns.ScoreInOrder(rows), note
 end
 
+--- Your spellbook ("my spells") and another class's spells ("druid spells", by level then name) as Advanced syntax:
+--- their answer and their Alt+` (docs/QUESTIONS.md 4.1); nil for the rest (Q.Answer's own).
+function Q.Line(q)
+	if q.known then return "@spell is:known sort:name " end
+	if q.class and not q.level and q.class ~= CS.MyClass() and not q.upcoming and #(q.words or {}) == 0 then
+		return "@spell class:" .. Lower(q.class) .. " sort:level,name "
+	end
+	return nil
+end
+function Q.Footer(q)
+	if q.known then return L["Your spellbook"] end
+	local rows = CS.Rows(q.class, false, true)
+	return L["%s spells"]:format(ns.Plain(rows[1] and rows[1].classShown or q.class))
+end
+function Q.None() return { ns.NoteRow(L["No spell that fits"]) } end
+
 function Q.ToAdvanced(q)
 	if q.known then return "@spell is:known " end
 	-- (as said, 0.55.7: the next level you learn something new at, which lvl:N+ didn't say, nor "when do i learn":

@@ -435,15 +435,11 @@ function TI.Question(text)
 	return {}
 end
 
-function TI.Answer()
-	local rows = {}
-	for _, e in ipairs(Entries("quests", true)) do if e.complete then rows[#rows + 1] = e end end
-	ns.ScoreInOrder(rows)
-	if #rows == 0 then return { ns.NoteRow(L["No quest in your log is ready to turn in"]) }, L["Ready to turn in"] end
-	return rows, L["Ready to turn in"]
-end
-
-function TI.ToAdvanced() return "@questlog is:complete " end
+-- (a search question, docs/QUESTIONS.md 4.1: its line is its answer and its Alt+`; Footer the footer, None the rows when
+-- nothing is found)
+function TI.Line() return "@questlog is:complete sort:list " end
+function TI.Footer() return L["Ready to turn in"] end
+function TI.None() return { ns.NoteRow(L["No quest in your log is ready to turn in"]) } end
 
 ----------------------------------------------------------------------
 -- "quests here", "quests in this zone": Questie's quests at your level in the zone you're in, not done yet
@@ -564,9 +560,16 @@ function CC.Answer(q)
 	return rows, L["You can craft"]
 end
 
-function CC.ToAdvanced(q)
-	return "@recipe is:craftable " .. ((#q.profs > 0) and (table.concat(q.profs, " ") .. " ") or "")
+--- As Advanced syntax: its answer and its Alt+` (docs/QUESTIONS.md 4.1); its professions by prof:, the recipe's own
+--- (Smelting's recipes are Mining's: the word "mining" missed them, 1.0.78).
+function CC.Line(q)
+	local parts = { "@recipe", "is:craftable" }
+	if #q.profs > 0 then parts[#parts + 1] = "prof:" .. table.concat(q.profs, "|"):gsub(" ", "_") end
+	parts[#parts + 1] = "sort:name"
+	return table.concat(parts, " ") .. " "
 end
+function CC.Footer() return L["You can craft"] end
+function CC.None() return { ns.NoteRow(L["Nothing to craft from what's in your bags"]) } end
 
 ----------------------------------------------------------------------
 -- "quests per zone", "my quests by zone", "items by quality": a list grouped by a field, as Advanced mode writes it

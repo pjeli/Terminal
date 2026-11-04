@@ -501,11 +501,11 @@ do
 	end
 	check(AT.Q.Question("dungeon quests") and AT.Q.Question("dungeon quests").group == "dungeon", "dungeon quests: Attune's")
 	-- Alt+`: the same as Advanced syntax
-	check(ns.Easy.ToAdvanced("raid attunements") == "@attune is:raid ", "Alt+`: " .. ns.Easy.ToAdvanced("raid attunements"))
+	check(ns.Easy.ToAdvanced("raid attunements") == "@attune is:raid sort:list ", "Alt+`: " .. ns.Easy.ToAdvanced("raid attunements"))
 	-- (0.63.7, review) an attunement named: kept as said (a search's words would take others whose steps say them)
 	check(ns.Easy.ToAdvanced("molten core attunement") == "molten core attunement ", "Alt+` of one named: " .. ns.Easy.ToAdvanced("molten core attunement"))
 	check(ns.Easy.ToAdvanced("how do i get into mc") == "Molten Core > steps ", "Alt+` of the steps: " .. ns.Easy.ToAdvanced("how do i get into mc"))
-	check(ns.Easy.ToAdvanced("warrior class quests i need") == "@attune is:class is:todo class:warrior ",
+	check(ns.Easy.ToAdvanced("warrior class quests i need") == "@attune is:class is:todo class:warrior sort:list ",
 		"Alt+`: " .. ns.Easy.ToAdvanced("warrior class quests i need"))
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = false

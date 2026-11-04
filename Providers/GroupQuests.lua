@@ -455,31 +455,31 @@ end
 
 PQ.NOTES = { all = L["Party quests"], together = L["On the same quests as your party"], share = L["Quests you can share"] }
 
---- The rows a question asks for, and the footer's note.
-function PQ.Answer(q)
-	q = q or { mode = "all" }
+--- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@group quests is:shareable
+--- hogger sort:list".
+function PQ.Line(q)
+	local parts = { PQ.REACH }
+	if q.mode == "share" then parts[#parts + 1] = "is:shareable" elseif q.mode == "together" then parts[#parts + 1] = "is:together" end
+	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:list"
+	return table.concat(parts, " ") .. " "
+end
+function PQ.Footer(q, rows)
 	local p = ns.providers.groupquests
 	local all = p and ns:GetEntries(p) or {}
-	if PQ.solo then return { NoteRow(PQ.NONE) }, PQ.NOTES[q.mode] or PQ.NOTES.all end
-	local rows = {}
-	for _, e in ipairs(all) do if Wanted(e, q) then rows[#rows + 1] = e end end
-	ns.ScoreInOrder(rows)
 	local note = (PQ.NOTES[q.mode] or PQ.NOTES.all) .. ns.DETAIL_SEP .. L["%d of %d"]:format(#rows, #all)
 	if #rows == 0 then
 		if q.mode == "share" then note = L["Nobody in your party lacks a quest you can share"]
 		elseif q.mode == "together" then note = L["Nobody in your party is on your quests"] end
 	end
+	if PQ.solo then note = PQ.NOTES[q.mode] or PQ.NOTES.all end
 	if (PQ.offline or 0) > 0 then note = note .. ns.DETAIL_SEP .. L["%d offline, not asked"]:format(PQ.offline) end
 	if (PQ.unknownRows or 0) > 0 then note = note .. ns.DETAIL_SEP .. PQ.UNKNOWN_NOTE end
-	return rows, note
+	return note
 end
-
---- The question as Advanced syntax (Alt+`): "@group quests is:shareable hogger".
-function PQ.ToAdvanced(q)
-	local parts = { PQ.REACH }
-	if q.mode == "share" then parts[#parts + 1] = "is:shareable" elseif q.mode == "together" then parts[#parts + 1] = "is:together" end
-	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
-	return table.concat(parts, " ") .. " "
+function PQ.None()
+	if PQ.solo then return { NoteRow(PQ.NONE) } end
+	return {}
 end
 
 ----------------------------------------------------------------------

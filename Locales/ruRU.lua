@@ -3349,4 +3349,9 @@ L["-A N the N lines after each match, -B N before, -C N both (-- between groups)
 L["List order"] = "Порядок списка"
 L["in their list's order"] = "в порядке их списка"
 L["the rows in their list's own order (your quest log's, the spellbook's, the newest first...), not your picks first; a sorted list with no words is listed whole"] = "строки в собственном порядке их списка (как в журнале заданий, в книге заклинаний, сначала новые...), а не сначала ваш выбор; отсортированный список без слов показывается целиком"
+L["Grey first"] = "Сначала серые"
+L["grey ones first, then by level"] = "сначала серые, затем по уровню"
+L["of %s"] = "%s"
+L["@recipe: the recipes of that profession, the recipe's own (Smelting's are Mining's; _ for a space, prof:first_aid)"] = "@recipe: рецепты этой профессии, собственной профессии рецепта (рецепты выплавки относятся к горному делу; _ вместо пробела, prof:first_aid)"
+L["your quest log: the grey quests first, then by level (as \"quests to drop\" lists them)"] = "журнал заданий: сначала серые задания, затем по уровню (как их показывает \"quests to drop\")"
 --@end-do-not-package@

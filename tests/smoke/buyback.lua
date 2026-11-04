@@ -54,7 +54,7 @@ do
 	ns.db.easyMode = false; UI:EasyChanged()
 	UI.lastScan = nil
 	check(Names(UI:Search("@buyback linen")) == "Linen Cloth", "@buyback linen")
-	check(ns.QuestionToAdvanced("buyback") == "@buyback ", "Alt+`: @buyback")
+	check(ns.QuestionToAdvanced("buyback") == "@buyback sort:list ", "Alt+`: @buyback")
 
 	-- at a vendor again: Enter buys it back, and the list follows the game's
 	Show()

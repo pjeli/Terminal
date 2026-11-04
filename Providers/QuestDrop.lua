@@ -129,36 +129,46 @@ QD.NOTE = L["Quests to drop: grey, or in a zone you've left behind"]
 QD.NOTE_GREY = L["Grey quests"]
 QD.NOTE_BEHIND = L["Quests in zones you've left behind"]
 
---- The answer: the quests to drop (or only the grey ones, or only those in zones left behind), narrowed by the
---- question's other words, grey first and then by level; "Drop all N" on top when there are two or more. The note.
-function QD.Answer(q)
-	q = q or {}
+--- The quests to drop (or only the grey ones, or only those in zones left behind), narrowed by the question's other
+--- words, grey first and then by level (sort:grey), as Advanced syntax: its answer and its Alt+` (docs/QUESTIONS.md
+--- 4.1); "Drop all N" on top when there are two or more (QD.Lead); the footer says how many complete ones were left out.
+function QD.Line(q)
+	local which = (q.grey and "is:grey -is:complete") or (q.behind and "is:leftbehind -is:complete") or "is:drop"
+	local parts = { "@quest", which }
+	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:grey"
+	return table.concat(parts, " ") .. " "
+end
+--- The complete ones the question's words name that it leaves out (turn them in).
+local function Kept(q)
 	local p = ns.providers.quests
-	local rows, kept = {}, 0
+	local kept = 0
 	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
 		local which = (q.grey and e.grey) or (q.behind and e.behind) or (not q.grey and not q.behind and (e.grey or e.behind))
-		if which and Matches(e, q.words) then
-			if e.complete then kept = kept + 1 else rows[#rows + 1] = e end
-		end
+		if which and e.complete and Matches(e, q.words) then kept = kept + 1 end
 	end
-	table.sort(rows, Order)
-	ns.ScoreInOrder(rows)
-	local note = (q.grey and QD.NOTE_GREY) or (q.behind and QD.NOTE_BEHIND) or QD.NOTE
+	return kept
+end
+function QD.Footer(q, rows)
+	local kept = Kept(q)
 	if #rows == 0 then
-		note = (kept > 0 and L["Nothing to drop: the only ones are complete, turn them in"])
+		return (kept > 0 and L["Nothing to drop: the only ones are complete, turn them in"])
 			or ((q.words and #q.words > 0) and L["None of those quests is one to drop"])
 			or (q.grey and L["No grey quests in your log"]) or (q.behind and L["No quests in zones you've left behind"])
 			or L["Nothing to drop: no grey quests, none in zones you've left behind"]
-	else
-		if kept > 0 then note = note .. ns.DETAIL_SEP .. (kept == 1 and L["%d complete left out: turn it in"] or L["%d complete left out: turn them in"]):format(kept) end
-		if #rows >= 2 then
-			local top = DropAllRow(rows)
-			top._score = 2e6
-			table.insert(rows, 1, top)
-		end
 	end
-	return rows, note
+	local note = (q.grey and QD.NOTE_GREY) or (q.behind and QD.NOTE_BEHIND) or QD.NOTE
+	if kept > 0 then note = note .. ns.DETAIL_SEP .. (kept == 1 and L["%d complete left out: turn it in"] or L["%d complete left out: turn them in"]):format(kept) end
+	return note
 end
+function QD.None() return {} end
+function QD.Lead(_, rows)
+	if #rows < 2 then return nil end
+	local top = DropAllRow(rows)
+	top._score = 2e6
+	return { top }
+end
+
 
 ----------------------------------------------------------------------
 -- Dropping several: Terminal's confirmation, then the game drops each

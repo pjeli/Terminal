@@ -93,6 +93,8 @@ B.SORTS = {
 	-- (the rows in their lists' own order, never your picks first: a search question's line; docs/QUESTIONS.md, 1.0.77.
 	-- No Aggregate field: not on the bar's Sort, which offers the fields rows have)
 	{ id = "list", label = L["List order"], field = "list", asc = true },
+	-- (your quest log's grey quests first, then by level, then by name: "quests to drop"; 1.0.78)
+	{ id = "grey", label = L["Grey first"], field = "grey", asc = true, tie = "level" },
 }
 B.DISTANCE_FIELD = { id = "distance", field = "distance", asc = true } -- (a later part of a sort: SortSpec)
 -- what Group offers: Aggregate's fields that name something

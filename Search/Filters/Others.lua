@@ -519,7 +519,7 @@ IS.healer = GroupIs(function(e) return e.role == "HEALER" end)
 IS.dps = GroupIs(function(e) return e.role == "DAMAGER" end)
 IS.far = GroupIs(function(e) return e.inRange == false end)
 IS.inrange = GroupIs(function(e) return e.inRange == true end)
-IS.unbuffed = GroupIs(function(e) return e.missing ~= nil and #e.missing > 0 end)
+IS.unbuffed = GroupIs(function(e) return not e.dead and e.online ~= false and e.missing ~= nil and #e.missing > 0 end)
 IS.outofrange, IS.near, IS.damage, IS.damager, IS.healers, IS.tanks = IS.far, IS.inrange, IS.dps, IS.dps, IS.healer, IS.tank
 -- missing:<buff>: group members lacking it (fortitude, int, mark, spirit, shadow, blessing, or any buff's name)
 -- quests with your party (GroupQuests.lua): someone in your party lacks it and the game lets you share it; someone in
@@ -548,7 +548,29 @@ IS.key = AttuneIs("key")
 IS.class = function(e) return (e.kind == "quests" and e.classQuest == true) or AttuneClass(e) end
 -- (your gear's wear: Durability.lua)
 IS.broken = function(e) return e.kind == "durability" and e.duraKind ~= "total" and e.duraCur == 0 end
-IS.damaged = function(e) return e.kind == "durability" and e.duraKind ~= "total" and (e.duraCur or 0) < (e.duraMax or 0) end
+-- prof:<profession>: recipes (and recipes to learn) of that profession, the recipe's own: Smelting's are Mining's, as
+-- your profession list names it ("_" for a space: prof:first_aid). "what can i craft mining", "blacksmithing plan"
+-- (1.0.78: the profession was a word searched, which the window's name Smelting didn't have)
+KEYS.prof = function(v)
+	v = Lower((v or ""):gsub("_", " "))
+	if v == "" then return nil end
+	return function(e)
+		local n = rawget(e, "profName") or e.profName
+		return n ~= nil and Lower(tostring(n)) == v
+	end
+end
+KEYS.profession = KEYS.prof
+-- ("what needs repair": the pieces worn, and the "Repair all" row while anything is; 1.0.78, the question kept it)
+IS.damaged = function(e)
+	if e.kind ~= "durability" then return false end
+	if e.duraKind == "total" then
+		-- (both its values: "D and D.Total()" would keep only the first)
+		local D, n = ns.Durability, nil
+		if D and D.Total then n = select(2, D.Total()) end
+		return (n or 0) > 0
+	end
+	return (e.duraCur or 0) < (e.duraMax or 0)
+end
 -- dura:<50: durability in percent (@durability)
 KEYS.dura = function(v)
 	local r = Range((v:gsub("%%", "")))
@@ -672,7 +694,7 @@ F.VALUES = {
 	-- (no "warband": WoW Forever has no warband bank; 0.50.5, the player)
 	["in"] = { "bags", "bank", "mail", "guild", "equipped" },
 	faction = { "horde", "alliance", "neutral", "friendly" },
-	sort = { "distance", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner", "standing", "progress", "list" },
+	sort = { "distance", "plan", "best", "name", "level", "ilvl", "quality", "value", "count", "damage", "line", "owner", "standing", "progress", "list", "grey" },
 	fish = { "mine", "75", "150", "225", "300" },
 	cast = { "instant", "channeled", "<2", ">=3" }, cost = { "0", "mana", "rage", "energy", "<100" },
 	range = { "melee", "self", "30", ">=30" }, cd = { "0", "<10", ">60" },
@@ -746,6 +768,7 @@ F.APPLIES = {
 	sort = { distance = SPOTS, plan = RECIPES, best = UPGRADES, ilvl = MADE, quality = MADE, value = MADE, count = MADE,
 		name = { "items", "spells", "classspells", "talents", "quests", "recipes" }, level = { "quests", "classspells", "recipes" },
 		damage = { "combatlog" }, line = { "attune" }, owner = { "shared" }, standing = { "reputation" }, progress = { "achievements", "quests" },
+		grey = { "quests" }, -- (1.0.78)
 		-- (sort:list: the lists that keep an order of their own; 1.0.77)
 		list = { "quests", "spells", "history", "buyback", "lootlog", "combatlog", "lockouts", "auctions", "calendar", "groupquests",
 			"attune", "training", "durability", "mail", "group", "book", "transport", "items", "bank", "stored" } },
@@ -760,6 +783,7 @@ F.APPLIES = {
 	reward = { ["*"] = { "questie", "quests" } }, rewards = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)
 	repreward = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua, 1.0.63)
 	skill = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua, 1.0.64)
+	prof = { ["*"] = { "recipes", "missing" } }, profession = { ["*"] = { "recipes", "missing" } }, -- (1.0.78)
 	since = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
 	older = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
 	before = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
@@ -839,6 +863,8 @@ F.HELP = {
 	{ "sort:-level", L["a - turns a sort round: sort:-level the highest first, sort:-name Z to A, sort:-quality the worst first (not sort:best or plan); Simple mode's Sort turns round when picked again, its arrow saying which way"] },
 	{ "sort:quality,-level", L["several fields: by the first, then on a tie by the next (sort:quality,-level: the best first, the highest level first among equals); Simple mode's Sort takes a then by with Shift"] },
 	{ "sort:line", L["an attunement's steps (> steps) line by line, as Attune's tree reads; else by their numbers: 1, 2a, 2b, 3a..."] },
+	{ "prof:mining", L["@recipe: the recipes of that profession, the recipe's own (Smelting's are Mining's; _ for a space, prof:first_aid)"] },
+	{ "sort:grey", L["your quest log: the grey quests first, then by level (as \"quests to drop\" lists them)"] },
 	{ "sort:list", L["the rows in their list's own order (your quest log's, the spellbook's, the newest first...), not your picks first; a sorted list with no words is listed whole"] },
 	{ "sort:distance", L["NPCs, mailboxes, forges, anvils, cooking fires, moonwells, dungeon and raid entrances and flight paths closest to you first, with how far (the other rows stay, after them); sort:-distance the farthest first, those with no distance known before them, as if infinitely far (sort:nearest and sort:farthest say the same)"] },
 	{ "sort:best", L["with is:upgrade: the biggest upgrades first, by how much each beats what you wear (Simple mode's upgrades sorts so on its own)"] },

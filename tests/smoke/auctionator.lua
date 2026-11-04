@@ -373,8 +373,8 @@ do
 		"@auction is:undercut: " .. Names(UI:Search("@auction is:undercut")))
 	local AU = ns.Auctions
 	check(AU.Question("am i undercut") and AU.Question("undercut auctions") and AU.Question("my undercut auctions"), "\"am i undercut\"")
-	check(ns.QuestionToAdvanced("am i undercut") == "@auction is:undercut ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("am i undercut")))
-	local rows = AU.Answer(AU.Question("am i undercut"))
+	check(ns.QuestionToAdvanced("am i undercut") == "@auction is:undercut sort:list ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("am i undercut")))
+	local rows = ns.Questions.Answer("am i undercut")
 	check(#rows == 2, "its answer: the two undercut")
 	-- (review) your own cheaper auction is the AH's price: the dearer one isn't undercut by you
 	posted["Player-1"][4] = { name = "Wool Cloth", link = Link(2592), count = 5, price = 600, each = 120, ends = ns.Now() + 3600, t = ns.Now() }

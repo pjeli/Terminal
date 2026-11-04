@@ -28,6 +28,7 @@ local ROWS = {
 local saveStored, saveSource = P.stored, S.Source
 ns:RegisterProvider("stored", { label = "Alts & bank", aliases = { "stored", "alts" }, explicit = true, collect = function()
 	local out = {}
+	if not S.Source() then return out end -- (as the real one: no bag addon keeping them, no records)
 	for i, r in ipairs(ROWS) do
 		local hs, total = {}, 0
 		for _, h in ipairs(r.holders) do hs[h.key] = h; total = total + h.count end
@@ -50,7 +51,7 @@ for _, s in ipairs({ "what is in my bank", "What's in my bank?", "my bank", "ban
 	check(Q.Question(s) ~= nil, "asked: " .. s)
 end
 check(Q.Question("bank") == nil and Q.Question("nearest bank") == nil and Q.Question("my bank linen") == nil, "\"bank\" is still the banker")
-check(ns.QuestionToAdvanced("what is in my bank") == "@bank ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("what is in my bank")))
+check(ns.QuestionToAdvanced("what is in my bank") == "@bank sort:name ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("what is in my bank")))
 local easy = ns.db.easyMode
 for _, simple in ipairs({ true, false }) do
 	ns.db.easyMode = simple; UI:EasyChanged()
@@ -64,7 +65,9 @@ for _, simple in ipairs({ true, false }) do
 end
 -- no bag addon keeping it: said so
 S.Source = function() return nil end
-local rows = Q.Answer()
+P.stored._dirty, P.bank._dirty = true, true
+UI.lastScan, UI.lastExtra = nil, nil
+local rows = ns.Questions.Answer("what is in my bank")
 check(#rows == 1 and rows[1].name:find("Syndicator", 1, true), "no bag addon: says which keep it")
 S.Source = saveSource
 ns.db.easyMode = easy; UI:EasyChanged()

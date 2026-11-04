@@ -107,13 +107,13 @@ do
 	check(not Q("locked chest") and not Q("reset") and not Q("saved") and not Q("dungeon") and not Q("raid")
 		and not Q("@lockout") and not Q(".nav reset") and not Q("saved potion recipes"), "searches stay searches")
 	check(Q("raid lockouts").raid and not Q("raid lockouts").dungeon and Q("heroic lockouts").dungeon, "raid / dungeon asked")
-	local rows, note = LK.Answer(Q("raid lockouts"))
+	local rows, note = ns.Questions.Answer("raid lockouts")
 	check(#rows == 2 and note:find(ns.L["Raid lockouts"], 1, true) and note:find("1 yours, 1 on alts", 1, true), "raid lockouts: " .. tostring(note))
-	rows = LK.Answer(Q("when does mc reset"))
+	rows = ns.Questions.Answer("when does mc reset")
 	check(#rows == 1 and rows[1].name == "Molten Core", "a shorthand narrows it (mc = Molten Core)")
-	rows = LK.Answer(Q("lockouts naxxramas"))
+	rows = ns.Questions.Answer("lockouts naxxramas")
 	check(#rows == 1 and rows[1].noActivate, "nothing has that: a line")
-	check(E.ToAdvanced("raid lockouts") == "@lockout is:raid " and E.ToAdvanced("when does mc reset") == "@lockout mc ",
+	check(E.ToAdvanced("raid lockouts") == "@lockout is:raid sort:list " and E.ToAdvanced("when does mc reset") == "@lockout mc sort:list ",
 		"Alt+`: " .. E.ToAdvanced("raid lockouts"))
 	ns.db.easyMode = true
 	res = UI:Search("my lockouts")

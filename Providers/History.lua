@@ -103,15 +103,11 @@ function H.Question(text)
 	return ASK[t] and {} or nil
 end
 
-function H.Answer()
-	local p = ns.providers.history
-	local rows = p and ns:GetEntries(p) or {}
-	local list = {}
-	for i, e in ipairs(rows) do list[i] = e end
-	table.sort(list, function(a, b) return a.histPos < b.histPos end)
-	ns.ScoreInOrder(list)
-	if #list == 0 then return {}, L["Nothing in the history yet: what you run from the prompt is kept here"] end
-	return list, L["What you ran, newest first"] .. ns.DETAIL_SEP .. L["Enter searches it again"] .. ns.DETAIL_SEP .. L["Ctrl+R searches the history"]
+-- (a search question, docs/QUESTIONS.md 4.1: its line is its answer and its Alt+`; Footer the footer, None the rows when
+-- nothing is found)
+function H.Line() return "@history sort:list " end
+function H.Footer(_, rows)
+	if #rows == 0 then return L["Nothing in the history yet: what you run from the prompt is kept here"] end
+	return L["What you ran, newest first"] .. ns.DETAIL_SEP .. L["Enter searches it again"] .. ns.DETAIL_SEP .. L["Ctrl+R searches the history"]
 end
-
-function H.ToAdvanced() return "@history" end
+function H.None() return {} end

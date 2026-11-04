@@ -161,7 +161,7 @@ do
 		-- "auctions sold", @auction is:sold: the sales
 		local F = ns.Filters
 		check(F.Parse("is:sold")(zed), "is:sold: a sale kept")
-		local ans = ns.Auctions.Answer(ns.Auctions.Question("auctions sold"))
+		local ans = ns.Questions.Answer("auctions sold")
 		local nSold = 0
 		for _, e in ipairs(ans) do if e.ahKind == "sold" then nSold = nSold + 1 end end
 		check(nSold == 4, "\"auctions sold\": the sales: " .. nSold)

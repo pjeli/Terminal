@@ -1528,10 +1528,10 @@ function MA.Answer(q)
 	return rows, note
 end
 
---- The question as Advanced syntax (Alt+`): "@mail is:expiring bob".
-function MA.ToAdvanced(q)
-	-- (as said, 0.55.7: "my mail" lists the auction house's news and every mailbox too, and gold or auction mail the
-	-- news's sales: no one list has them. Search.lua's ns.QuestionToAdvanced)
+--- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@mail is:expiring bob sort:list";
+--- nil, its own answer, for "my mail" (the auction house's news and every mailbox too), gold and auction mail (the news's
+--- sales too): no one list has them (0.55.7).
+function MA.Line(q)
 	if not Filtered(q) or q.money or q.auction then return nil end
 	local parts = { q.incoming and "@auction" or "@mail" } -- (the auction house's news is @auction's)
 	if q.soon then parts[#parts + 1] = "is:expiring" end
@@ -1543,8 +1543,34 @@ function MA.ToAdvanced(q)
 	if q.sent then parts[#parts + 1] = "is:sent" end
 	if q.incoming then parts[#parts + 1] = "is:incoming" end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:list"
 	return table.concat(parts, " ") .. " "
 end
+--- A filtered question's footer: what it lists, how many, the gold in them; else why there's none.
+function MA.Footer(q, rows)
+	local money, mails = 0, 0
+	for _, e in ipairs(rows) do
+		mails = mails + 1
+		money = money + ((e.mail and e.mail.money) or e.money or 0)
+	end
+	-- (no mailbox known at all: said so, as the answer did)
+	local boxes = 0
+	for _, e in ipairs(MailAndNews()) do
+		if e.mailKind == "box" or e.mailKind == "sent" or e.mailKind == "auction" then boxes = boxes + 1 break end
+	end
+	if boxes == 0 then return MA.NONE end
+	if mails == 0 then
+		return (q.sent and L["Nothing sent in the last hour"]) or (q.incoming and L["No auction house news in the last hour"])
+			or (q.soon and L["Nothing in your mail runs out within 3 days"]) or (q.cod and L["No COD mail"])
+			or (q.unread and L["No unread mail"]) or (q.returned and L["No mail sent back to you"])
+			or ((q.words and #q.words > 0) and L["No mail has that"]) or L["No mail"]
+	end
+	local note = (q.sent and MA.NOTE_SENT) or (q.incoming and MA.NOTE_INCOMING) or (q.soon and MA.NOTE_SOON) or MA.NOTE
+	return note .. ("  ·  %s"):format(Plural(mails, L["mail"], L["mails"])) .. (money > 0 and (", " .. Money(money, true)) or "")
+end
+function MA.None() return {} end
+--- Its own answer's Alt+`: as said (nil).
+function MA.ToAdvanced() return nil end
 
 ----------------------------------------------------------------------
 -- The login warning: mail with something in it that runs out soon

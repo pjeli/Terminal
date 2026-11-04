@@ -179,12 +179,12 @@ function BQ.Question(text)
 	return nil
 end
 
-function BQ.Answer()
-	local rows = BB.Rows()
+-- (a search question, docs/QUESTIONS.md 4.1: its line is its answer and its Alt+`; Footer the footer, None the rows when
+-- nothing is found)
+function BQ.Line() return "@buyback sort:list " end
+function BQ.Footer(_, rows)
 	local note = L["Sold since you logged in"]
-	if #rows == 0 then return { ns.NoteRow(L["Nothing sold since you logged in"]) }, note end
-	ns.ScoreInOrder(rows)
-	return rows, note .. ns.DETAIL_SEP .. (atVendor and L["Enter buys one back"] or L["at any vendor, Enter buys one back"])
+	if #rows == 0 then return note end
+	return note .. ns.DETAIL_SEP .. (atVendor and L["Enter buys one back"] or L["at any vendor, Enter buys one back"])
 end
-
-function BQ.ToAdvanced() return "@buyback " end
+function BQ.None() return { ns.NoteRow(L["Nothing sold since you logged in"]) } end

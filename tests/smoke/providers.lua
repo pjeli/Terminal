@@ -747,7 +747,7 @@ do
 	for _, e in ipairs(adv) do names[#names + 1] = e.name end
 	table.sort(names)
 	check(table.concat(names, ",") == "Cone of Cold,Counterspell,Evocation,Ice Block", "Advanced: @spell is:unplaced: " .. table.concat(names, ","))
-	check(ns.Easy.ToAdvanced("spells not on my bars") == "@spell is:unplaced " and ns.Easy.ToAdvanced("cold spells not on my bars") == "@spell is:unplaced cold ",
+	check(ns.Easy.ToAdvanced("spells not on my bars") == "@spell is:unplaced sort:list " and ns.Easy.ToAdvanced("cold spells not on my bars") == "@spell is:unplaced cold sort:list ",
 		"Alt+` writes it: " .. tostring(ns.Easy.ToAdvanced("spells not on my bars")))
 	-- the right bar switched on: Evocation is on a bar now
 	rightShown = true; Changed()

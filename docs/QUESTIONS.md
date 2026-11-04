@@ -49,7 +49,11 @@ Q.Add({
 })
 ```
 
-`Asks("Name")` stays the shorthand for a module with `Question`, `Answer` and `ToAdvanced` (or `Line`).
+`Asks("Name")` stays the shorthand for a module: its `Question`; `Line` (nil for a question it answers itself),
+`Footer`, `None` and `Lead` (rows on top, "Drop all N") for a search question; `Answer` and `ToAdvanced` for an own
+answer, or where `Line` gives none ("my mail"). (Not `Note`/`Empty`: Plan.lua's `PL.Note` and CombatLog.lua's `CB.Line`
+were taken; CombatLog passes its `QuestionLine` explicitly.) Tests ask a question as the search does with
+`ns.Questions.Answer(text)` -> rows, note.
 
 ## 3. Which question gets a line
 
@@ -210,3 +214,30 @@ What can't be moved without losing something the player sees stays an own answer
   share the processor.)
 - Tests: [questions: answer = Alt+`] (a stand-in line question over 150 rows: Simple equals Advanced row for row, all
   150 in the list's order, its tail, note and empty row), [questions: sort:list], [questions: step lines].
+
+### 1.0.78 (phase 3)
+
+- Search questions now: History, TurnIn, BuybackQ, LootLog, MyBankQ, Lockouts, Auctions, Calendar, GroupQuests,
+  CombatLog, Durability, Group, CanCraft, Plan, QuestDrop, UnplacedSpells; and in part (the rest their own answer):
+  Attunements (no words; words name attunements, else their steps), Mail (filtered; "my mail", gold, auction mail mix
+  in the news), WhatsTraining (not "how much": a list with its total), CollectionsQ (no words; words name rows by
+  their starts), ClassSpells ("my spells", another class's).
+- `Scan.WithTail` puts the words in Alt+`'s order (filters, then the sort; a sort typed takes the line's place), so Alt+`
+  of Alt+` is the same line (printers.lua's idempotence over the corpus found "@drop sort:list since:today").
+- `Scan.SearchLine`: the inner search's typed picks are dropped (the bar's typed filters are the prompt's; taking one
+  off would cut the prompt where the line had it); a `Footer` that says nil leaves the search's own (sort:plan's);
+  `Lead` rows go on top.
+- New in the search: `prof:` (KEYS.prof / profession: a recipe's own profName, Smelting's recipes are Mining's, `_` for a
+  space), `sort:grey` (Aggregate's `grey` field: grey first, the tie by level, then name; on the bar's Sort for quests).
+- Fixes found by making the answer the search: Group's roles are one `is:tank|healer` (was both at once: nobody), and
+  "and"/"or" are the group question's own words (was a name looked for: "tanks and healers" never answered);
+  `is:damaged` keeps the "Repair all" row while anything is to repair (and `n` read with `select`: `D and D.Total()`
+  keeps one value); `is:unbuffed` and `missing:food`/`missing:consumables` leave out the dead and the offline, as the
+  question did; CanCraft and Plan name the profession with prof: ("mining" missed the Smelting recipes); ClassSpells'
+  other class is `sort:level,name` (was by name in Advanced); Spells and QuestDrop keep their list's order.
+- Tests: [questions: every search question] (36 examples: the question in Simple mode and its Alt+` in Advanced list the
+  same rows), [questions: sort:grey, prof:]; group.lua (tanks and healers, missing:food); durability.lua (is:damaged's
+  row); about 40 Alt+` expectations now end in the line's sort; tests that called an answer directly ask
+  `ns.Questions.Answer(text)`.
+- easybench (one after the other): Simple 7285.6 -> 7329.0 ms (+0.6%), worst key 22.4 -> 18.8 ms; Advanced 4857.9 ->
+  4988.2 ms (+2.7%).

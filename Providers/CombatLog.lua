@@ -340,29 +340,22 @@ function CB.Question(text)
 	if (crit or has.hit or has.hits) and (has.me or has.who or has.what) then return "crit" end
 end
 
---- The rows a question wants, and the footer's note.
-function CB.Answer(kind)
-	local p = ns.providers.combatlog
-	local rows = {}
-	-- (the filters Alt+` writes: is:mine, and is:death / is:taken / is:dealt; Filters/Others.lua)
-	local F = ns.Filters
-	local mine, which = F.Parse("is:mine"), F.Parse((kind == "killed" and "is:death") or (kind == "crit" and "is:taken") or "is:dealt")
-	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
-		-- (yours only: "what killed me" on this character; @combatlog lists every character's, each named)
-		if mine(e) and which(e) then rows[#rows + 1] = e end
-	end
-	if kind ~= "killed" then -- (crits: the biggest first)
-		table.sort(rows, function(a, b) return (a.amount or 0) > (b.amount or 0) end)
-	end
-	ns.ScoreInOrder(rows)
-	local note = (kind == "killed" and L["Your deaths, newest first"]) or (kind == "crit" and L["The hardest crits on you"])
-		or L["Your biggest crits"]
+--- The rows a question wants, as Advanced syntax: its answer and its Alt+` (docs/QUESTIONS.md 4.1). Yours only ("what
+--- killed me" on this character; @combatlog lists every character's, each named): deaths newest first, crits the
+--- biggest first.
+function CB.QuestionLine(kind)
+	return "@combatlog is:mine " .. ((kind == "killed" and "is:death sort:list") or (kind == "crit" and "is:taken sort:damage")
+		or "is:dealt sort:damage") .. " "
+end
+function CB.QuestionFooter(kind, rows)
 	if #rows == 0 then
-		note = (CB.state.blocked and kind ~= "killed") and L["The game doesn't give addons the combat log here (crits need it)"]
+		return (CB.state.blocked and kind ~= "killed") and L["The game doesn't give addons the combat log here (crits need it)"]
 			or L["Nothing recorded yet"]
 	end
-	return rows, note
+	return (kind == "killed" and L["Your deaths, newest first"]) or (kind == "crit" and L["The hardest crits on you"])
+		or L["Your biggest crits"]
 end
+function CB.QuestionNone() return {} end
 
 --- Forget the combat log kept: `.forget combatlog` (0.65.12: .combatlog is gone; "what killed me" and @combatlog read it).
 function CB.Clear()

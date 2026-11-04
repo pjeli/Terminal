@@ -105,7 +105,7 @@ do
 	check(E.ToAdvanced("where should i fish") == "where should i fish " and E.ToAdvanced("where should i level") == "where should i level "
 		and E.ToAdvanced("dungeon for 30") == "dungeon for 30 ", "zone questions as said: " .. E.ToAdvanced("where should i level"))
 	for _, q in ipairs({ "where should i level", "what dungeon should i do", "dungeon for 30" }) do check(T.SameAsAdvanced(q)) end
-	check(E.ToAdvanced("mats for thorium belt") == "thorium belt > mats " and E.ToAdvanced("what killed me") == "@combatlog is:mine is:death ",
+	check(E.ToAdvanced("mats for thorium belt") == "thorium belt > mats " and E.ToAdvanced("what killed me") == "@combatlog is:mine is:death sort:list ",
 		"chains and combat questions: their Advanced forms")
 	-- fish: on zone rows
 	_G.GetProfessions = function() return nil, nil, nil, 4 end

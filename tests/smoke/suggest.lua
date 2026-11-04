@@ -23,7 +23,7 @@ check(not Is(TI.Question, "quests") and not Is(TI.Question, "done quest chains i
 check(Is(QH.Question, "quests here") and Is(QH.Question, "quests in this zone") and not Is(QH.Question, "quests here kobold"), "quests here")
 
 -- every one has its Advanced syntax (a question that stays as typed answers in Advanced mode too)
-check(ns.QuestionToAdvanced("quests to turn in") == "@questlog is:complete ", "turn in as Advanced: " .. tostring(ns.QuestionToAdvanced("quests to turn in")))
+check(ns.QuestionToAdvanced("quests to turn in") == "@questlog is:complete sort:list ", "turn in as Advanced: " .. tostring(ns.QuestionToAdvanced("quests to turn in")))
 -- (review: "done quests", "completed quests", "finished quest" stay the quests you've done, is:done, as before)
 for _, s in ipairs({ "done quests", "completed quests", "finished quest", "quest done" }) do
 	check(not Is(TI.Question, s), "the done quests' words: " .. s)
@@ -245,7 +245,7 @@ SG.Forget()
 
 -- the questions the audit found asked in plain words but searched as words
 io.write("[suggest: plain questions with their Advanced syntax]\n")
-check(ns.QuestionToAdvanced("low durability") == "@durability ", "\"low durability\": " .. tostring((ns.QuestionToAdvanced("low durability"))))
+check(ns.QuestionToAdvanced("low durability") == "@durability sort:list ", "\"low durability\": " .. tostring((ns.QuestionToAdvanced("low durability"))))
 check(ns.Zones.Question("dungeons at my level") == "dungeon" and ns.Zones.Question("best dungeon for upgrades") == "dungeon",
 	"\"dungeons at my level\", \"best dungeon for upgrades\": the dungeon for your level")
 check(ns.Zones.Question("best quest upgrades") == nil, "\"best quest upgrades\": not a zone question")
@@ -267,8 +267,8 @@ do
 	check(Is(CC.Question, "what can i make with my mats") and Is(CC.Question, "what can i craft from my bags"), "\"... with my mats\": this")
 	check(Is(CC.Question, "what items can i craft") and Is(CC.Question, "craftable items") and Is(CC.Question, "what can i craft in my bags"),
 		"\"what items can i craft\", \"craftable items\", \"... in my bags\"")
-	check(ns.QuestionToAdvanced("what can i craft") == "@recipe is:craftable ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("what can i craft")))
-	check(ns.QuestionToAdvanced("what can i cook") == "@recipe is:craftable cooking ", "cook: " .. tostring(ns.QuestionToAdvanced("what can i cook")))
+	check(ns.QuestionToAdvanced("what can i craft") == "@recipe is:craftable sort:name ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("what can i craft")))
+	check(ns.QuestionToAdvanced("what can i cook") == "@recipe is:craftable prof:cooking sort:name ", "cook: " .. tostring(ns.QuestionToAdvanced("what can i cook")))
 	local saveR, saveG, saveC = ns.providers.recipes, ns.GetEntries, C_Item.GetItemCount
 	ns.providers.recipes = { _entries = {
 		{ name = "Linen Bandage", recipeID = 1, profName = "First Aid", reagents = { { 2589, 1 } } },

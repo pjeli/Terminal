@@ -161,19 +161,19 @@ do
 	CB.SetMe("Player-MAIN")
 	ns.CharacterName = function() return "Plamen Pally" end
 	ns.providers.combatlog._dirty = true
-	local rows = CB.Answer("killed")
+	local rows = ns.Questions.Answer("what killed me")
 	check(#rows == 0, "another character's death isn't yours: " .. #rows)
 	ns.providers.combatlog._dirty = true
 	local all = UI:Search("@combatlog")
 	check(#all == 1 and all[1].detail:find("on Plamen Warr", 1, true), "@combatlog names whose it is: " .. tostring(all[1] and all[1].detail))
 	CB.Add({ what = "died", who = "Kobold" })
 	ns.providers.combatlog._dirty = true
-	rows = CB.Answer("killed")
+	rows = ns.Questions.Answer("what killed me")
 	check(#rows == 1 and rows[1].name:find("Kobold", 1, true) and not rows[1].detail:find("on Plamen", 1, true), "yours: yours")
 	-- an entry kept before entries said whose they were: yours, as before
 	ns.db.combatLog = { { t = now, what = "killed", who = "Murloc" } }
 	ns.providers.combatlog._dirty = true
-	check(#CB.Answer("killed") == 1, "an old entry with no owner stays yours")
+	check(#ns.Questions.Answer("what killed me") == 1, "an old entry with no owner stays yours")
 	ns.CharacterName = saveName
 	ns.db.combatLog = {}
 	CB.SetMe("Player-1")

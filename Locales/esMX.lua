@@ -3349,4 +3349,9 @@ L["-A N the N lines after each match, -B N before, -C N both (-- between groups)
 L["List order"] = "Orden de la lista"
 L["in their list's order"] = "en el orden de su lista"
 L["the rows in their list's own order (your quest log's, the spellbook's, the newest first...), not your picks first; a sorted list with no words is listed whole"] = "las filas en el orden propio de su lista (el de tu registro de misiones, el del libro de hechizos, las más nuevas primero...), no tus elecciones primero; una lista ordenada sin palabras se muestra entera"
+L["Grey first"] = "Grises primero"
+L["grey ones first, then by level"] = "las grises primero, luego por nivel"
+L["of %s"] = "de %s"
+L["@recipe: the recipes of that profession, the recipe's own (Smelting's are Mining's; _ for a space, prof:first_aid)"] = "@recipe: las recetas de esa profesión, la propia de la receta (las de fundición son de minería; _ por un espacio, prof:first_aid)"
+L["your quest log: the grey quests first, then by level (as \"quests to drop\" lists them)"] = "tu registro de misiones: las misiones grises primero, luego por nivel (como las lista \"quests to drop\")"
 --@end-do-not-package@

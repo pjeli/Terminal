@@ -499,6 +499,23 @@ function CQ.Answer(q)
 end
 
 local ADV = { mounts = "@mount", pets = "@pet", toys = "@toy" }
+--- The list by name, as Advanced syntax: its answer and its Alt+` (docs/QUESTIONS.md 4.1); nil with words (they name
+--- rows by their words' starts: CQ.Answer's).
+function CQ.Line(q)
+	if #q.words > 0 then return nil end
+	local parts = { ADV[q.kind] }
+	if q.fav then parts[#parts + 1] = "is:favorite" end
+	parts[#parts + 1] = "sort:name"
+	return table.concat(parts, " ") .. " "
+end
+function CQ.Footer(q, rows)
+	if #rows == 0 then return LABEL[q.kind] end
+	return LABEL[q.kind] .. ns.DETAIL_SEP .. L["%d collected"]:format(#rows)
+end
+function CQ.None(q)
+	return { ns.NoteRow(q.fav and L["None marked as a favorite in the journal"] or L["None collected yet"]) }
+end
+--- Named by words: as said, which Advanced mode answers the same.
 function CQ.ToAdvanced(q)
 	-- (named by words: the line as said, which Advanced mode answers the same; "@mount raptor" would be a search of
 	-- letters, finding more; review, 0.64.3)

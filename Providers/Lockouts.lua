@@ -338,36 +338,27 @@ end
 
 LK.NOTE, LK.NOTE_RAID, LK.NOTE_DUNGEON = L["Lockouts"], L["Raid lockouts"], L["Dungeon lockouts"]
 
-function LK.Answer(q)
-	q = q or {}
-	local p = ns.providers.lockouts
-	local all = p and ns:GetEntries(p) or {}
-	local rows = {}
-	for _, e in ipairs(all) do
-		local ok = not (q.raid and not e.isRaid) and not (q.dungeon and e.isRaid)
-		for _, w in ipairs(q.words or {}) do if ok and not Has(e, w) then ok = false end end
-		if ok then rows[#rows + 1] = e end
-	end
-	ns.ScoreInOrder(rows)
-	local note = (q.raid and LK.NOTE_RAID) or (q.dungeon and LK.NOTE_DUNGEON) or LK.NOTE
-	if #rows == 0 then
-		if #all == 0 then return { NoteRow(LK.NONE) }, note end
-		local none = (#(q.words or {}) > 0 and L["No lockout has that"]) or (q.raid and L["No raid lockouts"])
-			or (q.dungeon and L["No dungeon lockouts"]) or LK.NONE
-		return { NoteRow(none) }, note
-	end
-	local mine = 0
-	for _, e in ipairs(rows) do if e.mine then mine = mine + 1 end end
-	return rows, note .. ns.DETAIL_SEP .. (#rows == mine and L["%d yours"]:format(mine) or L["%d yours, %d on alts"]:format(mine, #rows - mine))
-end
-
---- The question as Advanced syntax (Alt+`): "@lockout is:raid mc".
-function LK.ToAdvanced(q)
+--- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@lockout is:raid mc sort:list".
+function LK.Line(q)
 	local parts = { "@lockout" }
 	if q.raid then parts[#parts + 1] = "is:raid" end
 	if q.dungeon then parts[#parts + 1] = "is:dungeon" end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:list"
 	return table.concat(parts, " ") .. " "
+end
+function LK.Footer(q, rows)
+	local note = (q.raid and LK.NOTE_RAID) or (q.dungeon and LK.NOTE_DUNGEON) or LK.NOTE
+	if #rows == 0 then return note end
+	local mine = 0
+	for _, e in ipairs(rows) do if e.mine then mine = mine + 1 end end
+	return note .. ns.DETAIL_SEP .. (#rows == mine and L["%d yours"]:format(mine) or L["%d yours, %d on alts"]:format(mine, #rows - mine))
+end
+function LK.None(q)
+	local p = ns.providers.lockouts
+	if #(p and ns:GetEntries(p) or {}) == 0 then return { NoteRow(LK.NONE) } end
+	return { NoteRow((#(q.words or {}) > 0 and L["No lockout has that"]) or (q.raid and L["No raid lockouts"])
+		or (q.dungeon and L["No dungeon lockouts"]) or LK.NONE) }
 end
 
 --- Forget an alt's lockouts (not the character you're on): `.forget <name>` (0.65.12: .lockouts is gone, @lockout lists

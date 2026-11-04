@@ -97,7 +97,12 @@ do
 
 	-- the question
 	local Q = GR.Question
-	local function A(text) local rows, note = GR.Answer(Q(text)); local t = {} for i, e in ipairs(rows) do t[i] = e.name end return table.concat(t, ","), note end
+	local function A(text)
+		local rows, note = ns.Questions.Answer(text)
+		local t = {}
+		for _, e in ipairs(rows) do if ns.Bar.Real(e) then t[#t + 1] = e.name end end
+		return table.concat(t, ","), note
+	end
 	check(A("who is dead") == "Bob" and A("who is out of range") == "Cid" and A("who is offline") == "Dee"
 		and A("group healers") == "Ann" and A("who needs fortitude") == "Cid", "who is dead / out of range / offline, healers, who needs fortitude")
 	local missing = A("missing buffs")
@@ -121,8 +126,8 @@ do
 	Rows()
 	check(A("who needs blessing of kings") == "Plamen Warr,Cid" and A("who needs greater blessing of might") == "Plamen Warr,Ann,Cid",
 		"who needs blessing of kings: Cid (Might, no Kings) too: " .. A("who needs blessing of kings") .. " / " .. A("who needs greater blessing of might"))
-	check(GR.ToAdvanced(Q("who needs blessing of kings")):find("missing:blessing_kings", 1, true) and L("@group missing:blessing_kings") == 2,
-		"Alt+`: missing:blessing_kings, the same two: " .. GR.ToAdvanced(Q("who needs blessing of kings")))
+	check(ns.QuestionToAdvanced("who needs blessing of kings"):find("missing:blessing_kings", 1, true) and L("@group missing:blessing_kings") == 2,
+		"Alt+`: missing:blessing_kings, the same two: " .. ns.QuestionToAdvanced("who needs blessing of kings"))
 	check(A("who needs a blessing") == "Plamen Warr", "any blessing still the family: " .. A("who needs a blessing"))
 	table.remove(M.party3.buffs)
 	Rows()
@@ -133,8 +138,8 @@ do
 	check(note:find("Dead", 1, true) and note:find("1 of 5", 1, true), "the note: what was asked, how many: " .. tostring(note))
 	local rows = UI:Search("who needs fortitude")
 	check(#rows == 1 and rows[1].name == "Cid" and UI.answerNote, "asked in the prompt")
-	check(ns.Easy.QuestionToAdvanced("who needs fortitude") == "@group missing:fortitude " and ns.Easy.QuestionToAdvanced("who is dead")
-		== "@group is:dead " and ns.Easy.QuestionToAdvanced("group healers") == "@group is:healer ", "Alt+` writes it as @group")
+	check(ns.Easy.QuestionToAdvanced("who needs fortitude") == "@group missing:fortitude sort:list " and ns.Easy.QuestionToAdvanced("who is dead")
+		== "@group is:dead sort:list " and ns.Easy.QuestionToAdvanced("group healers") == "@group is:healer sort:list ", "Alt+` writes it as @group")
 	check(ns.Easy.BY_ID.group and table.concat(ns.Easy.BY_ID.group.kinds, ",") == "group", "Simple mode's Group category")
 
 	-- Enter targets (the game presses /target), Shift+Enter casts your buff they lack on them
@@ -187,9 +192,19 @@ do
 		"consumables to chat: " .. tostring(Lines("@group missing:consumables")[1]))
 	check(A("missing consumables") == "Plamen Warr,Cid" and A("who needs food") == "Plamen Warr,Cid" and A("who needs flask") == "Cid",
 		"asked in words: consumables, food, a flask: " .. A("missing consumables") .. " / " .. A("who needs food") .. " / " .. A("who needs flask"))
-	check(ns.Easy.QuestionToAdvanced("missing consumables") == "@group missing:consumables " and ns.Easy.QuestionToAdvanced("who needs food")
-		== "@group missing:food ", "Alt+`: missing:consumables / missing:food")
+	check(ns.Easy.QuestionToAdvanced("missing consumables") == "@group missing:consumables sort:list " and ns.Easy.QuestionToAdvanced("who needs food")
+		== "@group missing:food sort:list ", "Alt+`: missing:consumables / missing:food")
 	check(not Lines("@group")[1]:find("food", 1, true), "plain @group: buffs only, no consumables")
+	-- (1.0.78) several roles are any of them: "tanks and healers" was written is:tank is:healer, both at once, nobody
+	check(ns.Easy.QuestionToAdvanced("group tanks and healers") == "@group is:tank|healer sort:list "
+		and A("group tanks and healers") == "Plamen Warr,Ann", "tanks and healers: either: " .. tostring(ns.Easy.QuestionToAdvanced("group tanks and healers"))
+		.. " / " .. A("group tanks and healers"))
+	-- (1.0.78) a consumable is asked of the living and online only, as a buff is (the question left them out)
+	do
+		local food = ns.Filters.Parse("missing:food")
+		check(food({ kind = "group", cons = { food = false } }) and not food({ kind = "group", dead = true, cons = { food = false } })
+			and not food({ kind = "group", online = false, cons = { food = false } }), "missing:food: not the dead or the offline")
+	end
 	local tipLines = {}
 	local fakeTip = { SetText = function() end, AddLine = function(_, s2) tipLines[#tipLines + 1] = s2 end, AddDoubleLine = function() end }
 	local annRow

@@ -596,24 +596,17 @@ function SP.Question(text)
 	return rest
 end
 
---- The answer: the unplaced spells (in the spellbook's order), narrowed by the question's other words; the note.
-function SP.Answer(words)
-	local p = ns.providers.spells
-	local rows = {}
-	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
-		if SP.Unplaced(e) then
-			local hay = (rawget(e, "_lname") or ns.Lower(e.name)) .. " " .. (rawget(e, "_ltext") or "")
-			local ok = true
-			for _, w in ipairs(words or {}) do if not hay:find(w, 1, true) then ok = false break end end
-			if ok then rows[#rows + 1] = e end
-		end
-	end
-	ns.ScoreInOrder(rows)
-	local note = L["Spells not on your bars or keys"]
-	if #rows == 0 then
-		note = (words and #words > 0) and L["None of those spells is off your bars"] or L["Every spell you can cast is on a bar or a key"]
-	end
-	return rows, note
+--- "spells not on my bars": the unplaced spells in the spellbook's order, narrowed by the question's other words, as
+--- Advanced syntax: its answer and its Alt+` (docs/QUESTIONS.md 4.1); the footer.
+function SP.UnplacedLine(words)
+	local parts = { "@spell", "is:unplaced" }
+	for _, w in ipairs(words or {}) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:list"
+	return table.concat(parts, " ") .. " "
+end
+function SP.UnplacedNote(words, rows)
+	if #rows > 0 then return L["Spells not on your bars or keys"] end
+	return (words and #words > 0) and L["None of those spells is off your bars"] or L["Every spell you can cast is on a bar or a key"]
 end
 
 ns:RegisterProvider("spells", {

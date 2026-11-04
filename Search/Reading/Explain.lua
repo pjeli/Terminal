@@ -51,7 +51,8 @@ local SORT_SAY = { distance = L["nearest first"], ["-distance"] = L["farthest fi
 	best = L["biggest upgrades first"], plan = L["the recipes that still give skill, by how often your mats make them"],
 	damage = L["biggest hits first"], line = L["line by line"], owner = L["by owner"], slots = L["most slots first"],
 	["-slots"] = L["fewest slots first"], ahvalue = L["highest AH value first"], ahprice = L["highest AH price first"],
-	standing = ns.Lower(L["Standing"]), ["-standing"] = ns.Lower(L["Standing"]), list = L["in their list's order"] }
+	standing = ns.Lower(L["Standing"]), ["-standing"] = ns.Lower(L["Standing"]), list = L["in their list's order"],
+	grey = L["grey ones first, then by level"] }
 --- A sort: word ("sort:quality,-level") said: "best quality first, then highest level first"; nil when it isn't one.
 local function SortSay(word)
 	local F = ns.Filters
@@ -148,6 +149,7 @@ local function FilterSay(key, val)
 	elseif key == "trainer" then return { after = L["who teach %s"]:format(v) }
 	elseif key == "near" then return { after = L["within %s yards"]:format(RangeSay(v)) }
 	elseif key == "reward" or key == "rewards" then return { after = L["rewarding %s"]:format(v) }
+	elseif key == "prof" or key == "profession" then return { after = L["of %s"]:format((v:gsub("_", " "))) } -- (1.0.78)
 	elseif key == "skill" then return { after = L["that need %s"]:format(v == "any" and L["a profession"] or v) } -- (1.0.64)
 	elseif key == "repreward" then return { after = L["rewarding %s"]:format(v .. " " .. ns.Lower(L["Reputation"])) } -- (1.0.63)
 	elseif key == "standing" or key == "rep" then return { after = L["at %s"]:format(RangeSay(v)) }

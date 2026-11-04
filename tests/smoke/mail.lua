@@ -154,7 +154,7 @@ do
 	res = UI:Search("cod mail")
 	check(#res == 1 and res[1].name == "Linen for you" and UI.answerNote, "asked in the prompt: answered, with a note")
 	-- (0.55.7: "mail from bob" lists the auction house's news too, which @mail doesn't: kept as said, and still answered)
-	check(ns.Easy.QuestionToAdvanced("mail running out") == "@mail is:expiring " and ns.Easy.QuestionToAdvanced("mail from bob")
+	check(ns.Easy.QuestionToAdvanced("mail running out") == "@mail is:expiring sort:list " and ns.Easy.QuestionToAdvanced("mail from bob")
 		== "mail from bob ", "Alt+` writes it as @mail, or as said: " .. tostring(ns.Easy.QuestionToAdvanced("mail from bob")))
 	check(T.SameAsAdvanced("mail running out"))
 	check(T.SameAsAdvanced("mail from bob"))
@@ -410,13 +410,13 @@ do
 	check(MA.Question("my auctions") == nil and ns.Auctions.Question("my auctions") and ns.Auctions.Question("what am i selling")
 		and not ns.Auctions.Question("auction house") and not ns.Auctions.Question("ah") and not ns.Auctions.Question("auction") and ns.Auctions.Question("auction sold") and not ns.Auctions.Question("my auction mail")
 		and MA.Question("auction mail"), "\"my auctions\" / \"what am i selling\" are @auction's; \"auction house\", \"ah\" stay searches, \"auction mail\" is the mail's")
-	local ans = ns.Auctions.Answer(ns.Auctions.Question("what am i selling"))
+	local ans = ns.Questions.Answer("what am i selling")
 	check(#ans == 2 and ans[1].ahKind == "up", "\"what am i selling\": the auctions up now")
-	check(ns.Auctions.ToAdvanced(ns.Auctions.Question("my auctions sold linen")) == "@auction is:sold linen ", "Alt+`: @auction is:sold linen")
+	check(ns.QuestionToAdvanced("my auctions sold linen") == "@auction is:sold linen sort:list ", "Alt+`: @auction is:sold linen")
 	-- (0.55.7) and it finds what the question does ("sold", "listed" were words searched)
 	check(T.SameAsAdvanced("what am i selling"))
-	check(MA.ToAdvanced(MA.Question("incoming mail")) == "@auction is:incoming ", "Alt+` on \"incoming mail\": @auction's news: "
-		.. MA.ToAdvanced(MA.Question("incoming mail")))
+	check(ns.QuestionToAdvanced("incoming mail") == "@auction is:incoming sort:list ", "Alt+` on \"incoming mail\": @auction's news: "
+		.. tostring(ns.QuestionToAdvanced("incoming mail")))
 	-- the Auctions tab's list without one kept as posted: it's over (paid out, expired or cancelled)
 	posted[77] = { name = "Copper Bar", count = 10, t = now - 600, seen = "posted" }
 	MA.OnEvent("OWNED_AUCTIONS_UPDATED")
@@ -470,7 +470,7 @@ do
 	-- in words: "sent mail", "auctions on their way"
 	ns.db.easyMode = true
 	local q = MA.Question("sent mail")
-	check(q and q.sent and MA.ToAdvanced(q) == "@mail is:sent " and MA.Question("incoming mail").incoming, "sent mail / incoming mail")
+	check(q and q.sent and ns.QuestionToAdvanced("sent mail") == "@mail is:sent sort:list " and MA.Question("incoming mail").incoming, "sent mail / incoming mail")
 	local sentNames = {}
 	for _, e in ipairs((MA.Answer(q))) do sentNames[#sentNames + 1] = e.name end
 	sentNames = table.concat(sentNames, " | ")

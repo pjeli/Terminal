@@ -208,7 +208,7 @@ do
 
 	-- the question, in plain words, and what stays a search
 	local Q = CA.Question
-	local function N(s) local rows = CA.Answer(Q(s)) return #rows, rows end
+	local function N(s) local rows = ns.Questions.Answer(s) return #rows, rows end
 	check(Q("holidays") and Q("today") and Q("what's on") and Q("whats on this week") and Q("my invites") and Q("guild events")
 		and Q("next darkmoon faire") and Q("when is hallow's end") and Q("calendar this week") and Q("upcoming events")
 		and Q("anything coming up") and Q("next week") and Q("this weekend"), "questions")
@@ -223,19 +223,19 @@ do
 	check(Q("events on thursday") and N("events on thursday") == 1 and Q("invites from bob") and N("invites from bob") == 1
 		and N("events in november") == 2, "a row's other words: " .. tostring((N("events in november"))))
 	-- (0.49.2, review) the span kept in Advanced mode, and is:pending still @auction's
-	check(E.ToAdvanced("whats on this week") == "@calendar when:week " and E.ToAdvanced("holidays next month")
-		== "@calendar is:holiday when:nextmonth ", "Alt+` keeps the span: " .. E.ToAdvanced("whats on this week"))
+	check(E.ToAdvanced("whats on this week") == "@calendar when:week sort:list " and E.ToAdvanced("holidays next month")
+		== "@calendar is:holiday when:nextmonth sort:list ", "Alt+` keeps the span: " .. E.ToAdvanced("whats on this week"))
 	check(#UI:Search("@calendar when:week") == 5 and #UI:Search("@calendar when:nextmonth") == 2
 		and #UI:Search("@calendar is:holiday when:weekend") == 2, "when:<span>")
 	check(ns.Filters._.IS.pending == ns.Filters._.IS.incoming, "is:pending stays the auction house's news")
 	local n, rows = N("when is hallows end")
 	check(n == 1 and rows[1].name == "Hallow's End", "by name, its ' left out")
-	local _, note = CA.Answer(Q("holidays this week"))
+	local _, note = ns.Questions.Answer("holidays this week")
 	check(note == ns.L["Holidays"] .. "  ·  " .. ns.L["this week"], "the footer: " .. tostring(note))
-	check(E.ToAdvanced("holidays") == "@calendar is:holiday " and E.ToAdvanced("next darkmoon faire") == "@calendar darkmoon faire "
-		and E.ToAdvanced("my invites") == "@calendar is:invite ", "Alt+`: " .. E.ToAdvanced("holidays"))
+	check(E.ToAdvanced("holidays") == "@calendar is:holiday sort:list " and E.ToAdvanced("next darkmoon faire") == "@calendar darkmoon faire sort:list "
+		and E.ToAdvanced("my invites") == "@calendar is:invite sort:list ", "Alt+`: " .. E.ToAdvanced("holidays"))
 	-- (0.55.7) "guild events" as is:guild ("guild" was a word searched), and each finds what the question does
-	check(E.ToAdvanced("guild events") == "@calendar is:guild ", "Alt+`: " .. E.ToAdvanced("guild events"))
+	check(E.ToAdvanced("guild events") == "@calendar is:guild sort:list ", "Alt+`: " .. E.ToAdvanced("guild events"))
 	for _, q in ipairs({ "guild events", "holidays", "my invites", "whats on this week" }) do check(T.SameAsAdvanced(q)) end
 	ns.db.easyMode = true
 	res = UI:Search("holidays")

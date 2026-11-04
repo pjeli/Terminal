@@ -120,8 +120,8 @@ do
 	check(Search("quests to share") == "33,35", "quests to share: Wolves and Princess: " .. Search("quests to share"))
 	check(Search("party quests princess") == "35", "party quests princess: " .. Search("party quests princess"))
 	check(Search("party members missing quests") == "33,35", "asked before the group's own questions (missing = quests here)")
-	check(ns.Easy.QuestionToAdvanced("quests to share") == "@group quests is:shareable "
-		and ns.Easy.QuestionToAdvanced("party quests") == "@group quests ", "Alt+` writes it as @group quests")
+	check(ns.Easy.QuestionToAdvanced("quests to share") == "@group quests is:shareable sort:list "
+		and ns.Easy.QuestionToAdvanced("party quests") == "@group quests sort:list ", "Alt+` writes it as @group quests")
 
 	-- Advanced: @group quests
 	ns.db.easyMode = false
@@ -168,7 +168,7 @@ do
 	check(not PQ.trusted and #wolves.lacks == 0 and #wolves.unknown == 2 and wolves.canShare
 		and wolves.detail:find("who has it isn't known", 1, true) and wolves.detail:find("can share", 1, true),
 		"no \"yes\" from the game: who has Wolves isn't known (offered to both): " .. wolves.detail)
-	local _, unknownNote = PQ.Answer({ mode = "all" })
+	local _, unknownNote = ns.Questions.Answer("party quests")
 	check(unknownNote:find(PQ.UNKNOWN_NOTE, 1, true), "the note says so: " .. tostring(unknownNote))
 	-- share Wolves: the game replies
 	pushed = {}

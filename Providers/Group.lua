@@ -481,7 +481,8 @@ ns:RegisterProvider("group", {
 
 local ASK = {}
 for w in ([[who whos is are the my our in not has have does do any anyone someone everyone which what of a an me i to
-	with still out show list find get got there theres left any here our all their them it its please]]):gmatch("%a+") do ASK[w] = true end
+	with still out show list find get got there theres left any here our all their them it its please and or]]):gmatch("%a+") do ASK[w] = true end
+-- ("and", "or": "tanks and healers" is both roles, either of them; 1.0.78: "and" was a name looked for, nobody had it)
 local SUBJECT = { group = true, party = true, raid = true, members = true, member = true, groupmates = true, team = true }
 local CUE = { dead = "dead", died = "dead", dying = "dead", ghost = "dead", ghosts = "dead", offline = "offline",
 	disconnected = "offline", dc = "offline", dced = "offline", range = "far", far = "far", oor = "far", outofrange = "far",
@@ -622,14 +623,11 @@ local function Labels(q)
 	return table.concat(out, ", ")
 end
 
---- The rows a question asks for, and the footer's note.
-function GR.Answer(q)
+--- The footer's note for the rows a question found.
+function GR.Footer(q, rows)
 	q = q or {}
 	local p = ns.providers.group
 	local all = p and ns:GetEntries(p) or {}
-	local rows = {}
-	for _, e in ipairs(all) do if Wanted(e, q) then rows[#rows + 1] = e end end
-	ns.ScoreInOrder(rows)
 	local what = (q.dead and L["Dead"]) or (q.offline and L["Offline"]) or (q.far and L["Out of range"]) or (q.near and L["In range"])
 		or (q.missing and ((Labels(q) ~= "" and L["Needs %s"]:format(Labels(q))) or L["Missing a buff the group can give"]))
 		or (q.roles and ROLE_PLURAL[q.roles[1]]) or L["Your group"]
@@ -649,18 +647,23 @@ function GR.Answer(q)
 			or (q.missing and L["Nobody needs it"]) or nil
 		if none then note = none .. (GR.solo and (ns.DETAIL_SEP .. L["you're not in a group"]) or "") end
 	end
-	return rows, note
+	return note
 end
+function GR.None() return {} end
 
---- The question as Advanced syntax (Alt+`): "@group is:dead", "@group missing:fortitude".
-function GR.ToAdvanced(q)
+--- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@group is:dead sort:list",
+--- "@group missing:fortitude sort:list"; several roles are any of them, "tanks and healers": is:tank|healer (1.0.78:
+--- written is:tank is:healer, both at once, it found nobody).
+function GR.Line(q)
 	local parts = { "@group" }
 	if q.dead then parts[#parts + 1] = "is:dead" end
 	if q.offline then parts[#parts + 1] = "is:offline" end
 	if q.far then parts[#parts + 1] = "is:far" end
 	if q.near then parts[#parts + 1] = "is:inrange" end
-	for _, r in ipairs(q.roles or {}) do
-		parts[#parts + 1] = "is:" .. ({ TANK = "tank", HEALER = "healer", DAMAGER = "dps" })[r]
+	if q.roles and #q.roles > 0 then
+		local names = {}
+		for _, r in ipairs(q.roles) do names[#names + 1] = ({ TANK = "tank", HEALER = "healer", DAMAGER = "dps" })[r] end
+		parts[#parts + 1] = "is:" .. table.concat(names, "|")
 	end
 	if q.missing then
 		local cons = q.cons or {}
@@ -671,6 +674,7 @@ function GR.ToAdvanced(q)
 		if q.buffWords and #q.buffWords > 0 then parts[#parts + 1] = "missing:" .. table.concat(q.buffWords, "_") end
 	end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:list"
 	return table.concat(parts, " ") .. " "
 end
 
@@ -684,10 +688,12 @@ function GR.MissingFilter(v)
 		return function(e) return e.kind == "group" and not e.dead and e.online ~= false and Has(e.buffs, f) == false end
 	end
 	if GR.CONS_ALL[v] then -- (missing:consumables: lacking food or a flask/elixir)
-		return function(e) return e.kind == "group" and e.cons ~= nil and (e.cons.food == false or e.cons.elixir == false) end
+		return function(e) return e.kind == "group" and not e.dead and e.online ~= false and e.cons ~= nil
+			and (e.cons.food == false or e.cons.elixir == false) end
 	end
+	-- (the living and online only, as a buff: the dead and the offline can't be asked to eat; 1.0.78, the question's way)
 	local c = GR.CONS_BY_ID[v] or GR.CONS_BY_WORD[v]
-	if c then return function(e) return e.kind == "group" and e.cons ~= nil and e.cons[c.id] == false end end
+	if c then return function(e) return e.kind == "group" and not e.dead and e.online ~= false and e.cons ~= nil and e.cons[c.id] == false end end
 	local words = {}
 	for w in v:gmatch("%S+") do words[#words + 1] = w end
 	return function(e) return e.kind == "group" and not e.dead and e.online ~= false and LacksNamed(e, words) == true end

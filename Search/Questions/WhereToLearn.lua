@@ -293,7 +293,44 @@ end
 
 local NoteRow = ns.NoteRow
 
---- The answer: the rows, and the footer's note (how many you can learn now, and what that costs).
+--- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@training is:learnable sort:list";
+--- nil for what it costs ("how much is training": the list with its total, Q.Answer's).
+function Q.Line(q)
+	if q.money then return nil end
+	local parts = { "@training" }
+	local IS_WORD = { now = "learnable" }
+	if q.state then parts[#parts + 1] = "is:" .. (IS_WORD[q.state] or q.state) end
+	if q.level then parts[#parts + 1] = "lvl:" .. q.level end
+	if q.weapon then parts[#parts + 1] = "is:weapon" end
+	if q.pet then parts[#parts + 1] = "is:pet" end
+	if not q.state then parts[#parts + 1] = "-is:ignored" end
+	for _, w in ipairs(q.words) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:list"
+	return table.concat(parts, " ") .. " "
+end
+function Q.Footer()
+	local now, cost = 0, 0
+	for _, e in ipairs(Rows()) do
+		if e.state == "now" then now, cost = now + 1, cost + (e.cost or 0) end
+	end
+	return L["Training"] .. SEP .. L["%d to learn now"]:format(now) .. (cost > 0 and (SEP .. ns.Money(cost)) or "")
+end
+function Q.None(q)
+	local say = L["Nothing to train that fits"]
+	if q.state == "now" then
+		local nxt
+		for _, e in ipairs(Rows()) do
+			if (e.state == "nextlevel" or e.state == "later") and e.level and (not nxt or e.level < nxt) then nxt = e.level end
+		end
+		say = nxt and L["Nothing to train right now: the next at level %d"]:format(nxt) or L["Nothing to train right now"]
+	end
+	local p = ns.providers.training
+	if not WT.Ready() and not (p and p.fromTrainerSpells) then say = L["What's Training is still reading your spells: a moment"] end
+	return { NoteRow(say) }
+end
+
+--- What it costs ("how much is training"): the rows, and the footer's note (how many you can learn now, what that costs,
+--- and what these cost in all).
 function Q.Answer(q)
 	local rows = Q.Match(q)
 	ns.ScoreInOrder(rows)

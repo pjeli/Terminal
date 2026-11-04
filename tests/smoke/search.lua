@@ -583,9 +583,9 @@ do
 		check(Words("what resets this week") == "" and Words("raid lockouts this week") == "" and Words("when does mc reset tomorrow") == "mc"
 			and Words("am i saved this week") == "", "time words are question words: " .. tostring(Words("what resets this week"))
 			.. " / " .. tostring(Words("raid lockouts this week")) .. " / " .. tostring(Words("when does mc reset tomorrow")))
-		local rows = LK.Answer(LK.Question("when does mc reset tomorrow"))
+		local rows = ns.Questions.Answer("when does mc reset tomorrow")
 		check(#rows == 1 and rows[1].name == "Molten Core", "when does mc reset tomorrow: Molten Core")
-		check(ns.Easy.QuestionToAdvanced("what resets this week") == "@lockout ", "Alt+`: @lockout: "
+		check(ns.Easy.QuestionToAdvanced("what resets this week") == "@lockout sort:list ", "Alt+`: @lockout: "
 			.. tostring(ns.Easy.QuestionToAdvanced("what resets this week")))
 	end)
 	p._entries, p._dirty = save.entries, save.dirty

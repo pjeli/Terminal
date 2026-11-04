@@ -376,22 +376,18 @@ function LL.Question(text)
 	return { who = who }
 end
 
---- The loot log's rows a question wants, newest first, and the footer's note.
-function LL.Answer(q)
-	local p = ns.providers.lootlog
-	local rows = {}
-	-- (the filters Alt+` writes, is:mine and looter:<name>: one test for both ways of asking; Filters/Others.lua)
-	local F = ns.Filters
-	local test = (q.who == "me" and F.Parse("is:mine")) or (q.who and F.Parse("looter:" .. ns.Lower(q.who):gsub("%s+", "_"))) or nil
-	for _, e in ipairs(p and ns:GetEntries(p) or {}) do
-		if not test or test(e) then rows[#rows + 1] = e end
-	end
-	ns.ScoreInOrder(rows)
-	local note = (q.who == "me" and L["Your drops, newest first"]) or (q.who and L["%s's drops, newest first"]:format(q.who))
-		or L["Drops, newest first"]
+--- The loot log's rows a question wants, newest first: is:mine or looter:<name> (docs/QUESTIONS.md 4.1: its line is its
+--- answer and its Alt+`), and the footer's note.
+function LL.Line(q)
+	local who = (q.who == "me" and "is:mine ") or (q.who and ("looter:" .. ns.Lower(q.who):gsub("%s+", "_") .. " ")) or ""
+	return "@drop " .. who .. "sort:list "
+end
+function LL.Footer(q, rows)
 	if #rows == 0 then
-		note = (#(Log() or {}) == 0) and L["Nothing looted yet"] or (q.who == "me" and L["Nothing looted by you yet"])
+		return (#(Log() or {}) == 0) and L["Nothing looted yet"] or (q.who == "me" and L["Nothing looted by you yet"])
 			or L["Nothing looted by them yet"]
 	end
-	return rows, note
+	return (q.who == "me" and L["Your drops, newest first"]) or (q.who and L["%s's drops, newest first"]:format(q.who))
+		or L["Drops, newest first"]
 end
+function LL.None() return {} end

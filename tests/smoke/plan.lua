@@ -105,7 +105,7 @@ do
 		and Q("how do i level blacksmithing"), "questions")
 	check(not Q("where should i level") and not Q("blacksmithing skillup") and not Q("plan") and not Q("level 20 sword")
 		and not Q("@recipe sort:plan"), "not questions")
-	check(ns.Easy.ToAdvanced("blacksmithing plan") == "@recipe blacksmithing sort:plan ", "Alt+`: " .. ns.Easy.ToAdvanced("blacksmithing plan"))
+	check(ns.Easy.ToAdvanced("blacksmithing plan") == "@recipe prof:blacksmithing sort:plan ", "Alt+`: " .. ns.Easy.ToAdvanced("blacksmithing plan"))
 	-- (review, 0.53.6) a name of two words, whole: none of its words left to narrow by
 	do
 		local P = ns.Professions

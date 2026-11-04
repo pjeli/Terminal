@@ -625,24 +625,21 @@ function BQ.Question(text)
 	return nil
 end
 
-function BQ.Answer()
-	local p = ns.providers.bank
+-- (a search question, docs/QUESTIONS.md 4.1: its line is its answer and its Alt+`; Footer the footer, None the rows when
+-- nothing is found)
+function BQ.Line() return "@bank sort:name " end
+function BQ.Footer(_, rows)
 	local note = L["Your bank"]
-	if not (p and S.Source()) then
-		return { ns.NoteRow(L["Needs Syndicator (Baganator) or BagBrother (Bagnon): they keep what's in your bank"]) }, note
-	end
-	local rows = {}
-	for _, e in ipairs(ns:GetEntries(p)) do rows[#rows + 1] = e end
-	if #rows == 0 then
-		local busy = S.Busy() -- (Syndicator still reading your characters)
-		return { ns.NoteRow(busy or L["Nothing kept in your bank yet: open it once with your bag addon running"]) }, note
-	end
-	table.sort(rows, function(a, b) return tostring(a.name) < tostring(b.name) end)
-	ns.ScoreInOrder(rows)
-	return rows, note .. ns.DETAIL_SEP .. ((#rows == 1 and L["%d item"] or L["%d items"]):format(#rows))
+	if #rows == 0 then return note end
+	return note .. ns.DETAIL_SEP .. ((#rows == 1 and L["%d item"] or L["%d items"]):format(#rows))
 end
-
-function BQ.ToAdvanced() return "@bank " end
+function BQ.None()
+	if not (ns.providers.bank and S.Source()) then
+		return { ns.NoteRow(L["Needs Syndicator (Baganator) or BagBrother (Bagnon): they keep what's in your bank"]) }
+	end
+	-- (Syndicator still reading your characters)
+	return { ns.NoteRow(S.Busy() or L["Nothing kept in your bank yet: open it once with your bag addon running"]) }
+end
 
 -- Syndicator says when its records change (any character, guild or the warband bank).
 function S.HookSyndicator()

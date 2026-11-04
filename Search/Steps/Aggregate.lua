@@ -131,6 +131,8 @@ A.FIELDS = {
 	-- (how far along, 0 to 1: an achievement's criteria ("3/10"), a quest's objectives in your log ("Gnoll Paw: 3/8");
 	-- sort:progress, the closest to done first; 1.0.59, the reach audit)
 	progress = { label = ns.Lower(L["Progress"]), num = function(e) return A.Progress(e) end },
+	-- (sort:grey: your quest log's grey quests first, then by level, as "quests to drop" lists them; 1.0.78)
+	grey = { label = ns.Lower(L["Grey first"]), num = function(e) if e.kind ~= "quests" then return nil end return e.grey and 0 or 1 end },
 	-- (how far, where it was worked out: the rows of a search sorted by distance; sort:level,distance. 0.66.16)
 	distance = { label = L["distance"], num = function(e) return Num(rawget(e, "_dist")) end },
 	-- (an attunement's steps, line by line as Attune's tree reads them: sort:line; 0.55.21)

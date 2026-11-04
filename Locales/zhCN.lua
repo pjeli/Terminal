@@ -3349,4 +3349,9 @@ L["-A N the N lines after each match, -B N before, -C N both (-- between groups)
 L["List order"] = "列表顺序"
 L["in their list's order"] = "按其列表的顺序"
 L["the rows in their list's own order (your quest log's, the spellbook's, the newest first...), not your picks first; a sorted list with no words is listed whole"] = "按列表自身的顺序列出（任务日志的、法术书的、最新的在前……），而不是你常选的在前；没有词语的排序列表会完整列出"
+L["Grey first"] = "灰色优先"
+L["grey ones first, then by level"] = "灰色的在前，然后按等级"
+L["of %s"] = "%s的"
+L["@recipe: the recipes of that profession, the recipe's own (Smelting's are Mining's; _ for a space, prof:first_aid)"] = "@recipe：该专业的配方，按配方自己的专业（熔炼的属于采矿；用 _ 代替空格，prof:first_aid）"
+L["your quest log: the grey quests first, then by level (as \"quests to drop\" lists them)"] = "你的任务日志：灰色任务在前，然后按等级（与 \"quests to drop\" 的列法相同）"
 --@end-do-not-package@

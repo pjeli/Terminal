@@ -1117,6 +1117,10 @@ explain: "Everything matching Wall Dead"
 
 == mounts
 question: CollectionsQ  asked=mounts
+tokens: -
+sort: sortField=name
+kinds: mounts
+action: -
 place: -
 send: -
 steps: -
@@ -1739,91 +1743,131 @@ explain: "Unlearned everything matching boots|slot:boots spirit|stat:spirit"
 
 == missing stamina
 question: Group  asked=missing stamina
+tokens: -
+filter: hard missing:fortitude  sig=missing:fortitude
+sort: sortField=list
+kinds: group
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@group missing:fortitude "
-explain: "Your group, missing:fortitude"
+advanced: "@group missing:fortitude sort:list "
+explain: "Your group, missing:fortitude, in their list's order"
 
 == needs int
 question: Group  asked=needs int
+tokens: -
+filter: hard missing:intellect  sig=missing:intellect
+sort: sortField=list
+kinds: group
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@group missing:intellect "
-explain: "Your group, missing:intellect"
+advanced: "@group missing:intellect sort:list "
+explain: "Your group, missing:intellect, in their list's order"
 
 == who is without fortitude
 question: Group  asked=who is without fortitude
+tokens: -
+filter: hard missing:fortitude  sig=missing:fortitude
+sort: sortField=list
+kinds: group
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@group missing:fortitude "
-explain: "Your group, missing:fortitude"
+advanced: "@group missing:fortitude sort:list "
+explain: "Your group, missing:fortitude, in their list's order"
 
 == party without food
 question: Group  asked=party without food
+tokens: -
+filter: hard missing:food  sig=missing:food
+sort: sortField=list
+kinds: group
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@group missing:food "
-explain: "Your group, missing:food"
+advanced: "@group missing:food sort:list "
+explain: "Your group, missing:food, in their list's order"
 
 == needs blessing of kings
 question: Group  asked=needs blessing of kings
+tokens: -
+filter: hard missing:blessing_kings  sig=missing:blessing_kings
+sort: sortField=list
+kinds: group
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@group missing:blessing_kings "
-explain: "Your group, missing:blessing_kings"
+advanced: "@group missing:blessing_kings sort:list "
+explain: "Your group, missing:blessing_kings, in their list's order"
 
 == missing shadow protection
 question: Group  asked=missing shadow protection
+tokens: -
+filter: hard missing:shadow  sig=missing:shadow
+sort: sortField=list
+kinds: group
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@group missing:shadow "
-explain: "Your group, missing:shadow"
+advanced: "@group missing:shadow sort:list "
+explain: "Your group, missing:shadow, in their list's order"
 
 == need flask
 question: Group  asked=need flask
+tokens: -
+filter: hard missing:elixir  sig=missing:elixir
+sort: sortField=list
+kinds: group
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@group missing:elixir "
-explain: "Your group, missing:elixir"
+advanced: "@group missing:elixir sort:list "
+explain: "Your group, missing:elixir, in their list's order"
 
 == missing buffs
 question: Group  asked=missing buffs
+tokens: -
+filter: hard is:unbuffed  sig=is:unbuffed
+sort: sortField=list
+kinds: group
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@group is:unbuffed "
-explain: "Unbuffed your group"
+advanced: "@group is:unbuffed sort:list "
+explain: "Unbuffed your group, in their list's order"
 
 == nearest enchanting supplies
 question: -
@@ -3239,14 +3283,21 @@ explain: "Quests in your log, your level"
 
 == what killed me today
 question: CombatLog  asked=what killed me
+tokens: -
+filter: hard is:mine  sig=is:mine
+filter: hard is:death  sig=is:death
+filter: hard since:today  sig=since:today
+sort: sortField=list
+kinds: combatlog
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@combatlog is:mine is:death since:today "
-explain: "Yours, death combat log lines, since today"
+advanced: "@combatlog is:mine is:death since:today sort:list "
+explain: "Yours, death combat log lines, since today, in their list's order"
 
 == copper 3 levels above me
 question: -
@@ -3303,14 +3354,19 @@ explain: "Everything matching loot, since yesterday, from before today"
 
 == loot today
 question: LootLog  asked=loot today
+tokens: -
+filter: hard since:today  sig=since:today
+sort: sortField=list
+kinds: lootlog
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@drop since:today "
-explain: "Loot you saw drop, since today"
+advanced: "@drop since:today sort:list "
+explain: "Loot you saw drop, since today, in their list's order"
 
 == mail older than 20 days
 question: -
@@ -3352,14 +3408,20 @@ explain: "Everything matching mail|type:mail, older than 2 weeks"
 
 == auctions sold this week
 question: Auctions  asked=auctions sold
+tokens: -
+filter: hard is:sold  sig=is:sold
+filter: hard since:week  sig=since:week
+sort: sortField=list
+kinds: auctions
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@auction is:sold since:week "
-explain: "Sold auctions, since this week"
+advanced: "@auction is:sold since:week sort:list "
+explain: "Sold auctions, since this week, in their list's order"
 
 == loot in the last 3 days
 question: -
@@ -3601,8 +3663,8 @@ steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@auction is:sold since:week "
-explain: "Sold auctions, since this week"
+advanced: "@auction is:sold since:week sort:list "
+explain: "Sold auctions, since this week, in their list's order"
 
 == what killed me since:today
 question: -
@@ -3616,8 +3678,8 @@ steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@combatlog is:mine is:death since:today "
-explain: "Yours, death combat log lines, since today"
+advanced: "@combatlog is:mine is:death since:today sort:list "
+explain: "Yours, death combat log lines, since today, in their list's order"
 
 == loot since:3d
 question: -
@@ -4916,14 +4978,18 @@ explain: "Gold"
 
 == durability
 question: Durability  asked=durability
+tokens: -
+sort: sortField=list
+kinds: durability
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@durability "
-explain: "Your gear's durability"
+advanced: "@durability sort:list "
+explain: "Your gear's durability, in their list's order"
 
 == mail
 question: -
@@ -5174,14 +5240,18 @@ explain: "Epic or better everything matching sword|type:sword, grouped by zone"
 
 == What's   dropped?
 question: LootLog  asked=What's   dropped?
+tokens: -
+sort: sortField=list
+kinds: lootlog
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@drop "
-explain: "Loot you saw drop"
+advanced: "@drop sort:list "
+explain: "Loot you saw drop, in their list's order"
 
 == @npc dead
 question: -
@@ -6359,14 +6429,19 @@ explain: ERROR nil
 
 == "tonight we
 question: Calendar  asked="tonight we
+tokens: -
+filter: hard when:today  sig=when:today
+sort: sortField=list
+kinds: calendar
+action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@calendar when:today "
-explain: "Calendar events, on the calendar today"
+advanced: "@calendar when:today sort:list "
+explain: "Calendar events, on the calendar today, in their list's order"
 
 == sword q:rare|epic
 question: -
@@ -7990,6 +8065,10 @@ explain: "Flight flight paths matching do i master, Enter: where"
 
 == how many mounts do i have
 question: CollectionsQ  asked=how many mounts do i have
+tokens: -
+sort: sortField=name
+kinds: mounts
+action: -
 place: -
 send: -
 steps: -

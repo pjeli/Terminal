@@ -119,7 +119,7 @@ do
 	check(q and Names((Q.Answer(q))) == "Travel Form", "when do i learn travel form: another class's when not yours")
 	check(Q.Question("fire spells") == nil and Q.Question("spells not on my bars") == nil and Q.Question("druid talents") == nil
 		and Q.Question("@classspell druid") == nil, "not its questions: a search, another question, talents, Advanced syntax")
-	check(ns.QuestionToAdvanced("druid spells") == "@spell class:druid ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("druid spells")))
+	check(ns.QuestionToAdvanced("druid spells") == "@spell class:druid sort:level,name ", "as Advanced: " .. tostring(ns.QuestionToAdvanced("druid spells")))
 	-- (0.63.7, review) a level (a later rank's), your own class's: kept as said, no Advanced line finds the same
 	check(ns.QuestionToAdvanced("shaman spells at level 12") == "shaman spells at level 12 "
 		and ns.QuestionToAdvanced("warrior spells") == "warrior spells ",
@@ -171,7 +171,7 @@ do
 		-- "my spells": your spellbook (a question)
 		local q = Q.Question("my spells")
 		check(q and q.known and Names((Q.Answer(q))) == "Battle Shout | Heroic Strike", "my spells: the spellbook: " .. Names((Q.Answer(q))))
-		check(ns.QuestionToAdvanced("my spells") == "@spell is:known ", "my spells as Advanced: " .. tostring(ns.QuestionToAdvanced("my spells")))
+		check(ns.QuestionToAdvanced("my spells") == "@spell is:known sort:name ", "my spells as Advanced: " .. tostring(ns.QuestionToAdvanced("my spells")))
 		-- (0.55.15, the player's screenshot: "46 results · 46 results") the note says what, the footer how many
 		local _, note = Q.Answer(q)
 		check(note == ns.L["Your spellbook"], "the note has no count of its own: " .. tostring(note))

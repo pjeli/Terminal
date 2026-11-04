@@ -640,42 +640,28 @@ end
 local SPAN_SAID = { today = L["today"], tomorrow = L["tomorrow"], week = L["this week"], nextweek = L["next week"],
 	weekend = L["this weekend"], month = L["this month"], nextmonth = L["next month"] }
 
-function CA.Answer(q)
-	q = q or {}
-	local all = Rows()
-	local rows = {}
-	for _, e in ipairs(all) do
-		local ok = true
-		if q.span and not CA.InSpan(e, q.span) then ok = false end
-		if ok and q.holiday and e.type ~= "HOLIDAY" then ok = false end
-		if ok and q.invite and not e.pending then ok = false end
-		if ok and q.guild and not GUILD[e.type] then ok = false end -- (is:guild's test too: Alt+` writes it)
-		for _, w in ipairs(q.words or {}) do if ok and not Has(e, w) then ok = false end end
-		if ok then rows[#rows + 1] = e end
-	end
-	ns.ScoreInOrder(rows)
-	local note = (q.holiday and L["Holidays"]) or (q.invite and L["Your invites"]) or (q.guild and L["Guild events"])
-		or L["Calendar"]
-	if q.span then note = note .. ns.DETAIL_SEP .. SPAN_SAID[q.span] end
-	if #rows == 0 then
-		if #all == 0 then return { NoteRow(CA.Disabled() and CA.OFF or CA.NONE) }, note end
-		local none = (#(q.words or {}) > 0 and L["Nothing on the calendar has that"])
-			or (q.invite and L["No invitations waiting for an answer"]) or L["Nothing on the calendar then"]
-		return { NoteRow(none) }, note
-	end
-	return rows, note
-end
-
---- The question as Advanced syntax (Alt+`): "@calendar is:holiday when:week darkmoon". (0.49.2, review: every span is
---- kept, not only today's)
-function CA.ToAdvanced(q)
+--- The question as Advanced syntax, its answer and its Alt+` (docs/QUESTIONS.md 4.1): "@calendar is:holiday when:week
+--- darkmoon sort:list". (0.49.2, review: every span is kept, not only today's)
+function CA.Line(q)
 	local parts = { "@calendar" }
 	if q.holiday then parts[#parts + 1] = "is:holiday" end
 	if q.invite then parts[#parts + 1] = "is:invite" end
 	if q.span then parts[#parts + 1] = "when:" .. q.span end
 	if q.guild then parts[#parts + 1] = "is:guild" end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
+	parts[#parts + 1] = "sort:list"
 	return table.concat(parts, " ") .. " "
+end
+function CA.Footer(q)
+	local note = (q.holiday and L["Holidays"]) or (q.invite and L["Your invites"]) or (q.guild and L["Guild events"])
+		or L["Calendar"]
+	if q.span then note = note .. ns.DETAIL_SEP .. SPAN_SAID[q.span] end
+	return note
+end
+function CA.None(q)
+	if #Rows() == 0 then return { NoteRow(CA.Disabled() and CA.OFF or CA.NONE) } end
+	return { NoteRow((#(q.words or {}) > 0 and L["Nothing on the calendar has that"])
+		or (q.invite and L["No invitations waiting for an answer"]) or L["Nothing on the calendar then"]) }
 end
 
 -- asked at login (a moment after: the server's calendar comes with CALENDAR_UPDATE_EVENT_LIST)

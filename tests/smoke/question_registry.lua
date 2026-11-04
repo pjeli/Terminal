@@ -147,7 +147,7 @@ local ok, err = pcall(function()
 		local tailAdv = ns.QueryToAdvanced("zzq my things q:4")
 		local tailSimple = Typed("zzq my things q:4", true)
 		local tailAdvanced = Typed(tailAdv, false)
-		check(tailAdv == "@item sort:list q:4 " and #tailSimple == 30 and table.concat(tailSimple, ",") == table.concat(tailAdvanced, ","),
+		check(tailAdv == "@item q:4 sort:list " and #tailSimple == 30 and table.concat(tailSimple, ",") == table.concat(tailAdvanced, ","),
 			"[questions: answer = Alt+`] a filter typed after it goes into its line: " .. tostring(tailAdv) .. " " .. #tailSimple .. "/" .. #tailAdvanced)
 		local _, _, none = Typed("zzq my things q:6", true)
 		check(none and none.name == "None of your things", "[questions: answer = Alt+`] nothing found: its own row: " .. tostring(none and none.name))
@@ -168,6 +168,53 @@ local ok, err = pcall(function()
 		ns:AliasesChanged()
 		UI.lastScan, UI.lastExtra = nil, nil
 		ns.db.easyMode = true; UI:EasyChanged()
+	end
+
+	-- [questions: every search question] each entry's examples that its line answers here: the question typed in Simple
+	-- mode lists the rows its Alt+` line lists typed in Advanced mode, row for row (docs/QUESTIONS.md, invariant 1)
+	do
+		local B = ns.Bar
+		local function Shown(line, simple)
+			ns.db.easyMode = simple; UI:EasyChanged()
+			UI.lastScan, UI.lastExtra = nil, nil
+			UI:Open(""); UI:SetQuery(line, #line); T.FlushAll()
+			local t = {}
+			for _, e in ipairs(UI.Results()) do if B.Real(e) then t[#t + 1] = tostring(e.kind) .. ":" .. tostring(e.name) end end
+			UI:Hide(); T.FlushAll()
+			return table.concat(t, " | ")
+		end
+		local n, differ = 0, {}
+		for _, a in ipairs(Scan.ANSWERS) do
+			for _, line in ipairs(a.examples or {}) do
+				local c = Q.Ranked(line)[1]
+				local own = c and c.a == a and a.line and a.line(c.q, c.extra)
+				if own and not own:find("%s|%s") then
+					n = n + 1
+					ns.db.easyMode = true; UI:EasyChanged()
+					local adv = ns.QueryToAdvanced(line)
+					local simple, advanced = Shown(line, true), Shown(adv, false)
+					if simple ~= advanced then differ[#differ + 1] = line .. " [" .. simple .. "] vs " .. adv .. " [" .. advanced .. "]" end
+				end
+			end
+		end
+		ns.db.easyMode = true; UI:EasyChanged()
+		io.write(("[questions: every search question] %d examples answered by their line\n"):format(n))
+		check(n >= 20 and #differ == 0, "[questions: every search question] the question and its Alt+` list the same: " .. n .. " " .. table.concat(differ, "; "))
+	end
+
+	-- [questions: sort:grey, prof:] the quest log's grey quests first, then by level, then by name; a recipe's own
+	-- profession (Smelting's recipes are Mining's)
+	do
+		local rows = { { name = "B", kind = "quests", level = 5 }, { name = "C", kind = "quests", level = 3, grey = true },
+			{ name = "A", kind = "quests", level = 5 }, { name = "D", kind = "quests", level = 1 } }
+		ns.Bar.SortRows(rows, "grey")
+		table.sort(rows, function(x, y) return x._score > y._score end)
+		local order = {}
+		for i, e in ipairs(rows) do order[i] = e.name end
+		check(table.concat(order) == "CDAB", "[questions: sort:grey] grey, then level, then name: " .. table.concat(order))
+		local mining = ns.Filters.Parse("prof:mining")
+		check(mining({ kind = "recipes", profName = "Mining", name = "Smelt Copper" }) and not mining({ kind = "recipes", profName = "Tailoring" })
+			and ns.Filters.Parse("prof:first_aid")({ profName = "First Aid" }), "[questions: prof:] the recipe's own profession")
 	end
 
 	-- [questions: step lines] a search question whose line has steps is read at the steps stage, its tail before the "|"
