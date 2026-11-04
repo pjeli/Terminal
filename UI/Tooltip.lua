@@ -423,7 +423,8 @@ end
 
 --- The tooltip put away with the terminal (Hide, the frame's OnHide): hidden, nothing kept as shown.
 function UI:HideTooltip()
-	if tip then tip:Hide(); tip.entry = nil; HideComparisons(tip) end
+	-- (noneFor too: a row whose data hadn't come yet stayed "nothing to show" after a close and reopen; 1.0.85, review)
+	if tip then tip:Hide(); tip.entry, tip.noneFor = nil, nil; HideComparisons(tip) end
 	UI.StopTipWait(tip)
 end
 

@@ -346,6 +346,10 @@ function UI:MenuKey(f, key)
 	elseif key == "ESCAPE" or key == "LEFT" or ns.IsTickKey(key) then
 		if key ~= "ESCAPE" and key ~= "LEFT" then UI.swallowTick = GetTime() end -- (its character not typed after it)
 		f:SetPropagateKeyboardInput(false); self:HideRowMenu() return true
+	elseif key == "RIGHT" then
+		-- (the Shift+Right that opened it, repeated by a client that repeats keys itself: nothing, not closed and opened
+		-- again; 1.0.85, review)
+		f:SetPropagateKeyboardInput(false) return true
 	elseif key ~= "ENTER" and key ~= "NUMPADENTER" then
 		return false -- (anything else closes it and does what it does)
 	end

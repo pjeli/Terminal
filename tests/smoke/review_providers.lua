@@ -366,3 +366,41 @@ do -- (review, 0.53.6) the mail's auction subjects read a translation that numbe
 	_G.AUCTION_SOLD_MAIL_SUBJECT = was
 	MA.ResetSubjectsForTests()
 end
+
+do -- (1.0.85, review) a frame of Terminal's made before .zen faded anything (Zen.Made) is kept up on later fades: the
+	-- badge's pop-out wasn't in Z.OWN, and stayed faded away; a row's "nothing to show" is forgotten as the tooltip hides
+	local Z, UI = T.ns.Zen, T.UI
+	local wasActive = Z.active
+	Z.active = false
+	local f = CreateFrame("Frame", nil, UIParent)
+	Z.Made(f)
+	-- (only the frames Made: Terminal's own window isn't marked kept here, support.lua's .zen test watches it be)
+	local ownWas, framesWas = Z.OWN, T.ns.Panel.Frames
+	Z.OWN, T.ns.Panel.Frames = {}, function() return {} end
+	Z.KeepOwn()
+	Z.OWN, T.ns.Panel.Frames = ownWas, framesWas
+	T.check(Z.Kept(f), "made before a fade: kept on the next one")
+	Z.active = wasActive
+	local tip = _G.TerminalTooltip
+	if tip then
+		tip.noneFor = {}
+		UI:HideTooltip()
+		T.check(tip.noneFor == nil, "the tooltip put away: no row kept as having nothing to show")
+	end
+	-- Shift+Right opening the row menu (Simple mode) stops the key's repeat: it isn't opened again and again
+	local R, ns = UI._repeat, T.ns
+	local easy = ns.db.easyMode
+	ns.db.easyMode = true; UI:EasyChanged()
+	UI.nativeRepeat = false
+	UI:Open("hearthstone"); T.FlushAll()
+	local shiftWas = _G.IsShiftKeyDown
+	_G.IsShiftKeyDown = function() return true end
+	T.key("RIGHT")
+	_G.IsShiftKeyDown = shiftWas
+	T.check(not UI:MenuShown() or R.key == nil, "Shift+Right opened the menu: no repeat left running (" .. tostring(R.key) .. ")")
+	T.check(UI:MenuShown(), "Shift+Right at the end: the row menu")
+	UI:HideRowMenu()
+	R.key = nil
+	UI:Hide(); T.FlushAll()
+	ns.db.easyMode = easy; UI:EasyChanged()
+end

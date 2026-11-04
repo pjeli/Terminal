@@ -187,7 +187,11 @@ function Z.Kept(f) return kept[f] == true end
 --- needed): while the interface is faded it keeps its own alpha at once; later opens keep it by name (Z.OWN). 0.46.17,
 --- the player's screenshot: right after a /reload no tooltip ever showed until Terminal was opened again: the tooltip
 --- was made after .zen had faded UIParent, and so faded with it, invisible.
+-- Every frame made so is kept on later fades too, whether .zen was on when it was made or not (1.0.85, review: the
+-- badge's pop-out, made before a fade and not in Z.OWN, stayed faded away; Z.OWN no longer has to name each one).
+local made = {}
 function Z.Made(f)
+	if type(f) == "table" and not made[f] then made[f] = true; made[#made + 1] = f end
 	if Z.active and Z.Can() then Keep(f) end
 end
 
@@ -209,6 +213,7 @@ end
 --- after the callee's results, past the room it has).
 function Z.KeepOwn()
 	for _, name in ipairs(Z.OWN) do Keep(_G[name]) end
+	for _, f in ipairs(made) do Keep(f) end
 	for _, f in ipairs(ns.Panel and ns.Panel.Frames and ns.Panel.Frames() or {}) do Keep(f) end
 end
 

@@ -2373,6 +2373,15 @@ do
 	check(UI.nativeRepeat == true and R.key == nil, "native key repeat detected; own repeat off")
 	check(query() == "bc", "each native repeat deletes once: " .. query())
 	UI.nativeRepeat = false
+	-- (1.0.85, review) Ctrl let go while Backspace is still held: letters again, not words
+	R.key = nil
+	UI:SetQuery("aa bb cc dd")
+	withCtrl(function() key("BACKSPACE") end)
+	local afterWord = query()
+	R.scripts.OnUpdate(R, 0.45)
+	check(afterWord ~= "aa bb cc dd" and query() == afterWord:sub(1, #afterWord - 1), "Ctrl let go: the repeat deletes a letter: '" .. afterWord .. "' -> '" .. query() .. "'")
+	F.scripts.OnKeyUp(F, "BACKSPACE")
+	R.key = nil
 	UI:Hide()
 
 	-- talents: window on another tree, the tab is clicked first

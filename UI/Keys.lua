@@ -223,6 +223,10 @@ rep:SetScript("OnUpdate", function(self, elapsed)
 		return
 	end
 	self.wait = REPEAT_RATE
+	-- (Ctrl and Shift as they are now: let go of Ctrl while Backspace is held and it deletes letters again, not words;
+	-- 1.0.85, review)
+	if IsControlKeyDown then self.ctrl = IsControlKeyDown() and true or false end
+	if IsShiftKeyDown then self.shift = IsShiftKeyDown() and true or false end
 	EditKey(self.key, self.ctrl, self.shift)
 end)
 
@@ -425,7 +429,10 @@ do
 		elseif not shift and not ctrl and c >= #text and UI:AcceptCompletion() then
 			return -- at the end: take the suggestion
 		elseif shift and not ctrl and c >= #text and EasyOn() and not UI.fzf and not UI:SuggestionText() and UI.results[UI.sel] then
-			UI:ShowRowMenu(UI.sel, true) -- Simple mode: what can be done with it (the result's text would be Advanced syntax)
+			-- Simple mode: what can be done with it (the result's text would be Advanced syntax). Opened once: held, the key's
+			-- repeat built the menu again 22 times a second (1.0.85, review)
+			StopRepeat()
+			UI:ShowRowMenu(UI.sel, true)
 			return
 		elseif shift and not ctrl and c >= #text and UI:FillFromResult() then
 			return -- at the end (nothing to select): the selected result into the prompt, "@npc Thrall"
