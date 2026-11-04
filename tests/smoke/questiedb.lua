@@ -17,6 +17,7 @@ local function Entity(rows)
 	return {
 		Get = function(id, field) return rows[id] and rows[id][field] end,
 		GetAllIds = function() return ids end,
+		rows = rows, -- (the tests change a row's fields: 1.0.64's quest requirements)
 	}
 end
 local function Fresh()
@@ -131,6 +132,58 @@ do
 		local hx = ns.RepQuests.Question("how do i get exalted with stormwind")
 		local hrows2 = hx and ns.RepQuests.Answer(hx)
 		check(hx and hx.standing == 8 and hrows2 and hrows2[1] and hrows2[1].factionID == 72, "how do i get exalted with stormwind: your standing first")
+		-- (1.0.64) what a quest needs: requiredSkill, requiredMinRep, questFlags' daily; skill:, is:daily, the tooltip,
+		-- "tailoring quests", "daily quests", "quests that need honored with stormwind"; "quests here" leaves it out
+		local q176 = _G.LibQuestieDB.Quest.rows[176]
+		q176.requiredSkill, q176.requiredMinRep, q176.questFlags = { 197, 50 }, { 72, 9000 }, 4096
+		QRr.ForgetRequires()
+		local profWas, repApiWas = ns.Professions.PlayerProfessions, _G.C_Reputation
+		ns.Professions.PlayerProfessions = function() return { { name = "Tailoring", rank = 75, maxRank = 150, skillLine = 197 } } end
+		local stand = 3500
+		_G.C_Reputation = { GetFactionDataByID = function(fid) if fid == 72 then return { name = "Stormwind", currentStanding = stand } end end }
+		local need = QRr.Requires(176)
+		check(need and need.skill[1] == 197 and need.skill[2] == 50 and need.rep[2] == 9000 and need.daily and not need.repeatable,
+			"what a quest needs, Questie's: Tailoring 50, 9000 with Stormwind, daily")
+		check(QRr.Requires(60) == nil and not QRr.MeetsRequires(176), "...you're Friendly: you can't take it yet")
+		local said, met = QRr.RequiresSaid(176)
+		check(said[1] and said[1]:find("Tailoring 50", 1, true) and said[1]:find("75", 1, true) and met[1] == true
+			and said[2]:find("Honored", 1, true) and said[2]:find("Stormwind", 1, true) and met[2] == false and said[3] == "Daily",
+			"what it needs, said, with what you have: " .. table.concat(said, " / "))
+		local qrow = I.qdb.list[1]
+		local Tipped = {}
+		qrow.tooltip(qrow, { SetText = function() end, AddLine = function(_, s, r, g) Tipped[#Tipped + 1] = tostring(s) .. (r == 1 and g == 0.1 and "!" or "") end,
+			AddDoubleLine = function() end })
+		local tipText = table.concat(Tipped, " / ")
+		check(tipText:find("Tailoring 50", 1, true) and tipText:find("Stormwind (Friendly)!", 1, true) and tipText:find("Daily", 1, true),
+			"its tooltip: what it needs, red what you haven't: " .. tipText)
+		local fitWas = ns.Zones.QuestFitter(11)(qrow)
+		stand = 9500
+		check(not fitWas and ns.Zones.QuestFitter(11)(qrow), "quests for your level: not one you can't take yet (Honored: it is)")
+		stand = 3500
+		local QN = ns.QuestNeeds
+		local tq, dq, rq2 = QN.Question("tailoring quests"), QN.Question("daily quests"), QN.Question("quests that need honored with stormwind")
+		local trows, drows, rrows3 = tq and QN.Answer(tq), dq and QN.Answer(dq), rq2 and QN.Answer(rq2)
+		check(tq and tq.prof[2] == 197 and trows[1] and trows[1].qid == 176 and tostring(trows[1].detail):find("Tailoring 50", 1, true)
+			and QN.ToAdvanced(tq) == "@questie skill:tailoring -is:done ", "tailoring quests: the quests needing it, your skill against theirs: " .. tostring(trows and trows[1] and trows[1].detail))
+		check(dq and drows[1] and drows[1].qid == 176 and QN.ToAdvanced(dq) == "@questie is:daily ", "daily quests: @questie is:daily")
+		check(rq2 and rrows3[1] and rrows3[1].qid == 176 and QN.ToAdvanced(rq2) == nil, "quests that need honored with stormwind: the quest")
+		check(QN.Question("hogger quests") == nil and QN.Question("quests") == nil and QN.Question("my quests") == nil
+			and QN.Question("first aid quests").prof[2] == 129 and QN.Question("dailies").what == "daily", "not a question: hogger quests, my quests")
+		local easyN = ns.db.easyMode
+		ns.db.easyMode = false
+		UI.lastScan = nil
+		local sk = UI:Search("@questie skill:tailoring")
+		UI.lastScan = nil
+		local sm = UI:Search("@questie skill:mining")
+		UI.lastScan = nil
+		local sd = UI:Search("@questie is:daily")
+		ns.db.easyMode = easyN
+		check(sk[1] and sk[1].qid == 176 and not (sm[1] and sm[1].qid == 176) and sd[1] and sd[1].qid == 176,
+			"@questie skill:tailoring, is:daily: the quest; skill:mining: not it")
+		check(ns.Easy.SayFilter("skill:tailoring") == "that need tailoring", "explain: skill:tailoring: " .. tostring(ns.Easy.SayFilter("skill:tailoring")))
+		q176.requiredSkill, q176.requiredMinRep, q176.questFlags = nil, nil, nil
+		ns.Professions.PlayerProfessions, _G.C_Reputation = profWas, repApiWas
+		QRr.ForgetRequires()
 		ns.providers.reputation = repWas
 		QRr.ForgetRep()
 		-- (1.0.62) an NPC's rank: is:elite, its detail; "elite npcs", "rare mobs near me" in Simple mode

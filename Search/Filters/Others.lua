@@ -659,7 +659,8 @@ F.VALUES = {
 		"auctioneer", "questgiver", "stablemaster", "spirithealer", "battlemaster", "weaponmaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
 		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
 		"shareable", "together", "raid", "dungeon", "key", "class", "broken", "damaged", "holiday", "invite", "today", "guild",
-		"sold", "listed", "mine", "death", "taken", "dealt", "ability", "reward", "canbuy", "tameable", "elite", "rare", "rareelite", "boss" },
+		"sold", "listed", "mine", "death", "taken", "dealt", "ability", "reward", "canbuy", "tameable", "elite", "rare", "rareelite", "boss",
+		"daily", "repeatable" },
 	-- (and the consumables Group.lua's missing: takes: 0.49.2, review)
 	missing = { "fortitude", "intellect", "wild", "spirit", "shadow", "blessing", "consumables", "food", "elixir" },
 	when = { "today", "tomorrow", "week", "weekend", "nextweek", "month", "nextmonth" },
@@ -681,6 +682,8 @@ F.VALUES = {
 	trainer = { "class", "classes", "profession", "warrior", "paladin", "hunter", "rogue", "priest", "shaman", "mage",
 		"warlock", "druid", "blacksmithing", "leatherworking", "tailoring", "alchemy", "engineering", "enchanting",
 		"herbalism", "mining", "skinning", "cooking", "fishing", "firstaid", "pet", "demon", "riding" },
+	skill = { "any", "alchemy", "blacksmithing", "cooking", "enchanting", "engineering", "firstaid", "fishing", "herbalism",
+		"leatherworking", "mining", "skinning", "tailoring" },
 }
 
 -- Which lists each value judges (0.47.7, the player: "@questlog is:" offered online, ready, equippable...): the pick
@@ -711,6 +714,7 @@ F.APPLIES = {
 		craftable = RECIPES, skillup = RECIPES, orange = RECIPE_QUEST, yellow = RECIPE_QUEST, green = RECIPE_QUEST,
 		red = { "quests" }, tracked = { "quests" }, untracked = { "quests" }, here = { "quests" },
 		elite = { "npc" }, rare = { "npc" }, rareelite = { "npc" }, boss = { "npc" }, worldboss = { "npc" },
+		daily = { "questie", "quests" }, repeatable = { "questie", "quests" },
 		grey = { "recipes", "professions", "quests" }, leftbehind = { "quests" }, drop = { "quests" },
 		passive = { "spells" }, unplaced = { "spells" }, known = { "spells", "classspells" }, ability = { "spells" }, tameable = { "npc" }, tamable = { "npc" }, reward = { "reputation" }, rewards = { "reputation" },
 		canbuy = { "reputation" }, buyable = { "reputation" }, capped = { "currency" },
@@ -752,6 +756,7 @@ F.APPLIES = {
 	dura = { ["*"] = { "durability" } }, durability = { ["*"] = { "durability" } },
 	reward = { ["*"] = { "questie", "quests" } }, rewards = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua)
 	repreward = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua, 1.0.63)
+	skill = { ["*"] = { "questie", "quests" } }, -- (Rewards.lua, 1.0.64)
 	since = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
 	older = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
 	before = { ["*"] = { "lootlog", "mail", "auctions", "history", "combatlog", "buyback" } },
@@ -823,6 +828,7 @@ F.HELP = {
 	-- (1.0.27-1.0.40: the quartermasters' rewards in @reputation, a hunter's pets in @npc and @spell; 1.0.41, the player's ask)
 	{ "is:reward", L["@reputation: the quartermasters' rewards (OneForAll's, and AtlasLoot's faction loot); is:canbuy: those your standing lets you buy; with is:reward, standing: is the standing each needs and sort:standing puts the lowest first"] },
 	{ "repreward:stormwind", L["@questie, @quest: the quests that give reputation with that faction (Questie); \"quests for stormwind rep\" in plain words"] },
+	{ "skill:tailoring", L["@questie, @quest: the quests that need that profession (skill:any: any one); is:daily, is:repeatable (Questie); \"tailoring quests\", \"daily quests\" in plain words"] },
 	{ "is:tameable", L["@npc, for a hunter with OneForAll: the beasts you can tame, with their family and the ranks they teach (@npc \"teaches bite 4;\"); @spell is:ability: your pet's abilities, each rank, learned or not"] },
 	{ "near:500", L["@npc, @mailbox, @forge, @anvil, @cookingfire, @moonwell, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] },
 	{ "sort:name", L["by name, A to Z; sort:level (the lowest first), sort:ilvl, sort:quality, sort:value, sort:count (the most first): the rows that have it, then the rest"] },

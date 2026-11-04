@@ -57,6 +57,8 @@ Scan.ANSWERS = {
 	Asks("XpRate"),
 	-- "quests for stormwind rep", "how do i get exalted with timbermaw": Rewards.lua's ns.RepQuests (1.0.63)
 	Asks("RepQuests"),
+	-- "tailoring quests", "daily quests", "quests that need honored with stormwind": Rewards.lua's ns.QuestNeeds (1.0.64)
+	Asks("QuestNeeds"),
 	Asks("QuestsHere"),
 	Asks("CanCraft"),
 	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;

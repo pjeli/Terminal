@@ -584,6 +584,11 @@ function QT.Draw(t, q)
 	if #head > 0 then Line(t, table.concat(head, ns.DETAIL_SEP), DIM) end
 	local me = _G.UnitLevel and Num(Call(_G.UnitLevel, "player"))
 	if q.needs and me and q.needs > me then Line(t, L["Requires level %d"]:format(q.needs), QT.COLOURS[4]) end
+	-- (what else it needs, Questie's: a profession's skill, a standing, red when you haven't it; daily, repeatable. 1.0.64)
+	local QRq = ns.QuestRewards
+	local needs, met = {}, {}
+	if q.id and QRq and QRq.RequiresSaid then needs, met = QRq.RequiresSaid(q.id) end
+	for i, s in ipairs(needs) do Line(t, s, met[i] == false and QT.COLOURS[4] or DIM, true) end
 	if q.lines and #q.lines > 0 then
 		t:AddLine(" ")
 		for i = 1, math.min(#q.lines, 8) do Line(t, q.lines[i], WHITE, true) end

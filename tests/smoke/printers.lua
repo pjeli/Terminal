@@ -29,6 +29,9 @@ local wasEasy, wasLevel = ns.db.easyMode, _G.UnitLevel
 -- has with Questie, for this file only)
 local hadNpc = ns.providers.npc
 if not hadNpc then ns:RegisterProvider("npc", { label = "NPC", aliases = { "npc" }, explicit = true, collect = function() return {} end }) end
+-- (and @questie: "tailoring quests" is "@questie skill:tailoring", 1.0.64)
+local hadQuestie = ns.providers.questie
+if not hadQuestie then ns:RegisterProvider("questie", { label = "Questie", aliases = { "questie" }, explicit = true, collect = function() return {} end }) end
 _G.UnitLevel = function() return 30 end
 ns.db.easyMode = true
 local ok, err = pcall(function()
@@ -71,9 +74,11 @@ local ok, err = pcall(function()
 	check(#differ == 0, "printers: .explain the same in both modes: " .. #differ .. " differ, first: " .. tostring(differ[1]))
 end)
 ns.db.easyMode, _G.UnitLevel = wasEasy, wasLevel
-if not hadNpc then
-	ns.providers.npc = nil
-	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "npc" then table.remove(ns.providerOrder, i) end end
-	ns:AliasesChanged()
+for id, had in pairs({ npc = hadNpc, questie = hadQuestie }) do
+	if not had then
+		ns.providers[id] = nil
+		for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == id then table.remove(ns.providerOrder, i) end end
+		ns:AliasesChanged()
+	end
 end
 check(ok, "printers: " .. tostring(err))

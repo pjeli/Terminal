@@ -554,3 +554,11 @@ rare items
 quests for stormwind rep
 quests that give stormwind reputation
 how do i get exalted with timbermaw
+
+# (1.0.64) what a quest needs (the reach audit)
+tailoring quests
+fishing quests
+daily quests
+repeatable quests
+quests that need honored with stormwind
+@questlog skill:tailoring is:daily

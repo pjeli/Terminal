@@ -1252,3 +1252,204 @@ function RQ.Answer(q)
 	return rows, title
 end
 function RQ.ToAdvanced(q) return "@questie repreward:" .. (q.said:gsub("%s+", "_")) .. " -is:done " end
+
+----------------------------------------------------------------------
+-- What a quest needs (1.0.64, the reach audit), QuestieDB's quest fields as its questMeta.lua says them: requiredSkill (18)
+-- { skillLineId, value }, requiredMinRep (19) { factionId, value } (reputation points: Honored 9000, Revered 21000,
+-- Exalted 42000), specialFlags (24) a bitmask (1: repeatable), questFlags (23) a bitmask (4096: daily). Read defensively:
+-- anything not in that shape is nothing. Filters skill:<profession>, is:repeatable, is:daily; the tooltip says it; "quests
+-- here" and "quests near me" leave out what you can't take yet; "tailoring quests", "daily quests", "quests that need
+-- honored with stormwind".
+----------------------------------------------------------------------
+
+local needOf, needCount = {}, 0
+local function Bit(n, b) n = tonumber(n) return n ~= nil and n >= 0 and math.floor(n / b) % 2 == 1 end
+local function Pair(t) if type(t) == "table" and tonumber(t[1]) and tonumber(t[2]) then return { tonumber(t[1]), tonumber(t[2]) } end end
+--- { skill = { line, value }, rep = { factionId, value }, repeatable, daily }, or nil when it needs nothing of these.
+function QR.Requires(id)
+	if type(id) ~= "number" then return nil end
+	local kept = needOf[id]
+	if kept ~= nil then return kept or nil end
+	local okDB, db = pcall(DB)
+	db = okDB and db or nil
+	local out
+	if db and db.QueryQuestSingle then
+		local skill = Pair(Safe(db.QueryQuestSingle, id, "requiredSkill"))
+		local rep = Pair(Safe(db.QueryQuestSingle, id, "requiredMinRep"))
+		local repeatable = Bit(Safe(db.QueryQuestSingle, id, "specialFlags"), 1)
+		local daily = Bit(Safe(db.QueryQuestSingle, id, "questFlags"), 4096)
+		if skill or rep or repeatable or daily then out = { skill = skill, rep = rep, repeatable = repeatable or nil, daily = daily or nil } end
+	end
+	if needCount > 20000 then needOf, needCount = {}, 0 end
+	needOf[id], needCount = out or false, needCount + 1
+	return out
+end
+function QR.ForgetRequires() needOf, needCount = {}, 0 end -- (tests)
+
+-- reputation points to a standing (1-8)
+local REP_FLOOR = { { 42000, 8 }, { 21000, 7 }, { 9000, 6 }, { 3000, 5 }, { 0, 4 }, { -3000, 3 }, { -6000, 2 } }
+function QR.StandingOfValue(v)
+	v = tonumber(v)
+	if not v then return nil end
+	for _, f in ipairs(REP_FLOOR) do if v >= f[1] then return f[2] end end
+	return 1
+end
+--- Your skill in a skill line (0: not learned), your reputation points with a faction (nil: not known).
+function QR.MySkill(line)
+	local Pr = ns.Professions
+	for _, p in ipairs(Pr and Pr.PlayerProfessions and (Pr.PlayerProfessions()) or {}) do
+		if p.skillLine == line then return p.rank or 0 end
+	end
+	return 0
+end
+function QR.MyRep(fid)
+	local C = rawget(_G, "C_Reputation")
+	local d = C and C.GetFactionDataByID and Safe(C.GetFactionDataByID, fid)
+	if type(d) == "table" and tonumber(d.currentStanding) then return tonumber(d.currentStanding) end
+	if _G.GetFactionInfoByID then
+		local v = select(6, Safe(_G.GetFactionInfoByID, fid))
+		return tonumber(v)
+	end
+	return nil
+end
+--- Can you take it, by what it needs (a profession's skill, a standing)? true when it needs neither, or the game won't say.
+--- (memo: a table kept across one list's quests, so your skills and standings are read once each)
+function QR.MeetsRequires(id, memo)
+	local r = QR.Requires(id)
+	if not r then return true end
+	memo = memo or {}
+	if r.skill then
+		local k = "s" .. r.skill[1]
+		if memo[k] == nil then memo[k] = QR.MySkill(r.skill[1]) end
+		if memo[k] < r.skill[2] then return false end
+	end
+	if r.rep then
+		local k = "r" .. r.rep[1]
+		if memo[k] == nil then memo[k] = QR.MyRep(r.rep[1]) or false end
+		if memo[k] and memo[k] < r.rep[2] then return false end
+	end
+	return true
+end
+--- What it needs, said: "Needs Tailoring 150 (have 75)", "Needs Honored with Stormwind (Friendly)", "Daily"; { lines },
+--- and { [line] = false } for each need you don't meet (the tooltip's red).
+function QR.RequiresSaid(id)
+	local r = QR.Requires(id)
+	local out, met = {}, {}
+	if not r then return out, met end
+	local P = ns.Pipes
+	if r.skill then
+		local pr = P and P.ProfOfLine and P.ProfOfLine(r.skill[1])
+		local name = (C_TradeSkillUI and C_TradeSkillUI.GetTradeSkillDisplayName and Str(Safe(C_TradeSkillUI.GetTradeSkillDisplayName, r.skill[1])))
+			or (pr and pr[3]) or tostring(r.skill[1])
+		local have = QR.MySkill(r.skill[1])
+		out[#out + 1] = L["Needs %s"]:format(name .. " " .. r.skill[2]) .. " (" .. L["have %d"]:format(have) .. ")"
+		met[#out] = have >= r.skill[2]
+	end
+	if r.rep then
+		local need = QR.StandingOfValue(r.rep[2])
+		local fname = QR.FactionName(r.rep[1]) or tostring(r.rep[1])
+		local points = QR.MyRep(r.rep[1])
+		local mine = QR.StandingOfValue(points)
+		out[#out + 1] = L["Needs %s"]:format((ns.StandingName(need) or "?") .. " " .. L["with %s"]:format(fname))
+			.. (mine and (" (" .. ns.StandingName(mine) .. ")") or "")
+		met[#out] = points == nil or points >= r.rep[2]
+	end
+	if r.daily then out[#out + 1] = ns.GameText("DAILY", "Daily") end
+	if r.repeatable then out[#out + 1] = ns.GameText("REPEATABLE", "Repeatable") end
+	return out, met
+end
+
+if Fk and Fk.KEYS then
+	-- skill:tailoring: the quests that need that profession (Chains.lua's P.ProfOfName; "skill:tail" the start of one)
+	Fk.KEYS.skill = function(v)
+		local P = ns.Pipes
+		local want = Lower((v:gsub("_", " ")))
+		if want == "any" then -- (skill:any: a profession, whichever)
+			return function(e) local id = QuestIdOf(e) local r = id and QR.Requires(id) return r ~= nil and r.skill ~= nil end
+		end
+		local pr = P and P.ProfOfName and P.ProfOfName(want)
+		if not pr and P and P.AL_PROFS and #want >= 3 then
+			for _, x in pairs(P.AL_PROFS) do if x[1]:sub(1, #want) == want:gsub(" ", "") then pr = x break end end
+		end
+		if not pr then return nil end
+		local line = pr[2]
+		return function(e)
+			local r = QuestIdOf(e) and QR.Requires(QuestIdOf(e))
+			return r ~= nil and r.skill ~= nil and r.skill[1] == line
+		end
+	end
+	if Fk.IS then
+		Fk.IS.repeatable = function(e) local id = QuestIdOf(e) local r = id and QR.Requires(id) return r ~= nil and r.repeatable == true end
+		Fk.IS.daily = function(e) local id = QuestIdOf(e) local r = id and QR.Requires(id) return r ~= nil and r.daily == true end
+	end
+end
+
+local QN = {}
+ns.QuestNeeds = QN
+QN.MAX = 50
+local QN_FILL = { quest = true, quests = true, i = true, can = true, ["do"] = true, my = true, the = true, ["for"] = true, show = true,
+	list = true, all = true, any = true, some = true, that = true, which = true, what = true, are = true }
+function QN.Question(text)
+	local t = ns.QuestionText(text)
+	if not t then return nil end
+	t = t:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+	-- "quests that need honored with stormwind"
+	local st, f = t:match("^quests? that needs? (%a+) with (.+)$")
+	if not st then st, f = t:match("^quests? needing (%a+) with (.+)$") end
+	if st then
+		local words = ns.Filters and ns.Filters._ and ns.Filters._.StandingWords and ns.Filters._.StandingWords() or {}
+		local need = words[st]
+		local fw = {}
+		for w in f:gsub("^the ", ""):gmatch("%S+") do fw[#fw + 1] = w end
+		local fids = need and QR.FactionsNamed(fw)
+		if fids then return { what = "rep", fids = fids, need = need, said = f } end
+		return nil
+	end
+	-- "tailoring quests", "first aid quests", "profession quests", "daily quests", "dailies", "repeatable quests"
+	local quest, daily, repeatable, anyProf = false, false, false, false
+	local rest = {}
+	for w in t:gmatch("%S+") do
+		if w == "quest" or w == "quests" then quest = true
+		elseif w == "daily" or w == "dailies" or w == "dailys" then daily = true; quest = quest or w ~= "daily"
+		elseif w == "repeatable" or w == "repeatables" or w == "repeating" then repeatable = true
+		elseif w == "profession" or w == "professions" then anyProf = true
+		elseif not QN_FILL[w] then rest[#rest + 1] = w end
+	end
+	if not quest then return nil end
+	local P = ns.Pipes
+	local prof = #rest > 0 and P and P.ProfOfName and P.ProfOfName(table.concat(rest, " "))
+	if #rest > 0 and not prof then return nil end -- ("hogger quests": a search)
+	if daily and not prof then return { what = "daily" } end
+	if repeatable and not prof then return { what = "repeatable" } end
+	if prof or anyProf then return { what = "skill", prof = prof or nil } end
+	return nil
+end
+function QN.Answer(q)
+	local db = DB()
+	local title = L["Quests"]
+	if not db then return { ns.NoteRow(L["Needs Questie: it knows every quest and where it starts"]) }, title end
+	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
+	local rows = {}
+	local qp = ns.providers.questie
+	for _, e in ipairs(qp and ns:GetEntries(qp) or {}) do
+		if #rows >= QN.MAX then break end
+		local id = QuestIdOf(e)
+		local r = id and QR.Requires(id)
+		local ok = r and ((q.what == "daily" and r.daily) or (q.what == "repeatable" and r.repeatable)
+			or (q.what == "skill" and r.skill and (not q.prof or r.skill[1] == q.prof[2]))
+			or (q.what == "rep" and r.rep and q.fids[r.rep[1]] and QR.StandingOfValue(r.rep[2]) >= q.need))
+		if ok and not (done and Safe(done, id) and not r.daily and not r.repeatable) and QR.ForYou(id) then
+			local said = QR.RequiresSaid(id)
+			rows[#rows + 1] = setmetatable({ detail = table.concat(said, ns.DETAIL_SEP) }, { __index = e })
+		end
+	end
+	if #rows == 0 then return { ns.NoteRow(L["Nothing has that. Check the spelling, or try other words."]) }, title end
+	ns.ScoreInOrder(rows)
+	return rows, title
+end
+function QN.ToAdvanced(q)
+	if q.what == "daily" then return "@questie is:daily " end
+	if q.what == "repeatable" then return "@questie is:repeatable " end
+	if q.what == "skill" then return "@questie skill:" .. (q.prof and q.prof[1] or "any") .. " -is:done " end
+	return nil
+end

@@ -414,6 +414,7 @@ L["@npc, for a hunter with OneForAll: the beasts you can tame, with their family
 L["@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)"] = true
 L["@questie is unavailable."] = true
 L["@questie, @quest: the quests that give reputation with that faction (Questie); \"quests for stormwind rep\" in plain words"] = true
+L["@questie, @quest: the quests that need that profession (skill:any: any one); is:daily, is:repeatable (Questie); \"tailoring quests\", \"daily quests\" in plain words"] = true
 L["@questie, @quest: the quests whose reward is that item (its name, part of it, or a close spelling); reward:bag, reward:quiver, reward:ammo_pouch: any one"] = true
 L["@recipe: the recipes of your professions you don't know yet, with how each is learned (is:learnable: those your skill allows now)"] = true
 L["@reputation: the quartermasters' rewards (OneForAll's, and AtlasLoot's faction loot); is:canbuy: those your standing lets you buy; with is:reward, standing: is the standing each needs and sort:standing puts the lowest first"] = true
@@ -3208,6 +3209,7 @@ L["tetris"] = true
 L["text"] = true
 L["that cost %s"] = true
 L["that cost nothing"] = true
+L["that need %s"] = true
 L["that sell %s"] = true
 L["the %s summed up"] = true
 L["the Keybindings section's state"] = true

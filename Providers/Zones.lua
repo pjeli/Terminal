@@ -269,15 +269,21 @@ function Z.QuestFitter(level)
 	local DB = QD and QD.DB and QD.DB()
 	local raceBit, classBit = RaceClassBits()
 	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
+	-- (and what it needs: a profession's skill, a standing; Rewards.lua's QR.MeetsRequires, 1.0.64. "tailoring quests",
+	-- "quests that need honored with stormwind" list them)
+	local QR = ns.QuestRewards
+	local meets = QR and QR.MeetsRequires
+	local memo = {}
 	return function(q)
 		local lv = rawget(q, "level")
 		if type(lv) ~= "number" or lv < level - 2 or lv > level + 3 then return false end
 		local id = rawget(q, "key")
 		if done and Safe(done, id) then return false end
 		if DB and DB.QueryQuestSingle then
-			return Allows(Safe(DB.QueryQuestSingle, id, "requiredRaces"), raceBit)
-				and Allows(Safe(DB.QueryQuestSingle, id, "requiredClasses"), classBit)
+			if not (Allows(Safe(DB.QueryQuestSingle, id, "requiredRaces"), raceBit)
+				and Allows(Safe(DB.QueryQuestSingle, id, "requiredClasses"), classBit)) then return false end
 		end
+		if meets and type(id) == "number" and not meets(id, memo) then return false end
 		return true
 	end
 end

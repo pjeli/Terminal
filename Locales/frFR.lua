@@ -3332,4 +3332,6 @@ L["this session: %s"] = "depuis la connexion : %s"
 L["%s experience an hour"] = "%s d'expérience par heure"
 L["Level %d in about %s"] = "Niveau %d dans environ %s"
 L["@questie, @quest: the quests that give reputation with that faction (Questie); \"quests for stormwind rep\" in plain words"] = "@questie, @quest : les quêtes qui donnent de la réputation auprès de cette faction (Questie) ; \"quests for stormwind rep\" en mots simples"
+L["that need %s"] = "qui demandent %s"
+L["@questie, @quest: the quests that need that profession (skill:any: any one); is:daily, is:repeatable (Questie); \"tailoring quests\", \"daily quests\" in plain words"] = "@questie, @quest : les quêtes qui demandent ce métier (skill:any : n'importe lequel) ; is:daily, is:repeatable (Questie) ; \"tailoring quests\", \"daily quests\" en mots simples"
 --@end-do-not-package@

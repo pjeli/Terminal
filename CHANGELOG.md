@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.64 (in testing)
+
+- What a quest needs, from Questie (the reach audit): a quest's tooltip says the profession skill or standing it needs and what you have (red when you lack it), and whether it's daily or repeatable; `skill:tailoring` (`skill:any`), `is:daily`, `is:repeatable` keep those quests; "tailoring quests", "fishing quests", "daily quests", "repeatable quests", "quests that need honored with stormwind" list them, your skill or standing beside theirs. "Quests here" and the quest suggestions for your level now leave out quests you can't take yet for want of a skill or standing.
+
 ## 1.0.63 (in testing)
 
 - Quests by the reputation they give, from Questie (the reach audit): a quest's tooltip lists its reputation ("+250 Stormwind"); `repreward:stormwind` keeps the quests that give it; "quests for stormwind rep", "quests that give stormwind reputation" list those you can still do, the most reputation first; "how do i get exalted with timbermaw" your standing with it, then its quests. (Also: a line with an `@kind` typed no longer has a list's name taken out of its words.)
