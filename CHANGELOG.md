@@ -1,6 +1,10 @@
 # Changelog
 
-## 1.1.3 (in testing)
+## 1.1.4 (in testing)
+
+- Terminal's own settings are rows you can search: **terminal settings** (or `.set` alone) lists every setting with its value, and everyday words find one (**bigger font**, **cursor**, **zen dimming**, **opacity**, **see through**). Enter turns an on/off one on or off, or lists the values to pick (`.set cursor `, numbers with a step either way, the default and the ends; colours with the theme's own); Shift+Enter puts the default back; the terminal stays open, so you can change several. Each tooltip says what the setting does. `.set list` prints them in chat as `.set` did.
+
+## 1.1.3
 
 - With TomTom taking the waypoints, Enter's verb on places, NPCs and `@map` rows says **show via TomTom** instead of **show on map** (footer, right-click menu and the flight path and corpse tooltips). With `.set waypoints both` or `map` it still says the map.
 

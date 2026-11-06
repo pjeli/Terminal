@@ -930,16 +930,16 @@ explain: "Key bindings"
 question: -
 tokens: loot
 sort: -
-kinds: corpse dungeon flight maps raid
+kinds: -
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: places
-advanced: "@flight loot "
-explain: "Flight paths matching loot"
+category: -
+advanced: "loot "
+explain: "Everything matching loot"
 
 == npc
 question: -
@@ -1168,16 +1168,16 @@ explain: "Friendly innkeepers, nearest first"
 question: -
 tokens: city
 sort: -
-kinds: corpse dungeon flight maps raid
+kinds: -
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: places
-advanced: "@flight city "
-explain: "Flight paths matching city"
+category: -
+advanced: "city "
+explain: "Everything matching city"
 
 == advanced
 question: -
@@ -1350,16 +1350,16 @@ explain: "Everything matching frost nova"
 question: -
 tokens: hggr
 sort: -
-kinds: -
+kinds: addonoptions addons cvars gameoptions keybinds terminal
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: -
-advanced: "hggr "
-explain: "Everything matching hggr"
+category: settings
+advanced: "@terminal hggr "
+explain: "Terminal matching hggr"
 
 == marshal
 question: -
@@ -4996,7 +4996,7 @@ question: -
 tokens: -
 filter: soft type:mail  sig=~mail  word=mail
 sort: -
-kinds: -
+kinds: addonoptions addons cvars gameoptions keybinds terminal
 action: -
 place: -
 send: -
@@ -5004,9 +5004,9 @@ steps: -
 group: -
 pick: spec=type:mail word=mail
 pick sort: -
-category: -
-advanced: "mail|type:mail "
-explain: "Everything matching mail|type:mail"
+category: settings
+advanced: "@terminal mail|type:mail "
+explain: "Terminal matching mail|type:mail"
 
 == my mail
 question: Mail  asked=my mail
@@ -5383,7 +5383,7 @@ tokens: -
 filter: soft type:mail  sig=~mail  word=mail
 filter: hard -is:cod  sig=-cod
 sort: -
-kinds: -
+kinds: addonoptions addons cvars gameoptions keybinds terminal
 action: -
 place: -
 send: -
@@ -5392,9 +5392,9 @@ group: -
 pick: spec=type:mail word=mail
 pick: spec=-is:cod word=-cod
 pick sort: -
-category: -
-advanced: "mail|type:mail -is:cod "
-explain: "Everything matching mail|type:mail, not cod"
+category: settings
+advanced: "@terminal mail|type:mail -is:cod "
+explain: "Terminal matching mail|type:mail, not cod"
 
 == mail no cod
 question: -
@@ -5402,7 +5402,7 @@ tokens: -
 filter: soft type:mail  sig=~mail  word=mail
 filter: hard -is:cod  sig=-cod
 sort: -
-kinds: -
+kinds: addonoptions addons cvars gameoptions keybinds terminal
 action: -
 place: -
 send: -
@@ -5411,9 +5411,9 @@ group: -
 pick: spec=type:mail word=mail
 pick: spec=-is:cod word=-cod
 pick sort: -
-category: -
-advanced: "mail|type:mail -is:cod "
-explain: "Everything matching mail|type:mail, not cod"
+category: settings
+advanced: "@terminal mail|type:mail -is:cod "
+explain: "Terminal matching mail|type:mail, not cod"
 
 == x except y
 question: -

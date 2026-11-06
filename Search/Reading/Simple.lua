@@ -224,6 +224,7 @@ local function WhoVerbs(e)
 	return L["whisper"], L["invite"]
 end
 local function TerminalVerbs(e)
+	if e.setKey and ns.Options and ns.Options.SettingVerbs then return ns.Options.SettingVerbs(e) end -- (a setting's row)
 	return e.presetId and L["apply"] or L["open"]
 end
 -- Enter's verb for a place: "show on map", or "show via TomTom" while waypoints go there (Maps.lua)
@@ -455,6 +456,7 @@ function E.HelpLines()
 		L["Ctrl+Enter does it and keeps the terminal open (for things that don't open a window)."],
 		L["F1 (or .keybinds) shows every key, for each mode; Esc there brings you back."],
 		L["Commands start with a dot: .options, .theme, .weights, .zen, .changelog... (type a dot to see them all)."],
+		L["Terminal's own settings: \"terminal settings\" (or .set) lists them with their values; \"bigger font\", \"cursor\" or \"zen dimming\" finds one. Enter changes it, Shift+Enter puts its default back."],
 		L["Make your own: .alias rep durability makes .rep show your durability (any search, a /slash command or another .command; .alias lists yours, .unalias rep forgets one)."],
 		L["New here? .tour shows Terminal in a few short steps."],
 		L["The bar under the prompt narrows, sorts and groups what's found: Filter, Sort and Group (Alt+F, Alt+S, Alt+G open them, Up/Down and Enter pick); the speaker button sends or copies every result."],

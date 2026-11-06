@@ -105,6 +105,7 @@ T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "pro
 	"slashKey", "fzfGlow", "fzfColor", "mailWarn", "waypoints" }
 -- waypoints: TomTom's arrow (or an addon taking TomTom's calls), the game's map pin, or both; without TomTom, the map's
 T.WAYPOINT_ORDER = { "tomtom", "map", "both" }
+T.SETTINGS_SEARCH = "terminal settings" -- (.set alone opens this: every setting a row, UI/Options.lua)
 T.WAYPOINT_LABELS = { tomtom = "TomTom", map = L["Map pin"], both = L["Map pin and TomTom"] }
 -- fuzzy finding's glow: breathing (slow pulse), steady, bright (stronger and wider), a thin line, or none
 T.FZF_GLOW_ORDER = { "breathe", "steady", "bright", "line", "off" }
@@ -325,6 +326,38 @@ function T.Format(key, v)
 		if f.step < 1 then return ("%.2f"):format(v) end
 		return tostring(math.floor(v + 0.5))
 	end
+	return tostring(v)
+end
+
+--- A choice's value as said to the player ("Blinking line", "Map pin", "Classic"); other values as T.Format says them.
+function T.ValueLabel(key, v)
+	local f = T.FIELDS[key]
+	if not (f and f.kind == "choice") then return T.Format(key, v) end
+	local s = tostring(v)
+	return (key == "cursor" and T.CURSOR_LABELS[s]) or (key == "animations" and T.ANIMATION_LABELS[s])
+		or (key == "fzfGlow" and T.FZF_GLOW_LABELS[s]) or (key == "waypoints" and T.WAYPOINT_LABELS[s])
+		or (key == "frame" and (s == "classic" and L["Classic"] or L["Flat"]))
+		or (s:sub(1, 1):upper() .. s:sub(2))
+end
+
+--- A setting's default: a colour's is the theme's own (the preset picked, else Forever's; the prompt's background a
+--- shade darker than the background), anything else T.DEFAULTS'.
+function T.DefaultOf(key)
+	local f = T.FIELDS[key]
+	if f and f.kind == "color" and not f.optional then
+		local t = T.Get()
+		local p = T.PRESETS[t.preset] or T.PRESETS.forever
+		if key == "promptBg" then return T.Darken(p.bg or T.DEFAULTS.bg, PROMPT_DARKEN) end
+		return p[key] or T.DEFAULTS[key]
+	end
+	return T.DEFAULTS[key]
+end
+
+--- A value as .set takes it (T.Set's raw): on/off, "accent" for a colour following the theme, else the value.
+function T.RawOf(key, v)
+	local f = T.FIELDS[key]
+	if f and f.kind == "bool" then return v and "on" or "off" end
+	if f and f.kind == "color" and f.optional and not v then return "accent" end
 	return tostring(v)
 end
 
@@ -626,14 +659,37 @@ ns:RegisterCommand("set", {
 		for _, k in ipairs(T.ORDER) do
 			if k:lower() == key:lower() then
 				local f = T.FIELDS[k]
-				local values = (f.kind == "bool" and { "on", "off" }) or (f.kind == "choice" and f.choices)
-					or (f.optional and { "accent" }) or {}
+				local values = (f.kind == "bool" and { "on", "off" }) or (f.kind == "choice" and f.choices) or {}
 				local cur = T.Format(k, t[k])
 				local out = {}
 				for _, v in ipairs(values) do
-					local label = (k == "cursor" and T.CURSOR_LABELS[v]) or (k == "animations" and T.ANIMATION_LABELS[v])
-					or (k == "fzfGlow" and T.FZF_GLOW_LABELS[v]) or (k == "waypoints" and T.WAYPOINT_LABELS[v]) or ""
+					local label = f.kind == "choice" and T.ValueLabel(k, v) or ""
+					if k == "font" then label = "" end -- (a font's name: said once)
 					out[#out + 1] = { v, label .. (v == cur and ((label ~= "" and "  " or "") .. L["(current)"]) or "") }
+				end
+				if f.kind == "number" then
+					-- (a step either way, the default, the ends: "14  +1", "13  (default)")
+					local now, seen = t[k], {}
+					local function Add(v, said)
+						v = math.max(f.min, math.min(f.max, tonumber(("%.2f"):format(v))))
+						if seen[v] then return end
+						seen[v] = true
+						out[#out + 1] = { tostring(v), T.Format(k, v) .. "  " .. said .. (v == now and ("  " .. L["(current)"]) or "") }
+					end
+					Add(now + f.step, "+" .. T.Format(k, f.step):gsub("/s$", ""):gsub("%%$", ""))
+					Add(now - f.step, "-" .. T.Format(k, f.step):gsub("/s$", ""):gsub("%%$", ""))
+					Add(T.DefaultOf(k), L["(default)"])
+					Add(f.min, L["lowest"])
+					Add(f.max, L["highest"])
+				elseif f.kind == "color" then
+					-- (the theme's own colour; one that follows the accent)
+					if f.optional then out[#out + 1] = { "accent", L["the theme's selection colour"] .. (not t[k] and ("  " .. L["(current)"]) or "") } end
+					local d = T.DefaultOf(k)
+					if d and not f.optional then
+						out[#out + 1] = { d, "|cff" .. d .. L["the theme's own"] .. "|r" .. (t[k] == d and ("  " .. L["(current)"]) or "") }
+					end
+				elseif f.kind == "text" then
+					out[#out + 1] = { tostring(t[k]), L["(current)"] }
 				end
 				return out
 			end
@@ -643,7 +699,12 @@ ns:RegisterCommand("set", {
 	run = function(args)
 		local key, value = strtrim(args or ""):match("^(%S*)%s*(.-)$")
 		local t = T.Get()
-		if key == "" then
+		-- (alone: every setting as rows to pick, change and search, "terminal settings"; .set list prints them)
+		if key == "" and ns.UI and ns.UI.Open then
+			C_Timer.After(0, function() ns.UI:Open(T.SETTINGS_SEARCH) end)
+			return nil
+		end
+		if key == "list" and value == "" then
 			local lines = { L["Settings (.set <name> <value>):"] }
 			for _, k in ipairs(T.ORDER) do
 				lines[#lines + 1] = ("  %s = %s   (%s)"):format(k, T.Format(k, t[k]), T.FIELDS[k].label)

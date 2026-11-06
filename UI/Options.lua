@@ -675,21 +675,181 @@ local function OptionsMacro()
 end
 local OPTIONS_SPEC = { macro = OptionsMacro, opensWindow = true }
 
+----------------------------------------------------------------------
+-- Terminal's own settings as rows ("terminal settings", "cursor", "bigger font", "zen dimming"; .set alone opens
+-- them): each says its value; Enter turns an on/off one on or off, or lists the values to pick (.set's own list, the
+-- prompt written as ".set cursor "); Shift+Enter puts back the default. They stay open, so several can be changed.
+----------------------------------------------------------------------
+
+-- (a colour's row names what it colours: its label alone, "Text", "Details", says too little in a list)
+local SET_NAME = {
+	promptText = L["Prompt character"], accent = L["Selection colour"], match = L["Match highlight colour"],
+	text = L["Text colour"], dim = L["Details colour"], bg = L["Background colour"], border = L["Border colour"],
+	fzfColor = L["Fuzzy glow colour"],
+	mailWarn = L["Mail expiry warning"], -- (short: a long name's letters matched "loot", "map", "mailbox")
+}
+-- what each does, for its tooltip
+local SET_DESC = {
+	promptText = L["The characters before what you type (up to 3)."],
+	prompt = L["The colour of what you type."],
+	accent = L["The colour of the selected row and the cursor."],
+	match = L["The colour of the letters your search matched."],
+	text = L["The colour of the results' names."],
+	dim = L["The colour of the details beside each result."],
+	bg = L["The window's background colour."],
+	promptBg = L["The background behind the prompt."],
+	border = L["The colour of the window's edge."],
+	bgAlpha = L["How solid the window is: lower lets the game show through."],
+	frame = L["Classic: the game's tooltip frame. Flat: a thin line."],
+	font = L["The font of the whole window."],
+	fontSize = L["Bigger or smaller text."],
+	width = L["How wide the window is."],
+	rows = L["How many results show at once."],
+	scale = L["Everything in the window bigger or smaller."],
+	hints = L["The keys for the selected row, in the footer."],
+	syntax = L["Colour what you type: @kinds, filters, .commands."],
+	suggest = L["A faint example in the empty prompt."],
+	slashKey = L["The / key opens Terminal on a slash command (out of combat)."],
+	animations = L["How the window opens, closes and moves."],
+	cursor = L["The text cursor: a line or a box, blinking or solid."],
+	blinkRate = L["How fast the cursor blinks."],
+	zenDim = L["How dark .zen makes the screen behind Terminal."],
+	autoScan = L["Read your professions quietly after login."],
+	mailWarn = L["Say at login when mail with something in it runs out soon."],
+	fzfGlow = L["The glow round the prompt while fuzzy finding (Tab+`)."],
+	fzfColor = L["The fuzzy finding glow's colour."],
+	waypoints = L["Where Enter's waypoints go: TomTom's arrow, the map pin, or both."],
+}
+-- the words that find each besides its name (English, as every language's search takes it too)
+local SET_WORDS = {
+	promptText = "prompt character symbol sign",
+	prompt = "prompt colour color typed", accent = "selection selected highlight cursor colour color",
+	match = "match matched highlight letters colour color", text = "text names colour color",
+	dim = "details dim colour color", bg = "background colour color", promptBg = "prompt background colour color",
+	border = "border edge colour color", bgAlpha = "opacity transparency transparent alpha see through",
+	frame = "frame border style classic flat", font = "font typeface letters",
+	fontSize = "font size text size bigger smaller larger", width = "width wider narrower size",
+	rows = "rows results lines how many max", scale = "scale size bigger smaller zoom",
+	hints = "key hints footer keys help", syntax = "colour color syntax highlight typing",
+	suggest = "suggestions suggest examples try empty prompt", slashKey = "slash key open chat",
+	animations = "animation animations motion effects open close", cursor = "cursor caret",
+	blinkRate = "blink speed cursor", zenDim = "zen dimming dim dark screen",
+	autoScan = "professions index login scan", mailWarn = "mail expire expiring warning login",
+	fzfGlow = "fuzzy glow fzf", fzfColor = "fuzzy glow fzf colour color", waypoints = "waypoints waypoint tomtom map pin arrow",
+}
+
+local function IsDefault(key)
+	local d = T.DefaultOf(key)
+	local v = T.Get()[key]
+	return v == d or (v == false and d == nil) or (v == nil and d == false)
+end
+
+--- A setting's value as its row and tooltip say it: on in green, off in red, a colour in itself, a choice by name.
+local function ValueText(key, v)
+	local f = T.FIELDS[key]
+	if f.kind == "bool" then return v and ("|cff40ff40" .. L["on"] .. "|r") or ("|cffff6060" .. L["off"] .. "|r") end
+	if f.kind == "color" then
+		if not v then return L["the theme's selection colour"] end
+		return "|cff" .. v .. v .. "|r"
+	end
+	if f.kind == "text" then return tostring(v) end
+	return T.ValueLabel(key, v)
+end
+
+local function Redraw()
+	local U = ns.UI
+	if U and U.IsShown and U:IsShown() and U.Render then pcall(U.Render, U) end
+end
+
+-- Enter: an on/off one turned on or off; any other, its values listed to pick (or type one)
+local function SettingEnter(e)
+	local key = e.setKey
+	if T.FIELDS[key].kind == "bool" then
+		local ok, v = T.Set(key, T.Get()[key] and "off" or "on")
+		if ok then ns:Print(L["%s: %s"]:format(e.name, v and L["on"] or L["off"])) end
+		Redraw()
+		return
+	end
+	local line = ".set " .. key .. " "
+	ns.UI:SetQuery(line, #line)
+end
+-- Shift+Enter: the default back
+local function SettingReset(e)
+	local key = e.setKey
+	local ok, v = T.Set(key, T.RawOf(key, T.DefaultOf(key)))
+	if ok then ns:Print(L["%s: back to %s"]:format(e.name, ValueText(key, v))) end
+	Redraw()
+end
+
+local function SettingTooltip(e, t)
+	local key = e.setKey
+	local v = T.Get()[key]
+	t:SetText(e.name, 1, 0.82, 0)
+	if SET_DESC[key] then t:AddLine(SET_DESC[key], 1, 1, 1, true) end
+	t:AddDoubleLine(L["Now"], ValueText(key, v), 1, 1, 1, 1, 1, 1)
+	if not IsDefault(key) then t:AddDoubleLine(L["Default"], ValueText(key, T.DefaultOf(key)), 0.8, 0.8, 0.8, 0.8, 0.8, 0.8) end
+	t:AddLine(".set " .. key .. " " .. T.RawOf(key, v), 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, T.FIELDS[key].kind == "bool" and L["Enter: turn it on or off    Shift+Enter: reset to default"]
+		or L["Enter: pick a value    Shift+Enter: reset to default"], 0.6, 0.6, 0.6, true)
+end
+
+local SETTING = { icon = "Interface\\Icons\\INV_Misc_Gear_08", activate = SettingEnter, staysOpen = true, tooltip = SettingTooltip }
+local SETTING_LAZY = {
+	-- (read when drawn: a change shows at once)
+	detail = function(e)
+		local key = e.setKey
+		local v = T.Get()[key]
+		return ns.Detail(ValueText(key, v), not IsDefault(key) and (L["default %s"]):format(ValueText(key, T.DefaultOf(key))) or nil)
+	end,
+	-- (none while it's the default already: nothing to put back)
+	secondary = function(e) return not IsDefault(e.setKey) and SettingReset or nil end,
+}
+local settingMeta
+
+--- Enter's and Shift+Enter's verbs on a setting's row (Simple.lua's footer and the row menu).
+function O.SettingVerbs(e)
+	local key = e.setKey
+	local enter = T.FIELDS[key].kind == "bool" and (T.Get()[key] and L["turn off"] or L["turn on"]) or L["pick a value"]
+	return enter, L["reset to default"]
+end
+
+--- The settings shown: every one, but those that do nothing here (the profession indexing WoW Forever doesn't allow,
+--- waypoints with no TomTom).
+local function SettingShown(key)
+	if key == "autoScan" then return ns.db and ns.db.noDirectOpen == false end
+	if key == "waypoints" then return ns.Maps and ns.Maps.TomTom and ns.Maps.TomTom() ~= nil end
+	return true
+end
+
+local function SettingRows(p, out)
+	settingMeta = settingMeta or ns:CompactMeta(p, SETTING, SETTING_LAZY)
+	for _, key in ipairs(T.ORDER) do
+		local f = T.FIELDS[key]
+		if f and SettingShown(key) then
+			local name = SET_NAME[key] or f.label
+			out[#out + 1] = setmetatable({ _compact = true, key = "set:" .. key, setKey = key, name = name,
+				text = table.concat({ ns.Lower(name), key:lower(), SET_WORDS[key] or "", "terminal setting settings option options set config" }, " ") },
+				settingMeta)
+		end
+	end
+end
+
 ns:RegisterProvider("terminal", {
 	label = "Terminal",
 	color = "ffd1ffb2", -- (not the slash commands' green)
 	aliases = { "terminal", "theme", "themes" },
-	collect = function()
+	collect = function(p)
 		local out = {
 			{
 				key = "options",
 				name = L["Terminal Options"],
 				icon = "Interface\\Icons\\INV_Misc_Gear_01",
-				text = "settings preferences theme colours colors font layout customize prompt",
+				text = "terminal settings setting preferences theme colours colors font layout customize prompt options",
 				secure = OPTIONS_SPEC, isOpen = ns.Never,
 				activate = function() O.Open() end,
 			},
 		}
+		SettingRows(p or ns.providers.terminal, out)
 		for _, id in ipairs(T.PRESET_ORDER) do
 			out[#out + 1] = {
 				key = "theme:" .. id,
@@ -700,6 +860,6 @@ ns:RegisterProvider("terminal", {
 				activate = ApplyPresetRow,
 			}
 		end
-		return out
+		return ns.RankInOrder(out, 0.05) -- (among equal matches: the options, the settings in .set's order, the themes; a nudge only)
 	end,
 })
