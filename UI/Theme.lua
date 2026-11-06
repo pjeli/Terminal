@@ -49,6 +49,7 @@ T.DEFAULTS = {
 	slashKey = false, -- the / key opens Terminal on a slash command (SlashKey.lua; off unless turned on)
 	fzfGlow = "breathe", -- fuzzy finding's glow round the prompt: T.FZF_GLOW_ORDER
 	fzfColor = false, -- its colour (false: the theme's selection colour)
+	waypoints = "tomtom", -- where Enter's waypoints go while TomTom is there: T.WAYPOINT_ORDER (Maps.lua's M.PinTo)
 	v = 4, -- theme defaults version (see T.Get)
 }
 
@@ -101,7 +102,10 @@ for id, path in pairs(T.LOCALE_FONTS[ns.LOCALE] or {}) do T.FONTS[id] = path end
 -- What each setting accepts. Order is how .set lists them.
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
 	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "zenDim", "autoScan", "syntax", "suggest",
-	"slashKey", "fzfGlow", "fzfColor", "mailWarn" }
+	"slashKey", "fzfGlow", "fzfColor", "mailWarn", "waypoints" }
+-- waypoints: TomTom's arrow (or an addon taking TomTom's calls), the game's map pin, or both; without TomTom, the map's
+T.WAYPOINT_ORDER = { "tomtom", "map", "both" }
+T.WAYPOINT_LABELS = { tomtom = "TomTom", map = L["Map pin"], both = L["Map pin and TomTom"] }
 -- fuzzy finding's glow: breathing (slow pulse), steady, bright (stronger and wider), a thin line, or none
 T.FZF_GLOW_ORDER = { "breathe", "steady", "bright", "line", "off" }
 T.FZF_GLOW_LABELS = { breathe = L["Breathing"], steady = L["Steady"], bright = L["Bright"], line = L["Thin line"], off = L["Off"] }
@@ -182,6 +186,7 @@ T.FIELDS = {
 	mailWarn = { kind = "bool", label = L["Warn at login: mail about to expire"] },
 	fzfGlow = { kind = "choice", label = L["Fuzzy mode glow"], choices = T.FZF_GLOW_ORDER },
 	fzfColor = { kind = "color", label = L["Fuzzy glow"], optional = true }, -- (accent/default: the selection colour)
+	waypoints = { kind = "choice", label = L["Waypoints go to"], choices = T.WAYPOINT_ORDER },
 }
 local PRESET_KEYS = { frame = true, promptBg = true, bg = true, border = true, accent = true, prompt = true, text = true, dim = true, match = true, bgAlpha = true }
 
@@ -627,7 +632,7 @@ ns:RegisterCommand("set", {
 				local out = {}
 				for _, v in ipairs(values) do
 					local label = (k == "cursor" and T.CURSOR_LABELS[v]) or (k == "animations" and T.ANIMATION_LABELS[v])
-					or (k == "fzfGlow" and T.FZF_GLOW_LABELS[v]) or ""
+					or (k == "fzfGlow" and T.FZF_GLOW_LABELS[v]) or (k == "waypoints" and T.WAYPOINT_LABELS[v]) or ""
 					out[#out + 1] = { v, label .. (v == cur and ((label ~= "" and "  " or "") .. L["(current)"]) or "") }
 				end
 				return out

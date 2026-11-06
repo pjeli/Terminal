@@ -1358,7 +1358,8 @@ SH.Command("pin", {
 		local opts, rest = SH.Opts(io.args, "c")
 		if not opts then io.err(rest) return 2 end
 		if opts.c then
-			if _G.C_Map and _G.C_Map.ClearUserWaypoint then pcall(_G.C_Map.ClearUserWaypoint) end
+			local M = ns.Maps
+			if M and M.ClearPins then M.ClearPins() elseif _G.C_Map and _G.C_Map.ClearUserWaypoint then pcall(_G.C_Map.ClearUserWaypoint) end
 			io.out(Paint("dim", L["waypoint cleared"]))
 			return 0
 		end

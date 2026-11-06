@@ -389,7 +389,7 @@ I.NpcPin = NpcPin -- (the console's pin)
 --- A map pin link where the NPC stands, for chat (>> party): the waypoint is set (a C API), then its link.
 function I.NpcPinLink(e)
 	local mapID, pos = NpcLocation(e.npcID)
-	if not (mapID and pos and ns.Maps and ns.Maps.Place and ns.Maps.Place({ name = e.name, mapID = mapID, pos = pos })) then return nil end
+	if not (mapID and pos and ns.Maps and ns.Maps.Place and ns.Maps.Place({ name = e.name, mapID = mapID, pos = pos }, true)) then return nil end -- (the game's pin: its link)
 	return WaypointLink()
 end
 

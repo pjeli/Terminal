@@ -333,7 +333,7 @@ end
 --- A map pin link for a row with a spot of its own (an entrance, a mailbox): the waypoint is set there (a C API).
 function I.SpotPinLink(e)
 	if not (e and e.ui and e.px and ns.Maps and ns.Maps.Place) then return nil end
-	if not ns.Maps.Place({ name = e.name, mapID = e.ui, pos = { x = e.px / 100, y = e.py / 100 } }) then return nil end
+	if not ns.Maps.Place({ name = e.name, mapID = e.ui, pos = { x = e.px / 100, y = e.py / 100 } }, true) then return nil end -- (the game's pin: its link)
 	return WaypointLink()
 end
 

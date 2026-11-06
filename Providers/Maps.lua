@@ -81,23 +81,109 @@ local function Waypoint(mapID, pos)
 	return true
 end
 
---- The chosen place becomes the map pin. A pin that is already set is removed first, and
---- then replaced even for a whole zone (pinned at its middle), so the pin always follows
---- the last place picked here. With no pin set, only places with a spot of their own get one.
---- Returns "moved", "set" or nil.
-local function Place(e)
-	local had = HasPin()
-	local pos = e.pos or (had and { x = 0.5, y = 0.5 }) or nil
-	if not (pos and CanPin(e.mapID, pos)) then return nil end
-	if had and C_Map.ClearUserWaypoint then pcall(C_Map.ClearUserWaypoint) end
-	if Waypoint(e.mapID, pos) then return had and "moved" or "set" end
+-- TomTom, or an arrow addon taking TomTom's calls (Waypoint Tracker): its public TomTom:AddWaypoint(uiMapID, x, y,
+-- opts) with 0-1 coordinates, and RemoveWaypoint(uid). Another addon's code, not Blizzard's: no window state touched.
+local tomtomUid -- the waypoint Terminal gave it last: removed before the next, one at a time as the map pin
+function M.TomTom()
+	local T = rawget(_G, "TomTom")
+	return type(T) == "table" and type(T.AddWaypoint) == "function" and T or nil
 end
 
---- The line saying where the map pin went ("set" / "moved": Place's answer): "Waypoint set on Ratchet (The Barrens)",
---- "Waypoint moved to Hogger". Every waypoint line says it this way.
+--- Where waypoints go: "map", "tomtom" or "both" (the waypoints setting; the map's alone while there's no TomTom).
+function M.PinTo()
+	local th = ns.Theme and ns.Theme.Get and ns.Theme.Get()
+	local to = th and th.waypoints or "tomtom"
+	if to == "map" or not M.TomTom() then return "map" end
+	return to == "both" and "both" or "tomtom"
+end
+
+--- Is Terminal's last TomTom waypoint still there? (TomTom clears one on arrival, or you right-click it away.)
+local function HasTomTom()
+	local T, uid = M.TomTom(), tomtomUid
+	if not (T and uid) then return false end
+	if type(T.IsValidWaypoint) ~= "function" then return true end
+	local ok, valid = pcall(T.IsValidWaypoint, T, uid)
+	return not ok or valid ~= false
+end
+
+--- Terminal's TomTom waypoint taken away (Console's pin -c).
+local function ClearTomTom()
+	local T, uid, there = M.TomTom(), tomtomUid, HasTomTom()
+	tomtomUid = nil
+	if there and type(T.RemoveWaypoint) == "function" then pcall(T.RemoveWaypoint, T, uid) end
+end
+
+local function TomTomPin(name, mapID, pos)
+	local T = M.TomTom()
+	if not (T and type(mapID) == "number" and pos and pos.x and pos.y) then return nil end
+	ClearTomTom()
+	local title = name and tostring(name) or nil
+	-- (one of your own already there: TomTom gives that one back, which is yours and never taken away by Terminal)
+	local theirs = false
+	if type(T.WaypointExists) == "function" then
+		local ok, yes = pcall(T.WaypointExists, T, mapID, pos.x, pos.y, title)
+		theirs = ok and yes == true
+	end
+	-- (crazy: its arrow points there; silent: Terminal says the line itself; not kept past a /reload, as the map pin)
+	local ok, uid = pcall(T.AddWaypoint, T, mapID, pos.x, pos.y,
+		{ title = title, from = "Terminal", persistent = false, crazy = true, silent = true })
+	if not ok or uid == nil then
+		ns:Trace("maps: TomTom didn't take the waypoint" .. (ok and "" or (": " .. tostring(uid))))
+		return nil
+	end
+	tomtomUid = not theirs and uid or nil
+	ns:Trace(("maps: waypoint sent to TomTom: %s (map %s, %.3f, %.3f)%s"):format(tostring(title), mapID, pos.x, pos.y,
+		theirs and "; yours already there, kept" or ""))
+	return true
+end
+
+--- The chosen place becomes the map pin, or TomTom's waypoint (M.PinTo). A pin that is already set is removed first,
+--- and then replaced even for a whole zone (pinned at its middle), so the pin always follows the last place picked
+--- here. With no pin set, only places with a spot of their own get one. `mapOnly`: the game's own pin whatever the
+--- setting (a pin link for chat is the game's). Returns "moved", "set", "tomtom", "both" or nil. TomTom refusing it:
+--- the map pin instead.
+local function Place(e, mapOnly)
+	local to = mapOnly and "map" or M.PinTo()
+	local sent = false
+	if to ~= "map" then
+		local pos = e.pos or (HasTomTom() and { x = 0.5, y = 0.5 }) or nil
+		sent = pos and TomTomPin(e.name, e.mapID, pos) or false
+		if sent and to == "tomtom" then return "tomtom" end
+	end
+	local had = HasPin()
+	local pos = e.pos or (had and { x = 0.5, y = 0.5 }) or nil
+	local pin
+	if pos and CanPin(e.mapID, pos) then
+		if had and C_Map.ClearUserWaypoint then pcall(C_Map.ClearUserWaypoint) end
+		if Waypoint(e.mapID, pos) then pin = had and "moved" or "set" end
+	end
+	if sent then return pin and "both" or "tomtom" end
+	return pin
+end
+
+--- Enter's verb for a place, as its waypoint goes: "show via TomTom" while they go to TomTom alone (the map still
+--- opens on it), else "show on map". And the tooltips' key line saying the same.
+function M.ShowVerb() return M.PinTo() == "tomtom" and L["show via TomTom"] or L["show on map"] end
+function M.KeysHint()
+	return M.PinTo() == "tomtom" and L["Enter: show via TomTom    Shift+Enter: set a waypoint"]
+		or L["Enter: show on map    Shift+Enter: set a waypoint"]
+end
+
+--- Is there a waypoint for a zone to move: the map pin, or Terminal's TomTom one while they go there.
+local function HasAnyPin() return HasPin() or (M.PinTo() ~= "map" and HasTomTom()) end
+
+--- Every waypoint Terminal set taken away: the map pin and its TomTom one.
+function M.ClearPins()
+	if C_Map and C_Map.ClearUserWaypoint then pcall(C_Map.ClearUserWaypoint) end
+	ClearTomTom()
+end
+
+--- The line saying where the pin went (Place's answer): "Waypoint set on Ratchet (The Barrens)", "Waypoint moved to
+--- Hogger", "Waypoint sent to TomTom: Hogger". Every waypoint line says it this way.
 function M.PinLine(pin, name, where)
-	return (pin == "moved" and L["Waypoint moved to %s%s"] or L["Waypoint set on %s%s"]):format(tostring(name),
-		(type(where) == "string" and where ~= "" and where ~= name) and (" (" .. where .. ")") or "")
+	local fmt = (pin == "tomtom" and L["Waypoint sent to TomTom: %s%s"]) or (pin == "both" and L["Waypoint set on %s%s, and sent to TomTom"])
+		or (pin == "moved" and L["Waypoint moved to %s%s"]) or L["Waypoint set on %s%s"]
+	return fmt:format(tostring(name), (type(where) == "string" and where ~= "" and where ~= name) and (" (" .. where .. ")") or "")
 end
 
 --- Who last wrote the map's zone (WorldMapFrame.mapID), only read: "the game's own code", else the name the game
@@ -171,7 +257,7 @@ local function PinOnly(e)
 	local pin = Place(e)
 	if pin then
 		ns:Print(M.PinLine(pin, e.name))
-	elseif not e.pos and not HasPin() then
+	elseif not e.pos and not HasAnyPin() then
 		-- a zone has no spot of its own: it only moves a waypoint that is already set
 		ns:Print(L["A zone only moves a waypoint you already have; set one on the map first."])
 	else
@@ -187,7 +273,7 @@ function M.PinVerb(e)
 	local mapID = e.mapID
 	if mapID and C_Map and C_Map.CanSetUserWaypointOnMap and not Safe(C_Map.CanSetUserWaypointOnMap, mapID) then return nil end
 	if e.pos then return L["set waypoint"] end
-	return HasPin() and L["move waypoint"] or nil
+	return HasAnyPin() and L["move waypoint"] or nil
 end
 
 M.Direct, M.PinOnly = Direct, PinOnly -- (Zones.lua's answers open zones as @map rows do)

@@ -397,6 +397,20 @@ glowButton:SetScript("OnClick", function()
 end)
 O.widgets.fzfGlowButton = glowButton
 
+-- where waypoints go (TomTom's arrow, the map pin, both): shown only while TomTom (or an addon taking its calls) is there
+local wayButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+wayButton:SetSize(190, 22)
+wayButton:SetPoint("TOPLEFT", 440, -380)
+wayButton:SetScript("OnClick", function()
+	local cur, list = T.Get().waypoints, T.WAYPOINT_ORDER
+	local nextIdx = 1
+	for i, w in ipairs(list) do
+		if w == cur then nextIdx = i % #list + 1 end
+	end
+	T.Set("waypoints", list[nextIdx])
+end)
+O.widgets.waypointsButton = wayButton
+
 -- an on/off setting: a checkbox at x, y, its label beside it (`note` greyed after the label)
 local function Check(key, x, y, note)
 	local c = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
@@ -550,6 +564,8 @@ function O.Refresh()
 	MarkChoice(O.cursorItems, cur, CursorLabel)
 	O.widgets.frame:SetText(L["Frame: %s"]:format(t.frame == "classic" and L["Classic"] or L["Flat"]))
 	O.widgets.fzfGlowButton:SetText(L["Fuzzy glow: %s"]:format(T.FZF_GLOW_LABELS[t.fzfGlow] or L["Breathing"]))
+	O.widgets.waypointsButton:SetText(L["Waypoints: %s"]:format(T.WAYPOINT_LABELS[t.waypoints] or "TomTom"))
+	O.widgets.waypointsButton:SetShown(ns.Maps and ns.Maps.TomTom and ns.Maps.TomTom() ~= nil or false)
 	if not O.widgets.promptText:HasFocus() then O.widgets.promptText:SetText(t.promptText) end
 	O.widgets.hints:SetChecked(t.hints and true or false)
 	O.widgets.autoScan:SetChecked(t.autoScan and true or false)

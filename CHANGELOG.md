@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.3 (in testing)
+
+- With TomTom taking the waypoints, Enter's verb on places, NPCs and `@map` rows says **show via TomTom** instead of **show on map** (footer, right-click menu and the flight path and corpse tooltips). With `.set waypoints both` or `map` it still says the map.
+
+## 1.1.2
+
+- TomTom polish: a waypoint TomTom cleared (you arrived, or right-clicked it away) is no longer moved by a zone or removed again; one of your own TomTom waypoints at the same spot is never taken away; `.integrations` names Waypoint Tracker when it stands in for TomTom; `.set waypoints` Tab names each choice.
+
+## 1.1.1
+
+- With [TomTom](https://www.curseforge.com/wow/addons/tomtom) installed (or an arrow addon that takes TomTom's waypoints), the waypoints Enter and Shift+Enter set go to TomTom's arrow instead of the map pin. `.set waypoints map`, `tomtom` or `both`, or the Waypoints button in Options, picks where they go; `.integrations` says which. Map pins sent in chat stay the game's.
+
 ## 1.1.0
 
 Terminal 1.1: OneForAll - Forever's data in your searches, many more plain-word questions that answer as their Advanced

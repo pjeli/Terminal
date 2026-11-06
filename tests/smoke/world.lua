@@ -66,6 +66,155 @@ do -- (Maps.lua's Place cleared your waypoint before asking whether the new plac
 	ns.Print, _G.C_Map, _G.UiMapPoint = save.print, save.map, save.ump
 end
 
+io.write("[world: waypoints go to TomTom when it's there]\n")
+do -- (a CurseForge comment: TomTom's or Zygor's arrow instead of the map pin; TomTom's public AddWaypoint/RemoveWaypoint)
+	local Th = ns.Theme
+	local save = { map = _G.C_Map, ump = _G.UiMapPoint, tt = rawget(_G, "TomTom"), to = Th.Get().waypoints }
+	local pinned, calls = false, {}
+	_G.C_Map = {
+		HasUserWaypoint = function() return pinned end,
+		ClearUserWaypoint = function() calls[#calls + 1] = "clear"; pinned = false end,
+		CanSetUserWaypointOnMap = function() return true end,
+		SetUserWaypoint = function(p) calls[#calls + 1] = "map " .. tostring(p.uiMapID); pinned = true end,
+	}
+	_G.UiMapPoint = UMP()
+	local function Calls() local s = table.concat(calls, ","); calls = {} return s end
+	_G.TomTom = nil
+	M.ClearPins(); pinned = false; Calls()
+	local ratchet = { name = "Ratchet", mapID = 1413, pos = { x = 0.6, y = 0.4 } }
+	check(M.PinTo() == "map" and M.Place(ratchet) == "set" and Calls() == "map 1413", "no TomTom: the map pin, as ever")
+	pinned = false
+	local tt, opts, n = {}, nil, 0
+	function tt:AddWaypoint(m, x, y, o)
+		n = n + 1; opts = o
+		calls[#calls + 1] = ("tomtom %s %.1f %.1f"):format(m, x, y)
+		return { m, x, y, title = o.title, n = n }
+	end
+	function tt:RemoveWaypoint(uid) calls[#calls + 1] = "remove " .. uid.n end
+	_G.TomTom = tt
+	Th.Set("waypoints", "tomtom", true)
+	check(M.PinTo() == "tomtom", "TomTom there: waypoints go to it (the default)")
+	local r = M.Place(ratchet)
+	check(r == "tomtom" and Calls() == "tomtom 1413 0.6 0.4" and not pinned, "Enter's waypoint is TomTom's, the map pin left alone: " .. tostring(r))
+	check(opts and opts.title == "Ratchet" and opts.from == "Terminal" and opts.crazy == true and opts.silent == true and opts.persistent == false,
+		"named, its arrow pointing there, Terminal saying the line itself, not kept past a reload")
+	check(M.PinLine(r, "Ratchet", "The Barrens") == "Waypoint sent to TomTom: Ratchet (The Barrens)", "the line says TomTom: " .. M.PinLine(r, "Ratchet", "The Barrens"))
+	r = M.Place({ name = "Hogger", mapID = 1429, pos = { x = 0.2, y = 0.8 } })
+	check(r == "tomtom" and Calls() == "remove 1,tomtom 1429 0.2 0.8", "one at a time: the last one taken away first")
+	-- (a zone has no spot: it moves the waypoint Terminal gave TomTom, as it moves a map pin)
+	local function V(e) local a, b = ns.Easy.Verbs(e) return tostring(a) .. "/" .. tostring(b) end
+	check(V({ kind = "maps", name = "Durotar", mapID = 1411, secondary = M.PinOnly }) == "show via TomTom/move waypoint", "a zone offers to move it")
+	r = M.Place({ name = "Durotar", mapID = 1411 })
+	check(r == "tomtom" and Calls() == "remove 2,tomtom 1411 0.5 0.5", "and moves it to the zone's middle: " .. tostring(r))
+	-- (a pin link for chat is the game's: TomTom untouched)
+	r = M.Place(ratchet, true)
+	check(r == "set" and Calls() == "map 1413", "a chat link's pin is the map's, whatever the setting: " .. tostring(r))
+	pinned = false
+	Th.Set("waypoints", "both", true)
+	r = M.Place(ratchet)
+	check(r == "both" and Calls() == "remove 3,tomtom 1413 0.6 0.4,map 1413", "both: TomTom's and the map pin: " .. tostring(r))
+	check(M.PinLine(r, "Ratchet") == "Waypoint set on Ratchet, and sent to TomTom", "the line says both")
+	Th.Set("waypoints", "map", true)
+	r = M.Place({ name = "Hogger", mapID = 1429, pos = { x = 0.2, y = 0.8 } })
+	check(r == "moved" and Calls() == "clear,map 1429", "map: only the map pin, TomTom there or not: " .. tostring(r))
+	check(not Th.Set("waypoints", "zygor"), "an unknown choice is refused")
+	Th.Set("waypoints", "tomtom", true)
+	-- (TomTom refusing it: the map pin instead, so Enter still sets something)
+	function tt:AddWaypoint() error("bad map") end
+	pinned = false
+	r = M.Place(ratchet)
+	check(r == "set" and Calls():find("map 1413", 1, true) ~= nil, "TomTom erroring: the map pin instead: " .. tostring(r))
+	tt.AddWaypoint = function(_, m, x, y) n = n + 1; return { m, x, y, n = n } end
+	M.Place(ratchet); Calls()
+	M.ClearPins()
+	check(Calls() == ("clear,remove " .. n), "pin -c takes both away")
+	local line = I.TomTomStatus()
+	check(line:find("Waypoints go to: TomTom", 1, true) ~= nil, ".integrations says where they go: " .. line)
+	Th.Set("waypoints", save.to or "tomtom", true)
+	_G.C_Map, _G.UiMapPoint, _G.TomTom = save.map, save.ump, save.tt
+end
+
+io.write("[world: TomTom's waypoints: one it cleared, one of yours, Waypoint Tracker]\n")
+do -- (1.1.1 polish: TomTom clears a waypoint on arrival; one of yours at the same spot is never Terminal's to remove)
+	local Th = ns.Theme
+	local save = { map = _G.C_Map, ump = _G.UiMapPoint, tt = rawget(_G, "TomTom"), to = Th.Get().waypoints }
+	local calls = {}
+	_G.C_Map = {
+		HasUserWaypoint = function() return false end, ClearUserWaypoint = function() end,
+		CanSetUserWaypointOnMap = function() return true end,
+		SetUserWaypoint = function(p) calls[#calls + 1] = "map " .. tostring(p.uiMapID) end,
+	}
+	_G.UiMapPoint = UMP()
+	local function Calls() local s = table.concat(calls, ","); calls = {} return s end
+	local live, mine, n = {}, nil, 0
+	local tt = {}
+	function tt:AddWaypoint(m, x, y, o)
+		if mine and mine[1] == m and mine[2] == x and mine[3] == y then return mine end -- (TomTom gives the one there back)
+		n = n + 1
+		local uid = { m, x, y, title = o.title, n = n }
+		live[uid] = true
+		calls[#calls + 1] = "add " .. n
+		return uid
+	end
+	function tt:RemoveWaypoint(uid) live[uid] = nil; calls[#calls + 1] = "remove " .. tostring(uid.n) end
+	function tt:IsValidWaypoint(uid) return live[uid] == true end
+	function tt:WaypointExists(m, x, y) return mine ~= nil and mine[1] == m and mine[2] == x and mine[3] == y end
+	_G.TomTom = tt
+	Th.Set("waypoints", "tomtom", true)
+	M.ClearPins(); Calls()
+	local ratchet = { name = "Ratchet", mapID = 1413, pos = { x = 0.6, y = 0.4 } }
+	local function V(e) local a, b = ns.Easy.Verbs(e) return tostring(a) .. "/" .. tostring(b) end
+	local zone = { kind = "maps", name = "Durotar", mapID = 1411, secondary = M.PinOnly }
+	M.Place(ratchet); Calls()
+	live = {} -- (you walked there: TomTom cleared it)
+	check(V(zone) == "show via TomTom/nil", "TomTom cleared it: a zone has nothing to move: " .. V(zone))
+	check(M.Place({ name = "Durotar", mapID = 1411 }) == nil and Calls() == "", "and moves nothing (none set at the zone's middle)")
+	check(M.Place(ratchet) == "tomtom" and Calls() == "add 2", "the next one: nothing to remove first")
+	-- (one of yours already at the spot: TomTom gives it back; Terminal never takes it away)
+	mine = { 1429, 0.2, 0.8, title = "Hogger", n = "yours" }
+	live[mine] = true
+	check(M.Place({ name = "Hogger", mapID = 1429, pos = { x = 0.2, y = 0.8 } }) == "tomtom" and Calls() == "remove 2", "yours at the spot is used")
+	M.Place(ratchet)
+	check(Calls() == "add 3" and live[mine], "and kept when the next place is picked")
+	-- (.integrations names Waypoint Tracker when it's its stand-in for TomTom)
+	tt.isWaypointTrackerBridge = true
+	local line = I.TomTomStatus()
+	check(line:find("Waypoint Tracker", 1, true) ~= nil, "Waypoint Tracker named: " .. line)
+	-- (.set waypoints <Tab>: each choice with its label)
+	local out = ns.commands.set.complete("waypoints ")
+	local said = {}
+	for _, o in ipairs(out) do said[#said + 1] = o[1] .. "=" .. o[2] end
+	check(table.concat(said, ";") == "tomtom=TomTom  (current);map=Map pin;both=Map pin and TomTom", ".set waypoints Tab lists them named: " .. table.concat(said, ";"))
+	M.ClearPins()
+	Th.Set("waypoints", save.to or "tomtom", true)
+	_G.C_Map, _G.UiMapPoint, _G.TomTom = save.map, save.ump, save.tt
+end
+
+io.write("[world: Enter's verb says TomTom when waypoints go there]\n")
+do -- (the player: "show on map" with TomTom is "show via TomTom")
+	local Th = ns.Theme
+	local save = { map = _G.C_Map, tt = rawget(_G, "TomTom"), to = Th.Get().waypoints }
+	_G.C_Map = { HasUserWaypoint = function() return false end, CanSetUserWaypointOnMap = function() return true end }
+	local function V(e) local a, b = ns.Easy.Verbs(e) return tostring(a) .. "/" .. tostring(b) end
+	local spot = { kind = "mailbox", name = "Mailbox", secondary = I.PinObject }
+	local npc = { kind = "npc", name = "Hogger", secondary = function() end }
+	local zone = { kind = "maps", name = "Ratchet", mapID = 1413, pos = { x = 0.6, y = 0.4 }, secondary = M.PinOnly }
+	_G.TomTom = nil
+	Th.Set("waypoints", "tomtom", true)
+	check(V(spot) == "show on map/set waypoint" and V(zone) == "show on map/set waypoint", "no TomTom: show on map")
+	check(M.KeysHint() == "Enter: show on map    Shift+Enter: set a waypoint", "and the tooltips' keys say the map")
+	_G.TomTom = { AddWaypoint = function() return {} end }
+	check(V(spot) == "show via TomTom/set waypoint", "TomTom there: show via TomTom: " .. V(spot))
+	check(V(zone) == "show via TomTom/set waypoint" and V(npc) == "show via TomTom/target", "on @map and NPC rows too: " .. V(zone) .. " " .. V(npc))
+	check(M.KeysHint() == "Enter: show via TomTom    Shift+Enter: set a waypoint", "the tooltips' keys too: " .. M.KeysHint())
+	Th.Set("waypoints", "both", true)
+	check(V(spot) == "show on map/set waypoint", "both: the map pin is set too, so the map's verb")
+	Th.Set("waypoints", "map", true)
+	check(V(spot) == "show on map/set waypoint", "map: the map's")
+	Th.Set("waypoints", save.to or "tomtom", true)
+	_G.C_Map, _G.TomTom = save.map, save.tt
+end
+
 io.write("[world: Questie's NPCs on the map: the spawn the row measures, nothing pressed with none]\n")
 do
 	local save = { Q = _G.Questie, L = _G.QuestieLoader, Lib = _G.LibQuestieDB, map = _G.C_Map, ump = _G.UiMapPoint,

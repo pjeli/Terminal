@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "1.1.3", when = "in testing",
+		items = {
+			"With TomTom (or an arrow addon taking its waypoints): Enter (\"show via TomTom\") and Shift+Enter send their waypoints to TomTom's arrow; .set waypoints map, tomtom or both, or Options.",
+		},
+	},
+	{
 		v = "1.1.0", when = "released November 2026",
 		items = {
 			"With OneForAll: @book lists the Library Books, where each is and which you've turned in; \"books i still need\", \"nearest library book\".",
@@ -49,17 +55,6 @@ CL.LOG = {
 			"Say what kind you want: \"hogger quest\", \"quests in westfall\", \"linen recipes\" look only there.",
 			"Typos as hands make them: \"linnen\" and \"lien\" find Linen Cloth; \"linken\" stays Linken.",
 			"A smaller download that loads faster: only your language's translations are read, and the code comes without its comments.",
-		},
-	},
-	{
-		v = "0.68.0", when = "released October 2026",
-		items = {
-			".console: a Linux-like console over everything Terminal knows: ls, cd, cat, grep, pipes, up to four panes.",
-			"Smaller saved data: your settings stay in Terminal.lua, everything else moves to TerminalCache.lua, safe to delete. .saved shows it and sets how much to keep.",
-			".report: found a problem? It makes a report to paste on Terminal's CurseForge page.",
-			"\"nearest forge\" and \"nearest anvil\", for blacksmiths and engineers (needs Questie or QuestieDB).",
-			"Alt+` keeps your capitals, and \"not in my bank\" lists your items that aren't there.",
-			"Flight paths, entrances, zone and fishing levels now come from the game's own data; @cvar explains each setting.",
 		},
 	},
 }

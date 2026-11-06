@@ -76,6 +76,21 @@ function I.TrainingStatus()
 	return L["not found (What's Training or TrainerSpells)"]
 end
 
+--- TomTom's line: which addon takes its calls (TomTom itself, else another arrow addon standing in for it, Waypoint
+--- Tracker) and where waypoints go ("found (4.4.0). Waypoints go to TomTom (.set waypoints map|tomtom|both)").
+function I.TomTomStatus()
+	local loaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or _G.IsAddOnLoaded
+	local own = loaded and ns.Safe(loaded, "TomTom")
+	local T = ns.Maps.TomTom()
+	-- (Waypoint Tracker's stand-in first: it's there only while TomTom isn't)
+	local found = (T and rawget(T, "isWaypointTrackerBridge") and L["Waypoint Tracker (%s), taking TomTom's waypoints."]:format(AddOnVersion("WaypointTracker")))
+		or (own and L["found (%s)."]:format(AddOnVersion("TomTom")))
+		or L["an addon taking TomTom's waypoints."]
+	local to = ns.Maps.PinTo()
+	local where = ns.Theme.WAYPOINT_LABELS[to] or to
+	return found .. " " .. L["Waypoints go to: %s (.set waypoints map, tomtom or both)"]:format(where)
+end
+
 ns:RegisterCommand("integrations", {
 	desc = L["Show which other addons Terminal found (AtlasLoot, Questie, Attune, What's Training, TrainerSpells, OneForAll)"],
 	run = function()
@@ -105,6 +120,8 @@ ns:RegisterCommand("integrations", {
 		lines[#lines + 1] = "  " .. L["Addon options (Ace3):"] .. " " .. (#apps > 0 and table.concat(apps, ", ") or L["none"])
 		if ns.OneForAll then lines[#lines + 1] = "  OneForAll: " .. ns.OneForAll.Status() .. I.FailedText("OneForAll") end
 		if ns.Auctionator then lines[#lines + 1] = "  Auctionator: " .. ns.Auctionator.Status() end
+		local M = ns.Maps
+		if M and M.TomTom and M.TomTom() then lines[#lines + 1] = "  TomTom: " .. I.TomTomStatus() end
 		if ns.Stored then lines[#lines + 1] = "  " .. L["Alts and banks:"] .. " " .. ns.Stored.Status() end
 		return lines
 	end,

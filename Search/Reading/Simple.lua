@@ -226,8 +226,10 @@ end
 local function TerminalVerbs(e)
 	return e.presetId and L["apply"] or L["open"]
 end
+-- Enter's verb for a place: "show on map", or "show via TomTom" while waypoints go there (Maps.lua)
+local function ShowVerb() local M = ns.Maps return M and M.ShowVerb and M.ShowVerb() or L["show on map"] end
 local function SourceVerbs(e) -- (a chain's source: a vein or chest at its spot, else the item crafted)
-	if e.found or e.pipeHow == L["gathered from"] then return L["show on map"], L["set waypoint"] end -- (a recipe's chest too)
+	if e.found or e.pipeHow == L["gathered from"] then return ShowVerb(), L["set waypoint"] end -- (a recipe's chest too)
 	return L["show in bags"]
 end
 local function QuestVerbs(e) -- (one to drop: grey, or in a zone left behind, QuestDrop.lua)
@@ -257,8 +259,8 @@ end
 local function GroupVerbs(e) -- (Shift+Enter: your buff they're missing, when you have one: Group.lua)
 	return L["target"], e.buffWith and L["cast %s"]:format(e.buffWith) or nil
 end
-local PLACE = { L["show on map"], L["set waypoint"] }
-local function MapVerbs(e) return L["show on map"], ns.Maps and ns.Maps.PinVerb(e) or nil end
+local function PLACE() return ShowVerb(), L["set waypoint"] end
+local function MapVerbs(e) return ShowVerb(), ns.Maps and ns.Maps.PinVerb(e) or nil end
 local TO_CHAT = { L["show in chat"], L["put in the chat box"] } -- ("put in the chat box", "link in chat": RowMenu.lua compares them, translated alike)
 E.VERBS = {
 	items = ItemVerbs, consumables = ItemVerbs, mats = ItemVerbs, gear = ItemVerbs, reagent = { L["show in bags"] },
@@ -279,7 +281,7 @@ E.VERBS = {
 	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
 	-- (OneForAll's beasts to tame, the questions' rows: its spot on the map, a waypoint there; Questie's: target)
-	npc = function(e) if e.tameable == true then return PLACE[1], PLACE[2] end return L["show on map"], L["target"] end,
+	npc = function(e) if e.tameable == true then return PLACE() end return ShowVerb(), L["target"] end,
 	maps = MapVerbs, dungeon = PLACE, raid = PLACE, corpse = PLACE, mailbox = PLACE, forge = PLACE, anvil = PLACE,
 	cookingfire = PLACE, moonwell = PLACE, object = PLACE, flight = PLACE, book = PLACE, transport = PLACE,
 	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
@@ -310,7 +312,7 @@ E.VERBS = {
 	reputation = function(e)
 		if e.repReward then
 			if type(e.key) == "string" and e.key:find("^al:") then return L["show in AtlasLoot"], L["link in chat"] end
-			return PLACE[1], PLACE[2]
+			return PLACE()
 		end
 		return L["show"], L["watch"]
 	end,
