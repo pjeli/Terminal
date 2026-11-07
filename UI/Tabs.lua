@@ -105,6 +105,14 @@ end
 --- kept too, as the list's only tab (1.1.9).
 function T.SaveCurrent()
 	if not T.Keeping() or not UI.edit then return end
+	-- (one prompt: only a search is kept, as UI:KeepLastSearch keeps it; a .command or /slash line run, .reload or a
+	-- /logout macro, came back and a reflexive Enter ran it again: an empty prompt then. Tabs keep what they hold.
+	-- 1.1.20, review)
+	if not T.On() and UI.mode ~= "search" then
+		local t = DB()
+		if t and not (UI.fzf or UI.tabForeign) then t.list, t.cur = { { text = "" } }, 1 end
+		return
+	end
 	Keep(DB())
 end
 

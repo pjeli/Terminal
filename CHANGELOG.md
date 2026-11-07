@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.20 (in testing)
+
+- Keep your session keeps the search you left, not a command: with no other tab, Terminal opens empty after a `.command` or a `/slash` line, so a quick Enter doesn't run `.reload` or a logout macro again. Tabs keep what they hold, as before.
+
 ## 1.1.19 (in testing)
 
 - Fixed: pressing ` to give an out-of-focus Terminal the keys back could type a ` into the prompt; Ctrl+T in a run opened with its own text (a chat link, `/term` words) lost what was on screen when your session was kept.

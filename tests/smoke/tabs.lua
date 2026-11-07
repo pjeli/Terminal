@@ -302,6 +302,37 @@ do
 	ns.db.tabs = wasTabs
 end
 
+io.write("[tabs: review 1.1.20: your session keeps searches, not a command or a /slash line]\n")
+do
+	local Th = ns.Theme
+	local wasKeep, wasTabs, wasTime = Th.Get().keepSession, ns.db.tabs, _G.GetTime
+	Th.Get().keepSession = true
+	ns.db.tabs = nil
+	ns.db.easyMode = false; UI:EasyChanged()
+	local now = 5000
+	_G.GetTime = function() return now end
+	for _, line in ipairs({ ".reload", "/logout" }) do
+		UI:Toggle(); FlushAll()
+		typeText(line); FlushAll()
+		UI:Hide(); FlushAll()
+		now = now + 600
+		UI:Toggle(); FlushAll()
+		check(query() == "", line .. " left: reopened empty, nothing to run again by reflex: " .. query())
+		UI:Hide(); FlushAll()
+	end
+	UI:Toggle(); FlushAll()
+	typeText("linen"); FlushAll()
+	UI:Hide(); FlushAll()
+	now = now + 600
+	UI:Toggle(); FlushAll()
+	check(query() == "linen", "a search left: back: " .. query())
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = save.easy; UI:EasyChanged()
+	_G.GetTime = wasTime
+	Th.Get().keepSession = wasKeep
+	ns.db.tabs = wasTabs
+end
+
 io.write("[tabs: the empty prompt's tips say tabs open with Ctrl+T]\n")
 do
 	local E = ns.Easy
