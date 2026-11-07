@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.21 (in testing)
+
+- TomTom: in a fight Terminal sets the game's map pin instead of calling TomTom (whose map pins are the world map's, protected then); and a zone picked while waypoints go to TomTom no longer moves your own map pin when Terminal has no TomTom waypoint to move.
+
 ## 1.1.20 (in testing)
 
 - Keep your session keeps the search you left, not a command: with no other tab, Terminal opens empty after a `.command` or a `/slash` line, so a quick Enter doesn't run `.reload` or a logout macro again. Tabs keep what they hold, as before.

@@ -82,7 +82,9 @@ local function Waypoint(mapID, pos)
 end
 
 -- TomTom, or an arrow addon taking TomTom's calls (Waypoint Tracker): its public TomTom:AddWaypoint(uiMapID, x, y,
--- opts) with 0-1 coordinates, and RemoveWaypoint(uid). Another addon's code, not Blizzard's: no window state touched.
+-- opts) with 0-1 coordinates, and RemoveWaypoint(uid). Another addon's code, run from Terminal's: TomTom puts its pins
+-- on the world map (HereBeDragons), and the game blames Terminal for what that code touches, as it blames any addon
+-- calling TomTom. In a fight, when the map's pins are protected, Terminal sets the game's map pin instead (a C call).
 local tomtomUid -- the waypoint Terminal gave it last: removed before the next, one at a time as the map pin
 function M.TomTom()
 	local T = rawget(_G, "TomTom")
@@ -144,11 +146,18 @@ end
 --- the map pin instead.
 local function Place(e, mapOnly)
 	local to = mapOnly and "map" or M.PinTo()
+	-- (in a fight: the game's pin, not TomTom's code from Terminal's; 1.1.21, review)
+	if to ~= "map" and InCombatLockdown and InCombatLockdown() then
+		ns:Trace("maps: in a fight, the map pin instead of TomTom")
+		to = "map"
+	end
 	local sent = false
 	if to ~= "map" then
 		local pos = e.pos or (HasTomTom() and { x = 0.5, y = 0.5 }) or nil
 		sent = pos and TomTomPin(e.name, e.mapID, pos) or false
 		if sent and to == "tomtom" then return "tomtom" end
+		-- (a zone, nothing of Terminal's at TomTom to move: nothing; your own map pin isn't moved instead. 1.1.21, review)
+		if to == "tomtom" and not e.pos and not sent then return nil end
 	end
 	local had = HasPin()
 	local pos = e.pos or (had and { x = 0.5, y = 0.5 }) or nil

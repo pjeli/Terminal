@@ -532,3 +532,40 @@ do -- (Legacy Rewards had no translation entry: its row was always in English)
 		"Legacy Rewards in the client's language, as its neighbours: " .. tostring(names["Legacy Rewards"]))
 	_G.LegacyMicroButton = saveBtn
 end
+
+io.write("[world: review 1.1.21: TomTom in a fight, a zone with nothing at TomTom]\n")
+do
+	local Th = ns.Theme
+	local save = { map = _G.C_Map, ump = _G.UiMapPoint, tt = rawget(_G, "TomTom"), to = Th.Get().waypoints, combat = _G.InCombatLockdown }
+	local pinned, calls = false, {}
+	_G.C_Map = {
+		HasUserWaypoint = function() return pinned end,
+		ClearUserWaypoint = function() calls[#calls + 1] = "clear"; pinned = false end,
+		CanSetUserWaypointOnMap = function() return true end,
+		SetUserWaypoint = function(p) calls[#calls + 1] = "map " .. tostring(p.uiMapID); pinned = true end,
+	}
+	_G.UiMapPoint = UMP()
+	local function Calls() local s = table.concat(calls, ","); calls = {} return s end
+	local tt = {}
+	function tt:AddWaypoint(m, x, y) calls[#calls + 1] = ("tomtom %s"):format(m) return { n = 1 } end
+	function tt:RemoveWaypoint() calls[#calls + 1] = "remove" end
+	function tt:IsValidWaypoint() return true end
+	_G.TomTom = tt
+	Th.Set("waypoints", "tomtom", true)
+	M.ClearPins(); Calls()
+	-- your own map pin, and a zone picked with nothing of Terminal's at TomTom: left alone
+	pinned = true
+	local r = M.Place({ name = "Durotar", mapID = 1411 })
+	check(r == nil and Calls() == "" and pinned, "a zone, nothing at TomTom: your map pin isn't moved: " .. tostring(r))
+	-- in a fight: the game's map pin, not TomTom's code
+	pinned = false
+	local fighting = true
+	_G.InCombatLockdown = function() return fighting end
+	r = M.Place({ name = "Hogger", mapID = 1429, pos = { x = 0.2, y = 0.8 } })
+	check(r == "set" and Calls() == "map 1429", "in a fight: the map pin, TomTom not called: " .. tostring(r))
+	fighting = false
+	_G.InCombatLockdown = save.combat
+	M.ClearPins(); Calls()
+	Th.Set("waypoints", save.to or "tomtom", true)
+	_G.C_Map, _G.UiMapPoint, _G.TomTom = save.map, save.ump, save.tt
+end
