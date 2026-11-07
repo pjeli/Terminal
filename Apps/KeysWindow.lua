@@ -71,7 +71,8 @@ K.LINES = {
 	{ "Ctrl+C / Ctrl+V", L["copy / paste (the first press gets the text box ready: press again)"] },
 
 	{ L["Modes and the window"] },
-	{ "` or Esc", L["close"], s = L["close (Down brings the search back next time)"] },
+	{ "` or Esc", L["close"], s = L["close (your search is there when it opens again; with Keep your session off, Down brings it back)"] },
+	{ L["a click outside it"], L["Terminal stays up, out of focus: your keys go to the game; a click on it or ` gives it the keys back (.zen off)"] },
 	{ "`", L["closed: opens Terminal; in combat, Ctrl+` only (a ` hit by accident in a fight doesn't take your keys)"] },
 	{ "/", L["closed: opens Terminal on a slash command, out of combat, once turned on (.set slashKey on, or Options)"] },
 	{ "Alt+`", only = "sf", s = L["this search in Advanced mode (Alt+` again or Shift+Left: your words back)"], f = L["the same words in Advanced mode"] },

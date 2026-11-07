@@ -253,7 +253,7 @@ Label("Terminal", "GameFontNormalLarge", 16, -13)
 Label(L["Theme and layout of the terminal. Everything here can also be set from the terminal, e.g.  .set accent ff79c6"], "GameFontHighlightSmall", 16, -35)
 -- (1.1.10, the player: a little notice that there are more settings in Terminal itself: Keep your session and the
 -- mail warning have no control here, the panel being full to its frame's edge)
-O.widgets.moreNote =Label("|cff" .. "8ab4f8" .. L["More settings in Terminal itself: type  terminal settings  (or .set) to list and change every one."] .. "|r",
+O.widgets.moreNote = Label("|cff8ab4f8" .. L["More settings in Terminal itself: type  terminal settings  (or .set) to list and change every one."] .. "|r",
 	"GameFontHighlightSmall", 16, -48)
 
 -- Dropdowns: a button that opens a list of choices (themes, cursor styles)
@@ -717,7 +717,7 @@ local SET_DESC = {
 	hints = L["The keys for the selected row, in the footer."],
 	syntax = L["Colour what you type: @kinds, filters, .commands."],
 	suggest = L["A faint example in the empty prompt."],
-	keepSession = L["Your tabs, and the search you left with its results (with no other tab too), come back when Terminal opens again and after a /reload or a new login. Off: it opens on an empty prompt."],
+	keepSession = L["The search you left, with its results, and your tabs come back when Terminal opens again, and after a /reload or a new login. Off: it opens on an empty prompt (two or more tabs still last until a /reload)."],
 	slashKey = L["The / key opens Terminal on a slash command (out of combat)."],
 	animations = L["How the window opens, closes and moves."],
 	cursor = L["The text cursor: a line or a box, blinking or solid."],
@@ -799,8 +799,10 @@ local function SettingTooltip(e, t)
 	t:AddDoubleLine(L["Now"], ValueText(key, v), 1, 1, 1, 1, 1, 1)
 	if not IsDefault(key) then t:AddDoubleLine(L["Default"], ValueText(key, T.DefaultOf(key)), 0.8, 0.8, 0.8, 0.8, 0.8, 0.8) end
 	t:AddLine(".set " .. key .. " " .. T.RawOf(key, v), 0.6, 0.6, 0.6, true)
-	ns.KeyHints(t, T.FIELDS[key].kind == "bool" and L["Enter: turn it on or off    Shift+Enter: reset to default"]
-		or L["Enter: pick a value    Shift+Enter: reset to default"], 0.6, 0.6, 0.6, true)
+	-- (Shift+Enter only once it has been changed: as the footer and the row menu offer it; 1.1.16, review)
+	local bool, changed = T.FIELDS[key].kind == "bool", not IsDefault(key)
+	ns.KeyHints(t, (bool and (changed and L["Enter: turn it on or off    Shift+Enter: reset to default"] or L["Enter: turn it on or off"]))
+		or (changed and L["Enter: pick a value    Shift+Enter: reset to default"] or L["Enter: pick a value"]), 0.6, 0.6, 0.6, true)
 end
 
 local SETTING = { icon = "Interface\\Icons\\INV_Misc_Gear_08", activate = SettingEnter, staysOpen = true, tooltip = SettingTooltip }

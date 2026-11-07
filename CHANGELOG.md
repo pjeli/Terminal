@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.16 (in testing)
+
+- Clearer texts: a setting's tooltip offers Shift+Enter (reset) only once it has been changed; `.set` <Tab> offers **list** and its description says what `.set` alone and `.set list` do; F1 says what closing does with Keep your session and what a click outside Terminal does; Keep your session's description says two or more tabs last until a `/reload` even with it off; a Russian name fixed. A 1.1.8 `keepTabs off` carries over as `keepSession off`.
+
 ## 1.1.15 (in testing)
 
 - Fixed: in `.console`, `set` on its own closed the console to open Terminal on its settings; there it lists every setting again, and `set | grep font` works.
@@ -30,11 +34,11 @@
 
 ## 1.1.8 (in testing)
 
-- Keeping your tabs between sessions is now a setting, on by default: **Keep tabs between sessions** (`.set keepTabs on` / `off`, or find it with **terminal settings** or **session**). On, your tabs and what each one had typed come back after a `/reload` or a new login, as before; off, each login starts on one empty prompt. The empty prompt's tips now include **tip: Ctrl+T opens another tab, Ctrl+Tab switches**, in Simple and Advanced mode.
+- Keeping your tabs between sessions is now a setting, on by default: **Keep tabs between sessions** (`.set keepTabs on` / `off`, or find it with **terminal settings** or **session**; renamed **Keep your session**, `.set keepSession`, in 1.1.9). On, your tabs and what each one had typed come back after a `/reload` or a new login, as before; off, each login starts on one empty prompt. The empty prompt's tips now include **tip: Ctrl+T opens another tab, Ctrl+Tab switches**, in Simple and Advanced mode.
 
 ## 1.1.7 (in testing)
 
-- With `.zen` off, a click outside Terminal no longer leaves it holding the keyboard: it stays open, out of focus (no cursor), and your keys go to the game: moving, casting, chat. Click Terminal, or press its key (` or /), to type in it again; a second press of ` closes it. With `.zen` on, a click on the dimmed screen still closes it.
+- With `.zen` off, a click outside Terminal no longer leaves it holding the keyboard: it stays open, out of focus (no cursor), and your keys go to the game: moving, casting, chat. Click Terminal, or press `, to type in it again (with Open on /, / starts a slash command); a second press of ` closes it. With `.zen` on, a click on the dimmed screen still closes it.
 
 ## 1.1.6 (in testing)
 

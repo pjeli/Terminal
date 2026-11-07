@@ -121,3 +121,33 @@ do
 end
 
 for k, v in pairs(saved) do Th.Get()[k] = v end
+
+io.write("[settings: review 1.1.16: the tooltip's keys, .set list offered, 1.1.8's keepTabs carried over]\n")
+do
+	local function Tip(e)
+		local lines = {}
+		local tip = { SetText = function(_, s) lines[#lines + 1] = s end, AddLine = function(_, s) lines[#lines + 1] = s end,
+			AddDoubleLine = function(_, l, r) lines[#lines + 1] = l .. "=" .. r end }
+		e.tooltip(e, tip)
+		return table.concat(lines, "\n")
+	end
+	Th.Set("hints", "on", true)
+	local res = Search("terminal settings")
+	local hints = Find(res, "Key hints in footer")
+	check(hints and not Tip(hints):find("Shift+Enter", 1, true), "at its default: the tooltip offers no reset")
+	Th.Set("hints", "off", true)
+	check(hints and Tip(hints):find("Shift+Enter: reset to default", 1, true), "changed: the reset offered")
+	Th.Set("hints", "on", true)
+	Close()
+	local out = ns.commands.set.complete("")
+	check(out[1] and out[1][1] == "list", ".set <Tab>: list offered first")
+	-- (1.1.8's name: a tester's keepTabs off stays off)
+	local was = ns.db.theme
+	local copy = {}
+	for k, v in pairs(was) do copy[k] = v end
+	copy.keepSession, copy.keepTabs = nil, false
+	ns.db.theme = copy -- (a table Theme.Get hasn't seen: its migrations run)
+	check(Th.Get().keepSession == false and Th.Get().keepTabs == nil, "keepTabs off becomes keepSession off")
+	ns.db.theme = was
+	Th.Get()
+end

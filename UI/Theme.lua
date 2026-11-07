@@ -246,6 +246,11 @@ function T.Get()
 		CopyPreset(t, "forever")
 		t.preset = "forever"
 	end
+	-- 1.1.8's keepTabs became keepSession in 1.1.9: one turned off stays off
+	if t.keepTabs ~= nil then
+		if t.keepTabs == false and t.keepSession == nil then t.keepSession = false end
+		t.keepTabs = nil
+	end
 	for k, v in pairs(T.DEFAULTS) do
 		if t[k] == nil then t[k] = v end
 	end
@@ -646,14 +651,14 @@ ns:RegisterCommand("theme", {
 })
 
 ns:RegisterCommand("set", {
-	desc = L["Show or change a setting: .set accent ff79c6"],
+	desc = L["Show or change a setting: .set accent ff79c6 (.set alone: every setting as rows; .set list: in chat)"],
 	aliases = { "config" },
 	-- Tab completion: setting names, then the values a setting takes
 	complete = function(args)
 		local t = T.Get()
 		local key = args:match("^(%S+)%s")
 		if not key then
-			local out = {}
+			local out = { { "list", L["every setting, in chat"] } } -- (1.1.16, review: .set list was found nowhere)
 			for _, k in ipairs(T.ORDER) do
 				out[#out + 1] = { k, T.FIELDS[k].label .. ":  " .. T.Format(k, t[k]) }
 			end
