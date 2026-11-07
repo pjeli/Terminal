@@ -296,7 +296,8 @@ function UI:UpdateCaret()
 		self.caretX = self.caretTo
 	end
 	self:PlaceCaret()
-	caret:Show()
+	-- (out of focus, a click away from it: no cursor, its keys are the game's; Keys.lua's UI:Blur)
+	caret:SetShown(not self.blurred)
 	caret:SetAlpha(1)
 	caretChar:SetAlpha(1)
 	self:PlaceTextSel()
@@ -312,7 +313,7 @@ function UI:PlaceCaret()
 	self.caretPlaced = x
 	caret:ClearAllPoints()
 	caret:SetPoint("LEFT", edit, "LEFT", x, y)
-	if self.caretCh and self.caretCh ~= "" and CursorStyle().box then
+	if self.caretCh and self.caretCh ~= "" and CursorStyle().box and not self.blurred then
 		caretChar:ClearAllPoints()
 		caretChar:SetPoint("LEFT", edit, "LEFT", x, y)
 		caretChar:Show()

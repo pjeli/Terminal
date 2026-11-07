@@ -129,6 +129,7 @@ do
 			if not UI.tabKept and ns.Tabs then ns.Tabs.SaveCurrent() end
 			UI.tabKept = nil
 			UI.histSearch = nil -- (Ctrl+R ends with it, closed by the game too)
+			UI.blurred = nil -- (out of focus ends with it: Keys.lua's UI:Blur)
 			UI:EndAdvancedOnce()
 			UI:EndFuzzy()
 			if ns.Bar then ns.Bar.Reset() end -- (closed by the game: the bar's picks and its menu go too, as UI:Hide does)
@@ -1045,6 +1046,7 @@ function UI:Open(text, opts)
 	self.cursor = #edit:GetText()
 	self:ResetUndo() -- (a new run: nothing to undo from the last one)
 	self.snapNext, self.opening = false, false
+	self.blurred = nil -- (opened: in focus, Keys.lua's UI:Blur)
 	if not self:EnterKeys() then
 		-- plain text box: focus next frame so the opening keypress isn't typed into it
 		C_Timer.After(0, function()
@@ -1080,6 +1082,8 @@ function UI:CombatOpenOk()
 end
 
 function UI:Toggle(typed)
+	-- (out of focus, a click away from it: its key gives it the keyboard back, a second press closes it)
+	if self:IsShown() and self.blurred then return self:Focus() end
 	if self:IsShown() then return self:Hide() end
 	-- Tab+` (the game sees the toggle key; Tab held): opens in pure fuzzy finding
 	if self:TabDown() then return self:FuzzyOnce() end -- (in combat too: not a key hit by accident)

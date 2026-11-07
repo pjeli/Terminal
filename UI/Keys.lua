@@ -72,6 +72,7 @@ function UI:EnterKeys()
 	if not frame or self.noChar or InCombatLockdown() then return false end
 	if self.clipHint then self.clipHint = nil; self:SetStatus() end
 	self.keys = true
+	if self.blurred then self:UpdateCaret() return true end -- (out of focus: the keyboard stays the game's until UI:Focus)
 	self.anchor = nil
 	-- (the game's text box's caret, where it was moved there: the drawn prompt's own follows only text changes)
 	if edit.HasFocus and edit:HasFocus() and edit.GetCursorPosition then
@@ -92,12 +93,74 @@ function UI:EnterEdit()
 	if self._repeat then self._repeat.key = nil; self._repeat:Hide() end
 	self.keys = false
 	frame:EnableKeyboard(false)
+	if self.blurred then self:UpdateCaret() return end -- (out of focus: the text box isn't given the keys either)
 	local lo, hi = self:SelRange()
 	self.anchor = nil
 	edit:SetFocus()
 	edit:SetCursorPosition(self.cursor or #edit:GetText())
 	if lo and edit.HighlightText then edit:HighlightText(lo, hi) end -- the selection carries over
 	self:UpdateCaret()
+end
+
+----------------------------------------------------------------------
+-- Out of focus (1.1.7, the player: "with .zen mode off a click outside of Terminal shouldn't close it; it should just
+-- stay out of focus and not consume keystrokes"). A click anywhere but on Terminal leaves it up with no cursor and the
+-- keyboard the game's (moving, casting, chat); a click on it, or its open key, gives it the keyboard back. With .zen
+-- on the dimming takes that click and closes it, as before (Zen.lua).
+----------------------------------------------------------------------
+
+-- Terminal's frames a click on which is a click on Terminal (what it shows beside it too)
+UI.FOCUS_FRAMES = { "TerminalFrame", "TerminalRowMenu", "TerminalTooltip", "TerminalClickCatcher", "TerminalLinkFrame",
+	"TerminalCopyFrame", "TerminalStyleImport", "TerminalBusyTip", "TerminalTourCard", "TerminalBarMenu", "TerminalBarTip" }
+
+--- Is the pointer on one of Terminal's frames?
+function UI.PointerOnTerminal()
+	for _, name in ipairs(UI.FOCUS_FRAMES) do
+		local f = _G[name]
+		if type(f) == "table" and f.IsShown and f.IsMouseOver then
+			local ok, on = pcall(function() return f:IsShown() and f:IsMouseOver() == true end)
+			if ok and on then return true end
+		end
+	end
+	return false
+end
+
+--- Out of focus: still shown, no cursor, every key the game's.
+function UI:Blur()
+	local frame, edit = UI.frame, UI.edit
+	if self.blurred or not (frame and self:IsShown()) then return false end
+	self.blurred = true
+	if self._repeat then self._repeat.key = nil; self._repeat:Hide() end
+	self:Disarm() -- (Enter armed for a row: the game's own again, chat)
+	frame:EnableKeyboard(false)
+	if edit and edit.HasFocus and edit:HasFocus() then edit:ClearFocus() end
+	self:UpdateCaret()
+	ns:Trace("terminal: out of focus (a click away from it): its keys go to the game")
+	return true
+end
+
+--- Back in focus: the keyboard Terminal's again, the cursor where it was. False when it wasn't out of focus.
+function UI:Focus()
+	if not self.blurred then return false end
+	self.blurred = nil
+	if not self:IsShown() then return false end
+	if self.keys and not InCombatLockdown() then self:EnterKeys() else self:EnterEdit() end
+	ns:Trace("terminal: in focus again")
+	return true
+end
+
+--- A mouse button pressed anywhere (GLOBAL_MOUSE_DOWN): on Terminal, in focus; elsewhere (.zen off), out of it.
+function UI:MouseDownAnywhere()
+	if not self:IsShown() then return end
+	if ns.Zen and ns.Zen.active then return end -- (.zen: its dimming takes the click and closes the terminal)
+	if UI.PointerOnTerminal() then self:Focus() else self:Blur() end
+end
+
+do
+	local watch = CreateFrame("Frame")
+	pcall(watch.RegisterEvent, watch, "GLOBAL_MOUSE_DOWN")
+	watch:SetScript("OnEvent", function() UI:MouseDownAnywhere() end)
+	UI.focusWatch = watch -- (tests)
 end
 
 local function WordLeft(s, c) -- start of the word left of c

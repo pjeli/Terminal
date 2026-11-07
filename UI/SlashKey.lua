@@ -58,7 +58,9 @@ owner:SetScript("OnEvent", SK.OnEvent)
 --- The / key: Terminal opens on a fresh prompt saying "/", the slash commands listed, the caret after it; the key's own
 --- "/", typed after the press, isn't typed again.
 function UI:SlashOpen()
-	if self:IsShown() then return end
+	-- (out of focus, a click away from it: / is Terminal's open key, so it comes back on a fresh "/", as when closed)
+	if self:IsShown() and not self.blurred then return end
+	if self.blurred then self:Focus() end
 	if InCombatLockdown() then
 		-- (the override is off in combat; should the key still reach here: the game's chat box, as / does)
 		local open = rawget(_G, "ChatFrame_OpenChat")

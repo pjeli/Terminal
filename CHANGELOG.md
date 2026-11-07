@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.7 (in testing)
+
+- With `.zen` off, a click outside Terminal no longer leaves it holding the keyboard: it stays open, out of focus (no cursor), and your keys go to the game: moving, casting, chat. Click Terminal, or press its key (` or /), to type in it again; a second press of ` closes it. With `.zen` on, a click on the dimmed screen still closes it.
+
 ## 1.1.6 (in testing)
 
 - Fixed: with the game's own bags (no Bagnon or Baganator), pressing Enter on an item to show it in your bags opened them from Terminal's code. That could leave the bag buttons tainted, so eating or drinking from your bags was blocked until a `/reload`. The game now opens your bags itself on the Enter press (its Backpack & Bags key), and Terminal only points at the item; a test checks that no Terminal file calls the game's bag openers.
