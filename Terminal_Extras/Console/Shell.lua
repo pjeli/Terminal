@@ -646,6 +646,9 @@ end
 
 local function RunTerminal(io, c)
 	local args = table.concat(io.args, " ")
+	-- (.set alone opens Terminal on its settings rows since 1.1.4, which closed the console and printed nothing to a
+	-- pipe: here it lists them, as it did, "set | grep font"; 1.1.15, review)
+	if c.name == "set" and strtrim(args) == "" then args = "list" end
 	if c.secure then
 		io.err(L["it's pressed by the game: run it from Terminal (`), not the console"])
 		return 1

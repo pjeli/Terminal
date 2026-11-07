@@ -1476,3 +1476,16 @@ do
 	IS.innkeeper = real
 	check(calls == 1, "an NPC's roles asked once, not every listing: " .. calls)
 end
+
+print("[console: set alone lists the settings, the console stays]")
+do -- (1.1.15, review: .set alone opens Terminal on its settings rows since 1.1.4; in the console it closed the console)
+	local opened
+	local wasOpen = ns.UI.Open
+	ns.UI.Open = function(_, text) opened = text end
+	local o = Run("set")
+	T.FlushAll()
+	ns.UI.Open = wasOpen
+	check(opened == nil and Has(o, "fontSize"), "set in the console: every setting listed, Terminal not opened: " .. tostring(opened))
+	o = Run("set | grep fontSize")
+	check(#o >= 1 and Has(o, "fontSize"), "set | grep fontSize: its line")
+end

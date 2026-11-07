@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.15 (in testing)
+
+- Fixed: in `.console`, `set` on its own closed the console to open Terminal on its settings; there it lists every setting again, and `set | grep font` works.
+
 ## 1.1.14 (in testing)
 
 - Lighter: hovering an @stored, loot log or chain item row no longer scans every bag slot each time to see whether its bags are open; an item you don't carry skips the scan, and a scan is kept until your bags change.
