@@ -890,6 +890,7 @@ L["Find"] = true
 L["Find a setting"] = true
 L["Find anything in the game by typing a few letters, then press Enter to go straight to it. A few quick steps show you how."] = true
 L["Find guildies by what they do: \"guild blacksmith\", \"guild priest online\" (Enter whispers them, Shift+Enter invites)."] = true
+L["Find sources"] = true
 L["Fine-tune with .set, or the options panel: .options"] = true
 L["Finger"] = true
 L["Fire"] = true

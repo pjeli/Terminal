@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.5 (in testing)
+
+- Right-click a `@loot` row and pick **Find sources**: the prompt goes on to its sources chain (`Chain Belt > sources`; in Simple mode **where to get Chain Belt**), listing who drops, sells or makes it. Shift+Left goes back to the loot search.
+
 ## 1.1.4 (in testing)
 
 - Terminal's own settings are rows you can search: **terminal settings** (or `.set` alone) lists every setting with its value, and everyday words find one (**bigger font**, **cursor**, **zen dimming**, **opacity**, **see through**). Enter turns an on/off one on or off, or lists the values to pick (`.set cursor `, numbers with a step either way, the default and the ends; colours with the theme's own); Shift+Enter puts the default back; the terminal stays open, so you can change several. Each tooltip says what the setting does. `.set list` prints them in chat as `.set` did.

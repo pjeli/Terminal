@@ -14,10 +14,11 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.1.4", when = "in testing",
+		v = "1.1.5", when = "in testing",
 		items = {
 			"With TomTom (or an arrow addon taking its waypoints): Enter (\"show via TomTom\") and Shift+Enter send their waypoints to TomTom's arrow; .set waypoints map, tomtom or both, or Options.",
 			"Terminal's own settings are searchable: \"terminal settings\" (or .set) lists each with its value, \"bigger font\" or \"cursor\" finds one; Enter changes it, Shift+Enter puts its default back.",
+			"Right-click a loot row and pick Find sources: the search goes on to where to get it (who drops, sells or makes it); Shift+Left goes back.",
 		},
 	},
 	{

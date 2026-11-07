@@ -799,6 +799,57 @@ do
 	check(P.Canonical("where to get copper ore") == "copper ore > sources", "a name still is")
 end
 
+io.write("[chains: the row menu's Find sources]\n")
+do -- (1.1.5, the player: right-click a loot row, find its sources: the prompt walked on to "> sources")
+	local function Line(label)
+		for i = 1, 30 do
+			local b = _G["TerminalRowMenuLine" .. i]
+			if not b then return nil end
+			if b.shown ~= false and b.fs:GetText() == label then return b end
+		end
+	end
+	local function Menu(q, pick)
+		UI:Open(q); T.FlushAll()
+		for i, r in ipairs(UI.Results()) do
+			if pick(r) then UI.sel = i; UI:ShowRowMenu(i) return r end
+		end
+	end
+	local easyWas = ns.db.easyMode
+	ns.db.easyMode = false; UI:EasyChanged()
+	P.ClearSteps()
+	local row = Menu("@loot chain belt", function(r) return r.itemID == 2857 end)
+	local line = Line("Find sources")
+	check(row and line, "a loot row's menu: Find sources")
+	if line then
+		UI:MenuPicked(line); T.FlushAll()
+		local crafted
+		for _, r in ipairs(UI.Results()) do if (r.detail or ""):find("Crafted", 1, true) then crafted = r end end
+		check(UI:IsShown() and T.query() == "Chain Belt > sources" and crafted ~= nil,
+			"the prompt walked on to its sources, with them listed: " .. T.query())
+		check(UI:GoBack() and T.query() == "@loot chain belt", "Shift+Left: back to the loot search: " .. T.query())
+		T.FlushAll()
+	end
+	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
+	-- loot rows only (the player's ask): not your bags' items (a Hearthstone's sources mean nothing), not a recipe, not a
+	-- reagent (Enter already goes to its sources)
+	Menu("@item copper bar", function(r) return r.itemID == 2840 end)
+	check(Line("Find sources") == nil, "an item in your bags: none")
+	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
+	Menu("@recipe thorium belt", function(r) return r.recipeID == 16645 end)
+	check(Line("Find sources") == nil, "a recipe: none")
+	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
+	Menu("thorium belt > mats", function(r) return r.itemID == 12359 end)
+	check(Line("Find sources") == nil, "a reagent: none (Enter is that)")
+	UI:HideRowMenu(); UI:Hide(); T.FlushAll()
+	-- Simple mode: in its own words
+	ns.db.easyMode = true; UI:EasyChanged()
+	P.ClearSteps()
+	check(UI.SourcesLine({ kind = "loot", name = "Chain Belt", itemID = 2857 }) == "where to get Chain Belt",
+		"Simple mode: where to get Chain Belt")
+	ns.db.easyMode = easyWas; UI:EasyChanged()
+	P.ClearSteps()
+end
+
 ns.providers, ns.providerOrder = saved.providers, saved.order
 ns:AliasesChanged()
 C_Item.GetItemNameByID, C_Item.GetItemCount, _G.AtlasLoot = saved.name, saved.count, saved.AL

@@ -24,6 +24,20 @@ local Cap = ns.UpperFirst
 -- (where the menu's row is now: lists rebuild under an open menu, friends' Battle.net updates every few seconds)
 local function MenuRowIndex(e, idx) return UI.FindRow(e, idx) end
 
+--- The line the row menu's "Find sources" writes for row `e` ("Thorium Bar > sources"; Simple mode: "where to get
+--- Thorium Bar"), or nil: only a loot row (AtlasLoot's: its boss is always one source; the player's ask), not a row
+--- already in a sources chain.
+function UI.SourcesLine(e)
+	local P = ns.Pipes
+	if not (P and P.ItemOf and P.Phrase and P.Available and P.Available("sources")) then return nil end
+	if e.kind ~= "loot" or e.recipeID or e.pipeNext == "sources" then return nil end
+	if e.syntaxRow or e.catId or e.raw or e.completion or e.lead or e.noActivate then return nil end
+	if not P.ItemOf(e) then return nil end
+	local name = type(e.name) == "string" and e.name:gsub("%s+x%d+$", "") or ""
+	if name == "" or (ns.Secret and ns.Secret(name)) then return nil end
+	return P.Phrase(name, "sources")
+end
+
 local function MenuLine(i)
 	local b = menu.lines[i]
 	if b then return b end
@@ -117,6 +131,13 @@ do
 			-- (Shift+Enter's line only when the verbs name one: an action word's row, worn gear, a passive spell have none)
 			if (e.secondary or e.secondarySecure) and (shift or not ns.Easy) then
 				items[#items + 1] = { label = Cap(shift or L["more"]), secondary = true }
+			end
+			-- a loot row: where to get it, the prompt walked on to its sources chain
+			local walk = not self.histSearch and UI.SourcesLine(e)
+			if walk then
+				items[#items + 1] = { label = L["Find sources"], run = function()
+					UI:WalkTo(walk, e) -- (the search before kept: Shift+Left goes back to it)
+				end }
 			end
 		end
 		-- a quest to drop among others: all of them together, after Terminal's confirmation names them (QuestDrop.lua)
