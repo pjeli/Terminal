@@ -1083,7 +1083,13 @@ end
 
 function UI:Toggle(typed)
 	-- (out of focus, a click away from it: its key gives it the keyboard back, a second press closes it)
-	if self:IsShown() and self.blurred then return self:Focus() end
+	if self:IsShown() and self.blurred then
+		self:Focus()
+		-- (the key's ` can still come as a typed character after this press, the keyboard Terminal's again: not typed;
+		-- 1.1.19, review)
+		if self.DropTick then self.DropTick(edit:GetText()) end
+		return
+	end
 	if self:IsShown() then return self:Hide() end
 	-- Tab+` (the game sees the toggle key; Tab held): opens in pure fuzzy finding
 	if self:TabDown() then return self:FuzzyOnce() end -- (in combat too: not a key hit by accident)

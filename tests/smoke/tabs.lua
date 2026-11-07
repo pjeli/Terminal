@@ -286,6 +286,22 @@ do -- (1.1.8, the player: "make session-preservation a Terminal option and have 
 	ns.db.tabs = wasTabs
 end
 
+io.write("[tabs: review 1.1.19: Ctrl+T in a run with its own text, your session kept: what's on screen is tab 1]\n")
+do
+	local Th = ns.Theme
+	local wasKeep, wasTabs = Th.Get().keepSession, ns.db.tabs
+	Th.Get().keepSession = true
+	ns.db.tabs = { list = { { text = "linen" } }, cur = 1 }
+	ns.db.easyMode = false; UI:EasyChanged()
+	UI:Open("hogger"); FlushAll() -- (a text of its own: a chat link, /term words)
+	withCtrl(function() key("T") end); FlushAll()
+	check(#Tabs.List() == 2 and Tabs.List()[1].text == "hogger" and query() == "", "Ctrl+T: hogger, on screen, is tab 1: " .. tostring(Tabs.List()[1].text))
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = save.easy; UI:EasyChanged()
+	Th.Get().keepSession = wasKeep
+	ns.db.tabs = wasTabs
+end
+
 io.write("[tabs: the empty prompt's tips say tabs open with Ctrl+T]\n")
 do
 	local E = ns.Easy

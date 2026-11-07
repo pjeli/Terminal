@@ -59,3 +59,24 @@ do
 	UI:Hide(); FlushAll()
 	F.IsMouseOver = wasOver
 end
+
+io.write("[focus: review 1.1.19: the toggle key's ` isn't typed when it gives the keys back]\n")
+do
+	local F = _G.TerminalFrame
+	local wasOver = F.IsMouseOver
+	local over = false
+	F.IsMouseOver = function() return over end
+	local zenWas = ns.Zen.active
+	ns.Zen.active = false
+	UI:Open(""); FlushAll()
+	T.typeText("hog"); FlushAll()
+	UI.focusWatch.scripts.OnEvent(UI.focusWatch, "GLOBAL_MOUSE_DOWN", "LeftButton")
+	check(UI.blurred, "(out of focus)")
+	UI.swallowTick = nil
+	UI:Toggle()
+	check(not UI.blurred and UI.swallowTick ~= nil and T.query() == "hog",
+		"` gave the keys back, its character to come dropped (DropTick): " .. tostring(UI.swallowTick))
+	UI:Hide(); FlushAll()
+	ns.Zen.active = zenWas
+	F.IsMouseOver = wasOver
+end

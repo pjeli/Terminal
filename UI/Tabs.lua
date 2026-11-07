@@ -167,9 +167,10 @@ function T.New()
 		Say(L["%d tabs at most: Ctrl+Shift+W closes one"]:format(T.MAX))
 		return false
 	end
-	if #t.list == 0 then
-		t.list[1], t.cur = {}, 1
-		t.list[1] = Snapshot() -- (the prompt as it was, whatever it is: tab 1)
+	-- (no tabs, the one prompt maybe kept as your session: what's on screen is tab 1, whatever it is, a run opened with its
+	-- own text too; the session's older search went with it. 1.1.19, review)
+	if not T.On() then
+		t.list, t.cur = { Snapshot() }, 1
 	else
 		Keep(t)
 	end
