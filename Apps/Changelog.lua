@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.1.22", when = "in testing",
+		v = "1.2.0", when = "released November 2026",
 		items = {
 			"With TomTom (or an arrow addon taking its waypoints): Enter (\"show via TomTom\") and Shift+Enter send their waypoints to TomTom's arrow; .set waypoints map, tomtom or both, or Options.",
 			"Terminal's own settings are searchable: \"terminal settings\" (or .set) lists each with its value, \"bigger font\" or \"cursor\" finds one; Enter changes it, Shift+Enter puts its default back.",
@@ -24,6 +24,7 @@ CL.LOG = {
 			"Keep your session (on by default, .set keepSession): Terminal opens again on the search you left, with its results, and your tabs, after a /reload too; the empty prompt's tips mention Ctrl+T for another tab.",
 			"The addon options panel says that more settings are in Terminal itself: terminal settings or .set.",
 			"\"what layer am i on\" or \"my layer\" (@layer): the layer the creatures you mouse over or target are on.",
+			"Many fixes from a release review: showing items in your bags (in a fight, with Ctrl+Enter, with any bag addon), settings, focus and tabs.",
 		},
 	},
 	{

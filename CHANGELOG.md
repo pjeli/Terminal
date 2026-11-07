@@ -1,92 +1,34 @@
 # Changelog
 
-## 1.1.22 (in testing)
+## 1.2.0
 
-- Code tidy-up from the release review, no change in what Terminal does: one way for rows that show an item in your bags, one list of Terminal's frames shared by `.zen` and the click-outside check, a test that every setting has its description and search words, comments brought up to date.
+Terminal 1.2: waypoints on TomTom's arrow, Terminal's own settings as rows you can search, your session kept, your
+layer, and the fixes of a release review.
 
-## 1.1.21 (in testing)
+**Waypoints and the map**
+- With [TomTom](https://www.curseforge.com/wow/addons/tomtom) installed (or an arrow addon that takes TomTom's waypoints, such as Waypoint Tracker), the waypoints Enter and Shift+Enter set go to TomTom's arrow instead of the map pin, and Enter's verb says **show via TomTom**. `.set waypoints map`, `tomtom` or `both`, or the Waypoints button in Options, picks where they go; `.integrations` says which. Map pins sent in chat stay the game's, and in a fight the game's map pin is set instead.
+- A waypoint TomTom cleared (you arrived, or right-clicked it away) is left alone, and one of your own TomTom waypoints at the same spot is never taken away.
 
-- TomTom: in a fight Terminal sets the game's map pin instead of calling TomTom (whose map pins are the world map's, protected then); and a zone picked while waypoints go to TomTom no longer moves your own map pin when Terminal has no TomTom waypoint to move.
+**Terminal's settings**
+- **terminal settings** (or `.set` alone) lists every setting with its value, and everyday words find one (**bigger font**, **cursor**, **zen dimming**, **opacity**, **see through**). Enter turns an on/off one on or off, or lists the values to pick; Shift+Enter puts a changed one back to its default; the terminal stays open, so you can change several. Each tooltip says what the setting does. `.set list` prints them in chat, and in `.console` `set` lists them as before.
+- `.set <name> <Tab>` lists values for numbers (a step either way, the default and the ends) and colours (the theme's own) too.
+- The addon options panel says that more settings are in Terminal itself.
 
-## 1.1.20 (in testing)
+**Your session, focus and tabs**
+- **Keep your session** (on by default, `.set keepSession`): Terminal opens again on the search you left, its results listed and your row selected, after closing it, after a `/reload` and after a new login; your tabs come back too. It keeps searches, not commands: after a `.command` or a `/slash` line it opens empty, so a quick Enter never runs `.reload` again. Off: an empty prompt, as before.
+- With `.zen` off, a click outside Terminal leaves it open but out of focus: no cursor, and your keys go to the game (moving, casting, chat). Click it, or press `, to type in it again; a second ` closes it.
+- The empty prompt's tips mention Ctrl+T for another tab.
 
-- Keep your session keeps the search you left, not a command: with no other tab, Terminal opens empty after a `.command` or a `/slash` line, so a quick Enter doesn't run `.reload` or a logout macro again. Tabs keep what they hold, as before.
+**New**
+- **what layer am i on** or **my layer** (Advanced: `@layer`): the layer the creatures you mouse over, target or see a nameplate of are on, read from their GUIDs. One row: the layer's number (the server's, not a "layer 1, 2, 3"), where and from whom it was read, and which of the layers you've met on this map since logging in it is. In a dungeon or raid it says there are none. Enter says it in chat, Shift+Enter puts it in the chat box.
+- Right-click a `@loot` row and pick **Find sources**: the search goes on to where to get it (who drops, sells or makes it); Shift+Left goes back.
 
-## 1.1.19 (in testing)
-
-- Fixed: pressing ` to give an out-of-focus Terminal the keys back could type a ` into the prompt; Ctrl+T in a run opened with its own text (a chat link, `/term` words) lost what was on screen when your session was kept.
-
-## 1.1.18 (in testing)
-
-- Showing an item in your bags, fixed after 1.1.6: in a fight, Enter works again when nothing needs opening (your bag addon's window, bags already open); Ctrl+Enter keeps Terminal open again; bag addons Terminal doesn't know by name (AdiBags, ElvUI's bags, ArkInventory...) open their window as before instead of the game's key toggling it shut; an item that moved to another bag since the list was made is found where it is now; "Open your bags" is said only where the game couldn't open them (a fight, or an item on the keyring).
-
-## 1.1.17 (in testing)
-
-- Fixed: Shift+Enter on a setting row already at its default changed it (an on/off one flipped, others wrote `.set` into the prompt); it now says it's already the default.
-
-## 1.1.16 (in testing)
-
-- Clearer texts: a setting's tooltip offers Shift+Enter (reset) only once it has been changed; `.set` <Tab> offers **list** and its description says what `.set` alone and `.set list` do; F1 says what closing does with Keep your session and what a click outside Terminal does; Keep your session's description says two or more tabs last until a `/reload` even with it off; a Russian name fixed. A 1.1.8 `keepTabs off` carries over as `keepSession off`.
-
-## 1.1.15 (in testing)
-
-- Fixed: in `.console`, `set` on its own closed the console to open Terminal on its settings; there it lists every setting again, and `set | grep font` works.
-
-## 1.1.14 (in testing)
-
-- Lighter: hovering an @stored, loot log or chain item row no longer scans every bag slot each time to see whether its bags are open; an item you don't carry skips the scan, and a scan is kept until your bags change.
-
-## 1.1.13 (in testing)
-
-- Your layer: **what layer am i on** or **my layer** (Advanced: `@layer`, one row). Terminal reads it from the creatures you mouse over, target or see a nameplate of: the zone part of their GUID, the same for every creature of one layer. The row names the layer's number (the server's, not a "layer 1, 2, 3"), where and from whom it was read and how long ago, and, when you've met more than one on this map since logging in, which of them it is by number. In a dungeon, raid or battleground it says there are no layers. Enter says it in chat, Shift+Enter puts it in the chat box. A new file: restart the game, not just `/reload`.
-
-## 1.1.12 (in testing)
-
-- Tests: the check that the empty prompt's suggestion comes back with suggestions turned on again accepts a tip as well as a `try:` example. Which comes next is random, and on GitHub's Linux runners it landed on a tip, failing the run since 1.1.9.
-
-## 1.1.11 (in testing)
-
-- The options panel's heading sits a few pixels higher, so there's a little more room between the **terminal settings** notice and the Theme and Example labels.
-
-## 1.1.10 (in testing)
-
-- The addon options panel has a notice under its heading: more settings are in Terminal itself; type **terminal settings** (or `.set`) to list and change every one (Keep your session and the mail warning have no control in the panel).
-
-## 1.1.9 (in testing)
-
-- **Keep your session** (renamed from Keep tabs between sessions, `.set keepSession`, on by default) now keeps the base prompt too: with no other tab, Terminal opens again on the search you left, its results listed and your row selected, after closing it, after a `/reload` and after a new login. Tabs come back as before. A run opened with a text of its own (a chat link, `/term` words, the / key) is shown without replacing it. Off: Terminal opens on an empty prompt (a quick reopen within 5 s still brings back what you typed).
-
-## 1.1.8 (in testing)
-
-- Keeping your tabs between sessions is now a setting, on by default: **Keep tabs between sessions** (`.set keepTabs on` / `off`, or find it with **terminal settings** or **session**; renamed **Keep your session**, `.set keepSession`, in 1.1.9). On, your tabs and what each one had typed come back after a `/reload` or a new login, as before; off, each login starts on one empty prompt. The empty prompt's tips now include **tip: Ctrl+T opens another tab, Ctrl+Tab switches**, in Simple and Advanced mode.
-
-## 1.1.7 (in testing)
-
-- With `.zen` off, a click outside Terminal no longer leaves it holding the keyboard: it stays open, out of focus (no cursor), and your keys go to the game: moving, casting, chat. Click Terminal, or press `, to type in it again (with Open on /, / starts a slash command); a second press of ` closes it. With `.zen` on, a click on the dimmed screen still closes it.
-
-## 1.1.6 (in testing)
-
-- Fixed: with the game's own bags (no Bagnon or Baganator), pressing Enter on an item to show it in your bags opened them from Terminal's code. That could leave the bag buttons tainted, so eating or drinking from your bags was blocked until a `/reload`. The game now opens your bags itself on the Enter press (its Backpack & Bags key), and Terminal only points at the item; a test checks that no Terminal file calls the game's bag openers.
-
-## 1.1.5 (in testing)
-
-- Right-click a `@loot` row and pick **Find sources**: the prompt goes on to its sources chain (`Chain Belt > sources`; in Simple mode **where to get Chain Belt**), listing who drops, sells or makes it. Shift+Left goes back to the loot search.
-
-## 1.1.4 (in testing)
-
-- Terminal's own settings are rows you can search: **terminal settings** (or `.set` alone) lists every setting with its value, and everyday words find one (**bigger font**, **cursor**, **zen dimming**, **opacity**, **see through**). Enter turns an on/off one on or off, or lists the values to pick (`.set cursor `, numbers with a step either way, the default and the ends; colours with the theme's own); Shift+Enter puts the default back; the terminal stays open, so you can change several. Each tooltip says what the setting does. `.set list` prints them in chat as `.set` did.
-
-## 1.1.3
-
-- With TomTom taking the waypoints, Enter's verb on places, NPCs and `@map` rows says **show via TomTom** instead of **show on map** (footer, right-click menu and the flight path and corpse tooltips). With `.set waypoints both` or `map` it still says the map.
-
-## 1.1.2
-
-- TomTom polish: a waypoint TomTom cleared (you arrived, or right-clicked it away) is no longer moved by a zone or removed again; one of your own TomTom waypoints at the same spot is never taken away; `.integrations` names Waypoint Tracker when it stands in for TomTom; `.set waypoints` Tab names each choice.
-
-## 1.1.1
-
-- With [TomTom](https://www.curseforge.com/wow/addons/tomtom) installed (or an arrow addon that takes TomTom's waypoints), the waypoints Enter and Shift+Enter set go to TomTom's arrow instead of the map pin. `.set waypoints map`, `tomtom` or `both`, or the Waypoints button in Options, picks where they go; `.integrations` says which. Map pins sent in chat stay the game's.
+**Fixes**
+- With the game's own bags (no Bagnon or Baganator), showing an item in your bags opened them from Terminal's code, which could leave the bag buttons tainted: eating or drinking from your bags was blocked until a `/reload`. The game opens your bags itself now, on the Enter press, and Terminal only points at the item. In a fight Enter still works when nothing needs opening; Ctrl+Enter keeps Terminal open; bag addons Terminal doesn't know by name (AdiBags, ElvUI's bags, ArkInventory...) open their own window.
+- Shift+Enter on a setting already at its default no longer changes it.
+- Giving an out-of-focus Terminal the keys back with ` no longer types a `; Ctrl+T in a run opened from a chat link keeps what was on screen.
+- Lighter: hovering @stored, loot log or chain item rows no longer scans every bag slot each time.
+- Clearer texts in F1, the settings' tooltips and `.set`'s help; GitHub's test runs pass again.
 
 ## 1.1.0
 
