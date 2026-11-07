@@ -292,7 +292,7 @@ ns:RegisterProvider("lootlog", {
 					detail = table.concat(parts, ns.DETAIL_SEP),
 					text = table.concat({ who, d.who or "", d.from or "", d.zone or "", "loot drop looted" }, " "),
 					_rank = (n - i + 1) / (n + 1) * 0.99, -- (newest first among equal matches)
-					activate = Show,
+					activate = Show, after = Show, secure = ns.Bags.SECURE, isOpen = ns.Bags.ShownFor, -- (the game's bags: its press)
 					secondarySecure = CHATBOX, secondaryIsOpen = NeverOpen, secondary = ToChat,
 				}
 			end

@@ -1154,6 +1154,7 @@ L["Open the Currency tab from your character window (opening it from Terminal's 
 L["Open the Legacy window from its button (a click from Terminal's own code would taint it)."] = "Abre la ventana del Legado desde su botón (un clic desde el código de Terminal la contaminaría)."
 L["Open the Terminal options panel"] = "Abre el panel de opciones de Terminal"
 L["Open the calendar from the minimap's calendar button (opening it from Terminal's own code would taint it)."] = "Abre el calendario con el botón del calendario del minimapa (abrirlo desde el código de Terminal lo contaminaría)."
+L["Open your bags to see %s (opening them from Terminal's own code would taint them)."] = "Abre tus bolsas para ver %s (abrirlas desde el código de Terminal las contaminaría)."
 L["Open your character window to see %s (opening it from Terminal's own code would taint it)."] = "Abre la ventana de tu personaje para ver %s (abrirla desde el código de Terminal la contaminaría)."
 L["Open your quest log to see %s (opening it from Terminal's own code would taint it)."] = "Abre tu registro de misiones para ver %s (abrirlo desde el código de Terminal lo contaminaría)."
 L["Open your talents to see %s (opening them from Terminal's own code would taint them)."] = "Abre tus talentos para ver %s (abrirlos desde el código de Terminal los contaminaría)."

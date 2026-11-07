@@ -1,5 +1,6 @@
--- (the runaway guard: the main run had grown to ~19.9M instructions by 0.44.10, so it gets 40M; each extra file 20M)
-debug.sethook(function() error("INSTRUCTION LIMIT HIT\n" .. debug.traceback(), 2) end, "", 40000000)
+-- (the runaway guard: the main run had grown to ~19.9M instructions by 0.44.10, so it got 40M; ~40M by 1.1.6, so 60M
+-- now; each extra file 20M)
+debug.sethook(function() error("INSTRUCTION LIMIT HIT\n" .. debug.traceback(), 2) end, "", 60000000)
 -- Minimal WoW API stub, enough to load every file and exercise collect/search/activate.
 local log = {}
 local function note(...) log[#log + 1] = table.concat({ ... }, " ") end
@@ -213,6 +214,7 @@ _G.BINDING_NAME_TOGGLECHARACTER0 = "Character Info"
 _G.BINDING_NAME_TOGGLECHARACTER2 = "Reputation"
 _G.BINDING_NAME_TOGGLETALENTS = "Talents"
 _G.BINDING_NAME_TOGGLEQUESTLOG = "Quest Log"
+_G.BINDING_NAME_OPENALLBAGS = "Open All Bags" -- (the game's bag key: an item's Enter presses it, 1.1.6)
 _G.ClearOverrideBindings = function() for k in pairs(bindings) do bindings[k] = nil end end
 _G.ChatEdit_InsertLink = function(l) note("INSERTLINK", l); return false end
 _G.C_Item.GetItemNameByID = function(id) return id == 100 and "Flint" or nil end
@@ -971,9 +973,13 @@ do
 	check(not UI:IsShown(), "terminal closes once the game has run the binding")
 	check(S.armed == nil and next(bindings) == nil, "Enter binding cleared afterwards")
 
-	-- plain entries handle Enter themselves
+	-- (1.1.6) an item with the game's bags closed: the game opens them, on the bag key's command, this same press;
+	-- Terminal's code never calls OpenAllBags (it tainted the bag buttons: food couldn't be eaten until a /reload)
 	UI:Open("hearthstone"); mark = #log; key("ENTER")
-	check(F.propagate == false and logHas("OpenAllBags", mark + 1) and not UI:IsShown(), "plain entries activate directly and keep Enter")
+	check(S.armed == "OPENALLBAGS" and S.mode == "binding" and F.propagate == true and not logHas("OpenAllBags", mark + 1),
+		"an item, the game's bags closed: Enter is the game's bag key, never OpenAllBags from Terminal: " .. tostring(S.armed))
+	FlushAll()
+	UI:Hide(); FlushAll()
 
 	-- Shift+Enter on an item: the game uses it (a /use line on the secure macro button)
 	UI:Open("hearthstone")
@@ -1124,8 +1130,9 @@ do
 		ns.providers.items._dirty = true
 		-- Enter: like an Item result (your bags)
 		UI:Open("@gear shortsword"); mark = #log; key("ENTER")
-		check(logHas("OpenAllBags", mark + 1) or logHas("OpenBag", mark + 1) or logHas("OpenBackpack", mark + 1) or not UI:IsShown(),
-			"Enter shows it in your bags, as an Item result does")
+		check(ns.Secure.armed == "OPENALLBAGS" and not logHas("OpenAllBags", mark + 1),
+			"Enter shows it in your bags, as an Item result does (the game's bag key): " .. tostring(ns.Secure.armed))
+		FlushAll(); UI:Hide(); FlushAll()
 		-- Shift+Enter: the game equips it
 		UI:Open("@gear shortsword")
 		_G.IsShiftKeyDown = function() return true end
@@ -4779,7 +4786,7 @@ do
 	UI:Open("@alts linen"); check(UI.Results()[1] and UI.Results()[1].kind == "stored", "@alts too")
 	-- Enter: like an Item, your bags (Bagnon's here) open on the ones you carry
 	UI:Open("@stored linen")
-	key("ENTER")
+	key("ENTER"); FlushAll()
 	check(shown[1] and shown[1].id == "inventory" and shown[1].owner == nil, "Enter opens your bags in Bagnon: " .. tostring(shown[1] and shown[1].id))
 	check(_G.Bagnon.search == nil, "nothing typed into Bagnon's search")
 	-- not carried: nothing at all
@@ -4882,7 +4889,8 @@ do
 	_G.Baganator = nil
 	local mark = #log
 	UI:Open("@stored linen"); key("ENTER")
-	check(logHas("OpenAllBags", mark + 1), "without a bag addon the game's bags open")
+	check(ns.Secure.armed == "OPENALLBAGS" and not logHas("OpenAllBags", mark + 1), "without a bag addon: the game's bag key, pressed by the game")
+	FlushAll(); UI:Hide(); FlushAll()
 	-- the same characters as Syndicator's tooltip: by default only connected realms
 	SD.Characters["Alt-Elsewhere"] = { details = { character = "Alt", show = { inventory = true } }, bags = { { it(2589, 2, LINK) } } }
 	by = entries()
@@ -5075,26 +5083,33 @@ do
 	check(fj:find("BagShow", 1, true) and fj:find("HighlightIdenticalItems:|Hitem:2589|h[Linen Cloth]|h", 1, true), "Baganator opens and flashes it: " .. fj)
 	check(lit[1] == bgb, "and Terminal points at its button too")
 	_G.Baganator, _G.Baganator_SingleViewBackpackViewFrame1 = nil, nil
-	-- none: the game's bags, as before
-	mark = #log
-	e.activate(e); FlushAll()
-	check(logHas("OpenAllBags", mark + 1), "without a bag addon the game's bags open")
-	-- the reagent bag left open: OpenAllBags does nothing then (the game's rule), so the bag the
-	-- item is in is opened on its own and its button pointed at
-	local open = { [5] = true }
+	-- none: the game's bags, opened by the game's press (1.1.6): the row's step itself opens nothing, and says so when
+	-- it's run without the press (a fight, no bag key)
+	local open = {}
 	local realIsOpen, realOAB = _G.IsBagOpen, _G.OpenAllBags
 	_G.IsBagOpen = function(b) return open[b] or false end
-	_G.OpenAllBags = function() note("OpenAllBags") end -- no-op: a bag is open
 	_G.OpenBackpack = function() note("OpenBackpack"); open[0] = true end
 	_G.OpenBag = function(b) note("OpenBag " .. b); open[b] = true end
+	check(e.secure == Bg.SECURE and Bg.SECURE.binding == "OPENALLBAGS" and e.isOpen(e) == false,
+		"the game's bags closed: Enter has the game press its bag key")
 	mark = #log
+	local printWas, said = ns.Print, nil
+	ns.Print = function(_, m) said = m end
 	e.activate(e); FlushAll()
-	check(not logHas("OpenAllBags", mark + 1) and logHas("OpenBackpack", mark + 1),
-		"reagent bag left open: the backpack holding the item opens anyway")
-	-- already open: nothing else opened
+	ns.Print = printWas
+	check(not logHas("OpenAllBags", mark + 1) and not logHas("OpenBackpack", mark + 1) and not logHas("OpenBag", mark + 1)
+		and tostring(said):find("Open your bags to see Linen Cloth", 1, true), "run without the press: nothing opened from Terminal's code, said: " .. tostring(said))
+	-- the reagent bag left open, not the backpack holding it: still the press (the game's key opens every bag then)
+	open = { [5] = true }
+	check(e.isOpen(e) == false, "the reagent bag open, the backpack not: the press")
+	-- the backpack showing: no press, the step points at it
+	open[0] = true
+	lit = {}
 	mark = #log
-	e.activate(e); FlushAll()
-	check(not logHas("OpenBackpack", mark + 1) and not logHas("OpenAllBags", mark + 1), "the bag already showing: nothing more to open")
+	check(e.isOpen(e) == true, "the bag showing: nothing to press")
+	e.after(e); FlushAll()
+	check(not logHas("Open your bags", mark + 1) and not logHas("OpenBackpack", mark + 1) and not logHas("OpenAllBags", mark + 1),
+		"and its step only points at it, nothing opened")
 	_G.IsBagOpen, _G.OpenAllBags, _G.OpenBackpack, _G.OpenBag = realIsOpen, realOAB, nil, nil
 	ns.Highlight.Show = origShow
 

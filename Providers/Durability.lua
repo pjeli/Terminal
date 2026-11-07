@@ -233,6 +233,7 @@ local function Row(d)
 		e.activate, e.secure, e.isOpen, e.after = ITEM.activate, ITEM.secure, ITEM.isOpen, ITEM.after
 	else
 		e.activate = ShowInBags
+		ns.Bags.Pressed(e) -- (the game's own bags: opened by the game's press)
 	end
 	local where = d.slotText or L["in your bags"]
 	local state = d.cur == 0 and L["broken"] or (d.pct .. "%")

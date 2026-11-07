@@ -385,7 +385,8 @@ local function NewItemRow(info, name, bag, slot, quests, questExact)
 		locs = {},
 		firstBag = bag,
 		itemID = info.itemID, classID = classID, subClassID = subClassID, subType = subType,
-		activate = ShowInBags,
+		activate = ShowInBags, after = ShowInBags, -- (the game's bags: opened by the game's press, Bags.SECURE)
+		secure = ns.Bags.SECURE, isOpen = ns.Bags.ShownFor,
 		secondary = UseInCombat, secondarySecure = USE_SPEC,
 		secondaryIsOpen = UseNeverOpen, secondaryAfter = UsedAfter,
 	}

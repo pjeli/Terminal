@@ -1154,6 +1154,7 @@ L["Open the Currency tab from your character window (opening it from Terminal's 
 L["Open the Legacy window from its button (a click from Terminal's own code would taint it)."] = "请用按钮打开传承窗口（从Terminal自身代码点击会造成污染）。"
 L["Open the Terminal options panel"] = "打开Terminal选项面板"
 L["Open the calendar from the minimap's calendar button (opening it from Terminal's own code would taint it)."] = "请用小地图上的日历按钮打开日历（由 Terminal 自己的代码打开会污染它）。"
+L["Open your bags to see %s (opening them from Terminal's own code would taint them)."] = "请打开背包查看%s（由 Terminal 自己的代码打开会污染它们）。"
 L["Open your character window to see %s (opening it from Terminal's own code would taint it)."] = "请打开角色窗口查看%s（由 Terminal 自己的代码打开会污染它）。"
 L["Open your quest log to see %s (opening it from Terminal's own code would taint it)."] = "请打开任务日志查看%s（由 Terminal 自己的代码打开会污染它）。"
 L["Open your talents to see %s (opening them from Terminal's own code would taint them)."] = "请打开天赋查看%s（由 Terminal 自己的代码打开会污染它）。"

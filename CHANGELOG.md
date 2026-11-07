@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.6 (in testing)
+
+- Fixed: with the game's own bags (no Bagnon or Baganator), pressing Enter on an item to show it in your bags opened them from Terminal's code. That could leave the bag buttons tainted, so eating or drinking from your bags was blocked until a `/reload`. The game now opens your bags itself on the Enter press (its Backpack & Bags key), and Terminal only points at the item; a test checks that no Terminal file calls the game's bag openers.
+
 ## 1.1.5 (in testing)
 
 - Right-click a `@loot` row and pick **Find sources**: the prompt goes on to its sources chain (`Chain Belt > sources`; in Simple mode **where to get Chain Belt**), listing who drops, sells or makes it. Shift+Left goes back to the loot search.

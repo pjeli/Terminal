@@ -1,4 +1,5 @@
 local ns = select(2, ...)
+local L = ns.L
 local H = ns.Highlight
 
 ----------------------------------------------------------------------
@@ -55,31 +56,65 @@ function Bags.BagIDs()
 	return ids
 end
 
---- Show your bags, in whichever window shows them. bags: the bag ids that must show (with the
---- game's own windows, each bag can be open or closed on its own).
+-- The game's own bag windows are opened by the game, on the Enter press: its Backpack & Bags key (ToggleAllBags, which
+-- opens every bag whenever any one of them isn't open). Never from Terminal's code (1.1.6, a friend of the player's
+-- "couldn't eat anything"): OpenAllBags / OpenBag from here made the bag windows' item buttons hold the bag number
+-- Terminal's code wrote (their "bagid" attribute is written only when it changes), and a right-click on food then
+-- reached C_Container.UseContainerItem tainted, which the game blocks for anything that casts (eating, drinking) until
+-- a /reload.
+Bags.SECURE = { binding = "OPENALLBAGS" }
+
+--- Whether the bags `bags` (ids) show. Read only: IsBagOpen writes nothing.
+local function AllOpen(bags)
+	if not IsBagOpen then return false end
+	for _, b in ipairs(bags) do
+		local ok, open = pcall(IsBagOpen, b)
+		if not (ok and open) then return false end
+	end
+	return true
+end
+
+--- The bag ids of locations { {bag, slot}, ... }, each once.
+local function BagsOf(locs)
+	local bags, seen = {}, {}
+	for _, loc in ipairs(locs or {}) do
+		if not seen[loc[1]] then seen[loc[1]] = true; bags[#bags + 1] = loc[1] end
+	end
+	return bags
+end
+
+--- A row that shows its item in your bags (Enter: `isOpen` with Bags.SECURE): true when Enter has nothing for the game
+--- to press: a bag addon's window shows them (Terminal opens that one: its own frames, not Blizzard's), you don't carry
+--- it (the row's own step says so), or every bag it's in is open already (the row's step only points at it).
+function Bags.ShownFor(e)
+	if Bags.Active() then return true end
+	local locs = e.locs
+	if type(locs) ~= "table" or #locs == 0 then locs = e.itemID and Bags.Locations(e.itemID) or {} end
+	if #locs == 0 then return true end
+	return AllOpen(BagsOf(locs))
+end
+
+--- Row `e` (a plain table whose `activate` shows its item in your bags, through Bags.ShowItem / Bags.Show) given the
+--- game's press for the game's own bags: Enter presses their key when they're closed, then runs that same step.
+function Bags.Pressed(e)
+	e.secure, e.isOpen, e.after = Bags.SECURE, Bags.ShownFor, e.activate
+	return e
+end
+
+--- Show your bags, in whichever window shows them. bags: the bag ids that must show. A bag addon's window is shown
+--- here; the game's own are never opened from here (Bags.SECURE: the game's press does that): false then when one of
+--- `bags` is closed (said by the caller).
 function Bags.Open(bags)
 	local which, A = Bags.Active()
 	if which == "Baganator" then
 		pcall(A.CallbackRegistry.TriggerEvent, A.CallbackRegistry, "BagShow")
 	elseif which then
 		pcall(A.Frames.Show, A.Frames, "inventory")
-	else
-		-- nothing open: all of them, as the bag key does
-		local anyOpen = false
-		for _, b in ipairs(Bags.BagIDs()) do -- (the keyring too: the game's OpenAllBags counts it, IsAnyBagOpen)
-			if IsBagOpen(b) then anyOpen = true break end
-		end
-		if not anyOpen then OpenAllBags() end
-		-- OpenAllBags does nothing while any bag but the backpack is open (the reagent bag left open,
-		-- say): the bags the item is in are opened one by one
-		for _, b in ipairs(bags or { 0 }) do
-			if not IsBagOpen(b) then
-				ns:Trace("items: bag " .. b .. " was closed, opening it")
-				if b == 0 and OpenBackpack then pcall(OpenBackpack) elseif OpenBag then pcall(OpenBag, b) end
-			end
-		end
+	elseif not AllOpen(bags or { 0 }) then
+		ns:Trace("items: the game's bags are closed and Terminal's code doesn't open them (the press does)")
+		return which, false
 	end
-	return which
+	return which, true
 end
 
 -- Baganator's bag windows are named Baganator_<View>BackpackViewFrame<group>: kept once found, looked for again (at
@@ -174,11 +209,13 @@ ShowInBags = function(e)
 	-- sold since; one pass over the bags, on Enter only.)
 	local now = e.itemID and Bags.Locations(e.itemID)
 	local locs = (now and #now > 0) and now or e.locs
-	local bags, seen = {}, {}
-	for _, loc in ipairs(locs or {}) do
-		if not seen[loc[1]] then seen[loc[1]] = true; bags[#bags + 1] = loc[1] end
+	local bags = BagsOf(locs)
+	local which, shown = Bags.Open(#bags > 0 and bags or nil)
+	if not shown then
+		-- (no press: in a fight, or a client without the bag key's command. Opening them here would taint them)
+		ns:Print(L["Open your bags to see %s (opening them from Terminal's own code would taint them)."]:format(tostring(e.name)))
+		return
 	end
-	local which = Bags.Open(#bags > 0 and bags or nil)
 	if which == "Baganator" and e.link then
 		-- Baganator's own flash too
 		local R = Bags.Baganator().CallbackRegistry

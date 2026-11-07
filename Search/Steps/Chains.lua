@@ -366,6 +366,8 @@ local SOURCE_LABEL = "|cffd9b26a" .. L["Source"] .. "|r"
 local function ShowItem(e)
 	if not (ns.Bags and ns.Bags.ShowItem(e.itemID, e.link, e.name)) then ns:Print(L["You don't carry %s."]:format(tostring(e.name))) end
 end
+-- (the game's own bags are opened by the game's press, never from here: Bags.lua's Bags.SECURE)
+local BAGS_SECURE, BagsShown = ns.Bags.SECURE, ns.Bags.ShownFor
 
 ----------------------------------------------------------------------
 -- Relations
@@ -407,7 +409,7 @@ ns:RegisterRelation("mats", {
 					detail = table.concat(parts, ns.DETAIL_SEP), need = n, count = bags, total = all + elsewhere,
 					-- short on this character first (what to go and get), then in the recipe's order
 					_order = ((all >= n) and 1000 or 0) + i,
-					activate = ShowItem,
+					activate = ShowItem, after = ShowItem, secure = BAGS_SECURE, isOpen = BagsShown,
 				}
 			end
 		end
@@ -567,7 +569,7 @@ local function NpcItemRow(id, detail, how)
 	local q = C_Item and C_Item.GetItemQualityByID and Safe(C_Item.GetItemQualityByID, id)
 	return { key = id, kind = "reagent", kindLabel = SOURCE_LABEL, freqKey = "reagent:" .. id, name = name, itemID = id,
 		link = "item:" .. id, icon = Icon(id), color = ns.QualityHex and ns.QualityHex(q) or nil, detail = detail,
-		pipeHow = how, activate = ShowItem }
+		pipeHow = how, activate = ShowItem, after = ShowItem, secure = BAGS_SECURE, isOpen = BagsShown }
 end
 P.ItemRow = NpcItemRow
 local function NpcOf(e) return e.kind == "npc" and (e.npcID or rawget(e, "key")) or nil end
@@ -775,7 +777,7 @@ ns:RegisterRelation("sources", {
 						key = "craft:" .. id, kind = "source", kindLabel = SOURCE_LABEL, name = name, itemID = id,
 						link = "item:" .. id, icon = Icon(id), reagents = rg,
 						detail = L["Crafted"] .. (sname and (ns.DETAIL_SEP .. sname) or "") .. ns.DETAIL_SEP .. L["(a recipe you don't have)"], pipeHow = L["crafted:"],
-						activate = ShowItem,
+						activate = ShowItem, after = ShowItem, secure = BAGS_SECURE, isOpen = BagsShown,
 					}
 				end
 			end
@@ -927,7 +929,7 @@ local function AddRecipeItem(out, rid, prof, need, stored)
 	local skill = prof and need and (ns.DETAIL_SEP .. ProfName(prof) .. " " .. need) or ""
 	out[#out + 1] = { key = "recipe:" .. rid, kind = "source", kindLabel = SOURCE_LABEL, name = ItemName(rid) or L["item %d"]:format(rid),
 		itemID = rid, link = "item:" .. rid, icon = Icon(rid), detail = L["Teaches it"] .. skill, pipeHow = L["taught by"],
-		activate = ShowItem }
+		activate = ShowItem, after = ShowItem, secure = BAGS_SECURE, isOpen = BagsShown }
 	local I = ns.Integrations
 	local from = #out + 1
 	if I and I.ItemField then AddQuestie(out, I, rid, P.RECIPE_WORDS) end
@@ -1267,7 +1269,7 @@ local function SeedByReagentName(whole)
 	if #ids == 0 and ns.Filters and ns.Filters.QuestieItemIds then ids = ns.Filters.QuestieItemIds(whole) end
 	for _, id in ipairs(ids) do
 		out[#out + 1] = { key = id, kind = "reagent", kindLabel = REAGENT_LABEL, name = ItemName(id) or whole,
-			itemID = id, link = "item:" .. id, icon = Icon(id), activate = ShowItem }
+			itemID = id, link = "item:" .. id, icon = Icon(id), activate = ShowItem, after = ShowItem, secure = BAGS_SECURE, isOpen = BagsShown }
 	end
 	return out
 end

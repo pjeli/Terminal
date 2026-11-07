@@ -1154,6 +1154,7 @@ L["Open the Currency tab from your character window (opening it from Terminal's 
 L["Open the Legacy window from its button (a click from Terminal's own code would taint it)."] = "Откройте окно наследия его кнопкой (щелчок из кода Terminal заразил бы его)."
 L["Open the Terminal options panel"] = "Открыть панель настроек Terminal"
 L["Open the calendar from the minimap's calendar button (opening it from Terminal's own code would taint it)."] = "Откройте календарь кнопкой календаря у миникарты (открытие кодом Terminal испортило бы его)."
+L["Open your bags to see %s (opening them from Terminal's own code would taint them)."] = "Откройте сумки, чтобы увидеть %s (открытие кодом Terminal испортило бы их)."
 L["Open your character window to see %s (opening it from Terminal's own code would taint it)."] = "Откройте окно персонажа, чтобы увидеть %s (открытие кодом Terminal испортило бы его)."
 L["Open your quest log to see %s (opening it from Terminal's own code would taint it)."] = "Откройте журнал заданий, чтобы увидеть %s (открытие кодом Terminal испортило бы его)."
 L["Open your talents to see %s (opening them from Terminal's own code would taint them)."] = "Откройте таланты, чтобы увидеть %s (открытие кодом Terminal испортило бы их)."
