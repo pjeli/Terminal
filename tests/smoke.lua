@@ -5101,7 +5101,10 @@ do
 	mark = #log
 	local printWas, said = ns.Print, nil
 	ns.Print = function(_, m) said = m end
+	local combatWas = _G.InCombatLockdown
+	_G.InCombatLockdown = function() return true end -- (where the game can't press it: the line is said; 1.1.18)
 	e.activate(e); FlushAll()
+	_G.InCombatLockdown = combatWas
 	ns.Print = printWas
 	check(not logHas("OpenAllBags", mark + 1) and not logHas("OpenBackpack", mark + 1) and not logHas("OpenBag", mark + 1)
 		and tostring(said):find("Open your bags to see Linen Cloth", 1, true), "run without the press: nothing opened from Terminal's code, said: " .. tostring(said))

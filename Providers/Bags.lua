@@ -75,13 +75,30 @@ local function AllOpen(bags)
 	return true
 end
 
---- The bag ids of locations { {bag, slot}, ... }, each once.
-local function BagsOf(locs)
+--- The bag ids of locations { {bag, slot}, ... }, each once. `noKeyring`: the keyring left out (the bag key doesn't
+--- open it).
+local KEYRING = Enum and Enum.BagIndex and Enum.BagIndex.Keyring
+local function BagsOf(locs, noKeyring)
 	local bags, seen = {}, {}
 	for _, loc in ipairs(locs or {}) do
-		if not seen[loc[1]] then seen[loc[1]] = true; bags[#bags + 1] = loc[1] end
+		local b = loc[1]
+		if not seen[b] and not (noKeyring and b == KEYRING) then seen[b] = true; bags[#bags + 1] = b end
 	end
 	return bags
+end
+
+--- A bag addon Terminal doesn't know by name (AdiBags, ElvUI's bags, ArkInventory, BetterBags...) has the game's bag
+--- functions as its own: OpenAllBags or ToggleAllBags replaced, so no longer secure. The game's IsBagOpen then never says
+--- its window is open, and the bag key toggles it (shut when it's up): Terminal calls its OpenAllBags instead, which
+--- opens it and never closes it (the addon's code, not Blizzard's windows; as 1.1.0 did). 1.1.18, review.
+function Bags.AddonOwned()
+	local isv = issecurevariable
+	if type(isv) ~= "function" then return false end
+	for _, name in ipairs({ "OpenAllBags", "ToggleAllBags" }) do
+		local ok, secure = pcall(isv, name)
+		if ok and secure == false then return true end
+	end
+	return false
 end
 
 --- A row that shows its item in your bags (Enter: `isOpen` with Bags.SECURE): true when Enter has nothing for the game
@@ -97,17 +114,16 @@ local function Carried(id)
 	local ok, n = pcall(count, id)
 	return not (ok and type(n) == "number" and not ns.Secret(n) and n == 0)
 end
+-- (where it is now, not the row's own `locs`: the stack may have moved since the list was made; 1.1.18, review)
 function Bags.ShownFor(e)
-	if Bags.Active() then return true end
-	local locs = e.locs
-	if type(locs) ~= "table" or #locs == 0 then
-		local id = e.itemID
-		if not id or not Carried(id) then return true end
-		locs = scanned[id]
-		if not locs then locs = Bags.Locations(id); scanned[id] = locs end
-	end
-	if #locs == 0 then return true end
-	return AllOpen(BagsOf(locs))
+	if Bags.Active() or Bags.AddonOwned() then return true end
+	local id = e.itemID
+	if not id or not Carried(id) then return true end
+	local locs = scanned[id]
+	if not locs then locs = Bags.Locations(id); scanned[id] = locs end
+	local bags = BagsOf(locs, true)
+	if #bags == 0 then return true end -- (none carried, or only on the keyring: nothing the bag key opens)
+	return AllOpen(bags)
 end
 do
 	local f = CreateFrame("Frame")
@@ -133,6 +149,10 @@ function Bags.Open(bags)
 		pcall(A.CallbackRegistry.TriggerEvent, A.CallbackRegistry, "BagShow")
 	elseif which then
 		pcall(A.Frames.Show, A.Frames, "inventory")
+	elseif Bags.AddonOwned() then
+		local open = rawget(_G, "OpenAllBags") -- (taint-ok: a bag addon's own, Bags.AddonOwned; never Blizzard's)
+		if type(open) == "function" then pcall(open) end
+		return "addon", true
 	elseif not AllOpen(bags or { 0 }) then
 		ns:Trace("items: the game's bags are closed and Terminal's code doesn't open them (the press does)")
 		return which, false
@@ -235,8 +255,12 @@ ShowInBags = function(e)
 	local bags = BagsOf(locs)
 	local which, shown = Bags.Open(#bags > 0 and bags or nil)
 	if not shown then
-		-- (no press: in a fight, or a client without the bag key's command. Opening them here would taint them)
-		ns:Print(L["Open your bags to see %s (opening them from Terminal's own code would taint them)."]:format(tostring(e.name)))
+		-- (said only where the game couldn't have pressed the bag key: in a fight, a client without its command, an item
+		-- only on the keyring; after a press the bags are up, or a bag addon has them. Opening them here would taint them)
+		local keyOnly = #BagsOf(locs, true) == 0
+		if InCombatLockdown() or not (ns.Secure and ns.Secure.HasBinding(Bags.SECURE.binding)) or keyOnly then
+			ns:Print(L["Open your bags to see %s (opening them from Terminal's own code would taint them)."]:format(tostring(e.name)))
+		end
 		return
 	end
 	if which == "Baganator" and e.link then

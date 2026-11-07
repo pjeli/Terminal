@@ -23,10 +23,12 @@ do
 				local n = 0
 				for code in text:gmatch("[^\n]+") do
 					n = n + 1
-					local body = code:gsub("%-%-.*$", "")
+					local body = code:find("taint-ok:", 1, true) and "" or code:gsub("%-%-.*$", "") -- (a line saying why it may)
 					for _, fn in ipairs(OPENERS) do
+						-- (called by name, through _G, pcall'd or fetched with rawget: 1.1.18, review)
 						if body:find(fn, 1, true) and (body:find("[^%w_.:\"']" .. fn .. "%s*%(") or body:find("^" .. fn .. "%s*%(")
-							or body:find("pcall%(%s*" .. fn .. "[,)]")) then
+							or body:find("_G%." .. fn .. "%s*%(") or body:find("pcall%(%s*_?G?%.?" .. fn .. "[,)]")
+							or body:find("rawget%(%s*_G%s*,%s*[\"']" .. fn .. "[\"']") or body:find("_G%[%s*[\"']" .. fn .. "[\"']%s*%]")) then
 							calls[#calls + 1] = f .. ":" .. n .. " " .. fn
 						end
 					end

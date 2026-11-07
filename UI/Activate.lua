@@ -44,7 +44,8 @@ local function HoldFor(se, ctrl)
 	if not (ctrl and se) then return nil end
 	if type(se.secure) == "table" and se.secure.opensWindow then return nil end
 	local o = se.isOpen
-	return (not o or o == ns.Never) or nil
+	-- (a row shown in your bags too: Ctrl+Enter kept the terminal up for it before the game opened the bags; 1.1.18)
+	return (not o or o == ns.Never or (ns.Bags and o == ns.Bags.ShownFor)) or nil
 end
 UI.HoldFor = HoldFor
 
@@ -96,7 +97,7 @@ function UI:TryArmSecure(e)
 	-- Legacy window open on another page. its tab was never pointed at, the row's fallback ran)
 	if e.isOpen and e.isOpen(e) then -- nothing to click, just point at the thing
 		ns:Trace("secure: window already open, highlighting " .. UI.TraceName(e))
-		self:HideAfterRun()
+		if not self.holdOpen then self:HideAfterRun() end -- (Ctrl+Enter: kept up, as for a row with no window)
 		ns:Bump(e.freqKey)
 		AfterSoon(e, 0.05)
 		return true
@@ -549,6 +550,15 @@ function UI:Activate(idx, opts)
 	if to and not e.completion then return SendSelected(self, e, to, opts.secondary) end
 	-- Opening or clicking Blizzard's windows is protected in combat: do nothing rather than
 	-- have the game block us. (Shift+Enter actions that don't touch windows still work.)
+	-- (a row shown in your bags with nothing for the game to press, a bag addon's window, its bags up, not carried: its
+	-- step runs in a fight too, as before 1.1.6; 1.1.18, review)
+	if InCombatLockdown() and not opts.secondary and ns.Bags and e.secure == ns.Bags.SECURE and e.isOpen and e.isOpen(e)
+		and type(e.after) == "function" then
+		ns:Trace("combat: nothing to press for " .. UI.TraceName(e) .. ", its step runs")
+		if not (opts.keepOpen or e.staysOpen) then self:HideAfterRun() end
+		pcall(e.after, e)
+		return
+	end
 	if InCombatLockdown() and (e.noCombat or e.secure) and not (opts.secondary and e.secondary and not e.noCombatSecondary) then
 		ns:Trace("combat: ignored Enter on " .. UI.TraceName(e))
 		-- (what the key would have done: "use", "show in spellbook", "run"... not always "open")

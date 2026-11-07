@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.18 (in testing)
+
+- Showing an item in your bags, fixed after 1.1.6: in a fight, Enter works again when nothing needs opening (your bag addon's window, bags already open); Ctrl+Enter keeps Terminal open again; bag addons Terminal doesn't know by name (AdiBags, ElvUI's bags, ArkInventory...) open their window as before instead of the game's key toggling it shut; an item that moved to another bag since the list was made is found where it is now; "Open your bags" is said only where the game couldn't open them (a fight, or an item on the keyring).
+
 ## 1.1.17 (in testing)
 
 - Fixed: Shift+Enter on a setting row already at its default changed it (an on/off one flipped, others wrote `.set` into the prompt); it now says it's already the default.
