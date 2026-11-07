@@ -101,9 +101,10 @@ local function Keep(t)
 	t.list[t.cur] = Snapshot()
 end
 
---- The tab shown kept as it is now (closing the terminal).
+--- The tab shown kept as it is now (closing the terminal). Keep your session on, the one prompt with no other tab is
+--- kept too, as the list's only tab (1.1.9).
 function T.SaveCurrent()
-	if not T.On() or not UI.edit then return end
+	if not T.Keeping() or not UI.edit then return end
 	Keep(DB())
 end
 
@@ -139,8 +140,12 @@ end
 --- Opening the terminal with tabs: the one you were on (UI:Open, opened with no text of its own), with its mode set;
 --- UI:Open opens on its text and category and calls T.Opened.
 function T.ForOpen()
-	if not T.On() then return nil end
-	local tab = T.List()[T.Cur()] or {}
+	if not T.Keeping() then return nil end
+	local tab = T.List()[T.Cur()]
+	if not tab then
+		if not T.On() then return nil end -- (one prompt, nothing kept yet: as it opens)
+		tab = {}
+	end
 	UI.SetRunMode(tab)
 	return tab
 end
@@ -383,16 +388,21 @@ function T.Key(key, shift)
 end
 
 ----------------------------------------------------------------------
--- Keep tabs (1.1.8, the player: "make session-preservation a Terminal option and have it on by default"): the tabs
--- are saved in db.tabs and come back after a /reload or a new login. With the setting off (.set keepTabs off, Options:
--- Keep tabs after a /reload) a login starts on one empty prompt: what was saved is dropped as the game starts.
+-- Keep your session (1.1.8, the player: "make session-preservation a Terminal option and have it on by default";
+-- 1.1.9: "tabs and search text with results list; even if only on 1 tab / base terminal"): the tabs, and the one prompt
+-- with no other tab, are kept in db.tabs as Terminal closes and come back as it opens (its search run again, the row
+-- selected), after a /reload or a new login too. Off (.set keepSession off): one prompt isn't kept, and a login starts
+-- on an empty prompt (what was saved is dropped as the game starts); two or more tabs still last until a /reload.
 ----------------------------------------------------------------------
 function T.KeepOn()
 	local t = Theme and Theme.Get and Theme.Get()
-	return not (t and t.keepTabs == false)
+	return not (t and t.keepSession == false)
 end
 
---- At login: the tabs saved before kept, or (Keep tabs off) dropped. True when they were dropped.
+--- Is the prompt kept as Terminal closes: tabs, or Keep your session on (the one prompt as a tab)?
+function T.Keeping() return T.On() or T.KeepOn() end
+
+--- At login: the tabs saved before kept, or (Keep your session off) dropped. True when they were dropped.
 function T.AtLogin()
 	local db = ns.db
 	if not db or T.KeepOn() or db.tabs == nil then return false end

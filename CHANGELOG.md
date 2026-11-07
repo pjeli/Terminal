@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.9 (in testing)
+
+- **Keep your session** (renamed from Keep tabs between sessions, `.set keepSession`, on by default) now keeps the base prompt too: with no other tab, Terminal opens again on the search you left, its results listed and your row selected, after closing it, after a `/reload` and after a new login. Tabs come back as before. A run opened with a text of its own (a chat link, `/term` words, the / key) is shown without replacing it. Off: Terminal opens on an empty prompt (a quick reopen within 5 s still brings back what you typed).
+
 ## 1.1.8 (in testing)
 
 - Keeping your tabs between sessions is now a setting, on by default: **Keep tabs between sessions** (`.set keepTabs on` / `off`, or find it with **terminal settings** or **session**). On, your tabs and what each one had typed come back after a `/reload` or a new login, as before; off, each login starts on one empty prompt. The empty prompt's tips now include **tip: Ctrl+T opens another tab, Ctrl+Tab switches**, in Simple and Advanced mode.

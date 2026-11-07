@@ -990,7 +990,7 @@ function UI:Open(text, opts)
 	local tab = text == nil and ns.Tabs and ns.Tabs.ForOpen() or nil
 	if tab then text, opts = tab.text, tab end
 	if opts and opts.foreign ~= nil then self.tabForeign = opts.foreign or nil
-	else self.tabForeign = (not tab and text ~= nil and ns.Tabs and ns.Tabs.On()) or nil end
+	else self.tabForeign = (not tab and text ~= nil and ns.Tabs and ns.Tabs.Keeping()) or nil end
 	-- one of Terminal's apps up (.atop, .changelog, F1's keys, the games): it goes, as the terminal goes when an app
 	-- opens (Panel.Opening). Opened over one (/term, its own key, a chat link, the options' button), both took the
 	-- keyboard and Esc closed only one. (F1's Esc closes its window before bringing the terminal back: K.Back.)
@@ -1095,7 +1095,8 @@ function UI:Toggle(typed)
 	-- closed by combat starting: opened by hand before it came back, as it was then
 	if not (self.combatState and self:ComeBack("opened by hand")) then
 		local text, cursor, kept
-		if ns.Tabs and ns.Tabs.On() then self.closedText = nil else text, cursor, kept = self:RecentText() end -- (tabs: Open)
+		-- (tabs, or your session kept: Open brings it back)
+		if ns.Tabs and ns.Tabs.Keeping() then self.closedText = nil else text, cursor, kept = self:RecentText() end
 		-- (Advanced for that run, or Simple for it from fuzzy finding: the same again, with its text)
 		-- (only over the mode you're in for good: switched to it since, nothing to bring back)
 		if kept and ns.Easy then

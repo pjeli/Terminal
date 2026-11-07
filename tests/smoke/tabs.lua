@@ -213,34 +213,76 @@ ns.db.tabs = save.tabs
 UI:EasyChanged()
 _G.GetTime = save.time
 
-io.write("[tabs: Keep tabs after a /reload (the session), on by default]\n")
-do -- (1.1.8, the player: "make session-preservation a Terminal option and have it on by default")
+io.write("[tabs: Keep your session, on by default: tabs, and the one prompt's search with its results]\n")
+do -- (1.1.8, the player: "make session-preservation a Terminal option and have it on by default"; 1.1.9: "tabs and
+	-- search text with results list; even if only on 1 tab / base terminal")
 	local Th = ns.Theme
-	local wasKeep, wasTabs = Th.Get().keepTabs, ns.db.tabs
-	check(Th.DEFAULTS.keepTabs == true and Tabs.KeepOn(), "Keep tabs is on by default")
-	check(type(Tabs.loginFrame) == "table" and Tabs.loginFrame.scripts.OnEvent ~= nil, "looked at as the game logs in")
+	local wasKeep, wasTabs, wasTime = Th.Get().keepSession, ns.db.tabs, _G.GetTime
+	check(_G.SMOKE_KEEP_SESSION_DEFAULT == true, "Keep your session is on by default")
+	Th.Get().keepSession = true
+	check(Tabs.KeepOn() and type(Tabs.loginFrame) == "table" and Tabs.loginFrame.scripts.OnEvent ~= nil, "(on; looked at as the game logs in)")
+	-- tabs: kept at login
 	local two = { list = { { text = "linen" }, { text = "hogger" } }, cur = 2 }
 	ns.db.tabs = two
 	Tabs.loginFrame.scripts.OnEvent(Tabs.loginFrame, "PLAYER_LOGIN")
 	check(ns.db.tabs == two and #Tabs.List() == 2 and Tabs.On(), "on: a /reload brings the tabs back")
-	Th.Set("keepTabs", "off", true)
-	check(not Tabs.KeepOn(), ".set keepTabs off")
+	-- one prompt, no other tab: the search you left comes back, its results with it
+	ns.db.tabs = nil
+	ns.db.easyMode = false; UI:EasyChanged()
+	local now = 1000
+	_G.GetTime = function() return now end
+	UI:Toggle(); FlushAll()
+	check(UI:IsShown() and query() == "", "(opened on an empty prompt: nothing kept yet)")
+	typeText("linen"); FlushAll()
+	local listed = #UI.Results()
+	check(listed > 0, "(linen lists something: " .. listed .. ")")
+	UI:Hide(); FlushAll()
+	check(#Tabs.List() == 1 and Tabs.List()[1].text == "linen" and not Tabs.On(), "closed: the one prompt kept as the only tab, no strip")
+	now = now + 600 -- (long after: not the quick reopen's 5 s)
+	UI:Toggle(); FlushAll()
+	check(UI:IsShown() and query() == "linen" and #UI.Results() == listed, "reopened ten minutes later: the search and its results: " .. query())
+	-- a run opened with a text of its own (a chat link, /term words): shown, the session left as it was
+	UI:Hide(); FlushAll()
+	UI:Open("hogger"); FlushAll()
+	UI:Hide(); FlushAll()
+	check(Tabs.List()[1].text == "linen", "a run with its own text: the session stays: " .. tostring(Tabs.List()[1].text))
+	-- after a /reload: still there
+	Tabs.loginFrame.scripts.OnEvent(Tabs.loginFrame, "PLAYER_LOGIN")
+	now = now + 600
+	UI:Toggle(); FlushAll()
+	check(query() == "linen" and #UI.Results() == listed, "after a /reload: the search and its results again")
+	-- Ctrl+T from it: the search becomes tab 1, a new empty tab 2
+	withCtrl(function() key("T") end); FlushAll()
+	check(#Tabs.List() == 2 and Tabs.List()[1].text == "linen" and query() == "", "Ctrl+T: the search is tab 1, an empty tab 2")
+	withShift(function() withCtrl(function() key("W") end) end); FlushAll()
+	check(#Tabs.List() == 0 and query() == "linen", "tab 2 closed: back to the one prompt and its search")
+	UI:Hide(); FlushAll()
+	check(#Tabs.List() == 1 and Tabs.List()[1].text == "linen", "closed again: kept")
+	-- off: the one prompt isn't kept, a login starts empty
+	Th.Set("keepSession", "off", true)
+	check(not Tabs.KeepOn(), ".set keepSession off")
 	Tabs.loginFrame.scripts.OnEvent(Tabs.loginFrame, "PLAYER_LOGIN")
 	check(#Tabs.List() == 0 and not Tabs.On(), "off: the login starts on one empty prompt")
-	Th.Set("keepTabs", "on", true)
+	now = now + 600
+	UI:Toggle(); FlushAll()
+	typeText("hogger"); FlushAll()
+	UI:Hide(); FlushAll()
+	now = now + 600
+	UI:Toggle(); FlushAll()
+	check(query() == "" and #Tabs.List() == 0, "off: reopened later on an empty prompt, as before: " .. query())
+	UI:Hide(); FlushAll()
+	Th.Set("keepSession", "on", true)
 	-- found among Terminal's settings by its words
-	ns.db.easyMode = false; UI:EasyChanged()
 	ns.providers.terminal._dirty = true
-	local found
 	for _, q in ipairs({ "@terminal session", "@terminal restore tabs" }) do
 		UI:Open(q); FlushAll()
 		local r = UI.Results()[1]
-		found = r and r.setKey == "keepTabs"
-		check(found, q .. ": Keep tabs after a /reload: " .. tostring(r and r.name))
+		check(r and r.setKey == "keepSession", q .. ": Keep your session: " .. tostring(r and r.name))
 	end
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = save.easy; UI:EasyChanged()
-	Th.Get().keepTabs = wasKeep
+	_G.GetTime = wasTime
+	Th.Get().keepSession = wasKeep
 	ns.db.tabs = wasTabs
 end
 

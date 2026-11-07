@@ -327,6 +327,12 @@ assert(ns.db and ns.db.freq, "saved variables initialised")
 -- (the tests before easy mode run in hard mode, the full command line; tests/smoke/easy.lua tries easy mode)
 assert(ns.Easy and ns.Easy.On(), "a fresh install starts in easy mode")
 ns.db.easyMode = false
+-- (the tests before Keep your session (1.1.9) run with it off: a closed terminal reopens empty, Down and Up bring the
+-- last search back; tests/smoke/tabs.lua turns it on, as it is by default)
+assert(ns.Theme.Get().keepSession == true and ns.Theme.DEFAULTS.keepSession == true, "a fresh install keeps your session")
+_G.SMOKE_KEEP_SESSION_DEFAULT = ns.Theme.DEFAULTS.keepSession -- (tabs.lua checks the real default)
+ns.Theme.DEFAULTS.keepSession = false -- (a theme reset in a test: still off)
+ns.Theme.Get().keepSession = false
 ef.scripts.OnEvent(ef, "PLAYER_LOGIN")
 -- every macro the code hands the game during the whole run (a press's or a click's), for tests/smoke/macros.lua's lint
 -- (0.46.2: a /run line runs tainted, so what one may call is checked: game calls, /click and bindings only)

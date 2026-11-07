@@ -47,7 +47,8 @@ T.DEFAULTS = {
 	syntax = true, -- colour what's typed: @kinds, filters, .commands, /slash commands
 	suggest = true, -- a faint "try: ..." example in the empty prompt (off: it stays empty)
 	slashKey = false, -- the / key opens Terminal on a slash command (SlashKey.lua; off unless turned on)
-	keepTabs = true, -- your tabs (the session) come back after a /reload or a new login (Tabs.lua; 1.1.8, the player)
+	keepSession = true, -- your session: the tabs, and the search you left with its results (one prompt too), come back
+	-- when Terminal opens again and after a /reload or a new login (Tabs.lua; 1.1.8-1.1.9, the player)
 	fzfGlow = "breathe", -- fuzzy finding's glow round the prompt: T.FZF_GLOW_ORDER
 	fzfColor = false, -- its colour (false: the theme's selection colour)
 	waypoints = "tomtom", -- where Enter's waypoints go while TomTom is there: T.WAYPOINT_ORDER (Maps.lua's M.PinTo)
@@ -103,7 +104,7 @@ for id, path in pairs(T.LOCALE_FONTS[ns.LOCALE] or {}) do T.FONTS[id] = path end
 -- What each setting accepts. Order is how .set lists them.
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
 	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "zenDim", "autoScan", "syntax", "suggest",
-	"slashKey", "keepTabs", "fzfGlow", "fzfColor", "mailWarn", "waypoints" }
+	"slashKey", "keepSession", "fzfGlow", "fzfColor", "mailWarn", "waypoints" }
 -- waypoints: TomTom's arrow (or an addon taking TomTom's calls), the game's map pin, or both; without TomTom, the map's
 T.WAYPOINT_ORDER = { "tomtom", "map", "both" }
 T.SETTINGS_SEARCH = "terminal settings" -- (.set alone opens this: every setting a row, UI/Options.lua)
@@ -180,7 +181,7 @@ T.FIELDS = {
 	syntax = { kind = "bool", label = L["Colour what you type"] },
 	suggest = { kind = "bool", label = L["Suggestions in the empty prompt"] },
 	slashKey = { kind = "bool", label = L["Open on /"] },
-	keepTabs = { kind = "bool", label = L["Keep tabs between sessions"] },
+	keepSession = { kind = "bool", label = L["Keep your session"] },
 	animations = { kind = "choice", label = L["Animation"], choices = T.ANIMATION_ORDER },
 	cursor = { kind = "choice", label = L["Cursor"], choices = T.CURSOR_ORDER },
 	blinkRate = { kind = "number", label = L["Blink speed"], min = 0.2, max = 3, step = 0.1 },
