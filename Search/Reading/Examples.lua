@@ -44,7 +44,7 @@ E.SIMPLE = {
 	{ "who priest undercity" }, { "online", "guild" }, { "spells not on my bars" }, { "what's on this week" },
 	{ "next darkmoon faire" }, { "my attunements", "Attune" }, { "my keys", "Attune" }, { "attunements to do", "Attune" },
 	{ "what do i learn next level", "WhatsTraining" }, { "upcoming spells", "WhatsTraining" }, { "spellid fireball" }, { "healing talents" },
-	{ "terminal settings" }, { "bigger font" },
+	{ "terminal settings" }, { "bigger font" }, { "what layer am i on" },
 	{ L["tip: F1 shows every key"], tip = true }, { L["tip: Ctrl+T opens another tab, Ctrl+Tab switches"], tip = true },
 }
 -- Advanced mode's: its syntax (@kinds, key:value filters, >> chat, .commands); one whose @kind isn't there (no Questie:
@@ -63,7 +63,7 @@ E.ADVANCED = {
 	{ "@item is:boe|q:epic" }, { "@spell is:ready", "instance" }, { "@gear slot:head|chest -is:soulbound" },
 	{ "@item q:rare|epic" }, { "@npc is:repair sort:distance", "city" }, { "@npc trainer:mining near:500", "city" },
 	{ "@loot is:upgrade sort:best", "field" }, { "@questie is:upgrade sort:best", "field" }, { "@group is:dead", "instance" },
-	{ "@lockout is:raid", "city" }, { "@cvar changed" }, { ".filters (every key:value)" }, { ".theme dracula" }, { "@terminal cursor" }, { ".set (every setting)" },
+	{ "@lockout is:raid", "city" }, { "@cvar changed" }, { ".filters (every key:value)" }, { ".theme dracula" }, { "@terminal cursor" }, { ".set (every setting)" }, { "@layer" },
 	{ L["tip: Up = last command, Down = recent picks"], tip = true }, { L["tip: F1 shows every key"], tip = true },
 	{ L["tip: Ctrl+T opens another tab, Ctrl+Tab switches"], tip = true },
 }

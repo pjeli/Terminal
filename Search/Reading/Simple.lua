@@ -81,7 +81,7 @@ E.CATEGORIES = {
 	{ id = "collections", label = L["Collections"], kinds = { "mounts", "toys", "pets", "titles", "achievements" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
 	{ id = "character", label = L["Character"],
-		kinds = { "gold", "experience", "lockouts", "durability", "mail", "auctions", "reputation", "currency", "skills", "equipmentset", "itemset" },
+		kinds = { "gold", "experience", "layer", "lockouts", "durability", "mail", "auctions", "reputation", "currency", "skills", "equipmentset", "itemset" },
 		icon = "Interface\\Icons\\INV_Misc_Book_09" },
 	{ id = "calendar", label = L["Calendar"], kinds = { "calendar" }, icon = "Interface\\Icons\\INV_Misc_Note_06" },
 	{ id = "windows", label = L["Windows"], kinds = { "panels" }, icon = "Interface\\Icons\\INV_Misc_Book_11" },
@@ -279,7 +279,7 @@ E.VERBS = {
 	buyback = { L["buy back"], L["link in chat"] }, -- (what you sold: Providers/Buyback.lua; away from a vendor it says where)
 	mail = MailVerbs, auctions = AuctionVerbs, group = GroupVerbs, lockouts = LockoutVerbs, durability = DurabilityVerbs,
 	calendar = { L["show in calendar"], L["put in the chat box"] },
-	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT,
+	combatlog = TO_CHAT, gold = TO_CHAT, experience = TO_CHAT, calc = TO_CHAT, layer = TO_CHAT,
 	spells = SpellVerbs, talents = TalentVerbs,
 	-- (OneForAll's beasts to tame, the questions' rows: its spot on the map, a waypoint there; Questie's: target)
 	npc = function(e) if e.tameable == true then return PLACE() end return ShowVerb(), L["target"] end,
@@ -439,6 +439,7 @@ function E.HelpLines()
 		L["Your mail on every character, as Terminal last saw it: \"my mail\", \"mail running out\", \"cod mail\", \"mail from bob\" (who sent it, gold, COD, what's attached, when it runs out). Open a mailbox once on each character. \"sent mail\" shows what you sent in the last hour, and \"incoming mail\" the auction house's news on its way (sold, won, outbid, expired)."],
 		L["Your auctions: \"my auctions\", \"what am i selling\", \"auctions sold\": what each character has on the auction house as Terminal saw it posted, with its price and time left, and the auction house's news."],
 		L["Your lockouts on every character: \"my lockouts\", \"raid lockouts\", \"am i saved\" (bosses down and when each resets; Enter names the bosses)."],
+		L["Your layer: \"what layer am i on\" or \"my layer\" (read from the creatures you mouse over or target; Enter says it in chat, Shift+Enter puts it in the chat box)."],
 		L["With Attune: \"my attunements\", \"raid attunements\", \"my keys\", \"class quests\" (how far along you are, and your next step); \"how do i get into mc\" or \"steps for molten core\" lists the steps first to last. Enter opens Attune on it."],
 		L["With What's Training or TrainerSpells: \"what can i train\", \"what do i learn next level\", \"spells at level 30\", \"how much is training\" (every spell you've still to learn, when, and what it costs); \"where to learn fireball\" or \"dagger trainer\" lists who teaches it, the nearest first; Enter on a trainer shows them on the map."],
 		L["After a death: \"where is my body\" shows your corpse (how far, the arrow pointing at it) and the nearest spirit healers; \"nearest spirit healer\" on its own too. Enter opens the map on it."],

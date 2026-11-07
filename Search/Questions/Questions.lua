@@ -172,6 +172,8 @@ Scan.ANSWERS = {
 	Asks("GroupQuests", { over = { "Group", "Attunements" }, examples = { "party quests", "quests to share" } }),
 	-- "my lockouts", "raid lockouts", "am i saved", "raid id": Lockouts.lua
 	Asks("Lockouts", { examples = { "my lockouts", "am i saved", "lockouts by raid" } }),
+	-- "what layer am i on", "my layer": the layer the creatures around you are on (Providers/Layer.lua)
+	Asks("Layer", { examples = { "what layer am i on", "my layer" } }),
 	-- "library books", "books i still need", "nearest library book": OneForAll's Library Books (Providers/Integrations/OneForAll/Books.lua)
 	Asks("LibraryBooks", { custom = "the reward tiers, and the nearest spot of each book" }),
 	-- "where is my body", "my corpse", "where did i die": Corpse.lua (and the nearest spirit healers)
