@@ -249,6 +249,10 @@ pv:SetScript("OnUpdate", function(_, elapsed) O.AnimatePreview(elapsed) end)
 
 Label("Terminal", "GameFontNormalLarge", 16, -16)
 Label(L["Theme and layout of the terminal. Everything here can also be set from the terminal, e.g.  .set accent ff79c6"], "GameFontHighlightSmall", 16, -40)
+-- (1.1.10, the player: a little notice that there are more settings in Terminal itself: Keep your session and the
+-- mail warning have no control here, the panel being full to its frame's edge)
+O.widgets.moreNote =Label("|cff" .. "8ab4f8" .. L["More settings in Terminal itself: type  terminal settings  (or .set) to list and change every one."] .. "|r",
+	"GameFontHighlightSmall", 16, -53)
 
 -- Dropdowns: a button that opens a list of choices (themes, cursor styles)
 local openLists = {}

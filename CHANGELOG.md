@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.10 (in testing)
+
+- The addon options panel has a notice under its heading: more settings are in Terminal itself; type **terminal settings** (or `.set`) to list and change every one (Keep your session and the mail warning have no control in the panel).
+
 ## 1.1.9 (in testing)
 
 - **Keep your session** (renamed from Keep tabs between sessions, `.set keepSession`, on by default) now keeps the base prompt too: with no other tab, Terminal opens again on the search you left, its results listed and your row selected, after closing it, after a `/reload` and after a new login. Tabs come back as before. A run opened with a text of its own (a chat link, `/term` words, the / key) is shown without replacing it. Off: Terminal opens on an empty prompt (a quick reopen within 5 s still brings back what you typed).

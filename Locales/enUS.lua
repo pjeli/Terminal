@@ -1210,6 +1210,7 @@ L["Modes and the window"] = true
 L["Modes: plain text = search everything, / = slash commands, . = commands, @kind = filter, 3*45g = calculator"] = true
 L["Moonwell"] = true
 L["Moonwell Lo-fi 88.1"] = true
+L["More settings in Terminal itself: type  terminal settings  (or .set) to list and change every one."] = true
 L["More with addons"] = true
 L["Mount"] = true
 L["Mounts"] = true

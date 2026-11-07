@@ -1148,6 +1148,11 @@ do
 		check(O.widgets[key] and O.widgets[key].scripts.OnClick, "options: a checkbox for " .. key)
 	end
 	check(O.widgets.autoScanLabel ~= nil, "options: the autoScan label is kept (shown only where it works)")
+	-- (1.1.10, the player) a notice under the heading: more settings in Terminal itself, terminal settings or .set
+	local note = O.widgets.moreNote
+	local np = note and note.lastPoint
+	check(note and tostring(note.text):find("terminal settings", 1, true) and tostring(note.text):find(".set", 1, true)
+		and np and np[2] == 16 and np[3] > -66, "options: the notice under the heading names terminal settings and .set: " .. tostring(note and note.text))
 	local xs = {}
 	for i, b in ipairs(O.actionRow) do xs[i] = b[2] end
 	check(table.concat(xs, ",") == "16,156,296,416", "options: four action buttons in a row: " .. table.concat(xs, ","))

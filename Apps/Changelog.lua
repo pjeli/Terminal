@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.1.9", when = "in testing",
+		v = "1.1.10", when = "in testing",
 		items = {
 			"With TomTom (or an arrow addon taking its waypoints): Enter (\"show via TomTom\") and Shift+Enter send their waypoints to TomTom's arrow; .set waypoints map, tomtom or both, or Options.",
 			"Terminal's own settings are searchable: \"terminal settings\" (or .set) lists each with its value, \"bigger font\" or \"cursor\" finds one; Enter changes it, Shift+Enter puts its default back.",
@@ -22,6 +22,7 @@ CL.LOG = {
 			"Fixed: after Terminal showed an item in the game's own bags, food and drink in them could fail to work until a /reload; the game now opens your bags itself.",
 			"With .zen off, a click outside Terminal leaves it open but out of focus: your keys go to the game until you click it or press its key again.",
 			"Keep your session (on by default, .set keepSession): Terminal opens again on the search you left, with its results, and your tabs, after a /reload too; the empty prompt's tips mention Ctrl+T for another tab.",
+			"The addon options panel says that more settings are in Terminal itself: terminal settings or .set.",
 		},
 	},
 	{
