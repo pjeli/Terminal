@@ -381,3 +381,28 @@ function T.Key(key, shift)
 	if key == "W" and shift and T.On() then T.Close() return true end
 	return false
 end
+
+----------------------------------------------------------------------
+-- Keep tabs (1.1.8, the player: "make session-preservation a Terminal option and have it on by default"): the tabs
+-- are saved in db.tabs and come back after a /reload or a new login. With the setting off (.set keepTabs off, Options:
+-- Keep tabs after a /reload) a login starts on one empty prompt: what was saved is dropped as the game starts.
+----------------------------------------------------------------------
+function T.KeepOn()
+	local t = Theme and Theme.Get and Theme.Get()
+	return not (t and t.keepTabs == false)
+end
+
+--- At login: the tabs saved before kept, or (Keep tabs off) dropped. True when they were dropped.
+function T.AtLogin()
+	local db = ns.db
+	if not db or T.KeepOn() or db.tabs == nil then return false end
+	db.tabs = nil -- (DB() makes an empty one when first asked)
+	return true
+end
+
+do
+	local login = CreateFrame("Frame")
+	pcall(login.RegisterEvent, login, "PLAYER_LOGIN")
+	login:SetScript("OnEvent", function() T.AtLogin() end)
+	T.loginFrame = login -- (tests)
+end

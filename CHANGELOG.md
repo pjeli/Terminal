@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.8 (in testing)
+
+- Keeping your tabs between sessions is now a setting, on by default: **Keep tabs between sessions** (`.set keepTabs on` / `off`, or find it with **terminal settings** or **session**). On, your tabs and what each one had typed come back after a `/reload` or a new login, as before; off, each login starts on one empty prompt. The empty prompt's tips now include **tip: Ctrl+T opens another tab, Ctrl+Tab switches**, in Simple and Advanced mode.
+
 ## 1.1.7 (in testing)
 
 - With `.zen` off, a click outside Terminal no longer leaves it holding the keyboard: it stays open, out of focus (no cursor), and your keys go to the game: moving, casting, chat. Click Terminal, or press its key (` or /), to type in it again; a second press of ` closes it. With `.zen` on, a click on the dimmed screen still closes it.

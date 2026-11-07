@@ -171,6 +171,12 @@ do
 	local ghost = UI.ghost and UI.ghost:IsShown() and (UI.ghost:GetText() or "") or ""
 	check(ghost ~= "" and not ghost:find("^try:"), lang .. ": the example said in this language: " .. ghost)
 	local typed = UI:SuggestionText()
+	-- (a tip, "tip: F1 shows every key", is shown but never typed: the next open's example, a few at most)
+	for _ = 1, 6 do
+		if type(typed) == "string" and typed ~= "" then break end
+		UI:Hide(); UI:Open("")
+		typed = UI:SuggestionText()
+	end
 	check(type(typed) == "string" and typed ~= "", lang .. ": Shift+Right has an example to type: " .. tostring(typed))
 	UI:Hide()
 	ns.db.easyMode = easy

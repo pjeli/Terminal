@@ -433,6 +433,8 @@ Check("hints", 440, -456)
 Check("suggest", 16, -480, L["(\"try: ...\")"])
 O.widgets.autoScanLabel = Check("autoScan", 440, -480)
 O.widgets.slashKeyLabel = Check("slashKey", 440, -480, L["(slash commands)"])
+-- (Keep tabs between sessions has no checkbox: the panel is full down to its frame's edge; .set keepTabs and
+-- "terminal settings" have it)
 
 -- the panel's own actions, on a row of their own below everything else (O.Refresh moves the row under the
 -- last row of settings shown)
@@ -709,6 +711,7 @@ local SET_DESC = {
 	hints = L["The keys for the selected row, in the footer."],
 	syntax = L["Colour what you type: @kinds, filters, .commands."],
 	suggest = L["A faint example in the empty prompt."],
+	keepTabs = L["Your tabs, and what each one had typed, come back after a /reload or a new login. Off: each login starts on one empty prompt."],
 	slashKey = L["The / key opens Terminal on a slash command (out of combat)."],
 	animations = L["How the window opens, closes and moves."],
 	cursor = L["The text cursor: a line or a box, blinking or solid."],
@@ -732,6 +735,7 @@ local SET_WORDS = {
 	rows = "rows results lines how many max", scale = "scale size bigger smaller zoom",
 	hints = "key hints footer keys help", syntax = "colour color syntax highlight typing",
 	suggest = "suggestions suggest examples try empty prompt", slashKey = "slash key open chat",
+	keepTabs = "session sessions restore preserve keep tabs login relog remember",
 	animations = "animation animations motion effects open close", cursor = "cursor caret",
 	blinkRate = "blink speed cursor", zenDim = "zen dimming dim dark screen",
 	autoScan = "professions index login scan", mailWarn = "mail expire expiring warning login",

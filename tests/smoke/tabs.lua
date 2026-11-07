@@ -212,3 +212,42 @@ ns.db.easyMode = save.easy
 ns.db.tabs = save.tabs
 UI:EasyChanged()
 _G.GetTime = save.time
+
+io.write("[tabs: Keep tabs after a /reload (the session), on by default]\n")
+do -- (1.1.8, the player: "make session-preservation a Terminal option and have it on by default")
+	local Th = ns.Theme
+	local wasKeep, wasTabs = Th.Get().keepTabs, ns.db.tabs
+	check(Th.DEFAULTS.keepTabs == true and Tabs.KeepOn(), "Keep tabs is on by default")
+	check(type(Tabs.loginFrame) == "table" and Tabs.loginFrame.scripts.OnEvent ~= nil, "looked at as the game logs in")
+	local two = { list = { { text = "linen" }, { text = "hogger" } }, cur = 2 }
+	ns.db.tabs = two
+	Tabs.loginFrame.scripts.OnEvent(Tabs.loginFrame, "PLAYER_LOGIN")
+	check(ns.db.tabs == two and #Tabs.List() == 2 and Tabs.On(), "on: a /reload brings the tabs back")
+	Th.Set("keepTabs", "off", true)
+	check(not Tabs.KeepOn(), ".set keepTabs off")
+	Tabs.loginFrame.scripts.OnEvent(Tabs.loginFrame, "PLAYER_LOGIN")
+	check(#Tabs.List() == 0 and not Tabs.On(), "off: the login starts on one empty prompt")
+	Th.Set("keepTabs", "on", true)
+	-- found among Terminal's settings by its words
+	ns.db.easyMode = false; UI:EasyChanged()
+	ns.providers.terminal._dirty = true
+	local found
+	for _, q in ipairs({ "@terminal session", "@terminal restore tabs" }) do
+		UI:Open(q); FlushAll()
+		local r = UI.Results()[1]
+		found = r and r.setKey == "keepTabs"
+		check(found, q .. ": Keep tabs after a /reload: " .. tostring(r and r.name))
+	end
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = save.easy; UI:EasyChanged()
+	Th.Get().keepTabs = wasKeep
+	ns.db.tabs = wasTabs
+end
+
+io.write("[tabs: the empty prompt's tips say tabs open with Ctrl+T]\n")
+do
+	local E = ns.Easy
+	local tip = ns.L["tip: Ctrl+T opens another tab, Ctrl+Tab switches"]
+	local function Has(list) for _, s in ipairs(list) do if s == tip then return true end end return false end
+	check(Has(E.EXAMPLES) and Has(E.ADV_EXAMPLES), "both modes' tips name Ctrl+T and Ctrl+Tab")
+end
