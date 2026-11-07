@@ -13,8 +13,9 @@ local Bags = {}
 ns.Bags = Bags
 
 --- Bagnon, or Bagnonium (BagBrother's other front end), and its name.
+local BAGNON_NAMES = { "Bagnon", "Bagnonium" }
 function Bags.Bagnon()
-	for _, name in ipairs({ "Bagnon", "Bagnonium" }) do
+	for _, name in ipairs(BAGNON_NAMES) do
 		local B = _G[name]
 		if type(B) == "table" and type(B.Frames) == "table" and type(B.Owners) == "table" then return B, name end
 	end
@@ -86,12 +87,34 @@ end
 --- A row that shows its item in your bags (Enter: `isOpen` with Bags.SECURE): true when Enter has nothing for the game
 --- to press: a bag addon's window shows them (Terminal opens that one: its own frames, not Blizzard's), you don't carry
 --- it (the row's own step says so), or every bag it's in is open already (the row's step only points at it).
+-- (1.1.14, review: a row without its own `locs`, @stored's, the loot log's, a chain's, asked this on every hover and
+-- twice for a row with no Shift+Enter of its own: each a scan of every bag slot. Skipped when you carry none (one call
+-- to the game), and what a scan found kept until your bags change.)
+local scanned = {} -- item id -> its locations, until BAG_UPDATE_DELAYED
+local function Carried(id)
+	local count = C_Item and C_Item.GetItemCount
+	if not count then return true end
+	local ok, n = pcall(count, id)
+	return not (ok and type(n) == "number" and not ns.Secret(n) and n == 0)
+end
 function Bags.ShownFor(e)
 	if Bags.Active() then return true end
 	local locs = e.locs
-	if type(locs) ~= "table" or #locs == 0 then locs = e.itemID and Bags.Locations(e.itemID) or {} end
+	if type(locs) ~= "table" or #locs == 0 then
+		local id = e.itemID
+		if not id or not Carried(id) then return true end
+		locs = scanned[id]
+		if not locs then locs = Bags.Locations(id); scanned[id] = locs end
+	end
 	if #locs == 0 then return true end
 	return AllOpen(BagsOf(locs))
+end
+do
+	local f = CreateFrame("Frame")
+	pcall(f.RegisterEvent, f, "BAG_UPDATE_DELAYED")
+	pcall(f.RegisterEvent, f, "PLAYER_ENTERING_WORLD")
+	f:SetScript("OnEvent", function() scanned = {} end)
+	Bags._scanFrame = f -- (tests)
 end
 
 --- Row `e` (a plain table whose `activate` shows its item in your bags, through Bags.ShowItem / Bags.Show) given the

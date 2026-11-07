@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.14 (in testing)
+
+- Lighter: hovering an @stored, loot log or chain item row no longer scans every bag slot each time to see whether its bags are open; an item you don't carry skips the scan, and a scan is kept until your bags change.
+
 ## 1.1.13 (in testing)
 
 - Your layer: **what layer am i on** or **my layer** (Advanced: `@layer`, one row). Terminal reads it from the creatures you mouse over, target or see a nameplate of: the zone part of their GUID, the same for every creature of one layer. The row names the layer's number (the server's, not a "layer 1, 2, 3"), where and from whom it was read and how long ago, and, when you've met more than one on this map since logging in, which of them it is by number. In a dungeon, raid or battleground it says there are no layers. Enter says it in chat, Shift+Enter puts it in the chat box. A new file: restart the game, not just `/reload`.
