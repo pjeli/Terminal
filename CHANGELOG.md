@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.11 (in testing)
+
+- The options panel's heading sits a few pixels higher, so there's a little more room between the **terminal settings** notice and the Theme and Example labels.
+
 ## 1.1.10 (in testing)
 
 - The addon options panel has a notice under its heading: more settings are in Terminal itself; type **terminal settings** (or `.set`) to list and change every one (Keep your session and the mail warning have no control in the panel).

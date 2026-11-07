@@ -1153,6 +1153,8 @@ do
 	local np = note and note.lastPoint
 	check(note and tostring(note.text):find("terminal settings", 1, true) and tostring(note.text):find(".set", 1, true)
 		and np and np[2] == 16 and np[3] > -66, "options: the notice under the heading names terminal settings and .set: " .. tostring(note and note.text))
+	-- (1.1.11, the player's screenshot) room between it and the Theme / Example labels (-66): a line of small text and more
+	check(np and np[3] + 66 >= 16, "options: room under the notice before Theme and Example: " .. tostring(np and (np[3] + 66)) .. " px")
 	local xs = {}
 	for i, b in ipairs(O.actionRow) do xs[i] = b[2] end
 	check(table.concat(xs, ",") == "16,156,296,416", "options: four action buttons in a row: " .. table.concat(xs, ","))
