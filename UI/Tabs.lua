@@ -403,18 +403,18 @@ end
 -- selected), after a /reload or a new login too. Off (.set keepSession off): one prompt isn't kept, and a login starts
 -- on an empty prompt (what was saved is dropped as the game starts); two or more tabs still last until a /reload.
 ----------------------------------------------------------------------
-function T.KeepOn()
+function T.SessionOn()
 	local t = Theme and Theme.Get and Theme.Get()
 	return not (t and t.keepSession == false)
 end
 
 --- Is the prompt kept as Terminal closes: tabs, or Keep your session on (the one prompt as a tab)?
-function T.Keeping() return T.On() or T.KeepOn() end
+function T.Keeping() return T.On() or T.SessionOn() end
 
 --- At login: the tabs saved before kept, or (Keep your session off) dropped. True when they were dropped.
 function T.AtLogin()
 	local db = ns.db
-	if not db or T.KeepOn() or db.tabs == nil then return false end
+	if not db or T.SessionOn() or db.tabs == nil then return false end
 	db.tabs = nil -- (DB() makes an empty one when first asked)
 	return true
 end

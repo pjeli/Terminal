@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.22 (in testing)
+
+- Code tidy-up from the release review, no change in what Terminal does: one way for rows that show an item in your bags, one list of Terminal's frames shared by `.zen` and the click-outside check, a test that every setting has its description and search words, comments brought up to date.
+
 ## 1.1.21 (in testing)
 
 - TomTom: in a fight Terminal sets the game's map pin instead of calling TomTom (whose map pins are the world map's, protected then); and a zone picked while waypoints go to TomTom no longer moves your own map pin when Terminal has no TomTom waypoint to move.

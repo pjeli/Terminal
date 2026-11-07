@@ -101,13 +101,15 @@ T.LOCALE_FONTS = {
 }
 for id, path in pairs(T.LOCALE_FONTS[ns.LOCALE] or {}) do T.FONTS[id] = path end
 
--- What each setting accepts. Order is how .set lists them.
+-- What each setting accepts. Order is how the settings rows ("terminal settings", .set alone) and .set list show them.
+-- (A new setting: T.DEFAULTS, T.ORDER, T.FIELDS here, and Options.lua's SET_DESC and SET_WORDS, SET_NAME when its
+-- label isn't name enough: settings.lua checks each has them.)
+T.SETTINGS_SEARCH = "terminal settings" -- (.set alone opens this: every setting a row, UI/Options.lua)
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
 	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "zenDim", "autoScan", "syntax", "suggest",
 	"slashKey", "keepSession", "fzfGlow", "fzfColor", "mailWarn", "waypoints" }
 -- waypoints: TomTom's arrow (or an addon taking TomTom's calls), the game's map pin, or both; without TomTom, the map's
 T.WAYPOINT_ORDER = { "tomtom", "map", "both" }
-T.SETTINGS_SEARCH = "terminal settings" -- (.set alone opens this: every setting a row, UI/Options.lua)
 T.WAYPOINT_LABELS = { tomtom = "TomTom", map = L["Map pin"], both = L["Map pin and TomTom"] }
 -- fuzzy finding's glow: breathing (slow pulse), steady, bright (stronger and wider), a thin line, or none
 T.FZF_GLOW_ORDER = { "breathe", "steady", "bright", "line", "off" }

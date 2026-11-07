@@ -169,3 +169,15 @@ do
 	check(a == "turn off" and b == nil, "and none offered: " .. tostring(a) .. "/" .. tostring(b))
 	Close()
 end
+
+io.write("[settings: review 1.1.22: every setting has its description and its words]\n")
+do
+	local O = ns.Options
+	local missing = {}
+	for _, k in ipairs(Th.ORDER) do
+		if not (Th.FIELDS[k] and Th.DEFAULTS[k] ~= nil or Th.FIELDS[k] and Th.FIELDS[k].optional) then missing[#missing + 1] = k .. " (field/default)" end
+		if not O.SET_DESC[k] then missing[#missing + 1] = k .. " (description)" end
+		if not O.SET_WORDS[k] then missing[#missing + 1] = k .. " (words)" end
+	end
+	check(#missing == 0, "a setting in .set's order has a field, a default, a description and words: " .. table.concat(missing, ", "))
+end

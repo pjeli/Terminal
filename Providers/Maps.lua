@@ -14,6 +14,10 @@ local L = ns.L
 -- code that was Terminal; from a /run line it is "*** ForceTaint_Strong ***", the game's name for code a /run or
 -- /script line runs (Button:SetPassThroughButtons x14 in combat, after a few NPCs shown on the map). Afterwards
 -- Terminal only places the waypoint (a C call) and reads who wrote the map's zone, for .debug log (M.MapWriter).
+--
+-- Waypoints (1.1.1-1.1.3): the map pin, or with TomTom (or an addon taking its calls) TomTom's arrow, or both: the
+-- `waypoints` setting (M.PinTo), every waypoint through Place. A pin link for chat is always the game's (mapOnly), and
+-- in a fight the map pin is set instead of calling TomTom (1.1.21).
 
 local M = {}
 ns.Maps = M

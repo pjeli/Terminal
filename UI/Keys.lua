@@ -109,19 +109,21 @@ end
 -- on the dimming takes that click and closes it, as before (Zen.lua).
 ----------------------------------------------------------------------
 
--- Terminal's frames a click on which is a click on Terminal (what it shows beside it too)
-UI.FOCUS_FRAMES = { "TerminalFrame", "TerminalRowMenu", "TerminalTooltip", "TerminalClickCatcher", "TerminalLinkFrame",
-	"TerminalCopyFrame", "TerminalStyleImport", "TerminalBusyTip", "TerminalTourCard", "TerminalBarMenu", "TerminalBarTip" }
+-- Terminal's frames a click on which is a click on Terminal (what it shows beside it too): .zen's list of them (Zen.lua's
+-- Z.OWN: one list, a frame added there counts here too; 1.1.22, review) and these two, which .zen keeps another way
+UI.FOCUS_EXTRA = { "TerminalClickCatcher", "TerminalBadgeTip" }
+
+local function OnFrame(name)
+	local f = _G[name]
+	if type(f) ~= "table" or not (f.IsShown and f.IsMouseOver) or not f:IsShown() then return false end
+	local ok, on = pcall(f.IsMouseOver, f)
+	return ok and on == true
+end
 
 --- Is the pointer on one of Terminal's frames?
 function UI.PointerOnTerminal()
-	for _, name in ipairs(UI.FOCUS_FRAMES) do
-		local f = _G[name]
-		if type(f) == "table" and f.IsShown and f.IsMouseOver then
-			local ok, on = pcall(function() return f:IsShown() and f:IsMouseOver() == true end)
-			if ok and on then return true end
-		end
-	end
+	for _, name in ipairs(ns.Zen and ns.Zen.OWN or { "TerminalFrame" }) do if OnFrame(name) then return true end end
+	for _, name in ipairs(UI.FOCUS_EXTRA) do if OnFrame(name) then return true end end
 	return false
 end
 

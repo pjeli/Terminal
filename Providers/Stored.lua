@@ -461,7 +461,7 @@ local function StoredRow(id, x, name)
 		if not owners[k] then owners[k] = true; nOwners = nOwners + 1; first = h end
 	end
 	local quality = x.quality or ns.ItemQuality(id)
-	return {
+	return ns.Bags.Pressed({
 		key = id,
 		name = name,
 		icon = x.icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(id)),
@@ -475,10 +475,9 @@ local function StoredRow(id, x, name)
 		tooltip = Tooltip,
 		text = "stored " .. table.concat(words, " "),
 		holders = x.holders, total = x.total, itemID = id, enchanted = x.enchanted, unenchanted = x.unenchanted,
-		activate = Open, after = Open, secure = ns.Bags.SECURE, isOpen = ns.Bags.ShownFor, -- (the game's bags: its press)
 		secondary = PrintBreakdown,
 		shareExtra = ChatSummary, -- (sent to chat: who holds how many)
-	}
+	}, Open) -- (the game's bags: its press)
 end
 
 ns:RegisterProvider("stored", {

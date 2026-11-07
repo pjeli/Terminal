@@ -747,6 +747,7 @@ local SET_WORDS = {
 	autoScan = "professions index login scan", mailWarn = "mail expire expiring warning login",
 	fzfGlow = "fuzzy glow fzf", fzfColor = "fuzzy glow fzf colour color", waypoints = "waypoints waypoint tomtom map pin arrow",
 }
+O.SET_NAME, O.SET_DESC, O.SET_WORDS = SET_NAME, SET_DESC, SET_WORDS -- (tests: every setting has a description and words)
 
 local function IsDefault(key)
 	local d = T.DefaultOf(key)

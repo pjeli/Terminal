@@ -133,9 +133,11 @@ do
 	Bags._scanFrame = f -- (tests)
 end
 
---- Row `e` (a plain table whose `activate` shows its item in your bags, through Bags.ShowItem / Bags.Show) given the
---- game's press for the game's own bags: Enter presses their key when they're closed, then runs that same step.
-function Bags.Pressed(e)
+--- Row `e` (a plain table) whose Enter shows its item in your bags: `step` (else its own `activate`, through
+--- Bags.ShowItem / Bags.Show) given the game's press for the game's own bags: Enter presses their key when they're
+--- closed, then runs that same step. Every such row is made this way (one way, 1.1.22, review).
+function Bags.Pressed(e, step)
+	if step then e.activate = step end
 	e.secure, e.isOpen, e.after = Bags.SECURE, Bags.ShownFor, e.activate
 	return e
 end
@@ -281,8 +283,8 @@ ShowInBags = function(e)
 end
 Bags.Show = ShowInBags -- (Items.lua: an Item result's Enter)
 
---- Open your bags on an item you carry and point at it, as an Item result does. False when you
---- don't carry it (then nothing opens).
+--- Point at an item you carry in your bags, as an Item result does: a bag addon's window shown, the game's own opened by
+--- the game's press before this (Bags.Pressed; never from here). False when you don't carry it.
 function Bags.ShowItem(itemID, link, name)
 	local locs = Bags.Locations(itemID)
 	if #locs == 0 then return false end

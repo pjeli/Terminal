@@ -220,7 +220,7 @@ do -- (1.1.8, the player: "make session-preservation a Terminal option and have 
 	local wasKeep, wasTabs, wasTime = Th.Get().keepSession, ns.db.tabs, _G.GetTime
 	check(_G.SMOKE_KEEP_SESSION_DEFAULT == true, "Keep your session is on by default")
 	Th.Get().keepSession = true
-	check(Tabs.KeepOn() and type(Tabs.loginFrame) == "table" and Tabs.loginFrame.scripts.OnEvent ~= nil, "(on; looked at as the game logs in)")
+	check(Tabs.SessionOn() and type(Tabs.loginFrame) == "table" and Tabs.loginFrame.scripts.OnEvent ~= nil, "(on; looked at as the game logs in)")
 	-- tabs: kept at login
 	local two = { list = { { text = "linen" }, { text = "hogger" } }, cur = 2 }
 	ns.db.tabs = two
@@ -260,7 +260,7 @@ do -- (1.1.8, the player: "make session-preservation a Terminal option and have 
 	check(#Tabs.List() == 1 and Tabs.List()[1].text == "linen", "closed again: kept")
 	-- off: the one prompt isn't kept, a login starts empty
 	Th.Set("keepSession", "off", true)
-	check(not Tabs.KeepOn(), ".set keepSession off")
+	check(not Tabs.SessionOn(), ".set keepSession off")
 	Tabs.loginFrame.scripts.OnEvent(Tabs.loginFrame, "PLAYER_LOGIN")
 	check(#Tabs.List() == 0 and not Tabs.On(), "off: the login starts on one empty prompt")
 	now = now + 600

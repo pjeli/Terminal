@@ -19,7 +19,7 @@ local function BagLabel(bag)
 	return L["Bag %s"]:format(bag)
 end
 
-local ShowInBags = ns.Bags.Show -- (Bags.lua: your bags opened on the item, in whichever window shows them)
+local ShowInBags = ns.Bags.Show -- (Bags.lua: points at the item in your bags, the game's opened by its press, Bags.Pressed)
 
 -- runs once the game has opened the character window on its equipment page: point at the slot
 local function PointAtSlot(e)
@@ -374,7 +374,7 @@ ns.ItemGear = { GearActions = GearActions, OnUse = OnUse, EquipLoc = EquipLoc, -
 --- A bag item's row, the first time the item is met (bag, slot: where); count and locs are filled by the caller.
 local function NewItemRow(info, name, bag, slot, quests, questExact)
 	local _, itemType, subType, _, _, classID, subClassID = C_Item.GetItemInfoInstant(info.itemID)
-	local e = {
+	local e = ns.Bags.Pressed({
 		key = info.itemID,
 		name = name,
 		icon = info.iconFileID,
@@ -385,11 +385,9 @@ local function NewItemRow(info, name, bag, slot, quests, questExact)
 		locs = {},
 		firstBag = bag,
 		itemID = info.itemID, classID = classID, subClassID = subClassID, subType = subType,
-		activate = ShowInBags, after = ShowInBags, -- (the game's bags: opened by the game's press, Bags.SECURE)
-		secure = ns.Bags.SECURE, isOpen = ns.Bags.ShownFor,
 		secondary = UseInCombat, secondarySecure = USE_SPEC,
 		secondaryIsOpen = UseNeverOpen, secondaryAfter = UsedAfter,
-	}
+	}, ShowInBags) -- (the game's bags: opened by the game's press, Bags.SECURE)
 	local q = QuestFor(bag, slot, name, info.itemID, quests, questExact)
 	if q then
 		e.questID, e.questItem = q.id, true

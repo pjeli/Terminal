@@ -280,7 +280,7 @@ ns:RegisterProvider("lootlog", {
 				if d.n then table.insert(parts, 1, "x" .. d.n) end -- (how many: in the detail, as bag items show it)
 				if d.from then parts[#parts + 1] = d.from end
 				if d.zone then parts[#parts + 1] = d.zone end
-				out[#out + 1] = {
+				out[#out + 1] = ns.Bags.Pressed({
 					looter = d.who, mine = who == "you" or nil,
 					entry = d, -- (the log's own entry: what chat says of it, Share's hooks below)
 					shareExtra = LL.ChatExtra, shareHeader = LL.GroupHeader, shareMember = LL.GroupMember,
@@ -292,9 +292,8 @@ ns:RegisterProvider("lootlog", {
 					detail = table.concat(parts, ns.DETAIL_SEP),
 					text = table.concat({ who, d.who or "", d.from or "", d.zone or "", "loot drop looted" }, " "),
 					_rank = (n - i + 1) / (n + 1) * 0.99, -- (newest first among equal matches)
-					activate = Show, after = Show, secure = ns.Bags.SECURE, isOpen = ns.Bags.ShownFor, -- (the game's bags: its press)
 					secondarySecure = CHATBOX, secondaryIsOpen = NeverOpen, secondary = ToChat,
-				}
+				}, Show) -- (the game's bags: its press)
 			end
 		end
 		return out
