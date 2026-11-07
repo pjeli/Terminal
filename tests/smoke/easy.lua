@@ -1005,7 +1005,10 @@ Run("rotating examples in the empty prompt", function()
 	UI:Hide(); FlushAll()
 	ns.Theme.Set("suggest", "on")
 	UI:Open("")
-	check(UI.ghost:IsShown() and UI.ghost:GetText():find("try:", 1, true), "on again: the suggestion is back")
+	-- (an example or a tip: which comes next is math.random's, another on GitHub's Linux than here: 1.1.8's Ctrl+T tip
+	-- made a tip likelier there, and the check expected "try:")
+	local said = UI.ghost:IsShown() and UI.ghost:GetText() or ""
+	check(said:find("try:", 1, true) or said:find("^tip:"), "on again: the suggestion is back: " .. said)
 	check(ns.Options == nil or ns.Options.widgets == nil or ns.Options.widgets.suggest, "(the options panel has its checkbox)")
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = false; UI:EasyChanged()

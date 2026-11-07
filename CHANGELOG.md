@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.12 (in testing)
+
+- Tests: the check that the empty prompt's suggestion comes back with suggestions turned on again accepts a tip as well as a `try:` example. Which comes next is random, and on GitHub's Linux runners it landed on a tip, failing the run since 1.1.9.
+
 ## 1.1.11 (in testing)
 
 - The options panel's heading sits a few pixels higher, so there's a little more room between the **terminal settings** notice and the Theme and Example labels.
