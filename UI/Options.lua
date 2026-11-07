@@ -786,6 +786,12 @@ end
 -- Shift+Enter: the default back
 local function SettingReset(e)
 	local key = e.setKey
+	-- (at its default already: said, nothing changed; Shift+Enter there fell back to Enter's step, which flipped an on/off
+	-- one: 1.1.17, review. The footer and the menu offer no reset there)
+	if IsDefault(key) then
+		ns:Print(L["%s: already the default (%s)"]:format(e.name, ValueText(key, T.Get()[key])))
+		return
+	end
 	local ok, v = T.Set(key, T.RawOf(key, T.DefaultOf(key)))
 	if ok then ns:Print(L["%s: back to %s"]:format(e.name, ValueText(key, v))) end
 	Redraw()
@@ -805,7 +811,8 @@ local function SettingTooltip(e, t)
 		or (changed and L["Enter: pick a value    Shift+Enter: reset to default"] or L["Enter: pick a value"]), 0.6, 0.6, 0.6, true)
 end
 
-local SETTING = { icon = "Interface\\Icons\\INV_Misc_Gear_08", activate = SettingEnter, staysOpen = true, tooltip = SettingTooltip }
+local SETTING = { icon = "Interface\\Icons\\INV_Misc_Gear_08", activate = SettingEnter, secondary = SettingReset, staysOpen = true,
+	tooltip = SettingTooltip }
 local SETTING_LAZY = {
 	-- (read when drawn: a change shows at once)
 	detail = function(e)
@@ -813,8 +820,6 @@ local SETTING_LAZY = {
 		local v = T.Get()[key]
 		return ns.Detail(ValueText(key, v), not IsDefault(key) and (L["default %s"]):format(ValueText(key, T.DefaultOf(key))) or nil)
 	end,
-	-- (none while it's the default already: nothing to put back)
-	secondary = function(e) return not IsDefault(e.setKey) and SettingReset or nil end,
 }
 local settingMeta
 
@@ -822,7 +827,7 @@ local settingMeta
 function O.SettingVerbs(e)
 	local key = e.setKey
 	local enter = T.FIELDS[key].kind == "bool" and (T.Get()[key] and L["turn off"] or L["turn on"]) or L["pick a value"]
-	return enter, L["reset to default"]
+	return enter, not IsDefault(key) and L["reset to default"] or nil -- (at its default: nothing to put back, none offered)
 end
 
 --- The settings shown: every one, but those that do nothing here (the profession indexing WoW Forever doesn't allow,

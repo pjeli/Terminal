@@ -151,3 +151,21 @@ do
 	ns.db.theme = was
 	Th.Get()
 end
+
+io.write("[settings: review 1.1.17: Shift+Enter at the default changes nothing]\n")
+do
+	Th.Set("hints", "on", true)
+	local res = Search("terminal settings")
+	local hints, hi = Find(res, "Key hints in footer")
+	local said
+	local wasPrint = ns.Print
+	ns.Print = function(_, m) said = m end
+	UI.sel = hi
+	UI:Activate(hi, { secondary = true })
+	ns.Print = wasPrint
+	check(Th.Get().hints == true and tostring(said):find("already the default", 1, true),
+		"Shift+Enter on a setting at its default: unchanged, said so: " .. tostring(said))
+	local a, b = E.Verbs(hints)
+	check(a == "turn off" and b == nil, "and none offered: " .. tostring(a) .. "/" .. tostring(b))
+	Close()
+end

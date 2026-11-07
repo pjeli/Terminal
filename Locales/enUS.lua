@@ -259,6 +259,7 @@ L["%s/%s worn"] = true
 L["%s:  %d in all"] = true
 L["%s: %s"] = true
 L["%s: Questie doesn't know who starts it."] = true
+L["%s: already the default (%s)"] = true
 L["%s: back to %s"] = true
 L["%s: can't do that in combat (%s)."] = true
 L["%s: click its tab (pointed at). The game gives Terminal no clean way to switch the Legacy window's pages."] = true

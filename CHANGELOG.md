@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.17 (in testing)
+
+- Fixed: Shift+Enter on a setting row already at its default changed it (an on/off one flipped, others wrote `.set` into the prompt); it now says it's already the default.
+
 ## 1.1.16 (in testing)
 
 - Clearer texts: a setting's tooltip offers Shift+Enter (reset) only once it has been changed; `.set` <Tab> offers **list** and its description says what `.set` alone and `.set list` do; F1 says what closing does with Keep your session and what a click outside Terminal does; Keep your session's description says two or more tabs last until a `/reload` even with it off; a Russian name fixed. A 1.1.8 `keepTabs off` carries over as `keepSession off`.
