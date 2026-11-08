@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.6 (in testing)
+
+- A footer too long for its line wraps onto up to three lines, the terminal growing downwards, instead of running off
+  the right edge ("recipes i can learn now": "... 372 more need more skill ('all recipes to learn' lists them)"). The
+  key hints give it their room while it's wrapped; it's one line again as soon as it fits. Reported with a screenshot.
+
 ## 1.2.5 (in testing)
 
 Fixes from a review of 1.2.1-1.2.4 (bugs, performance, quality):

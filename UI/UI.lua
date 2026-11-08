@@ -567,15 +567,17 @@ end
 --- The footer's line, the result count and the key hints, placed for the font size.
 local function ApplyFooterLayout(t)
 	-- footer: one line (hints that don't fit are left out, see FitHints); a second under it while UI.footExtra shows
+	-- (and a line more for each the count's text wraps onto, too long for one: UI:FitStatus, 1.2.6)
 	local baseH = math.max(FOOTER_H, t.fontSize + 12)
 	local lineH = t.fontSize + 8
-	local footerH, statusY = baseH, baseH / 2
+	local more = (math.max(1, UI.statusLines or 1) - 1) * (t.fontSize + 2)
+	local footerH, statusY = baseH + more, (baseH + more) / 2
 	local extra = UI.footExtra
 	if extra then
 		extra:ClearAllPoints()
 		extra:SetPoint("LEFT", frame, "BOTTOMLEFT", 14, lineH / 2 + 3)
 		extra:SetPoint("RIGHT", frame, "BOTTOMRIGHT", -14, lineH / 2 + 3)
-		if UI.footExtraOn then footerH, statusY = baseH + lineH, lineH + baseH / 2 - 2 end
+		if UI.footExtraOn then footerH, statusY = baseH + more + lineH, lineH + (baseH + more) / 2 - 2 end
 	end
 	UI.footerH = footerH
 	local classicInset = t.frame == "classic" and 5 or 1
@@ -587,6 +589,8 @@ local function ApplyFooterLayout(t)
 	hints:ClearAllPoints()
 	hints:SetPoint("RIGHT", frame, "BOTTOMRIGHT", -14, statusY)
 end
+
+UI.ApplyFooterLayout = function() if frame then ApplyFooterLayout(Theme.Get()) end end -- (List.lua's FitStatus)
 
 --- The footer's extra line: shown with this text (nil: hidden), the footer one line taller while it shows.
 function UI:SetFooterExtra(text)

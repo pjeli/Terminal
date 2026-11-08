@@ -70,6 +70,7 @@ do
 		if self.clipHint and not self.keys then
 			status:SetText(Theme.FixColors(HINT .. (self.clipHint == "V" and L["Press Ctrl+V again to paste"] or L["Press Ctrl+C again to copy"]) .. "|r"))
 			if hints then hints:Hide() end
+			self:FitStatus()
 			return
 		end
 		if self.armedEntry then
@@ -80,6 +81,7 @@ do
 			local verb = (rawget(a, "isShift") and shift) or enter or L["open"]
 			status:SetText(Theme.FixColors(HINT .. L["Press Enter: %s"]:format(verb) .. "|r  " .. a.name))
 			if hints then hints:Hide() end -- the armed line gets the whole footer
+			self:FitStatus()
 			return
 		end
 		if hints then hints:SetShown(Theme.Get().hints and true or false) end
@@ -189,8 +191,43 @@ do
 			text = Prepend(HINT .. FZF_LABEL .. "|r", text)
 		elseif once then text = Prepend(HINT .. ONCE_LABEL .. "|r", text) end
 		status:SetText(Theme.FixColors(text)) -- (always: the notes' gold too, on light themes; it returns at once on dark ones)
+		self:FitStatus()
 		self:FitHints()
 		if (self.tabsH or 0) > 0 and ns.Tabs then ns.Tabs.Draw() end -- (the tab shown: its text and count)
+	end
+end
+
+--- A footer too long for its line wraps onto more, the footer growing downwards (1.2.6, the player's screenshot: "The
+--- footer can get really long and cut off sometimes; I think its okay to extend the footer downwards in such cases"),
+--- STATUS_MAX_LINES at most; the key hints give it their room meanwhile (FitHints: none fit). One line again as soon
+--- as it fits.
+UI.STATUS_MAX_LINES = 3
+function UI:FitStatus()
+	local status = UI.status
+	if not status then return end
+	local avail = (Theme.Get().width or 640) - 28
+	if self.statusWrapped then
+		self.statusWrapped = nil
+		status:SetWordWrap(false)
+		status:SetWidth(0) -- (as wide as its text again)
+	end
+	local lines = 1
+	local w = UI.Unbounded(status)
+	if w > avail then
+		self.statusWrapped = true
+		status:SetWidth(avail)
+		status:SetWordWrap(true)
+		if status.SetMaxLines then pcall(status.SetMaxLines, status, UI.STATUS_MAX_LINES) end
+		local ok, n = false, nil
+		if status.GetNumLines then ok, n = pcall(status.GetNumLines, status) end
+		lines = (ok and type(n) == "number" and n > 1) and n or math.ceil(w / avail)
+		lines = math.max(2, math.min(UI.STATUS_MAX_LINES, lines))
+	end
+	if lines ~= (self.statusLines or 1) then
+		self.statusLines = lines
+		UI.ApplyFooterLayout()
+		self.hintsRoom = nil -- (the hints' room measured again)
+		self:FitHeight()
 	end
 end
 
@@ -535,6 +572,7 @@ local function Unbounded(fs)
 	local ok, w = pcall(fs.GetStringWidth, fs)
 	return ok and type(w) == "number" and w or 0
 end
+UI.Unbounded = Unbounded -- (FitStatus, above it in this file)
 
 --- The detail's room on this row (and the name's, which ends where it begins).
 local function SetDetailW(r, w)
