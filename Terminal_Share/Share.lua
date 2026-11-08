@@ -214,10 +214,16 @@ local function PlaceTooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
 	t:AddLine(("%s  %.1f, %.1f"):format(e.zone or "?", e.px, e.py), 1, 1, 1)
 	local ep = SSH.game
-	local w = e.friend and e.friend.where -- (heard since the row was made: rows are made again only when it moves)
+	-- (heard since the row was made: rows are made again only when it moves)
+	local w = e.friend and e.friend.where or (e.omKey and SSH.OpenMap and SSH.OpenMap.live[e.omKey])
 	local ago = ep and (ep:Now() - (w and w.at or e.at)) or 0
 	if ago >= 60 then t:AddLine(L["Updated %s"]:format(ns.Ago(ago)), 0.8, 0.8, 0.8) end
-	t:AddLine(L["Where they are, as they share it (.share settings location)"], 0.6, 0.6, 0.6, true)
+	if e.omKey then
+		t:AddLine(e.guild and L["A guild member, sharing where they are with OpenMap (.share settings openmap)"]
+			or L["Sharing where they are with OpenMap (.share settings openmap)"], 0.6, 0.6, 0.6, true)
+	else
+		t:AddLine(L["Where they are, as they share it (.share settings location)"], 0.6, 0.6, 0.6, true)
+	end
 	if ns.Maps and ns.Maps.KeysHint then ns.KeyHints(t, ns.Maps.KeysHint(), 0.6, 0.6, 0.6, true) end
 end
 
@@ -229,14 +235,44 @@ local function PlaceRow(w)
 	local cont, wx, wy
 	if I and I.SpotXY then cont, wx, wy = I.SpotXY(w.map, { px, py }) end
 	local row = {
-		key = "where:" .. tostring(w.friend.claim), name = w.name, icon = PLACE_ICON, owner = w.name,
+		key = w.key or ("where:" .. tostring(w.friend.claim)), name = w.name, icon = PLACE_ICON, owner = w.name,
 		detail = ("%s  %.0f, %.0f"):format(zone or "?", px, py), zone = zone, at = w.at, friend = w.friend,
-		text = "shared friend friends where " .. Lower(w.name) .. " " .. Lower(zone or ""),
+		omKey = w.omKey, guild = w.guild,
+		-- (OpenMap's: "openmap" finds them, "guild" a guild member's)
+		text = "shared friend friends where " .. Lower(w.name) .. " " .. Lower(zone or "")
+			.. (w.openmap and (" openmap" .. (w.guild and " guild" or "")) or ""),
 		ui = w.map, px = px, py = py, wcont = cont, wx = wx, wy = wy, pinName = w.name, tooltip = PlaceTooltip,
 	}
 	return I and I.SpotRow and I.SpotRow(row) or row
 end
 SSH.PlaceRow = PlaceRow
+
+-- one person by two names? ("Plamen Warr" and "Plamen": the same unless both have a surname)
+local function SameName(a, b)
+	if a == b then return true end
+	local fa, fb = a:match("^[^%-]+"), b:match("^[^%-]+")
+	return fa == fb and (fa == a or fb == b)
+end
+
+--- Everyone whose place you have: Share friends who share theirs (ep:Places()), then OpenMap players heard
+--- (.share settings openmap, OpenMap.lua) who aren't one of them, by name. `dots`: for the map's dots, OpenMap's left
+--- out while OpenMap itself is loaded (it draws its own).
+function SSH.AllPlaces(ep, dots)
+	local out = ep and ep:Places() or {}
+	local OM = SSH.OpenMap
+	if not (OM and OM.on) or (dots and OM.OpenMapLoaded()) then return out end
+	local theirs = OM.Places()
+	if #theirs == 0 then return out end
+	local names = {}
+	for i, w in ipairs(out) do names[i] = Canon(w.name) end
+	for _, w in ipairs(theirs) do
+		local c, dup = Canon(w.name), false
+		for _, n in ipairs(names) do if SameName(c, n) then dup = true break end end
+		if not dup then out[#out + 1] = w end
+	end
+	sort(out, function(a, b) return a.name < b.name end)
+	return out
+end
 
 -- The question: "where are my friends", "friends location", "where is bob" (a friend who shares where they are)
 local PLACE_FILL = {}
@@ -255,7 +291,7 @@ function SP.Question(text)
 	-- that name: on to the words below, "where is my friend" is still asked)
 	local who = t:match("^where is (.+) now$") or t:match("^where i?s (.+)$") or t:match("^wheres (.+)$")
 	if who and SSH.game then
-		for _, w in ipairs(SSH.game:Places()) do
+		for _, w in ipairs(SSH.AllPlaces(SSH.game)) do
 			local n = Lower(w.name):match("^[^%-]+") or Lower(w.name)
 			if n == who or n:match("^(%S+)") == who then return { who = n } end
 		end
@@ -273,8 +309,10 @@ function SP.Footer() return L["Where your friends are"] end
 function SP.None()
 	-- (shared in a group of its own counts: the global setting off isn't "yours is off"; 1.2.5 review)
 	local on = SSH.game and SSH.game:WhereAny()
+	local om = SSH.OpenMap and SSH.OpenMap.on
 	return { ns.NoteRow(L["No friend shares where they are now: each turns it on with .share settings location on."]
-		.. (on and "" or (" " .. L["Yours is off too."]))) }
+		.. (on and "" or (" " .. L["Yours is off too."]))
+		.. (om and "" or (" " .. L["OpenMap players' too: .share settings openmap on."]))) }
 end
 
 function SSH.Rows(ep, p)
@@ -283,7 +321,7 @@ function SSH.Rows(ep, p)
 	for _, f in pairs(ep.friends) do
 		for _, row in ipairs(FriendRows(f, p)) do out[#out + 1] = row end
 	end
-	for _, w in ipairs(ep:Places()) do out[#out + 1] = PlaceRow(w) end
+	for _, w in ipairs(SSH.AllPlaces(ep)) do out[#out + 1] = PlaceRow(w) end
 	if SSH.SettingRows then SSH.SettingRows(out) end
 	-- friends' gold (.share all): a row each, "gold" finds them
 	for _, g in ipairs(ep:Gold()) do

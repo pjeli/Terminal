@@ -14,9 +14,10 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.2.6", when = "in testing",
+		v = "1.2.7", when = "in testing",
 		items = {
 			"Terminal: Share: friends can share where they are (.share settings location on; off by default; .share <group> location on or off for one group, which wins): each is a class-coloured dot on your world map and a row in your searches, \"where are my friends\"; Enter or a click puts a waypoint on them.",
+			"Terminal: Share: guild members and friends who share where they are with OpenMap show too, dots and rows alike (.share settings openmap on; off by default).",
 			"A footer too long for its line (\"recipes i can learn now\") wraps onto more lines, the terminal growing downwards, instead of being cut off.",
 			"Fixes from a review of sharing where you are: friends on an older Terminal: Share no longer drop you every 30 minutes, and places go out ahead of bags and cost less.",
 			"When someone asks Terminal (!t) in a chat it doesn't answer in yet, it now says plainly what to type to turn it on (.ask group on).",

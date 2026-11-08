@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.7 (in testing)
+
+- Terminal: Share: guild members and friends who share where they are with OpenMap show on your world map as
+  class-coloured dots and in `@shared where` ("where are my friends"), with Share friends' places
+  (`.share settings openmap on`; off by default). Asked for: "Can we have Terminal detect and show OpenMap coordinates
+  of friends that might be using OpenMap", then "Guild and friends".
+- OpenMap's public API has no call for these, so its messages (prefix `OpenMapLoc`) are read as they arrive. A guild
+  member's place comes to the whole guild and is only heard. A friend's OpenMap sends to friends it has heard from, so
+  Terminal says hello (`H1`) to each friend as they come online and answers theirs (`H2`). Your own place is never sent
+  this way. With OpenMap loaded, it says its own hellos and draws its own dots; Terminal lists them only.
+- A whisper is read only from a friend online, a guild message only on the guild's channel. Places are checked (a map
+  the game has, x and y on it) and go after 150 s without word. A Share friend sharing both ways is shown once.
+- New file `Terminal_Share/OpenMap.lua`: a full game restart, not a `/reload`.
+
 ## 1.2.6 (in testing)
 
 - A footer too long for its line wraps onto up to three lines, the terminal growing downwards, instead of running off

@@ -3473,4 +3473,10 @@ L["Terminal: Share. Click: a waypoint on them"] = "Terminal: Share. Klick: ein W
 L["location in %s: %s (.share %s location on, off or global)"] = "Standort in %s: %s (.share %s location on, off oder global)"
 L["your location too"] = "dein Standort auch"
 L["%s asked Terminal a question (!t) in %s chat. To let Terminal answer these for you, type %s"] = "%s hat Terminal im %s-Chat eine Frage gestellt (!t). Damit Terminal solche Fragen für dich beantwortet, tippe %s"
+L["A guild member, sharing where they are with OpenMap (.share settings openmap)"] = "Ein Gildenmitglied, das seinen Standort mit OpenMap teilt (.share settings openmap)"
+L["Guild members and friends who share where they are with OpenMap show as class-coloured dots on your world map, and in your searches (where are my friends). Friends' OpenMap sends it only to those it hears from, so Terminal says hello to it as they come online. Yours is never sent this way. With OpenMap installed, it draws its own dots."] = "Gildenmitglieder und Freunde, die ihren Standort mit OpenMap teilen, erscheinen als Punkte in Klassenfarbe auf deiner Weltkarte und in deinen Suchen (where are my friends). Das OpenMap von Freunden sendet ihn nur an die, von denen es hört, also grüßt Terminal es, sobald sie online kommen. Dein eigener Standort wird so nie gesendet. Ist OpenMap installiert, zeichnet es seine eigenen Punkte."
+L["OpenMap players' too: .share settings openmap on."] = "Auch die von OpenMap-Spielern: .share settings openmap on."
+L["Places on OpenMap"] = "Standorte aus OpenMap"
+L["Sharing where they are with OpenMap (.share settings openmap)"] = "Teilt seinen Standort mit OpenMap (.share settings openmap)"
+L["Terminal: Share, shared with OpenMap. Click: a waypoint on them"] = "Terminal: Share, mit OpenMap geteilt. Klick: ein Wegpunkt auf sie"
 --@end-do-not-package@

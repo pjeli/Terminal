@@ -283,6 +283,26 @@ and `GetMapPosFromWorldPos`; with OpenMap's stitched map showing (asked first: i
 its public `OpenMapAPI.CanvasFromWorldPos`
 (above `ArtTopLevel`), which its docs give for an addon that puts frames on the canvas.
 
+**OpenMap players** (1.2.7, `Terminal_Share/OpenMap.lua`, `.share settings openmap`, off by default; the player: "Guild
+and friends"): OpenMap (MIT, github.com/openmap-world/openmap) shares a player's place with their guild and their friends
+who use it, as addon messages under the prefix `OpenMapLoc`: `L1 map x y class level` (tab-separated; a uiMapID, x and
+y 0..1 on it, the class's file name, the level), `L0` (stopped), `H1` (hello), `H2` (its answer). `OpenMapAPI` has no
+call for these, so they're read as they arrive; none of OpenMap's code is used.
+
+- Guild: OpenMap sends each place to GUILD, so it's only heard. Friends: OpenMap whispers (or sends over Battle.net)
+  only to friends it has heard from, so Terminal says `H1` to each friend online (`C_FriendList`, Battle.net friends
+  playing this game), again after they've been offline, and answers a friend's `H1` with `H2`, one message each
+  `OM.GAP` (0.5 s), held while chat is locked down. Your own place is never sent this way.
+- Read: a whisper only from a friend online, a guild message only on GUILD; never your own. `L1` must name a map
+  `C_Map.GetMapInfo` has, x and y within 0..1 (not 0,0); a class that isn't capital letters or a level out of range is
+  left out. Kept in memory (`OM.MAX` 200), gone after `OM.GONE` (150 s) without word or on `L0`; off forgets them all.
+- Shown: `SSH.AllPlaces(ep, dots)` = Share friends' places, then OpenMap's whose name isn't one of them ("Plamen"
+  and "Plamen Warr" are one; two surnames aren't). Rows (`key` `omap:<name>`, "openmap" and "guild" in their
+  text) and dots alike; the rows are made again only when what one shows changes, the dots follow `OM.gen`.
+- With OpenMap loaded (`OpenMapAPI`): its own hellos and dots; Terminal says nothing and draws no dot for them.
+- Its setting's name is one few words match by scattered letters: "See OpenMap players' locations" matched "npc" and
+  "omen", which changed the parse golden's categories.
+
 ## In searches
 
 `@shared` (also `@ssh`; its rows labelled Shared): one row per item per friend ("Linen Cloth x20 · Cad Man · bags 12,

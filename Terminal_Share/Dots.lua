@@ -1,5 +1,7 @@
 -- (Terminal: Share, an addon of its own: Terminal's namespace is its public table, _G.Terminal. Not loaded, nothing of
 -- this runs.)
+-- (1.2.7: OpenMap players too, .share settings openmap: OpenMap.lua; not while OpenMap itself is loaded, it draws its
+-- own.)
 -- Friends on the world map (1.2.3, the player: "player locations should show up as a dot. Regular class-colored dot"):
 -- each friend who shares where they are (.share settings location) is a dot in their class's colour where they stand,
 -- on the world map while it's open; pointed at, who and where; clicked, a waypoint on them. Nothing runs while the map
@@ -90,7 +92,8 @@ local function Enter(pin)
 	local ep = SSH.game
 	local ago = ep and (ep:Now() - w.at) or 0
 	if ago >= 60 then GameTooltip:AddLine(L["Updated %s"]:format(ns.Ago(ago)), 0.8, 0.8, 0.8) end
-	GameTooltip:AddLine(L["Terminal: Share. Click: a waypoint on them"], 0.6, 0.6, 0.6, true)
+	GameTooltip:AddLine(w.openmap and L["Terminal: Share, shared with OpenMap. Click: a waypoint on them"]
+		or L["Terminal: Share. Click: a waypoint on them"], 0.6, 0.6, 0.6, true)
 	GameTooltip:Show()
 end
 
@@ -150,9 +153,11 @@ function D.Refresh()
 	local stitched = OM and OM.IsStitched and Safe(OM.IsStitched)
 	-- (the same places on the same map at the same size and zoom: nothing to do. Every 0.2 s it worked each friend's
 	-- spot out again and set every dot: 1.2.5 review. OpenMap's stitched view moves under the same map: each time)
-	local sig = tostring(ep and ep.placesGen or 0) .. ":" .. shown .. ":" .. cw .. ":" .. ch .. ":" .. tostring(scale)
+	local OMod = SSH.OpenMap
+	if OMod and OMod.on then OMod.Expire() end -- (a place gone quiet: its dot goes)
+	local sig = tostring(ep and ep.placesGen or 0) .. ":" .. tostring(OMod and OMod.on and OMod.gen or 0) .. ":" .. shown .. ":" .. cw .. ":" .. ch .. ":" .. tostring(scale)
 	if not stitched and sig == D.lastSig then return D.lastUsed end
-	local list = ep and ep:Places() or {}
+	local list = SSH.AllPlaces and SSH.AllPlaces(ep, true) or (ep and ep:Places() or {})
 	local level = canvas:GetFrameLevel() + 20
 	if OM and OM.ArtTopLevel then level = math.max(level, (Num(Safe(OM.ArtTopLevel)) or 0) + 1) end
 	local used = 0

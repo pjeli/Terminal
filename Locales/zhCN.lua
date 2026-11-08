@@ -3473,4 +3473,10 @@ L["Terminal: Share. Click: a waypoint on them"] = "Terminal: Share。点击：�
 L["location in %s: %s (.share %s location on, off or global)"] = "%s 中的位置：%s（.share %s location on、off 或 global）"
 L["your location too"] = "也包括你的位置"
 L["%s asked Terminal a question (!t) in %s chat. To let Terminal answer these for you, type %s"] = "%s 在%s频道向 Terminal 提了个问题（!t）。要让 Terminal 替你回答这类问题，请输入 %s"
+L["A guild member, sharing where they are with OpenMap (.share settings openmap)"] = "通过 OpenMap 分享位置的公会成员（.share settings openmap）"
+L["Guild members and friends who share where they are with OpenMap show as class-coloured dots on your world map, and in your searches (where are my friends). Friends' OpenMap sends it only to those it hears from, so Terminal says hello to it as they come online. Yours is never sent this way. With OpenMap installed, it draws its own dots."] = "通过 OpenMap 分享位置的公会成员和好友会以职业颜色的圆点显示在你的世界地图上，并出现在你的搜索中（where are my friends）。好友的 OpenMap 只会发送给它收到过消息的人，所以好友上线时 Terminal 会向它打招呼。你的位置永远不会以这种方式发送。如果安装了 OpenMap，它会自己绘制圆点。"
+L["OpenMap players' too: .share settings openmap on."] = "也查看 OpenMap 玩家的位置：.share settings openmap on。"
+L["Places on OpenMap"] = "OpenMap 中的位置"
+L["Sharing where they are with OpenMap (.share settings openmap)"] = "通过 OpenMap 分享位置（.share settings openmap）"
+L["Terminal: Share, shared with OpenMap. Click: a waypoint on them"] = "Terminal: Share，通过 OpenMap 分享。点击：在其位置设置路径点"
 --@end-do-not-package@

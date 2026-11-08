@@ -114,14 +114,14 @@ do
 	out = SSH.SettingsCmd("bogus on")
 	check(out and out[1]:find("bogus"), ".share settings bogus: said there's none: " .. tostring(out and out[1]))
 	out = SSH.SettingsCmd("list")
-	check(out and #out == 2 and out[2]:find("location = off"), ".share settings list: each in chat: " .. tostring(out and out[2]))
+	check(out and #out == 3 and out[2]:find("location = off") and out[3]:find("openmap = off"), ".share settings list: each in chat: " .. tostring(out and out[2]))
 	out = SSH.SettingsCmd("location maybe")
 	check(out and out[1]:find("on or off"), "a value that's neither: said how")
 	check(SSH.RESERVED.settings, "a group can't be called settings")
 	-- its row: Enter turns it on
 	local rows = {}
 	SSH.SettingRows(rows)
-	check(#rows == 1 and rows[1].name == "Share your location" and rows[1].staysOpen, "its row: Share your location")
+	check(#rows == 2 and rows[1].name == "Share your location" and rows[1].staysOpen and rows[2].shareSetting == "openmap", "its row: Share your location (and OpenMap's after it, 1.2.7)")
 	local printWas = ns.Print
 	ns.Print = function() end
 	rows[1].activate(rows[1])
