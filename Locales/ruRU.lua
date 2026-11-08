@@ -3350,7 +3350,6 @@ L["moonwells"] = "лунные колодцы"
 L["keep: %s (%s)"] = "хранить: %s (%s)"
 L["without their descriptions"] = "без описаний"
 L["!t: your guild or group asks Terminal (\"!t nearest innkeeper\") and it answers for you, in the same channel."] = "!t: ваша гильдия или группа спрашивает Terminal (\"!t nearest innkeeper\"), и он отвечает за вас в том же канале."
-L["%s asked Terminal something in %s chat. .ask %s on lets Terminal answer for you."] = "%s спросил Terminal о чём-то в чате (%s). .ask %s on позволит Terminal отвечать за вас."
 L[".ask guild on|off, .ask group on|off, .ask whisper on|off, .ask off, .ask test <question>"] = ".ask guild on|off, .ask group on|off, .ask whisper on|off, .ask off, .ask test <вопрос>"
 L["Answering in %s chat: %s"] = "Ответы в чате (%s): %s"
 L["Answering: guild %s, group %s, whispers %s (friends, guildies and your group only)"] = "Ответы: гильдия %s, группа %s, шёпот %s (только друзья, гильдия и ваша группа)"
@@ -3473,4 +3472,5 @@ L["Share: your location in %s: %s"] = "Share: ваше местоположен�
 L["Terminal: Share. Click: a waypoint on them"] = "Terminal: Share. Щелчок: точка маршрута на них"
 L["location in %s: %s (.share %s location on, off or default)"] = "местоположение в %s: %s (.share %s location on, off или default)"
 L["your location too"] = "и ваше местоположение"
+L["%s asked Terminal a question (!t) in %s chat. To let Terminal answer these for you, type %s"] = "%s задал(а) вопрос Terminal (!t) в чате (%s). Чтобы Terminal отвечал на такие вопросы за вас, введите %s"
 --@end-do-not-package@

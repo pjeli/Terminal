@@ -14,9 +14,10 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.2.3", when = "in testing",
+		v = "1.2.4", when = "in testing",
 		items = {
 			"Terminal: Share: friends can share where they are (.share settings location on; off by default; .share <group> location on or off for one group, which wins): each is a class-coloured dot on your world map and a row in your searches, \"where are my friends\"; Enter or a click puts a waypoint on them.",
+			"When someone asks Terminal (!t) in a chat it doesn't answer in yet, it now says plainly what to type to turn it on (.ask group on).",
 			"Fixed: with Shift+` (or another Shift chord) bound to Terminal, opening it on a kept search no longer types a ~ after it.",
 		},
 	},

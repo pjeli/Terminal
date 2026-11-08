@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.4 (in testing)
+
+- `.ask`: when someone asks Terminal (`!t`) in a chat where it isn't switched on, the note says what happened and what to
+  type, the command in its own colour: "Bob asked Terminal a question (!t) in group chat. To let Terminal answer these
+  for you, type .ask group on". The old wording (".ask group on lets Terminal answer for you") wasn't obvious.
+
 ## 1.2.3 (in testing)
 
 - Terminal: Share: your location per group as well as for all of them. `.share <group> location on`, `off` or `default`

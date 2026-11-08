@@ -92,6 +92,8 @@ do
 	check(#net.said == 0 and c.asked == 0, "nothing answered, nothing searched")
 	check(#c.printed == 1 and c.printed[1]:find(".ask guild on", 1, true) and c.printed[1]:find("Bob", 1, true),
 		"you're told once how to switch it on: " .. tostring(c.printed[1]))
+	-- (1.2.2, the player: the wording wasn't obvious: what to type is said as that, in its own colour)
+	check(c.printed[1]:find("type |cffffd200.ask guild on|r", 1, true) ~= nil, "...as \"type .ask guild on\", the command coloured")
 	check(c.inst.log[1].why == "off", ".ask lists it as not switched on")
 	check(not A.On("guild") and not A.On("group") and not A.On("whisper"), "the game's client: off everywhere at first")
 end
