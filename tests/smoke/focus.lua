@@ -80,3 +80,47 @@ do
 	ns.Zen.active = zenWas
 	F.IsMouseOver = wasOver
 end
+
+io.write("[focus: 1.2.1: a Shift chord bound to Terminal doesn't type its character into a kept search]\n")
+do -- (a player on CurseForge: "I used shift+~, enter "nearest vendor", close terminal, go to reopen and it will have
+	-- "nearest vendor~" unless I empty the text first")
+	local F = _G.TerminalFrame
+	local Th = ns.Theme
+	local was = { keep = Th.Get().keepSession, tabs = ns.db.tabs, time = _G.GetTime, bind = _G.GetBindingKey,
+		shift = _G.IsShiftKeyDown, easy = ns.db.easyMode }
+	local now, bound = 1000, "SHIFT-`"
+	_G.GetTime = function() return now end
+	_G.GetBindingKey = function(action) if action == "TERMINAL_TOGGLE" then return bound end return was.bind(action) end
+	Th.Get().keepSession = true
+	ns.db.tabs = nil
+	ns.db.easyMode = false; UI:EasyChanged()
+	local function Reopen(ch)
+		_G.IsShiftKeyDown = function() return true end
+		UI:Toggle()
+		F.scripts.OnChar(F, ch)
+		_G.IsShiftKeyDown = was.shift
+		FlushAll()
+	end
+	Reopen("~")
+	check(UI:IsShown() and T.query() == "", "Shift+` opens it, its ~ not typed: " .. T.query())
+	T.typeText("linen"); FlushAll()
+	UI:Hide(); FlushAll()
+	now = now + 600
+	Reopen("~")
+	check(UI:IsShown() and T.query() == "linen", "reopened on the kept search: no ~ after it: " .. T.query())
+	F.scripts.OnChar(F, "~"); FlushAll()
+	check(T.query() == "linen~", "a ~ typed after that is typed: " .. T.query())
+	UI:Hide(); FlushAll()
+	-- a German keyboard: Shift+^ types °
+	bound = "SHIFT-^"
+	ns.db.tabs = { list = { { text = "linen" } }, cur = 1 }
+	now = now + 600
+	Reopen("°")
+	check(T.query() == "linen", "Shift+^ bound: its ° not typed: " .. T.query())
+	UI:Hide(); FlushAll()
+	check(not ns.IsToggleChar("a") and not ns.IsToggleChar(" ") and not ns.IsToggleChar("@"),
+		"a letter, a space, a symbol with Shift up: never the key's")
+	ns.db.tabs, Th.Get().keepSession = was.tabs, was.keep
+	ns.db.easyMode = was.easy; UI:EasyChanged()
+	_G.GetTime, _G.GetBindingKey, _G.IsShiftKeyDown = was.time, was.bind, was.shift
+end

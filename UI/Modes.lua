@@ -36,7 +36,7 @@ local function DropTick(want)
 	C_Timer.After(0, function()
 		local text = edit:GetText()
 		-- (the key's character: ` or the one the terminal's bound to, ^ on a German keyboard)
-		if #text > #want and text:sub(1, #want) == want and ns.IsTickKey(text:sub(#want + 1)) then UI:SetQuery(want, #want) end
+		if #text > #want and text:sub(1, #want) == want and ns.IsToggleChar(text:sub(#want + 1)) then UI:SetQuery(want, #want) end
 	end)
 end
 

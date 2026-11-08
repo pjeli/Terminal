@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "1.2.1", when = "in testing",
+		items = {
+			"Fixed: with Shift+` (or another Shift chord) bound to Terminal, opening it on a kept search no longer types a ~ after it.",
+		},
+	},
+	{
 		v = "1.2.0", when = "released November 2026",
 		items = {
 			"With TomTom (or an arrow addon taking its waypoints): Enter (\"show via TomTom\") and Shift+Enter send their waypoints to TomTom's arrow; .set waypoints map, tomtom or both, or Options.",
@@ -51,18 +57,6 @@ CL.LOG = {
 			"Stats, food and weapon damage in your language: \"Ausdauer Essen\" finds stamina food; shorthand like \"brd\" and your language's little words too.",
 			"Other languages: trainers found by their translated titles, Chinese searches that find only names with the characters typed, fonts with Russian, Chinese and Korean letters.",
 			"After an update, one line in chat says how many new things there are; .changelog shows them.",
-		},
-	},
-	{
-		v = "0.69.0", when = "released October 2026",
-		items = {
-			"!t: your guild or group asks Terminal (\"!t nearest innkeeper\") and it answers for them. Off until you switch it on: .ask guild on.",
-			"\"nearest cooking fire\" finds every fire you can cook at, and \"nearest moonwell\" moonwells (needs Questie or QuestieDB).",
-			"Spells by what they do: \"spells that stun\", \"instant spells\", \"30 yard spells\", any class's.",
-			"Asked as you'd say it: \"where is the nearest mailbox\", \"innkeeper near me\", \"who drops linen cloth\", \"where to learn tailoring\".",
-			"Say what kind you want: \"hogger quest\", \"quests in westfall\", \"linen recipes\" look only there.",
-			"Typos as hands make them: \"linnen\" and \"lien\" find Linen Cloth; \"linken\" stays Linken.",
-			"A smaller download that loads faster: only your language's translations are read, and the code comes without its comments.",
 		},
 	},
 }

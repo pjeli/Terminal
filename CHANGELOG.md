@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 (in testing)
+
+- Fixed: with Shift+` (or another Shift chord, Shift+^) bound to Terminal, opening it on a kept search typed the
+  key's character after it ("nearest vendor~"). The character the chord types (~, °) is dropped as ` is. Reported
+  on CurseForge.
+
 ## 1.2.0
 
 Terminal 1.2: waypoints on TomTom's arrow, Terminal's own settings as rows you can search, your session kept, your

@@ -651,6 +651,21 @@ function ns.IsTickKey(key)
 	return false
 end
 
+--- Is this typed character the one the terminal's own key types as it opens (or closes) it: ` or a key bound to it
+--- alone (IsTickKey), ~ (Shift+`), or, with a Shift chord on a symbol key bound to it and Shift still held, the symbol it
+--- types (Shift+^ on a German keyboard: °). Only ever dropped just after the key was pressed (UI.swallowTick). (1.2.1, a
+--- player on CurseForge: Shift+~ bound, Terminal opened on a kept search typed a ~ after it.)
+function ns.IsToggleChar(ch)
+	if ch == "~" or ns.IsTickKey(ch) then return true end
+	if type(ch) ~= "string" or ch == "" or #ch > 2 or ch:find("[%w%s]") then return false end
+	if not (IsShiftKeyDown and IsShiftKeyDown()) then return false end
+	for _, k in ipairs(ns.ToggleBindings()) do
+		local base, mods = Base(k)
+		if #mods > 0 and k:find("SHIFT%-") and (base == "`" or PlainSymbol(base)) then return true end
+	end
+	return false
+end
+
 --- Is this key, with Alt held, the terminal's key itself (Alt+Q bound to it): it closes the terminal, not Alt+`'s
 --- Advanced mode (0.65.x review: Alt+Q bound was named in the hints, and switched modes with a q typed).
 function ns.IsAltBoundKey(key)
