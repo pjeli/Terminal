@@ -1395,6 +1395,43 @@ do
 	_G.Minimap, _G.FramerateFrame = minimapWas, fpsWas
 end
 
+-- .zen and the party/raid frames' parts that ignore their parent's alpha (1.2.8, the player's screenshot: "The selection
+-- highlight is leaking through on zen mode", CompactPartyFrameMember1SelectionHighlight, raid-style party frames).
+-- Fading their own alpha didn't hold in the game (something put it back): while faded they follow their parent's.
+do
+	local Zen, combatWas = ns.Zen, _G.InCombatLockdown
+	_G.InCombatLockdown = function() return false end
+	local function Part(ignoring)
+		local r = CreateFrame("Frame")
+		r.ign = ignoring
+		r.IsIgnoringParentAlpha = function(self) return self.ign end
+		r.SetIgnoreParentAlpha = function(self, v) self.ign = v end
+		return r
+	end
+	local box, icon, unsaid, follows = Part(true), Part(true), Part(nil), Part(false)
+	local party, party2, raid = CreateFrame("Frame"), CreateFrame("Frame"), CreateFrame("Frame")
+	party.selectionHighlight, party.readyCheckIcon = box, follows
+	party2.selectionHighlight = unsaid
+	raid.readyCheckIcon = icon
+	_G.CompactPartyFrameMember1, _G.CompactPartyFrameMember2, _G.CompactRaidGroup2Member3 = party, party2, raid
+	ns.db.zen = true
+	local function Step(dt) local f = Zen.driver.scripts.OnUpdate if f then f(Zen.driver, dt) end end
+	UI:Open()
+	Step(0.1); Step(0.11)
+	check(Zen.active and box.ign == false and icon.ign == false and unsaid.ign == false,
+		"faded: the target's selection box and the ready-check icon follow their parent's alpha (UIParent's 0): " .. tostring(box.ign))
+	check(follows.ign == false, "one that already follows its parent's: left as it is")
+	UI:HideNow()
+	UI.frame.scripts.OnHide(UI.frame)
+	T.FlushAll()
+	Step(0.1); Step(0.11)
+	check(not Zen.active and box.ign == true and icon.ign == true and unsaid.ign == true and follows.ign == false,
+		"back: they ignore their parent's alpha again, as Blizzard made them; the other left alone")
+	ns.db.zen = nil
+	_G.CompactPartyFrameMember1, _G.CompactPartyFrameMember2, _G.CompactRaidGroup2Member3 = nil, nil, nil
+	_G.InCombatLockdown = combatWas
+end
+
 -- a stored item sent to chat says who holds how many (0.43.27): >> party, the menu's chat lines, a chain's "> alts"
 do
 	local St, SH = ns.Stored, ns.Share

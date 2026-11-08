@@ -37,6 +37,28 @@ Z.ALSO = { "Minimap", "MinimapCluster", "FramerateFrame" }
 -- turns back or combat comes. Blizzard's own minimap key does the same (ToggleMinimap: Minimap:Hide); one you hid
 -- yourself is left alone.
 Z.HIDE = { "Minimap" }
+-- Parts of Blizzard's party and raid frames that ignore their parent's alpha (CompactUnitFrame.xml, ignoreParentAlpha):
+-- the selection box on your target's frame and the ready-check icon. UIParent's fade passed them by: the box stayed lit
+-- over the faded interface (1.2.8, the player's screenshot: CompactPartyFrameMember1SelectionHighlight, raid-style
+-- party frames). Fading their own alpha didn't hold (something put it back while faded), so while faded they follow
+-- their parent's alpha (UIParent's 0) and ignore it again once the interface is back. Blizzard never reads it.
+Z.UNIT_PARTS = { "selectionHighlight", "readyCheckIcon" }
+
+--- Each such part of the party and raid frames there are now, given to `fn`. By name, never a walk over UIParent's
+--- children (see Z.KeepOwn).
+function Z.UnitFrameParts(fn)
+	local function Each(name)
+		local f = _G[name]
+		if type(f) ~= "table" then return end
+		for _, key in ipairs(Z.UNIT_PARTS) do
+			if type(f[key]) == "table" then fn(f[key]) end
+		end
+	end
+	for i = 1, 5 do Each("CompactPartyFrameMember" .. i); Each("CompactPartyFramePet" .. i) end
+	for i = 1, 40 do Each("CompactRaidFrame" .. i) end
+	for g = 1, 8 do for m = 1, 5 do Each("CompactRaidGroup" .. g .. "Member" .. m) end end
+end
+
 -- Terminal's frames that sit on UIParent (its apps' frames come from the Panel registry)
 Z.OWN = { "TerminalFrame", "TerminalTooltip", "TerminalRowMenu", "TerminalLinkFrame", "TerminalCopyFrame",
 	"TerminalStyleImport", "TerminalBusyTip", "TerminalTourCard", "TerminalBarMenu", "TerminalBarTip" } -- (not the click catcher: a secure button, invisible
@@ -49,6 +71,7 @@ local also -- Z.ALSO's frames -> their alpha before the fade
 local dim, driver
 local kept = {} -- Terminal's frames already set to ignore UIParent's alpha
 local hidden = {} -- Z.HIDE's frames this fade hid (shown again as it ends)
+local following = {} -- Z.UNIT_PARTS this fade made follow their parent's alpha (back as it ends)
 local watching = false
 
 -- (.console is always zen, whatever .zen says: Z.Force while it shows)
@@ -233,6 +256,7 @@ local function Done()
 	Z.active = false
 	Tinting(false)
 	ShowRest()
+	for r in pairs(following) do pcall(r.SetIgnoreParentAlpha, r, true); following[r] = nil end
 	uiAlpha, also, shownStep = nil, nil, nil
 	ns:Trace("zen: the interface is back")
 end
@@ -279,6 +303,13 @@ function Z.Opened()
 				also[f] = okA and type(fa) == "number" and fa or 1
 			end
 		end
+		Z.UnitFrameParts(function(r)
+			local ok, ignoring = true, true
+			if type(r.IsIgnoringParentAlpha) == "function" then ok, ignoring = pcall(r.IsIgnoringParentAlpha, r) end
+			if (not ok or ignoring ~= false) and type(r.SetIgnoreParentAlpha) == "function" and pcall(r.SetIgnoreParentAlpha, r, false) then
+				following[r] = true
+			end
+		end)
 	end
 	if Z.Can() then Z.KeepOwn() end
 	if not Z.active then

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.8 (in testing)
+
+- `.zen`: the selection box on your target's party frame showed through the faded interface (reported with a
+  screenshot: raid-style party frames, `CompactPartyFrameMember1SelectionHighlight`). Blizzard's party and raid frames
+  set that box and their ready-check icon to ignore their parent's alpha, so fading the interface (UIParent's alpha)
+  passed them by. Fading their own alpha didn't hold in the game (something put it back while faded), so while the
+  interface is faded they follow their parent's alpha instead, and ignore it again once it's back.
+
 ## 1.2.7 (in testing)
 
 - Terminal: Share: guild members and friends who share where they are with OpenMap show on your world map as
