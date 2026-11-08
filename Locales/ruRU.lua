@@ -3467,10 +3467,10 @@ L["Enter: turn it on or off    Shift+Enter: as the global setting again"] = "Ent
 L["Friends in this group see where you are. This group's own setting wins over the global one (Share your location); without one, it follows it."] = "Друзья в этой группе видят, где вы. Своя настройка группы важнее общей (Делиться местоположением); без своей группа следует общей."
 L["Friends you're connected to by Share see where you are: a class-coloured dot on their world map, and a row in their searches (Enter: a waypoint on you). Sent as you move, every 15 s (every minute standing still), never from a dungeon, raid or battleground. A group's own setting (.share <group> location on or off) wins over this one."] = "Друзья, с которыми вы связаны через Share, видят, где вы: точку цвета вашего класса на своей карте мира и строку в своих поисках (Enter: точка маршрута на вас). Отправляется, пока вы двигаетесь, каждые 15 с (раз в минуту, если стоите), никогда из подземелья, рейда или поля боя. Своя настройка группы (.share <группа> location on или off) важнее этой."
 L["Share your location in %s"] = "Делиться местоположением в %s"
-L["Share: .share %s location on, off or default (default: as the global setting)"] = "Share: .share %s location on, off или default (default: как общая настройка)"
+L["Share: .share %s location on, off or global (global: as the global setting)"] = "Share: .share %s location on, off или global (global: как общая настройка)"
 L["Share: your location in %s: %s"] = "Share: ваше местоположение в %s: %s"
 L["Terminal: Share. Click: a waypoint on them"] = "Terminal: Share. Щелчок: точка маршрута на них"
-L["location in %s: %s (.share %s location on, off or default)"] = "местоположение в %s: %s (.share %s location on, off или default)"
+L["location in %s: %s (.share %s location on, off or global)"] = "местоположение в %s: %s (.share %s location on, off или global)"
 L["your location too"] = "и ваше местоположение"
 L["%s asked Terminal a question (!t) in %s chat. To let Terminal answer these for you, type %s"] = "%s задал(а) вопрос Terminal (!t) в чате (%s). Чтобы Terminal отвечал на такие вопросы за вас, введите %s"
 --@end-do-not-package@

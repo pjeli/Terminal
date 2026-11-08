@@ -3467,10 +3467,10 @@ L["Enter: turn it on or off    Shift+Enter: as the global setting again"] = "Ent
 L["Friends in this group see where you are. This group's own setting wins over the global one (Share your location); without one, it follows it."] = "本组好友可以看到你的位置。本组自己的设置优先于全局设置（共享你的位置）；没有自己的设置时，跟随全局设置。"
 L["Friends you're connected to by Share see where you are: a class-coloured dot on their world map, and a row in their searches (Enter: a waypoint on you). Sent as you move, every 15 s (every minute standing still), never from a dungeon, raid or battleground. A group's own setting (.share <group> location on or off) wins over this one."] = "通过 Share 与你连接的好友可以看到你的位置：他们世界地图上一个你职业颜色的圆点，以及他们搜索结果中的一行（Enter：在你身上设置路径点）。移动时每 15 秒发送一次（站着不动时每分钟一次），绝不会从地下城、团队副本或战场中发送。小组自己的设置（.share <小组> location on 或 off）优先于此设置。"
 L["Share your location in %s"] = "在 %s 中共享你的位置"
-L["Share: .share %s location on, off or default (default: as the global setting)"] = "Share：.share %s location on、off 或 default（default：同全局设置）"
+L["Share: .share %s location on, off or global (global: as the global setting)"] = "Share：.share %s location on、off 或 global（global：同全局设置）"
 L["Share: your location in %s: %s"] = "Share：你在 %s 中的位置：%s"
 L["Terminal: Share. Click: a waypoint on them"] = "Terminal: Share。点击：在其位置设置路径点"
-L["location in %s: %s (.share %s location on, off or default)"] = "%s 中的位置：%s（.share %s location on、off 或 default）"
+L["location in %s: %s (.share %s location on, off or global)"] = "%s 中的位置：%s（.share %s location on、off 或 global）"
 L["your location too"] = "也包括你的位置"
 L["%s asked Terminal a question (!t) in %s chat. To let Terminal answer these for you, type %s"] = "%s 在%s频道向 Terminal 提了个问题（!t）。要让 Terminal 替你回答这类问题，请输入 %s"
 --@end-do-not-package@

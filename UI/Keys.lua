@@ -629,7 +629,8 @@ function UI:OnChar(text)
 	self.charChecked = true
 	if not self.keys or not self:IsShown() then return end
 	-- the ` of Alt+` (its OnChar follows the key that switched to Advanced): not typed
-	if ns.IsToggleChar(text) and self.swallowTick and GetTime() - self.swallowTick < 0.5 then
+	-- (the time first: IsToggleChar reads the key bindings, and every character typed comes here; 1.2.5 review)
+	if self.swallowTick and GetTime() - self.swallowTick < 0.5 and ns.IsToggleChar(text) then
 		self.swallowTick = nil
 		return
 	end

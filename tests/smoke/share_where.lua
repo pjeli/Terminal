@@ -54,8 +54,10 @@ do
 	net.Tick(SSH.WHERE_EVERY + SSH.WHERE_LOOK)
 	p = B:Places()[1]
 	check(#Ws(net, "Ann") == n + 1 and p and math.abs(p.x - 0.45) < 1e-4, "moved: sent within 15 s: " .. tostring(p and p.x))
-	check(A.friends["bob@realm"].pingAt == net.t - SSH.WHERE_LOOK + 1 or A.friends["bob@realm"].pingAt >= net.t - SSH.WHERE_EVERY,
-		"a place sent counts as still here (no ping besides): " .. tostring(A.friends["bob@realm"].pingAt) .. " at " .. net.t)
+	-- (a place isn't a ping: an older Terminal: Share ignores W, and with pings put off it dropped you after 30
+	-- minutes. 1.2.5 review)
+	local fb = A.friends["bob@realm"]
+	check(fb.pingAt == nil or fb.pingAt < net.t - SSH.WHERE_EVERY, "places sent don't put off the ping: " .. tostring(fb.pingAt) .. " at " .. net.t)
 	-- a friend connecting later has it at once
 	local D = net.Add("Dan", { friends = { ann = "Ann" } })
 	D:JoinGroup("default", GOOD)
@@ -217,9 +219,13 @@ do -- (the player: "allow a global locations setting and a per-group locations s
 	out = SSH.GroupLocationCmd(A, "nosuch", "on")
 	check(out[1]:find("nosuch"), "a group you're not in: said")
 	-- remembered again (a code shown, a rename): its own setting kept
-	_G.TerminalShareDB.groups.raid.location = false
-	SSH.Remember("raid", string.rep("k", 32), "limited", nil)
+	local KEY = string.rep("k", 32)
+	_G.TerminalShareDB.groups.raid = { key = ns.Crypto.Hex(KEY), location = false }
+	SSH.Remember("raid", KEY, "limited", nil)
 	check(_G.TerminalShareDB.groups.raid.location == false, "the group remembered again: its own location kept")
+	-- (1.2.5 review: another group by that name, another code: follows the global setting, after a /reload too)
+	SSH.Remember("raid", string.rep("z", 32), "limited", nil)
+	check(_G.TerminalShareDB.groups.raid.location == nil, "another group by its name (another code): not the old one's setting")
 	_G.TerminalShareDB = savedDB
 	ns.Crypto.HMAC = hw
 end
@@ -251,14 +257,24 @@ do -- (the player: "player locations should show up as a dot. Regular class-colo
 	check(n == 1 and pin and pin.shown and pin.place and pin.place.name == "Bob", "Bob, on the zone shown: a dot; Cat, elsewhere: none")
 	check(pin.w == 6 and pin.h == 6, "the dot's size kept on screen at any zoom (12 at a canvas scale of 2: 6): " .. tostring(pin.w))
 	local r, g, b
+	-- (1.2.5 review: nothing changed, nothing done)
+	local moved = 0
+	local spWas = pin.SetPoint
+	pin.SetPoint = function() moved = moved + 1 end
+	D.Refresh()
+	check(moved == 0, "nothing changed since: the dots left as they are (not placed again every 0.2 s)")
+	SSH.game.placesGen = (SSH.game.placesGen or 0) + 1
 	pin.dot.SetVertexColor = function(_, rr, gg, bb) r, g, b = rr, gg, bb end
 	D.Refresh()
+	pin.SetPoint = spWas
+	check(moved == 1, "a place heard: placed again")
 	check(r == 0.25 and g == 0.78 and b == 0.92, "in his class's colour (a mage's)")
 	-- Cat's zone on the continent shown: placed through the world position
 	_G.C_Map = setmetatable({
 		GetWorldPosFromMapPos = function(m) if m == 1411 then return 1, { x = 100, y = 200 } end end,
 		GetMapPosFromWorldPos = function(cont, world, shown) if cont == 1 and shown == 1429 then return 1429, { x = 0.7, y = 0.2 } end end,
 	}, { __index = was.map })
+	D.lastSig = nil -- (C_Map's answers changed under it: only a test does that)
 	check(D.Refresh() == 2 and D.pins[2].place.name == "Cat", "Cat's zone on the map shown: her dot too")
 	pin.dot.SetVertexColor = function(_, rr, gg, bb) r, g, b = rr, gg, bb end
 	D.Refresh()
@@ -283,4 +299,84 @@ do -- (the player: "player locations should show up as a dot. Regular class-colo
 	_G.RAID_CLASS_COLORS, _G.C_Map, _G.C_ClassColor = was.colors, was.map, was.cc
 	SSH.game.friends = was.friends
 	D.Refresh()
+end
+
+io.write("[share: where you are, review 1.2.5: the queue, toggles, rebuilds, the question]\n")
+do
+	local hw = ns.Crypto.HMAC
+	ns.Crypto.HMAC = H.QuickHMAC
+	local RAID, DEF = Key("raid 125"), Key("default 125")
+	local net = Net()
+	local A = net.Add("Ann", { friends = { bob = "Bob", cat = "Cat" } })
+	local B = net.Add("Bob", { friends = { ann = "Ann" } })
+	local C = net.Add("Cat", { friends = { ann = "Ann" } })
+	local spot = { 1429, 0.4, 0.6 }
+	A.env.where = function() return spot[1], spot[2], spot[3], "PRIEST" end
+	A:JoinGroup("raid", RAID, nil, true)
+	A:JoinGroup("default", DEF, nil, true)
+	B:JoinGroup("raid", RAID)
+	C:JoinGroup("default", DEF)
+	net.Tick(40)
+	-- a group turned on: only its friends sent anything; the other group's never
+	local before = #net.sent
+	A:SetGroupWhere("raid", true)
+	net.Tick(1)
+	local toBob, toCat = 0, 0
+	for i = before + 1, #net.sent do
+		local m = net.sent[i]
+		if m.from == "Ann" and m.text:find("^5W") then
+			if SSH.Canon(m.route.target) == "bob" then toBob = toBob + 1 else toCat = toCat + 1 end
+		end
+	end
+	check(toBob == 1 and toCat == 0, "raid turned on: one place to Bob (raid), nothing to Cat: " .. toBob .. "/" .. toCat)
+	-- turned on again: nothing new sent (no forced send to everyone)
+	before = #net.sent
+	A:SetGroupWhere("raid", true)
+	net.Tick(1)
+	local again = 0
+	for i = before + 1, #net.sent do if net.sent[i].from == "Ann" and net.sent[i].text:find("^5W") then again = again + 1 end end
+	check(again == 0, "the same setting again: nothing sent")
+	-- a place goes ahead of friends' bag pieces still waiting (a big snapshot)
+	local fb = A.friends["bob@realm"]
+	A.tokens, A.refillAt = 0, net.t + 1000
+	for i = 1, 5 do A:Send(fb.route, "5D x" .. i, "data:bob@realm:" .. i, fb) end
+	A:WhereTo(fb)
+	local wAt, dAt
+	for i, m in ipairs(A.queue) do
+		if m.tag and m.tag:find("^where:") then wAt = wAt or i end
+		if m.tag and m.tag:find("^data:") then dAt = dAt or i end
+	end
+	check(wAt and dAt and wAt < dAt, "a place queued goes ahead of bag pieces still waiting: " .. tostring(wAt) .. " < " .. tostring(dAt))
+	A.queue, fb.queued, A.tokens, A.refillAt = {}, 0, SSH.BURST, net.t
+	-- Bob's rows made again only when what a row shows changes
+	local c0 = net.changed
+	B:Receive({ kind = "whisper", target = "Ann" }, "5W 1429,4000,6000,PRIEST")
+	B:Receive({ kind = "whisper", target = "Ann" }, "5W 1429,4010,6010,PRIEST") -- (40.1, 60.1: the row says 40, 60)
+	check(net.changed - c0 == 0, "the same place again, or a step the row doesn't show: @shared not made again")
+	B:Receive({ kind = "whisper", target = "Ann" }, "5W 1429,4200,6000,PRIEST")
+	check(net.changed - c0 == 1, "a place the row shows differently (42, 60): made again once")
+	local gen = B.placesGen
+	B:Receive({ kind = "whisper", target = "Ann" }, "5W 1429,4210,6000,PRIEST")
+	check(B.placesGen == gen + 1 and net.changed - c0 == 1, "a small step: the map's dot moves (placesGen), the rows don't")
+	ns.Crypto.HMAC = hw
+end
+do
+	local SP = ns.SharePlaces
+	local ep = SSH.game
+	local friendsWas = ep.friends
+	ep.friends = { ["pw@realm"] = { claim = "pw@realm", name = "Plamen Warr", items = {},
+		where = { map = 1429, x = 0.5, y = 0.5, at = ep:Now() } } }
+	local q1, q2 = SP.Question("where is plamen warr"), SP.Question("where is plamen")
+	check(q1 and q1.who == "plamen warr" and q2 and q2.who == "plamen warr", "a name with a surname: by the whole name or its first word")
+	check(SP.Question("where is my friend") and not SP.Question("where is hogger"), "\"where is my friend\" still asked; \"where is hogger\" a search")
+	check(SSH.RESERVED.on and SSH.RESERVED.global and SSH.RESERVED.toggle, "on, global, toggle: never a group's name (.share settings location on)")
+	-- the note: your own counts when a group of yours shares it
+	local groupsWas, whereWas = ep.groups, ep.whereOn
+	ep.friends, ep.groups, ep.whereOn = {}, { raid = { name = "raid", where = true } }, false
+	check(not SP.None()[1].name:find("Yours is off too", 1, true), "global off but raid's own on: not \"yours is off too\"")
+	ep.groups = { raid = { name = "raid" } }
+	check(SP.None()[1].name:find("Yours is off too", 1, true), "off everywhere: said")
+	ep.friends, ep.groups, ep.whereOn = friendsWas, groupsWas, whereWas
+	-- the setting's row isn't one of "@shared where"'s (friends' places): its words have no "where"
+	check(not (" " .. SSH.SETTINGS.location.words):find(" where"), "the setting's words: none starting \"where\"")
 end

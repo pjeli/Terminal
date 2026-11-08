@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.2.5 (in testing)
+
+Fixes from a review of 1.2.1-1.2.4 (bugs, performance, quality):
+
+- Sharing where you are put off the 10-minute "still here" ping. A friend on an older Terminal: Share (1.2.0, 1.2.1)
+  ignores the place, so they dropped you after 30 minutes of unchanged bags, and connected again a minute later. A
+  place is no longer counted as a ping.
+- A place now goes ahead of friends' bag pieces still waiting, as a ping does. Behind a big snapshot it was put back
+  at the end each time a newer one replaced it, and could miss `WHERE_GONE`.
+- Changing the setting (or a group's own) sends only to the friends whose share changed. It sent your place to every
+  friend on each Enter.
+- With many friends places go out less often, but never less than every 90 s, and standing still never more often than
+  moving (past 20 friends it was; past 50 a friend's dot could time out).
+- A place heard makes the `@shared` rows again only when what a row shows changes. Every place made all of them again,
+  each friend's items with them. The tooltip's "updated" reads the latest. The map's dots are placed again only when
+  a place, the map, its size or zoom changes (they were placed again five times a second).
+- A group's own location setting is kept only for that group: another group by its name, joined with another code,
+  no longer picks it up after a `/reload`.
+- With OpenMap's stitched map showing, it's asked first, before the shown zone's own coordinates are used.
+- "where is <name>" finds a friend with a surname, by the whole name or its first name; "where is my friend" still
+  works.
+- The "nobody shares" note no longer says yours is off while a group of yours shares it.
+- on, toggle, global... can't be a group's name (they're `.share settings` values). The help says `global` for "as the
+  global setting" (`default` still works; `default` is also a group's name).
+- 1.2.1's check for the open key's character runs only right after the key, not on every character typed.
+- Note: builds 1.2.2 and 1.2.3 can't read each other's places (1.2.3 added the class). Neither was released.
+
 ## 1.2.4 (in testing)
 
 - `.ask`: when someone asks Terminal (`!t`) in a chat where it isn't switched on, the note says what happened and what to

@@ -240,19 +240,26 @@ Off by default. On (`.share settings location on`, or Enter on the **Share your 
 the settings as rows), friends you're connected to are sent where you are: the zone's uiMapID and x, y on its map, as
 `C_Map.GetPlayerMapPosition` gives them, and your class (`SSH.WhereNow`).
 
-Per group (1.2.3, the player: "per-group having priority"): `.share <group> location on|off|default` (also `.share
+Per group (1.2.3, the player: "per-group having priority"): `.share <group> location on|off|global` (also `.share
 settings location <group> ...`, and a row each, **Share your location in <group>**: Enter on or off, Shift+Enter back to
-the global setting) sets a group's own, kept in `TerminalShareDB.groups[name].location` (`SSH.Remember` keeps it).
+the global setting) sets a group's own, kept in `TerminalShareDB.groups[name].location` (`SSH.Remember` keeps it for the same group, by its key: another
+group by that name, joined with another code, follows the global setting).
 A group's own wins; a group without one follows the global setting (`E:GroupWhere`). A friend is sent it when any
 group you have in common shares it (`E:WhereFor`); a friend it no longer goes to (a group turned off) is sent `5W`
 alone once. Never from a dungeon, raid or battleground
 (`IsInInstance`), nor when the game doesn't say (a secret value, 0, 0). As OpenMap's friends' dots do:
 
 - looked at every `WHERE_LOOK` (2) s by the ticker; sent when you've moved, at most every `WHERE_EVERY` (15) s, or every
-  `WHERE_PER_FRIEND` (3) s a friend with many (ten friends: every 30 s, the queue's one a second kept for bags); standing
-  still, every `WHERE_STILL` (60) s, so a friend's row stays;
+  `WHERE_PER_FRIEND` (3) s a friend with many (ten friends: every 30 s, the queue's one a second kept for bags), never
+  less often than `WHERE_MOST` (90) s; standing still, every `WHERE_STILL` (60) s (or as moving, when that's longer), so
+  a friend's row stays;
 - a friend connecting (or by a new way) is sent it at once; each is a queued message tagged `where:<claim>`, a newer
-  one taking a waiting one's place; one sent counts as "still here" (no ping besides);
+  one taking a waiting one's place, put ahead of friends' bag pieces as a ping is (1.2.5: behind a big snapshot it
+  never went). It isn't a ping: an older Terminal: Share ignores `W`, so pings go on as ever;
+- a setting changed (the global one, a group's own) sends only to the friends whose share changed: your place to those
+  it now goes to, `5W` to those it no longer does (1.2.5: it was a send to every friend, each Enter on the row);
+- a place heard makes the `@shared` rows again only when what a row shows changes (the zone, x and y to the whole
+  number, the class); the map's dots follow every move (`placesGen`);
 - turned off, or in an instance: `5W` alone once, to each friend it was sent to; their row goes;
 - a friend's place heard of no more for `WHERE_GONE` (150) s is dropped. Like everything else they send, it's only
   in memory.
@@ -263,14 +270,17 @@ search for their name or zone finds it. The question (`ns.SharePlaces`, Question
 friends", "friends location" (`@shared where`), and "where is bob" only when Bob shares his (else it's a search).
 
 `.share settings` (`SSH.SETTINGS`, in `TerminalShareDB.settings`): alone, the settings as rows (`@shared setting`);
-`.share settings list` in chat; `.share settings <name> on|off|toggle`. `.share` says when your location is shared.
+`.share settings list` in chat; `.share settings <name> on|off|toggle`. `.share` says which groups share your location.
+The words these take (on, off, toggle, global...) can't be a group's name.
 
 **On the world map** (1.2.3, `Terminal_Share/Dots.lua`, the player: "a regular class-colored dot"): each friend's place
 is a dot in their class's colour (white without one), the same size on screen at any zoom; pointed at, who, where and
 how long ago; clicked, a waypoint on them (`ns.Maps.Place`). The dots are Share's own frames on `WorldMapFrame`'s canvas
-(`ScrollContainer.Child`), placed every 0.2 s by a frame that is the map's child, so nothing runs while the map is
-closed and no script of the map's is hooked. A friend's zone is put on the map shown through `C_Map.GetWorldPosFromMapPos`
-and `GetMapPosFromWorldPos`; with OpenMap's stitched map showing, through its public `OpenMapAPI.CanvasFromWorldPos`
+(`ScrollContainer.Child`), looked at every 0.2 s by a frame that is the map's child, so nothing runs while the map is
+closed and no script of the map's is hooked; placed again only when a place, the map shown, its size or zoom changed
+(with OpenMap's stitched view, which moves under the same map, each time). A friend's zone is put on the map shown through `C_Map.GetWorldPosFromMapPos`
+and `GetMapPosFromWorldPos`; with OpenMap's stitched map showing (asked first: its canvas isn't the zone's), through
+its public `OpenMapAPI.CanvasFromWorldPos`
 (above `ArtTopLevel`), which its docs give for an addon that puts frames on the canvas.
 
 ## In searches

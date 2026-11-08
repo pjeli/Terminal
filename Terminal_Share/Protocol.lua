@@ -59,7 +59,8 @@ SSH.RETRY_EVERY = 600      -- s: a friend who didn't answer is said hello to aga
 SSH.WHERE_LOOK = 2         -- s between looks at where you are
 SSH.WHERE_EVERY = 15       -- s between places sent while you move (more with many friends: WHERE_PER_FRIEND each)
 SSH.WHERE_PER_FRIEND = 3   -- (a message per friend each time: ten friends moving are one every 3 s, the queue's 1/s kept for bags)
-SSH.WHERE_STILL = 60       -- s between places sent while you stand still (their row stays)
+SSH.WHERE_MOST = 90        -- s between places at most, however many friends (well under WHERE_GONE: their dot stays)
+SSH.WHERE_STILL = 60       -- s between places sent while you stand still (their row stays; never more often than moving)
 SSH.WHERE_GONE = 150       -- s without word before a friend's place is dropped
 SSH.WHERE_MOVED = 0.002    -- (a move this small on a zone's map isn't one)
 
@@ -771,9 +772,10 @@ function E:Send(route, text, tag, f, peer)
 	if f then f.queued = (f.queued or 0) + 1 end
 	if peer then peer.queuedMsg = m end -- (not timed out while it waits)
 	local at = #self.queue + 1
-	if not tag or tag:sub(1, 5) == "ping:" then
+	if not tag or tag:sub(1, 5) == "ping:" or tag:sub(1, 6) == "where:" then
 		-- (a ping too: 0.60.0 review, behind a big first sync to others, friends who had theirs heard nothing for half
-		-- an hour and dropped you) (a handshake goes before any friend's items still waiting: it has HANDSHAKE_TIMEOUT
+		-- an hour and dropped you. And where you are: 1.2.5 review, a newer one took a waiting one's place at the end
+		-- of the queue each time, behind a friend's snapshot, and never went) (a handshake goes before any friend's items still waiting: it has HANDSHAKE_TIMEOUT
 		-- to be answered. An answer, C A K, before hellos too: a login's hellos to every friend, most not running
 		-- Terminal, and an answer waited behind them past the other side's timeout, never connecting.)
 		local hello = text:sub(2, 2) == "H"
@@ -978,6 +980,7 @@ function E:Drop(f, why)
 		local m = self.queue[i]
 		if m.f == f or m.tag == ping or m.tag == where then self:Unqueue(i) end
 	end
+	if f.where then self.placesGen = (self.placesGen or 0) + 1 end -- (their dot goes)
 	if why then self.env.say(L["Share: %s disconnected (%s)"]:format(f.name or "?", why)) end
 	if HasData(f) then self.env.changed() end
 end
@@ -1362,14 +1365,21 @@ function E:Receive(route, text)
 		if not f then return self:Stranger(route, p) end
 		f.last = now
 		if rest == "" then
-			if f.where then f.where = nil; self.env.changed() end
+			if f.where then f.where = nil; self.placesGen = (self.placesGen or 0) + 1; self.env.changed() end
 			return
 		end
 		local m, x, y, class = rest:match("^(%d+),(%d+),(%d+),?(%u*)$")
 		m, x, y = tonumber(m), tonumber(x), tonumber(y)
 		if not (m and x and y and m > 0 and m < 1e6 and x <= 10000 and y <= 10000) then return end
-		f.where = { map = m, x = x / 10000, y = y / 10000, at = now, class = class ~= "" and #class <= 16 and class or nil }
-		self.env.changed()
+		class = class ~= "" and #class <= 16 and class or nil
+		-- (the rows made again only when what a row shows changed: the zone, x and y to the whole number, the class.
+		-- Every place made all of @shared again, a friend's thousands of items with it: 1.2.5 review. The map's dots
+		-- follow placesGen, every move)
+		local shown = m .. ":" .. floor(x / 100 + 0.5) .. ":" .. floor(y / 100 + 0.5) .. ":" .. (class or "")
+		local had = f.where
+		f.where = { map = m, x = x / 10000, y = y / 10000, at = now, class = class, shown = shown }
+		self.placesGen = (self.placesGen or 0) + 1
+		if not (had and had.shown == shown) then self.env.changed() end
 	elseif letter == "B" then
 		local f = p and p.claim and self.friends[p.claim]
 		if f and (p.state == "up" or p.wasUp) then
@@ -1501,13 +1511,13 @@ function E:Tick()
 	for _, f in pairs(self.friends) do
 		if f.where and now - f.where.at >= SSH.WHERE_GONE then f.where, stale = nil, true end
 	end
-	if stale then self.env.changed() end
+	if stale then self.placesGen = (self.placesGen or 0) + 1; self.env.changed() end
 end
 
 ----------------------------------------------------------------------
--- Where you are (1.2.2): "W map,x,y" to friends connected while you share it with them, x and y in ten-thousandths
--- of the zone's map; "W" alone: stopped (turned off, or in an instance). Shared or not in each group: the group's own
--- setting when it has one (.share <group> location on|off), else the global one (.share settings location; off by
+-- Where you are (1.2.2): "W map,x,y,CLASS" to friends connected while you share it with them, x and y in
+-- ten-thousandths of the zone's map, CLASS your class's file name (1.2.3: their dot's colour; may be empty); "W" alone: stopped (turned off, or in an instance). Shared or not in each group: the group's own
+-- setting when it has one (.share <group> location on|off; 1.2.3), else the global one (.share settings location; off by
 -- default): a group's own wins (the player: "per-group having priority"). A friend has it when any group you have in
 -- common shares it. A friend on an older Terminal: Share lets it be (no letter it reads). Nothing they send is kept
 -- past WHERE_GONE without word, nor saved.
@@ -1516,8 +1526,9 @@ end
 --- Sharing where you are, globally: every group without its own setting (said to friends at once).
 function E:SetWhere(on)
 	self.whereOn = on and true or false
-	self.whereAt = nil
-	if self:On() then self:SendWhere(true) end
+	-- (only the friends whose share changed are sent anything: those it no longer goes to "stopped", those it now
+	-- goes to your place; a forced send was one to every friend, each Enter on the row. 1.2.5 review)
+	if self:On() then self:SendWhere() end
 end
 
 --- One group's own setting: true or false, or nil to follow the global one (said to friends at once).
@@ -1525,8 +1536,7 @@ function E:SetGroupWhere(name, on)
 	local g = self.groups[name]
 	if not g then return false end
 	if on == nil then g.where = nil else g.where = on and true or false end
-	self.whereAt = nil
-	if self:On() then self:SendWhere(true) end
+	if self:On() then self:SendWhere() end
 	return true
 end
 
@@ -1585,7 +1595,10 @@ function E:SendWhere(force)
 		end
 	end
 	local moved = not last or last.map ~= m or math.abs(x - last.x) > SSH.WHERE_MOVED or math.abs(y - last.y) > SSH.WHERE_MOVED
-	local every = moved and math.max(SSH.WHERE_EVERY, n * SSH.WHERE_PER_FRIEND) or SSH.WHERE_STILL
+	-- (with many friends less often, never past WHERE_MOST; standing still never more often than moving. 1.2.5 review:
+	-- past 20 friends still was the more often, past 50 moving reached WHERE_GONE)
+	local every = math.min(SSH.WHERE_MOST, math.max(SSH.WHERE_EVERY, n * SSH.WHERE_PER_FRIEND))
+	if not moved then every = math.max(SSH.WHERE_STILL, every) end
 	if not force and last and now - last.at < every then
 		-- (shared with them since, a group turned on: theirs now, the place last sent)
 		for _, f in pairs(self.friends) do
@@ -1605,7 +1618,8 @@ function E:WhereTo(f)
 	local w = self.whereLast
 	if not (w and f and f.route) then return end
 	f.toldWhere = true
-	f.pingAt = self:Now() -- (it says you're still here: no ping needed besides)
+	-- (not counted as "still here": an older Terminal: Share doesn't read W, and with your pings put off by it dropped
+	-- you after 30 minutes. 1.2.5 review)
 	self:Send(f.route, SSH.V .. "W " .. w.text, "where:" .. f.claim)
 end
 
@@ -1633,6 +1647,7 @@ function E:Off()
 	self.groupGen = self.groupGen + 1
 	self.tried, self.retryAt = {}, nil
 	self.whereLast = nil -- (your place: said again to whoever connects next, if you still share it)
+	self.placesGen = (self.placesGen or 0) + 1 -- (friends' dots go with them)
 	-- (the goodbyes through the queue: what the game says wait to goes a second later, the ticker kept until they're
 	-- all gone. Review)
 	for _, r in ipairs(byes) do self:Send(r, SSH.V .. "B") end

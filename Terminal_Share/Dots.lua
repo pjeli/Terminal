@@ -1,6 +1,6 @@
 -- (Terminal: Share, an addon of its own: Terminal's namespace is its public table, _G.Terminal. Not loaded, nothing of
 -- this runs.)
--- Friends on the world map (1.2.2, the player: "player locations should show up as a dot. Regular class-colored dot"):
+-- Friends on the world map (1.2.3, the player: "player locations should show up as a dot. Regular class-colored dot"):
 -- each friend who shares where they are (.share settings location) is a dot in their class's colour where they stand,
 -- on the world map while it's open; pointed at, who and where; clicked, a waypoint on them. Nothing runs while the map
 -- is closed: the dots are placed by a frame of the map's own, a few times a second while it shows.
@@ -57,18 +57,20 @@ end
 function D.OnMap(map, x, y, shown)
 	local M = C_Map
 	if not (M and shown and map) then return nil end
-	if map == shown then return x, y end
-	if not (M.GetWorldPosFromMapPos and M.GetMapPosFromWorldPos) then return nil end
+	local OM = _G.OpenMapAPI
+	local stitched = OM and OM.IsStitched and OM.CanvasFromWorldPos and Safe(OM.IsStitched)
+	if map == shown and not stitched then return x, y end -- (OpenMap's stitched canvas isn't the zone's: asked of it)
+	if not (M.GetWorldPosFromMapPos and (stitched or M.GetMapPosFromWorldPos)) then return nil end
 	local cont, world = Safe(M.GetWorldPosFromMapPos, map, Vec(x, y))
 	cont = Num(cont)
 	if not (cont and world) then return nil end
-	local OM = _G.OpenMapAPI
-	if OM and OM.IsStitched and Safe(OM.IsStitched) and OM.CanvasFromWorldPos then
+	if stitched then
+		-- (past 0-1 is still on it: the stitched view shows beyond its own map's rectangle, its docs say)
 		local wx, wy = XY(world)
 		if not wx then return nil end
 		local u, v = Safe(OM.CanvasFromWorldPos, cont, wx, wy)
 		u, v = Num(u), Num(v)
-		if u and v then return u, v end
+		if u and v and u > -1 and u < 2 and v > -1 and v < 2 then return u, v end
 		return nil
 	end
 	local _, pos = Safe(M.GetMapPosFromWorldPos, cont, world, shown)
@@ -136,16 +138,21 @@ end
 --- The dots placed on the map shown, a friend each (none while it's closed, or nobody shares theirs).
 function D.Refresh()
 	local canvas, W, sc = Canvas()
-	if not (canvas and W and W:IsShown()) then HideFrom(1) return end
+	if not (canvas and W and W:IsShown()) then HideFrom(1); D.lastSig = nil return end
 	local ep = SSH.game
-	local list = ep and ep:Places() or {}
 	local shown = W.GetMapID and Num(Safe(W.GetMapID, W))
 	local cw, ch = canvas:GetWidth(), canvas:GetHeight()
-	if not (shown and cw and ch and cw > 0 and ch > 0) then HideFrom(1) return end
+	if not (shown and cw and ch and cw > 0 and ch > 0) then HideFrom(1); D.lastSig = nil return end
 	-- (the dot the same size on screen at any zoom: the canvas scales with it)
 	local scale = sc.GetCanvasScale and Num(Safe(sc.GetCanvasScale, sc)) or 1
 	local size = D.SIZE / ((scale and scale > 0) and scale or 1)
 	local OM = _G.OpenMapAPI
+	local stitched = OM and OM.IsStitched and Safe(OM.IsStitched)
+	-- (the same places on the same map at the same size and zoom: nothing to do. Every 0.2 s it worked each friend's
+	-- spot out again and set every dot: 1.2.5 review. OpenMap's stitched view moves under the same map: each time)
+	local sig = tostring(ep and ep.placesGen or 0) .. ":" .. shown .. ":" .. cw .. ":" .. ch .. ":" .. tostring(scale)
+	if not stitched and sig == D.lastSig then return D.lastUsed end
+	local list = ep and ep:Places() or {}
 	local level = canvas:GetFrameLevel() + 20
 	if OM and OM.ArtTopLevel then level = math.max(level, (Num(Safe(OM.ArtTopLevel)) or 0) + 1) end
 	local used = 0
@@ -164,6 +171,7 @@ function D.Refresh()
 		end
 	end
 	HideFrom(used + 1)
+	D.lastSig, D.lastUsed = sig, used
 	return used
 end
 

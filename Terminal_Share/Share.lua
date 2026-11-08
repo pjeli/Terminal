@@ -214,7 +214,8 @@ local function PlaceTooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
 	t:AddLine(("%s  %.1f, %.1f"):format(e.zone or "?", e.px, e.py), 1, 1, 1)
 	local ep = SSH.game
-	local ago = ep and (ep:Now() - e.at) or 0
+	local w = e.friend and e.friend.where -- (heard since the row was made: rows are made again only when it moves)
+	local ago = ep and (ep:Now() - (w and w.at or e.at)) or 0
 	if ago >= 60 then t:AddLine(L["Updated %s"]:format(ns.Ago(ago)), 0.8, 0.8, 0.8) end
 	t:AddLine(L["Where they are, as they share it (.share settings location)"], 0.6, 0.6, 0.6, true)
 	if ns.Maps and ns.Maps.KeysHint then ns.KeyHints(t, ns.Maps.KeysHint(), 0.6, 0.6, 0.6, true) end
@@ -229,7 +230,7 @@ local function PlaceRow(w)
 	if I and I.SpotXY then cont, wx, wy = I.SpotXY(w.map, { px, py }) end
 	local row = {
 		key = "where:" .. tostring(w.friend.claim), name = w.name, icon = PLACE_ICON, owner = w.name,
-		detail = ("%s  %.0f, %.0f"):format(zone or "?", px, py), zone = zone, at = w.at,
+		detail = ("%s  %.0f, %.0f"):format(zone or "?", px, py), zone = zone, at = w.at, friend = w.friend,
 		text = "shared friend friends where " .. Lower(w.name) .. " " .. Lower(zone or ""),
 		ui = w.map, px = px, py = py, wcont = cont, wx = wx, wy = wy, pinName = w.name, tooltip = PlaceTooltip,
 	}
@@ -250,13 +251,14 @@ function SP.Question(text)
 	if not t then return nil end
 	t = t:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
 	-- "where is bob": only a friend who shares where they are (else it's a search: "where is hogger")
-	local who = t:match("^where i?s (%S+)$") or t:match("^wheres (%S+)$") or t:match("^where is (%S+) now$")
+	-- (a name may have a surname on Forever, "Plamen Warr": the whole name or its first word; 1.2.5 review. Nobody by
+	-- that name: on to the words below, "where is my friend" is still asked)
+	local who = t:match("^where is (.+) now$") or t:match("^where i?s (.+)$") or t:match("^wheres (.+)$")
 	if who and SSH.game then
 		for _, w in ipairs(SSH.game:Places()) do
-			local n = Lower(w.name)
-			if n == who or n:match("^[^%-]+") == who then return { who = n:match("^[^%-]+") } end
+			local n = Lower(w.name):match("^[^%-]+") or Lower(w.name)
+			if n == who or n:match("^(%S+)") == who then return { who = n } end
 		end
-		return nil
 	end
 	local friends, strong = false, false
 	for w in t:gmatch("%S+") do
@@ -269,7 +271,8 @@ end
 function SP.Line(q) return "@shared where " .. (q and q.who and (q.who .. " ") or "") end
 function SP.Footer() return L["Where your friends are"] end
 function SP.None()
-	local on = SSH.Setting and SSH.Setting("location")
+	-- (shared in a group of its own counts: the global setting off isn't "yours is off"; 1.2.5 review)
+	local on = SSH.game and SSH.game:WhereAny()
 	return { ns.NoteRow(L["No friend shares where they are now: each turns it on with .share settings location on."]
 		.. (on and "" or (" " .. L["Yours is off too."]))) }
 end
@@ -346,7 +349,9 @@ SSH.MODES = MODES
 -- (a group can't be named as a word .share takes)
 local RESERVED = { password = true, pass = true, pw = true, join = true, leave = true, off = true, connect = true, rename = true,
 	debug = true, status = true, share = true, invite = true, accept = true, decline = true, code = true, newcode = true,
-	kick = true, new = true, create = true, settings = true, setting = true }
+	kick = true, new = true, create = true, settings = true, setting = true,
+	-- (the values .share settings and .share <group> location take: a group called "on" took them; 1.2.5 review)
+	on = true, toggle = true, yes = true, no = true, ["true"] = true, ["false"] = true, global = true, location = true, loc = true }
 for m in pairs(MODES) do RESERVED[m] = true end
 SSH.RESERVED = RESERVED
 
@@ -378,7 +383,7 @@ SSH.SETTINGS = {
 		default = false,
 		name = L["Share your location"],
 		desc = L["Friends you're connected to by Share see where you are: a class-coloured dot on their world map, and a row in their searches (Enter: a waypoint on you). Sent as you move, every 15 s (every minute standing still), never from a dungeon, raid or battleground. A group's own setting (.share <group> location on or off) wins over this one."],
-		words = "location position coordinates map waypoint whereabouts gps",
+		words = "location position coordinates map waypoint gps", -- (no "where...": "@shared where" is friends' places)
 		apply = function(on) if SSH.game then SSH.game:SetWhere(on) end end,
 	},
 }
@@ -410,6 +415,17 @@ end
 
 local function OnOffText(v) return v and ("|cff40ff40" .. L["on"] .. "|r") or ("|cffff6060" .. L["off"] .. "|r") end
 
+-- a value typed for an on/off setting: true, false, "toggle", "global" (a group's own back to the global setting), or nil
+local ON_OFF = { on = true, ["true"] = true, yes = true, ["1"] = true, off = false, ["false"] = false, no = false, ["0"] = false,
+	toggle = "toggle", global = "global", default = "global", reset = "global" }
+local function ParseOnOff(value) return ON_OFF[Lower(value or "")] end
+
+-- the terminal drawn again (a setting's row says its new value)
+local function Redraw()
+	local U = ns.UI
+	if U and U.IsShown and U:IsShown() and U.Render then pcall(U.Render, U) end
+end
+
 local function GroupNames(ep)
 	local names = {}
 	for n in pairs(ep and ep.groups or {}) do names[#names + 1] = n end
@@ -435,17 +451,14 @@ function SSH.SetGroupLocation(ep, name, v)
 	return true
 end
 
---- .share <group> location [on|off|default].
+--- .share <group> location [on|off|global] (default: global, as well).
 function SSH.GroupLocationCmd(ep, name, value)
 	value = Lower(value or "")
 	if not ep.groups[name] then return { L["Share: you're not in %s"]:format(name) } end
 	if value == "" then return { L["Share: your location in %s: %s"]:format(name, SSH.GroupLocationText(ep, name)) } end
-	local v
-	if value == "on" or value == "true" or value == "yes" or value == "1" then v = true
-	elseif value == "off" or value == "false" or value == "no" or value == "0" then v = false
-	elseif value == "toggle" then v = not ep:GroupWhere(ep.groups[name])
-	elseif value == "default" or value == "global" or value == "reset" then v = nil
-	else return { L["Share: .share %s location on, off or default (default: as the global setting)"]:format(name) } end
+	local v = ParseOnOff(value)
+	if v == nil then return { L["Share: .share %s location on, off or global (global: as the global setting)"]:format(name) } end
+	if v == "toggle" then v = not ep:GroupWhere(ep.groups[name]) elseif v == "global" then v = nil end
 	SSH.SetGroupLocation(ep, name, v)
 	return { L["Share: your location in %s: %s"]:format(name, SSH.GroupLocationText(ep, name)) }
 end
@@ -459,7 +472,7 @@ function SSH.SettingsLines()
 	end
 	local ep = SSH.game
 	for _, n in ipairs(GroupNames(ep)) do
-		lines[#lines + 1] = "  " .. L["location in %s: %s (.share %s location on, off or default)"]:format(n, SSH.GroupLocationText(ep, n), n)
+		lines[#lines + 1] = "  " .. L["location in %s: %s (.share %s location on, off or global)"]:format(n, SSH.GroupLocationText(ep, n), n)
 	end
 	return lines
 end
@@ -484,11 +497,9 @@ function SSH.SettingsCmd(rest)
 		return { L["Share: no setting called %s; .share settings list shows them"]:format(key) }
 	end
 	if value == "" then return { L["Share: %s is %s (.share settings %s on or off)"]:format(s.name, OnOffText(SSH.Setting(key)), key) } end
-	local v
-	if value == "on" or value == "true" or value == "1" or value == "yes" then v = true
-	elseif value == "off" or value == "false" or value == "0" or value == "no" then v = false
-	elseif value == "toggle" then v = not SSH.Setting(key) end
-	if v == nil then return { L["Share: .share settings %s on or off"]:format(key) } end
+	local v = ParseOnOff(value)
+	if v == "toggle" then v = not SSH.Setting(key) end
+	if type(v) ~= "boolean" then return { L["Share: .share settings %s on or off"]:format(key) } end
 	SSH.SetSetting(key, v)
 	local out = { L["Share: %s: %s"]:format(s.name, OnOffText(v)) }
 	-- (a group with its own says so: it wins over this)
@@ -516,8 +527,7 @@ local function SettingEnter(e)
 	local v = not SSH.Setting(key)
 	SSH.SetSetting(key, v)
 	ns:Print(L["Share: %s: %s"]:format(e.name, OnOffText(v)))
-	local U = ns.UI
-	if U and U.IsShown and U:IsShown() and U.Render then pcall(U.Render, U) end
+	Redraw()
 end
 
 local function GroupSettingTooltip(e, t)
@@ -525,7 +535,7 @@ local function GroupSettingTooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
 	t:AddLine(L["Friends in this group see where you are. This group's own setting wins over the global one (Share your location); without one, it follows it."], 1, 1, 1, true)
 	t:AddDoubleLine(L["Now"], SSH.GroupLocationText(ep, e.shareGroup), 1, 1, 1, 1, 1, 1)
-	t:AddLine(".share " .. e.shareGroup .. " location on, off or default", 0.6, 0.6, 0.6, true)
+	t:AddLine(".share " .. e.shareGroup .. " location on, off or global", 0.6, 0.6, 0.6, true)
 	local own = ep.groups[e.shareGroup] and ep.groups[e.shareGroup].where ~= nil
 	ns.KeyHints(t, own and L["Enter: turn it on or off    Shift+Enter: as the global setting again"] or L["Enter: turn it on or off"], 0.6, 0.6, 0.6, true)
 end
@@ -536,8 +546,7 @@ local function GroupSettingEnter(e)
 	if not g then return end
 	SSH.SetGroupLocation(ep, e.shareGroup, not ep:GroupWhere(g))
 	ns:Print(L["Share: your location in %s: %s"]:format(e.shareGroup, SSH.GroupLocationText(ep, e.shareGroup)))
-	local U = ns.UI
-	if U and U.IsShown and U:IsShown() and U.Render then pcall(U.Render, U) end
+	Redraw()
 end
 
 local function GroupSettingReset(e)
@@ -545,8 +554,7 @@ local function GroupSettingReset(e)
 	if not (ep and ep.groups[e.shareGroup]) then return end
 	SSH.SetGroupLocation(ep, e.shareGroup, nil)
 	ns:Print(L["Share: your location in %s: %s"]:format(e.shareGroup, SSH.GroupLocationText(ep, e.shareGroup)))
-	local U = ns.UI
-	if U and U.IsShown and U:IsShown() and U.Render then pcall(U.Render, U) end
+	Redraw()
 end
 
 --- The settings as rows (in @shared: "share settings"; not in "terminal settings", Terminal's own, Simple mode would split it in two).
@@ -712,10 +720,11 @@ SSH.LOGIN_WAIT = 5
 function SSH.Remember(group, key, mode, code)
 	local db = Saved()
 	-- (a group's code, when it has one, kept with its key: .share code shows it again, an invite sends it)
-	-- (and its own location setting, 1.2.2: kept when the group is remembered again)
+	-- (and its own location setting, 1.2.3: kept when the same group is remembered again; another group by its name,
+	-- joined with another code, follows the global setting, as it does until a /reload. 1.2.5 review)
 	local old = db.groups[group]
 	local loc -- (false kept as false: "x and false or nil" is nil)
-	if type(old) == "table" and type(old.location) == "boolean" then loc = old.location end
+	if key and type(old) == "table" and type(old.location) == "boolean" and old.key == C.Hex(key) then loc = old.location end
 	if key then db.groups[group] = { key = C.Hex(key), mode = mode, kdf = SSH.CODE_ID, code = code, location = loc }
 	else db.groups[group] = nil end
 end
@@ -739,7 +748,7 @@ local function Remembered()
 			if not code then stale[#stale + 1] = name
 			else
 				local loc
-				if type(g.location) == "boolean" then loc = g.location end -- (a group's own off: false, not nil)
+				if type(g.location) == "boolean" then loc = g.location end -- (a group's own off: false, not nil; 1.2.3)
 				out[name], n = { key = Unhex(hex), mode = MODES[g.mode] and g.mode or nil, code = code, location = loc }, n + 1
 			end
 		end

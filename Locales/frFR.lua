@@ -3467,10 +3467,10 @@ L["Enter: turn it on or off    Shift+Enter: as the global setting again"] = "Ent
 L["Friends in this group see where you are. This group's own setting wins over the global one (Share your location); without one, it follows it."] = "Les amis de ce groupe voient où vous êtes. Le réglage propre à ce groupe l'emporte sur le réglage global (Partager votre position) ; sans réglage propre, il suit le global."
 L["Friends you're connected to by Share see where you are: a class-coloured dot on their world map, and a row in their searches (Enter: a waypoint on you). Sent as you move, every 15 s (every minute standing still), never from a dungeon, raid or battleground. A group's own setting (.share <group> location on or off) wins over this one."] = "Les amis auxquels vous êtes connecté par Share voient où vous êtes : un point de la couleur de votre classe sur leur carte du monde, et une ligne dans leurs recherches (Entrée : un point de passage sur vous). Envoyé pendant que vous bougez, toutes les 15 s (chaque minute à l'arrêt), jamais depuis un donjon, un raid ou un champ de bataille. Le réglage propre d'un groupe (.share <groupe> location on ou off) l'emporte sur celui-ci."
 L["Share your location in %s"] = "Partager votre position dans %s"
-L["Share: .share %s location on, off or default (default: as the global setting)"] = "Share : .share %s location on, off ou default (default : comme le réglage global)"
+L["Share: .share %s location on, off or global (global: as the global setting)"] = "Share : .share %s location on, off ou global (global : comme le réglage global)"
 L["Share: your location in %s: %s"] = "Share : votre position dans %s : %s"
 L["Terminal: Share. Click: a waypoint on them"] = "Terminal : Share. Clic : un point de passage sur eux"
-L["location in %s: %s (.share %s location on, off or default)"] = "position dans %s : %s (.share %s location on, off ou default)"
+L["location in %s: %s (.share %s location on, off or global)"] = "position dans %s : %s (.share %s location on, off ou global)"
 L["your location too"] = "votre position aussi"
 L["%s asked Terminal a question (!t) in %s chat. To let Terminal answer these for you, type %s"] = "%s a posé une question à Terminal (!t) dans le canal %s. Pour que Terminal y réponde pour toi, tape %s"
 --@end-do-not-package@

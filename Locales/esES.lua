@@ -3467,10 +3467,10 @@ L["Enter: turn it on or off    Shift+Enter: as the global setting again"] = "Ent
 L["Friends in this group see where you are. This group's own setting wins over the global one (Share your location); without one, it follows it."] = "Los amigos de este grupo ven dónde estás. El ajuste propio de este grupo tiene prioridad sobre el global (Compartir tu ubicación); sin uno propio, sigue al global."
 L["Friends you're connected to by Share see where you are: a class-coloured dot on their world map, and a row in their searches (Enter: a waypoint on you). Sent as you move, every 15 s (every minute standing still), never from a dungeon, raid or battleground. A group's own setting (.share <group> location on or off) wins over this one."] = "Los amigos con los que estás conectado por Share ven dónde estás: un punto del color de tu clase en su mapa del mundo y una fila en sus búsquedas (Enter: un punto de ruta sobre ti). Se envía mientras te mueves, cada 15 s (cada minuto si estás quieto), nunca desde una mazmorra, banda o campo de batalla. El ajuste propio de un grupo (.share <grupo> location on u off) tiene prioridad sobre este."
 L["Share your location in %s"] = "Compartir tu ubicación en %s"
-L["Share: .share %s location on, off or default (default: as the global setting)"] = "Share: .share %s location on, off o default (default: como el ajuste global)"
+L["Share: .share %s location on, off or global (global: as the global setting)"] = "Share: .share %s location on, off o global (global: como el ajuste global)"
 L["Share: your location in %s: %s"] = "Share: tu ubicación en %s: %s"
 L["Terminal: Share. Click: a waypoint on them"] = "Terminal: Share. Clic: un punto de ruta sobre ellos"
-L["location in %s: %s (.share %s location on, off or default)"] = "ubicación en %s: %s (.share %s location on, off o default)"
+L["location in %s: %s (.share %s location on, off or global)"] = "ubicación en %s: %s (.share %s location on, off o global)"
 L["your location too"] = "tu ubicación también"
 L["%s asked Terminal a question (!t) in %s chat. To let Terminal answer these for you, type %s"] = "%s le hizo una pregunta a Terminal (!t) en el chat de %s. Para que Terminal responda estas preguntas por ti, escribe %s"
 --@end-do-not-package@
