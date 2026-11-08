@@ -417,7 +417,8 @@ function SSH.KeyOfCode(code) return C.HMAC(SSH.CODE_SALT, code) end
 --   proven(claim, route)      (optional) a way just proven for that claim
 --   offered                 (optional) an invite came in, or went (the badge, the prompt's suggestion)
 --   joined(name, key, mode, code)  (optional) a group joined by an invite: remember it
---   where()                 (optional) where you are: a zone's uiMapID and x, y on it (0-1), or nil (an instance, unknown)
+--   where()                 (optional) where you are: a zone's uiMapID and x, y on it (0-1), and your class's file name
+--                           (MAGE), or nil (an instance, unknown)
 -- route: { kind = "whisper", target = "Bob-Realm" } | { kind = "guild", target = sender } | { kind = "bn", id = n,
 --   name = character, bnetID = account id }
 
@@ -959,7 +960,7 @@ function E:Up(p)
 		self:Send(p.route, SSH.V .. "R n")
 	end
 	-- (where you are, while you share it: a friend new, or by a new way, has it at once)
-	if self.whereLast and (new or not same) then self:WhereTo(f) end
+	if self.whereLast and (new or not same) and self:WhereFor(f) then self:WhereTo(f) end
 end
 
 local function HasData(f) return next(f.items) ~= nil or f.gold ~= nil end
@@ -1355,7 +1356,8 @@ function E:Receive(route, text)
 		if not f then return self:Stranger(route, p) end
 		f.last = now
 	elseif letter == "W" then
-		-- (where they are: "W map,x,y", x and y in ten-thousandths; "W" alone, they stopped sharing it)
+		-- (where they are: "W map,x,y,CLASS", x and y in ten-thousandths, their class's file name for the dot's colour;
+		-- "W" alone, they stopped sharing it)
 		local f = p and (p.state == "up" or p.wasUp) and self.friends[p.claim]
 		if not f then return self:Stranger(route, p) end
 		f.last = now
@@ -1363,10 +1365,10 @@ function E:Receive(route, text)
 			if f.where then f.where = nil; self.env.changed() end
 			return
 		end
-		local m, x, y = rest:match("^(%d+),(%d+),(%d+)$")
+		local m, x, y, class = rest:match("^(%d+),(%d+),(%d+),?(%u*)$")
 		m, x, y = tonumber(m), tonumber(x), tonumber(y)
 		if not (m and x and y and m > 0 and m < 1e6 and x <= 10000 and y <= 10000) then return end
-		f.where = { map = m, x = x / 10000, y = y / 10000, at = now }
+		f.where = { map = m, x = x / 10000, y = y / 10000, at = now, class = class ~= "" and #class <= 16 and class or nil }
 		self.env.changed()
 	elseif letter == "B" then
 		local f = p and p.claim and self.friends[p.claim]
@@ -1503,44 +1505,99 @@ function E:Tick()
 end
 
 ----------------------------------------------------------------------
--- Where you are (1.2.2): "W map,x,y" to every friend connected while you share it (.share settings location on; off
--- by default), x and y in ten-thousandths of the zone's map; "W" alone: stopped (turned off, or in an instance). A
--- friend on an older Terminal: Share lets it be (no letter it reads). Only friends connected get it, in whichever group;
--- nothing they send is kept past WHERE_GONE without word, nor saved.
+-- Where you are (1.2.2): "W map,x,y" to friends connected while you share it with them, x and y in ten-thousandths
+-- of the zone's map; "W" alone: stopped (turned off, or in an instance). Shared or not in each group: the group's own
+-- setting when it has one (.share <group> location on|off), else the global one (.share settings location; off by
+-- default): a group's own wins (the player: "per-group having priority"). A friend has it when any group you have in
+-- common shares it. A friend on an older Terminal: Share lets it be (no letter it reads). Nothing they send is kept
+-- past WHERE_GONE without word, nor saved.
 ----------------------------------------------------------------------
 
---- Sharing where you are, on or off (said to friends at once: your place, or that you stopped).
+--- Sharing where you are, globally: every group without its own setting (said to friends at once).
 function E:SetWhere(on)
 	self.whereOn = on and true or false
 	self.whereAt = nil
 	if self:On() then self:SendWhere(true) end
 end
 
---- Where you are, to every friend connected: when you've moved, every WHERE_EVERY s (more with many friends), standing
---- still every WHERE_STILL s; "stopped" once when it's off or the game doesn't say (an instance). `force`: now.
+--- One group's own setting: true or false, or nil to follow the global one (said to friends at once).
+function E:SetGroupWhere(name, on)
+	local g = self.groups[name]
+	if not g then return false end
+	if on == nil then g.where = nil else g.where = on and true or false end
+	self.whereAt = nil
+	if self:On() then self:SendWhere(true) end
+	return true
+end
+
+--- Whether a group shares where you are: its own setting, else the global one.
+function E:GroupWhere(g)
+	if not g then return false end
+	if g.where ~= nil then return g.where end
+	return self.whereOn == true
+end
+
+--- Whether a friend is sent where you are: any group you have in common shares it.
+function E:WhereFor(f)
+	for n in pairs(f and f.groups or {}) do
+		if self:GroupWhere(self.groups[n]) then return true end
+	end
+	return false
+end
+
+--- Whether any group of yours shares it (else where you are isn't even looked at).
+function E:WhereAny()
+	for _, g in pairs(self.groups) do
+		if self:GroupWhere(g) then return true end
+	end
+	return false
+end
+
+local function Stopped(self, f)
+	f.toldWhere = nil
+	self:Send(f.route, SSH.V .. "W", "where:" .. f.claim)
+end
+
+--- Where you are, to the friends it's shared with: when you've moved, every WHERE_EVERY s (more with many friends),
+--- standing still every WHERE_STILL s; "stopped" once to a friend it no longer goes to (turned off, a group's turned
+--- off, an instance). `force`: now.
 function E:SendWhere(force)
 	local now = self:Now()
-	local m, x, y
-	if self.whereOn and self.env.where then m, x, y = self.env.where() end
+	local m, x, y, class
+	if self:WhereAny() and self.env.where then m, x, y, class = self.env.where() end
+	class = type(class) == "string" and class:match("^%u+$") and #class <= 16 and class or ""
 	m, x, y = tonumber(m), tonumber(x), tonumber(y)
 	local last = self.whereLast
 	if not (m and x and y and m > 0 and x >= 0 and x <= 1 and y >= 0 and y <= 1) then
-		if last then
-			self.whereLast = nil
-			for _, f in pairs(self.friends) do
-				if f.toldWhere then f.toldWhere = nil; self:Send(f.route, SSH.V .. "W", "where:" .. f.claim) end
-			end
+		self.whereLast = nil
+		for _, f in pairs(self.friends) do
+			if f.toldWhere then Stopped(self, f) end
 		end
 		return
 	end
-	local moved = not last or last.map ~= m or math.abs(x - last.x) > SSH.WHERE_MOVED or math.abs(y - last.y) > SSH.WHERE_MOVED
+	-- (no longer shared with them, a group turned off: told you stopped)
 	local n = 0
-	for _ in pairs(self.friends) do n = n + 1 end
+	for _, f in pairs(self.friends) do
+		if not self:WhereFor(f) then
+			if f.toldWhere then Stopped(self, f) end
+		else
+			n = n + 1
+		end
+	end
+	local moved = not last or last.map ~= m or math.abs(x - last.x) > SSH.WHERE_MOVED or math.abs(y - last.y) > SSH.WHERE_MOVED
 	local every = moved and math.max(SSH.WHERE_EVERY, n * SSH.WHERE_PER_FRIEND) or SSH.WHERE_STILL
-	if not force and last and now - last.at < every then return end
+	if not force and last and now - last.at < every then
+		-- (shared with them since, a group turned on: theirs now, the place last sent)
+		for _, f in pairs(self.friends) do
+			if not f.toldWhere and self:WhereFor(f) then self:WhereTo(f) end
+		end
+		return
+	end
 	self.whereLast = { map = m, x = x, y = y, at = now,
-		text = ("%d,%d,%d"):format(m, floor(x * 10000 + 0.5), floor(y * 10000 + 0.5)) }
-	for _, f in pairs(self.friends) do self:WhereTo(f) end
+		text = ("%d,%d,%d,%s"):format(m, floor(x * 10000 + 0.5), floor(y * 10000 + 0.5), class) }
+	for _, f in pairs(self.friends) do
+		if self:WhereFor(f) then self:WhereTo(f) end
+	end
 end
 
 --- Your place as last sent, to one friend (a newer one still waiting takes its place in the queue).
@@ -1552,12 +1609,12 @@ function E:WhereTo(f)
 	self:Send(f.route, SSH.V .. "W " .. w.text, "where:" .. f.claim)
 end
 
---- Friends' places now: { { name, map, x, y, at, friend } }, by name.
+--- Friends' places now: { { name, map, x, y, at, class, friend } }, by name.
 function E:Places()
 	local out = {}
 	for _, f in pairs(self.friends) do
 		local w = f.where
-		if w then out[#out + 1] = { name = f.name or "?", map = w.map, x = w.x, y = w.y, at = w.at, friend = f } end
+		if w then out[#out + 1] = { name = f.name or "?", map = w.map, x = w.x, y = w.y, at = w.at, class = w.class, friend = f } end
 	end
 	sort(out, function(a, b) return a.name < b.name end)
 	return out

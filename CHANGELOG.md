@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.3 (in testing)
+
+- Terminal: Share: your location per group as well as for all of them. `.share <group> location on`, `off` or `default`
+  (or `.share settings location <group> ...`, or Enter on **Share your location in <group>**; Shift+Enter puts it back
+  to the global setting). A group's own setting wins over the global one (`.share settings location`); a group without
+  one follows it. A friend sees you when any group you have in common shares it; turned off for a group, its friends
+  are told you stopped. Each group's setting is remembered with the group. `.share` says which groups share it.
+- Friends who share where they are show as a dot in their class's colour on your world map: pointed at, who and where
+  (and how long ago); clicked, a waypoint on them. Also on OpenMap's stitched map, through its public `OpenMapAPI`
+  (`CanvasFromWorldPos`, `ArtTopLevel`). The dots are Terminal: Share's own frames on the map's canvas, placed a few
+  times a second only while the map shows; nothing of the map's own is changed. Your class now goes with your
+  location (a place without one, from a 1.2.2 build, is a white dot).
+
 ## 1.2.2 (in testing)
 
 - Terminal: Share: share where you are with the friends you're connected to. Off by default: `.share settings location on`,

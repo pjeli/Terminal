@@ -189,7 +189,8 @@ friend, or every 2 s per message for a big snapshot; what didn't change isn't se
 5L mark                  I left that group (my mark for it): what you share with me is what's left in common
 5P                       still here (every 10 minutes; queued ahead of friends' items, 0.60.0)
 5B                       goodbye: drop what I sent
-5W map,x,y               (1.2.2) where I am: a zone's uiMapID, x and y on it in ten-thousandths; "5W" alone: I stopped
+5W map,x,y,CLASS         (1.2.2) where I am: a zone's uiMapID, x and y on it in ten-thousandths, my class's file
+                         name (1.2.3, the dot's colour; may be empty); "5W" alone: I stopped
                          (Where friends are, below). An older Terminal: Share lets it be
 ```
 
@@ -236,8 +237,15 @@ joined later; `.share share <mode>` too). A friend gets the modes of the groups 
 ## Where friends are (1.2.2, `.share settings location`)
 
 Off by default. On (`.share settings location on`, or Enter on the **Share your location** row: `.share settings` opens
-the settings as rows), every friend you're connected to, in any group, is sent where you are: the zone's uiMapID and x, y
-on its map, as `C_Map.GetPlayerMapPosition` gives them (`SSH.WhereNow`). Never from a dungeon, raid or battleground
+the settings as rows), friends you're connected to are sent where you are: the zone's uiMapID and x, y on its map, as
+`C_Map.GetPlayerMapPosition` gives them, and your class (`SSH.WhereNow`).
+
+Per group (1.2.3, the player: "per-group having priority"): `.share <group> location on|off|default` (also `.share
+settings location <group> ...`, and a row each, **Share your location in <group>**: Enter on or off, Shift+Enter back to
+the global setting) sets a group's own, kept in `TerminalShareDB.groups[name].location` (`SSH.Remember` keeps it).
+A group's own wins; a group without one follows the global setting (`E:GroupWhere`). A friend is sent it when any
+group you have in common shares it (`E:WhereFor`); a friend it no longer goes to (a group turned off) is sent `5W`
+alone once. Never from a dungeon, raid or battleground
 (`IsInInstance`), nor when the game doesn't say (a secret value, 0, 0). As OpenMap's friends' dots do:
 
 - looked at every `WHERE_LOOK` (2) s by the ticker; sent when you've moved, at most every `WHERE_EVERY` (15) s, or every
@@ -256,6 +264,14 @@ friends", "friends location" (`@shared where`), and "where is bob" only when Bob
 
 `.share settings` (`SSH.SETTINGS`, in `TerminalShareDB.settings`): alone, the settings as rows (`@shared setting`);
 `.share settings list` in chat; `.share settings <name> on|off|toggle`. `.share` says when your location is shared.
+
+**On the world map** (1.2.3, `Terminal_Share/Dots.lua`, the player: "a regular class-colored dot"): each friend's place
+is a dot in their class's colour (white without one), the same size on screen at any zoom; pointed at, who, where and
+how long ago; clicked, a waypoint on them (`ns.Maps.Place`). The dots are Share's own frames on `WorldMapFrame`'s canvas
+(`ScrollContainer.Child`), placed every 0.2 s by a frame that is the map's child, so nothing runs while the map is
+closed and no script of the map's is hooked. A friend's zone is put on the map shown through `C_Map.GetWorldPosFromMapPos`
+and `GetMapPosFromWorldPos`; with OpenMap's stitched map showing, through its public `OpenMapAPI.CanvasFromWorldPos`
+(above `ArtTopLevel`), which its docs give for an addon that puts frames on the canvas.
 
 ## In searches
 

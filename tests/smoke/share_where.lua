@@ -166,3 +166,121 @@ do
 	ep.whereOn = wasOn
 	_G.TerminalShareDB = savedDB
 end
+
+io.write("[share: where you are, per group (a group's own wins) and your class]\n")
+do -- (the player: "allow a global locations setting and a per-group locations setting", "per-group having priority")
+	local hw = ns.Crypto.HMAC
+	ns.Crypto.HMAC = H.QuickHMAC
+	local RAID, DEF = Key("raid group"), Key("default group")
+	local net = Net()
+	local A = net.Add("Ann", { friends = { bob = "Bob", cat = "Cat" } })
+	local B = net.Add("Bob", { friends = { ann = "Ann" } })
+	local C = net.Add("Cat", { friends = { ann = "Ann" } })
+	A.env.where = function() return 1429, 0.4, 0.6, "MAGE" end
+	A:JoinGroup("raid", RAID, nil, true)
+	A:JoinGroup("default", DEF, nil, true)
+	B:JoinGroup("raid", RAID)
+	C:JoinGroup("default", DEF)
+	net.Tick(40)
+	check(Up(B, "Ann") and Up(C, "Ann"), "(Bob in raid, Cat in default, both with Ann)")
+	-- global off, raid's own on: Bob only
+	A:SetGroupWhere("raid", true)
+	net.Tick(2)
+	check(#B:Places() == 1 and #C:Places() == 0, "global off, raid's own on: Bob (raid) sees Ann, Cat (default) doesn't")
+	check(B:Places()[1].class == "MAGE", "her class comes with it (her dot's colour): " .. tostring(B:Places()[1].class))
+	-- global on, raid's own off: Cat only; Bob told she stopped
+	A:SetWhere(true)
+	A:SetGroupWhere("raid", false)
+	net.Tick(2)
+	check(#B:Places() == 0 and #C:Places() == 1, "global on, raid's own off: the group's own wins (Cat sees her, Bob's told she stopped)")
+	-- raid back to the global setting: both
+	A:SetGroupWhere("raid", nil)
+	net.Tick(2)
+	check(#B:Places() == 1 and #C:Places() == 1, "raid back to the global setting (on): both")
+	check(A:GroupWhere(A.groups.raid) and A.groups.raid.where == nil, "(raid follows the global one)")
+	-- a friend in both groups: shared when either shares it
+	A:SetWhere(false)
+	A:SetGroupWhere("default", true)
+	net.Tick(2)
+	check(#B:Places() == 0 and #C:Places() == 1, "global off, default's own on: Cat only")
+	-- an older message without a class still reads
+	B:Receive({ kind = "whisper", target = "Ann" }, "5W 1429,5000,5000")
+	check(#B:Places() == 1 and B:Places()[1].class == nil, "a place without a class (an older 1.2.2 build): read, a white dot")
+	-- .share raid location: the game's commands on an endpoint
+	local savedDB = _G.TerminalShareDB
+	_G.TerminalShareDB = { groups = { raid = { key = "x" } } }
+	local out = SSH.GroupLocationCmd(A, "raid", "on")
+	check(A.groups.raid.where == true and _G.TerminalShareDB.groups.raid.location == true and out[1]:find("raid"),
+		".share raid location on: raid's own, remembered: " .. tostring(out[1]))
+	out = SSH.GroupLocationCmd(A, "raid", "default")
+	check(A.groups.raid.where == nil and _G.TerminalShareDB.groups.raid.location == nil, ".share raid location default: as the global setting again")
+	out = SSH.GroupLocationCmd(A, "nosuch", "on")
+	check(out[1]:find("nosuch"), "a group you're not in: said")
+	-- remembered again (a code shown, a rename): its own setting kept
+	_G.TerminalShareDB.groups.raid.location = false
+	SSH.Remember("raid", string.rep("k", 32), "limited", nil)
+	check(_G.TerminalShareDB.groups.raid.location == false, "the group remembered again: its own location kept")
+	_G.TerminalShareDB = savedDB
+	ns.Crypto.HMAC = hw
+end
+
+io.write("[share: friends as class-coloured dots on the world map]\n")
+do -- (the player: "player locations should show up as a dot. Regular class-colored dot")
+	local D = SSH.Dots
+	local W = _G.WorldMapFrame
+	local was = { sc = rawget(W, "ScrollContainer"), id = rawget(W, "GetMapID"), shown = W.shown, colors = _G.RAID_CLASS_COLORS, map = _G.C_Map,
+		cc = _G.C_ClassColor, friends = SSH.game.friends }
+	local canvas = CreateFrame("Frame")
+	canvas.GetWidth = function() return 1000 end
+	canvas.GetHeight = function() return 600 end
+	canvas.GetFrameLevel = function() return 5 end
+	W.ScrollContainer = { Child = canvas, GetCanvasScale = function() return 2 end }
+	W.GetMapID = function() return 1429 end
+	W.shown = true
+	_G.C_ClassColor = nil
+	_G.RAID_CLASS_COLORS = { MAGE = { r = 0.25, g = 0.78, b = 0.92 } }
+	local now = SSH.game:Now()
+	SSH.game.friends = {
+		["bob@realm"] = { claim = "bob@realm", name = "Bob", items = {}, where = { map = 1429, x = 0.4, y = 0.6, at = now, class = "MAGE" } },
+		["cat@realm"] = { claim = "cat@realm", name = "Cat", items = {}, where = { map = 1411, x = 0.5, y = 0.5, at = now } },
+	}
+	_G.C_Map = setmetatable({ GetWorldPosFromMapPos = function() return nil end }, { __index = was.map })
+	check(D.Start() ~= nil, "a frame of the map's own places them (runs only while it shows)")
+	local n = D.Refresh()
+	local pin = D.pins[1]
+	check(n == 1 and pin and pin.shown and pin.place and pin.place.name == "Bob", "Bob, on the zone shown: a dot; Cat, elsewhere: none")
+	check(pin.w == 6 and pin.h == 6, "the dot's size kept on screen at any zoom (12 at a canvas scale of 2: 6): " .. tostring(pin.w))
+	local r, g, b
+	pin.dot.SetVertexColor = function(_, rr, gg, bb) r, g, b = rr, gg, bb end
+	D.Refresh()
+	check(r == 0.25 and g == 0.78 and b == 0.92, "in his class's colour (a mage's)")
+	-- Cat's zone on the continent shown: placed through the world position
+	_G.C_Map = setmetatable({
+		GetWorldPosFromMapPos = function(m) if m == 1411 then return 1, { x = 100, y = 200 } end end,
+		GetMapPosFromWorldPos = function(cont, world, shown) if cont == 1 and shown == 1429 then return 1429, { x = 0.7, y = 0.2 } end end,
+	}, { __index = was.map })
+	check(D.Refresh() == 2 and D.pins[2].place.name == "Cat", "Cat's zone on the map shown: her dot too")
+	pin.dot.SetVertexColor = function(_, rr, gg, bb) r, g, b = rr, gg, bb end
+	D.Refresh()
+	-- the map closed: hidden
+	W.shown = false
+	D.Refresh()
+	check(not D.pins[1].shown and not D.pins[2].shown, "the map closed: no dots")
+	-- a dot's tooltip and its click: a waypoint on them
+	W.shown = true
+	D.Refresh()
+	local placed
+	local M = ns.Maps
+	local placeWas, printWas = M.Place, ns.Print
+	M.Place = function(t) placed = t return t end
+	ns.Print = function() end
+	D.pins[1].scripts.OnClick(D.pins[1])
+	M.Place, ns.Print = placeWas, printWas
+	check(placed and placed.mapID == 1429 and placed.pos.x == 0.4 and placed.name == "Bob", "a click on Bob's dot: a waypoint on him")
+	local ok = pcall(D.pins[1].scripts.OnEnter, D.pins[1])
+	check(ok, "pointed at: who and where, no error")
+	W.ScrollContainer, W.GetMapID, W.shown = was.sc, was.id, was.shown
+	_G.RAID_CLASS_COLORS, _G.C_Map, _G.C_ClassColor = was.colors, was.map, was.cc
+	SSH.game.friends = was.friends
+	D.Refresh()
+end

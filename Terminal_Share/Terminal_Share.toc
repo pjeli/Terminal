@@ -5,8 +5,9 @@
 ## IconTexture: Interface\Icons\INV_Misc_Bag_10_Blue
 ## Dependencies: Terminal
 ## SavedVariables: TerminalShareDB
-## Version: 1.2.2
+## Version: 1.2.3
 
 Crypto.lua
 Protocol.lua
 Share.lua
+Dots.lua
