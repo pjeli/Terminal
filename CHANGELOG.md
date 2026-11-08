@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.2 (in testing)
+
+- Terminal: Share: share where you are with the friends you're connected to. Off by default: `.share settings location on`,
+  or Enter on **Share your location** (`.share settings` lists Share's settings as rows; `.share settings list` in chat).
+  Each friend who shares it is a `@shared` row with their zone and x, y; Enter opens the map on them with a pin (or
+  TomTom's arrow), and "where are my friends" or "where is bob" asks for them. Sent as you move (every 15 s, every
+  minute standing still), never from a dungeon, raid or battleground; turned off, friends are told you stopped. Only
+  friends connected to you get it, and like everything friends send it's never saved. Friends on an older Terminal:
+  Share ignore it.
+
 ## 1.2.1 (in testing)
 
 - Fixed: with Shift+` (or another Shift chord, Shift+^) bound to Terminal, opening it on a kept search typed the

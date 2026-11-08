@@ -189,6 +189,8 @@ friend, or every 2 s per message for a big snapshot; what didn't change isn't se
 5L mark                  I left that group (my mark for it): what you share with me is what's left in common
 5P                       still here (every 10 minutes; queued ahead of friends' items, 0.60.0)
 5B                       goodbye: drop what I sent
+5W map,x,y               (1.2.2) where I am: a zone's uiMapID, x and y on it in ten-thousandths; "5W" alone: I stopped
+                         (Where friends are, below). An older Terminal: Share lets it be
 ```
 
 `ver` is the session's mark and a count (`a3f01`, `a3f02`...): a /reload's numbers are never taken for the last
@@ -231,6 +233,30 @@ joined later; `.share share <mode>` too). A friend gets the modes of the groups 
 - A wrong code's way is forgotten after a while (`NOANSWER_KEEP`), so it's said hello to again: they may have
   joined since.
 
+## Where friends are (1.2.2, `.share settings location`)
+
+Off by default. On (`.share settings location on`, or Enter on the **Share your location** row: `.share settings` opens
+the settings as rows), every friend you're connected to, in any group, is sent where you are: the zone's uiMapID and x, y
+on its map, as `C_Map.GetPlayerMapPosition` gives them (`SSH.WhereNow`). Never from a dungeon, raid or battleground
+(`IsInInstance`), nor when the game doesn't say (a secret value, 0, 0). As OpenMap's friends' dots do:
+
+- looked at every `WHERE_LOOK` (2) s by the ticker; sent when you've moved, at most every `WHERE_EVERY` (15) s, or every
+  `WHERE_PER_FRIEND` (3) s a friend with many (ten friends: every 30 s, the queue's one a second kept for bags); standing
+  still, every `WHERE_STILL` (60) s, so a friend's row stays;
+- a friend connecting (or by a new way) is sent it at once; each is a queued message tagged `where:<claim>`, a newer
+  one taking a waiting one's place; one sent counts as "still here" (no ping besides);
+- turned off, or in an instance: `5W` alone once, to each friend it was sent to; their row goes;
+- a friend's place heard of no more for `WHERE_GONE` (150) s is dropped. Like everything else they send, it's only
+  in memory.
+
+Their places are `@shared` rows (`E:Places`, `SSH.PlaceRow`): the friend's name, the zone and x, y; spot rows, so Enter
+opens the map on it with the pin (or TomTom's arrow, as `.set waypoints` says) and Shift+Enter only pins it. A plain
+search for their name or zone finds it. The question (`ns.SharePlaces`, Questions.lua's `SharePlaces`): "where are my
+friends", "friends location" (`@shared where`), and "where is bob" only when Bob shares his (else it's a search).
+
+`.share settings` (`SSH.SETTINGS`, in `TerminalShareDB.settings`): alone, the settings as rows (`@shared setting`);
+`.share settings list` in chat; `.share settings <name> on|off|toggle`. `.share` says when your location is shared.
+
 ## In searches
 
 `@shared` (also `@ssh`; its rows labelled Shared): one row per item per friend ("Linen Cloth x20 · Cad Man · bags 12,
@@ -268,6 +294,7 @@ tooltip, fade), which any addon can use for its own.
 | `.share connect [name]` | say hello again: to one friend, or to everyone |
 | `.share limited \| all \| mats \| consumables \| none` | what you share in every group (`.share share <mode>` too) |
 | `.share off` | leave every group, say goodbye, drop everything |
+| `.share settings` | Share's settings as rows (`list`: in chat); `.share settings location on` shares where you are |
 
 ## Code
 

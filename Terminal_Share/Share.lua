@@ -202,12 +202,86 @@ local function FriendRows(f, p)
 	return rows
 end
 
+----------------------------------------------------------------------
+-- Where friends are (1.2.2, .share settings location): a row each friend who shares it, "Bob  Elwynn Forest 42.1, 65.3";
+-- Enter opens the map on it with the pin (or TomTom's arrow, as every waypoint), Shift+Enter only pins it. "where are
+-- my friends", "where is bob" (a friend sharing it) ask for them.
+----------------------------------------------------------------------
+
+local PLACE_ICON = "Interface\\Icons\\INV_Misc_Map_01"
+
+local function PlaceTooltip(e, t)
+	t:SetText(e.name, 1, 0.82, 0)
+	t:AddLine(("%s  %.1f, %.1f"):format(e.zone or "?", e.px, e.py), 1, 1, 1)
+	local ep = SSH.game
+	local ago = ep and (ep:Now() - e.at) or 0
+	if ago >= 60 then t:AddLine(L["Updated %s"]:format(ns.Ago(ago)), 0.8, 0.8, 0.8) end
+	t:AddLine(L["Where they are, as they share it (.share settings location)"], 0.6, 0.6, 0.6, true)
+	if ns.Maps and ns.Maps.KeysHint then ns.KeyHints(t, ns.Maps.KeysHint(), 0.6, 0.6, 0.6, true) end
+end
+
+--- A friend's place as a row (a spot row: Enter's map and pin, as a mailbox's).
+local function PlaceRow(w)
+	local I = ns.Integrations
+	local px, py = w.x * 100, w.y * 100
+	local zone = I and I.ZoneName and I.ZoneName(w.map) or nil
+	local cont, wx, wy
+	if I and I.SpotXY then cont, wx, wy = I.SpotXY(w.map, { px, py }) end
+	local row = {
+		key = "where:" .. tostring(w.friend.claim), name = w.name, icon = PLACE_ICON, owner = w.name,
+		detail = ("%s  %.0f, %.0f"):format(zone or "?", px, py), zone = zone, at = w.at,
+		text = "shared friend friends where " .. Lower(w.name) .. " " .. Lower(zone or ""),
+		ui = w.map, px = px, py = py, wcont = cont, wx = wx, wy = wy, pinName = w.name, tooltip = PlaceTooltip,
+	}
+	return I and I.SpotRow and I.SpotRow(row) or row
+end
+SSH.PlaceRow = PlaceRow
+
+-- The question: "where are my friends", "friends location", "where is bob" (a friend who shares where they are)
+local PLACE_FILL = {}
+for w in ("where wheres is are my the a on map at now all show find me which"):gmatch("%S+") do PLACE_FILL[w] = true end
+local PLACE_STRONG = { location = true, locations = true, position = true, positions = true, where = true, wheres = true }
+local SP = {}
+ns.SharePlaces = SP
+
+--- { who = name or nil } when the line asks where your friends are (or one who shares it), else nil.
+function SP.Question(text)
+	local t = ns.QuestionText and ns.QuestionText(text) or (type(text) == "string" and Lower(text))
+	if not t then return nil end
+	t = t:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
+	-- "where is bob": only a friend who shares where they are (else it's a search: "where is hogger")
+	local who = t:match("^where i?s (%S+)$") or t:match("^wheres (%S+)$") or t:match("^where is (%S+) now$")
+	if who and SSH.game then
+		for _, w in ipairs(SSH.game:Places()) do
+			local n = Lower(w.name)
+			if n == who or n:match("^[^%-]+") == who then return { who = n:match("^[^%-]+") } end
+		end
+		return nil
+	end
+	local friends, strong = false, false
+	for w in t:gmatch("%S+") do
+		if w == "friend" or w == "friends" or w == "buddies" then friends = true
+		elseif PLACE_STRONG[w] then strong = true
+		elseif not PLACE_FILL[w] then return nil end
+	end
+	return (friends and strong) and {} or nil
+end
+function SP.Line(q) return "@shared where " .. (q and q.who and (q.who .. " ") or "") end
+function SP.Footer() return L["Where your friends are"] end
+function SP.None()
+	local on = SSH.Setting and SSH.Setting("location")
+	return { ns.NoteRow(L["No friend shares where they are now: each turns it on with .share settings location on."]
+		.. (on and "" or (" " .. L["Yours is off too."]))) }
+end
+
 function SSH.Rows(ep, p)
 	p = p or ns.providers.shared
 	local out = {}
 	for _, f in pairs(ep.friends) do
 		for _, row in ipairs(FriendRows(f, p)) do out[#out + 1] = row end
 	end
+	for _, w in ipairs(ep:Places()) do out[#out + 1] = PlaceRow(w) end
+	if SSH.SettingRows then SSH.SettingRows(out) end
 	-- friends' gold (.share all): a row each, "gold" finds them
 	for _, g in ipairs(ep:Gold()) do
 		local said = L["%s's gold"]:format(g.who)
@@ -272,7 +346,7 @@ SSH.MODES = MODES
 -- (a group can't be named as a word .share takes)
 local RESERVED = { password = true, pass = true, pw = true, join = true, leave = true, off = true, connect = true, rename = true,
 	debug = true, status = true, share = true, invite = true, accept = true, decline = true, code = true, newcode = true,
-	kick = true, new = true, create = true }
+	kick = true, new = true, create = true, settings = true, setting = true }
 for m in pairs(MODES) do RESERVED[m] = true end
 SSH.RESERVED = RESERVED
 
@@ -292,6 +366,117 @@ local function Saved()
 	return db
 end
 SSH.Saved = Saved
+
+----------------------------------------------------------------------
+-- .share settings (1.2.2): Terminal: Share's own, in TerminalShareDB.settings. Each a row too (.share settings alone
+-- opens them, "@shared setting"; Enter turns one on or off), and .share settings <name> on|off.
+----------------------------------------------------------------------
+
+SSH.SETTINGS_ORDER = { "location" }
+SSH.SETTINGS = {
+	location = {
+		default = false,
+		name = L["Share your location"],
+		desc = L["Friends you're connected to by Share see where you are, as a row in their searches (Enter: a waypoint on you). Sent as you move, every 15 s (every minute standing still), never from a dungeon, raid or battleground. Off: nothing is sent, and they're told you stopped."],
+		words = "location position coordinates map waypoint whereabouts gps",
+		apply = function(on) if SSH.game then SSH.game:SetWhere(on) end end,
+	},
+}
+
+local function SettingsDB()
+	local db = Saved()
+	if type(db.settings) ~= "table" then db.settings = {} end
+	return db.settings
+end
+
+--- A setting's value (its default until changed).
+function SSH.Setting(key)
+	local s = SSH.SETTINGS[key]
+	if not s then return nil end
+	local v = SettingsDB()[key]
+	if type(v) ~= type(s.default) then return s.default end
+	return v
+end
+
+--- A setting changed: remembered, and done at once (location: said to friends).
+function SSH.SetSetting(key, v)
+	local s = SSH.SETTINGS[key]
+	if not s then return false end
+	SettingsDB()[key] = v
+	if s.apply then s.apply(v) end
+	ns:Changed("shared") -- (its row says the new value)
+	return true
+end
+
+local function OnOffText(v) return v and ("|cff40ff40" .. L["on"] .. "|r") or ("|cffff6060" .. L["off"] .. "|r") end
+
+--- Every Share setting, a line each (.share settings list, and .share settings in chat when Terminal can't open).
+function SSH.SettingsLines()
+	local lines = { L["Share settings (.share settings <name> on or off):"] }
+	for _, k in ipairs(SSH.SETTINGS_ORDER) do
+		local s = SSH.SETTINGS[k]
+		lines[#lines + 1] = ("  %s = %s   (%s)"):format(k, SSH.Setting(k) and "on" or "off", s.name)
+	end
+	return lines
+end
+
+--- .share settings [<name> [on|off]].
+function SSH.SettingsCmd(rest)
+	local key, value = Lower(rest or ""):match("^(%S*)%s*(%S*)")
+	if key == "" then
+		if ns.UI and ns.UI.Open and C_Timer then
+			C_Timer.After(0, function() ns.UI:Open(SSH.SETTINGS_SEARCH) end)
+			return nil
+		end
+		return SSH.SettingsLines()
+	end
+	if key == "list" then return SSH.SettingsLines() end
+	local s = SSH.SETTINGS[key]
+	if not s then
+		return { L["Share: no setting called %s; .share settings list shows them"]:format(key) }
+	end
+	if value == "" then return { L["Share: %s is %s (.share settings %s on or off)"]:format(s.name, OnOffText(SSH.Setting(key)), key) } end
+	local v
+	if value == "on" or value == "true" or value == "1" or value == "yes" then v = true
+	elseif value == "off" or value == "false" or value == "0" or value == "no" then v = false
+	elseif value == "toggle" then v = not SSH.Setting(key) end
+	if v == nil then return { L["Share: .share settings %s on or off"]:format(key) } end
+	SSH.SetSetting(key, v)
+	return { L["Share: %s: %s"]:format(s.name, OnOffText(v)) }
+end
+
+SSH.SETTINGS_SEARCH = "@shared setting "
+
+local function SettingTooltip(e, t)
+	local s = SSH.SETTINGS[e.shareSetting]
+	t:SetText(e.name, 1, 0.82, 0)
+	t:AddLine(s.desc, 1, 1, 1, true)
+	t:AddDoubleLine(L["Now"], OnOffText(SSH.Setting(e.shareSetting)), 1, 1, 1, 1, 1, 1)
+	t:AddLine(".share settings " .. e.shareSetting .. " " .. (SSH.Setting(e.shareSetting) and "on" or "off"), 0.6, 0.6, 0.6, true)
+	ns.KeyHints(t, L["Enter: turn it on or off"], 0.6, 0.6, 0.6, true)
+end
+
+local function SettingEnter(e)
+	local key = e.shareSetting
+	local v = not SSH.Setting(key)
+	SSH.SetSetting(key, v)
+	ns:Print(L["Share: %s: %s"]:format(e.name, OnOffText(v)))
+	local U = ns.UI
+	if U and U.IsShown and U:IsShown() and U.Render then pcall(U.Render, U) end
+end
+
+--- The settings as rows (in @shared: "share settings"; not in "terminal settings", Terminal's own, Simple mode would split it in two).
+function SSH.SettingRows(out)
+	for _, k in ipairs(SSH.SETTINGS_ORDER) do
+		local s = SSH.SETTINGS[k]
+		out[#out + 1] = {
+			key = "sharesetting:" .. k, shareSetting = k, name = s.name, icon = "Interface\\Icons\\INV_Misc_Gear_08",
+			detail = OnOffText(SSH.Setting(k)),
+			text = "share sharing setting settings option options config " .. k .. " " .. s.words,
+			tooltip = SettingTooltip, activate = SettingEnter, staysOpen = true,
+		}
+	end
+end
 
 --- What you share, set: in one group, or (no group) in every group and those joined later. Friends whose share
 --- changed are sent it now; it's remembered.
@@ -362,6 +547,7 @@ function SSH.Status(ep)
 	end
 	for _, s in ipairs(SSH.Others(ep)) do lines[#lines + 1] = "  " .. s end
 	for _, s in ipairs(SSH.InviteLines(ep)) do lines[#lines + 1] = "  " .. s end
+	if ep:On() and SSH.Setting("location") then lines[#lines + 1] = "  " .. L["Your location: shared with the friends you're connected to (.share settings location off)"] end
 	return lines
 end
 
@@ -713,6 +899,14 @@ ns:RegisterCommand("share", {
 				if not i.mine then out[#out + 1] = { word .. " " .. i.name, L["%s invites you to %s"]:format(i.name, i.group) } end
 			end
 			return out
+		elseif word == "settings" or word == "setting" then
+			local out = { { "settings list", L["every Share setting, in chat"] } }
+			for _, k in ipairs(SSH.SETTINGS_ORDER) do
+				local s = SSH.SETTINGS[k]
+				local on = SSH.Setting(k)
+				out[#out + 1] = { "settings " .. k .. " " .. (on and "off" or "on"), s.name .. ": " .. (on and L["turn off"] or L["turn on"]) }
+			end
+			return out
 		elseif word == "code" or word == "leave" or word == "rename" then
 			local out = {}
 			local names = {}
@@ -734,6 +928,7 @@ ns:RegisterCommand("share", {
 		out[#out + 1] = { "new", L["make a group with a code: .share new <group>"] }
 		if ep and ep:On() then out[#out + 1] = { "rename", L["call a group something else (only for you): .share rename <group> <new name>"] } end
 		out[#out + 1] = { "connect", L["say hello to one friend again: .share connect <name>"] }
+		out[#out + 1] = { "settings", L["Share's settings: sharing your location with friends (off unless you turn it on)"] }
 		for _, m in ipairs(MODE_ORDER) do out[#out + 1] = { m, L["share %s"]:format(MODE_SAID[m]) } end
 		local names = {}
 		for n in pairs(ep and ep.groups or {}) do names[#names + 1] = n end
@@ -752,6 +947,7 @@ ns:RegisterCommand("share", {
 		word = Lower(word)
 		if word == "" or word == "status" then return SSH.Status(ep) end
 		if word == "debug" then return SSH.Debug(ep) end
+		if word == "settings" or word == "setting" then return SSH.SettingsCmd(rest) end
 		if word == "invite" then return SSH.InviteCmd(ep, rest) end
 		if word == "accept" or word == "decline" then return SSH.AnswerCmd(ep, rest, word == "decline") end
 		if word == "code" then return SSH.CodeCmd(ep, rest) end
@@ -1439,6 +1635,23 @@ function SSH.FindPerson(text, list)
 	return nil, starts
 end
 
+--- Where you are, for friends (.share settings location): a zone's uiMapID and x, y on it, or nil inside a dungeon, raid
+--- or battleground, or when the game won't say (a secret, 0, 0).
+function SSH.WhereNow()
+	local inside = Safe(_G.IsInInstance)
+	if ns.Secret(inside) or inside then return nil end
+	local M = C_Map
+	if not (M and M.GetBestMapForUnit and M.GetPlayerMapPosition) then return nil end
+	local map = Num(Safe(M.GetBestMapForUnit, "player"))
+	local pos = map and Safe(M.GetPlayerMapPosition, map, "player")
+	if type(pos) ~= "table" then return nil end
+	local x, y = pos.x, pos.y
+	if pos.GetXY then x, y = pos:GetXY() end
+	x, y = Num(x), Num(y)
+	if not (x and y) or (x <= 0 and y <= 0) then return nil end
+	return map, x, y
+end
+
 SSH.game = SSH.Endpoint({
 	now = function() return GetTime() end,
 	claim = function()
@@ -1455,6 +1668,7 @@ SSH.game = SSH.Endpoint({
 	say = function(text) ns:Print(text); SSH.Badge(true) end, -- (said: connected, disconnected... the badge with it)
 	nonce = Nonce,
 	broadcast = Broadcast,
+	where = function() return SSH.WhereNow() end,
 	offered = function() SSH.Offered() end,
 	joined = function(name, key, mode, code)
 		SSH.Remember(name, key, mode, code)
@@ -1521,6 +1735,7 @@ function SSH.OnEvent(event, ...)
 		if type(def) == "table" and not MODES[def.mode] then def.mode = db.mode end
 		if ns.db then ns.db.sshShare = nil end
 		ep.defaultMode = MODES[db.mode] and db.mode or "limited"
+		ep.whereOn = SSH.Setting("location") == true -- (said to friends as they connect)
 		SSH.Restore(ep) -- (the groups remembered: connected again by itself)
 	end
 end

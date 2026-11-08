@@ -53,6 +53,15 @@ SSH.NOANSWER_KEEP = 30     -- s a "no answer" is shown, then forgotten
 SSH.BURST, SSH.RATE = 6, 1 -- the send queue: this many at once, then one a second (the game allows 10, then 1/s)
 SSH.RETRY_TICK = 60        -- s: who to say hello to again is looked at
 SSH.RETRY_EVERY = 600      -- s: a friend who didn't answer is said hello to again after this, then twice it... (8x at most)
+-- where you are (1.2.2, the player: "players using the Share module can share location with each other as well";
+-- .share settings location, off by default). As OpenMap's friends' dots do: sent as you move, less often standing still,
+-- "stopped" when you stop; only to friends connected, never from an instance
+SSH.WHERE_LOOK = 2         -- s between looks at where you are
+SSH.WHERE_EVERY = 15       -- s between places sent while you move (more with many friends: WHERE_PER_FRIEND each)
+SSH.WHERE_PER_FRIEND = 3   -- (a message per friend each time: ten friends moving are one every 3 s, the queue's 1/s kept for bags)
+SSH.WHERE_STILL = 60       -- s between places sent while you stand still (their row stays)
+SSH.WHERE_GONE = 150       -- s without word before a friend's place is dropped
+SSH.WHERE_MOVED = 0.002    -- (a move this small on a zone's map isn't one)
 
 -- the game's answers to a send (Enum.SendAddonMessageResult)
 local SENT, THROTTLED = 0, { [3] = true, [8] = true }
@@ -408,6 +417,7 @@ function SSH.KeyOfCode(code) return C.HMAC(SSH.CODE_SALT, code) end
 --   proven(claim, route)      (optional) a way just proven for that claim
 --   offered                 (optional) an invite came in, or went (the badge, the prompt's suggestion)
 --   joined(name, key, mode, code)  (optional) a group joined by an invite: remember it
+--   where()                 (optional) where you are: a zone's uiMapID and x, y on it (0-1), or nil (an instance, unknown)
 -- route: { kind = "whisper", target = "Bob-Realm" } | { kind = "guild", target = sender } | { kind = "bn", id = n,
 --   name = character, bnetID = account id }
 
@@ -948,6 +958,8 @@ function E:Up(p)
 		-- came back. "R n": not sent again if they already did since connecting)
 		self:Send(p.route, SSH.V .. "R n")
 	end
+	-- (where you are, while you share it: a friend new, or by a new way, has it at once)
+	if self.whereLast and (new or not same) then self:WhereTo(f) end
 end
 
 local function HasData(f) return next(f.items) ~= nil or f.gold ~= nil end
@@ -960,10 +972,10 @@ function E:Drop(f, why)
 		if p.claim == f.claim then self.peers[k] = nil end
 	end
 	-- (what was still waiting to go to them: not sent after a goodbye. Review)
-	local ping = "ping:" .. f.claim
+	local ping, where = "ping:" .. f.claim, "where:" .. f.claim
 	for i = #self.queue, 1, -1 do
 		local m = self.queue[i]
-		if m.f == f or m.tag == ping then self:Unqueue(i) end
+		if m.f == f or m.tag == ping or m.tag == where then self:Unqueue(i) end
 	end
 	if why then self.env.say(L["Share: %s disconnected (%s)"]:format(f.name or "?", why)) end
 	if HasData(f) then self.env.changed() end
@@ -1342,6 +1354,20 @@ function E:Receive(route, text)
 		local f = p and (p.state == "up" or p.wasUp) and self.friends[p.claim]
 		if not f then return self:Stranger(route, p) end
 		f.last = now
+	elseif letter == "W" then
+		-- (where they are: "W map,x,y", x and y in ten-thousandths; "W" alone, they stopped sharing it)
+		local f = p and (p.state == "up" or p.wasUp) and self.friends[p.claim]
+		if not f then return self:Stranger(route, p) end
+		f.last = now
+		if rest == "" then
+			if f.where then f.where = nil; self.env.changed() end
+			return
+		end
+		local m, x, y = rest:match("^(%d+),(%d+),(%d+)$")
+		m, x, y = tonumber(m), tonumber(x), tonumber(y)
+		if not (m and x and y and m > 0 and m < 1e6 and x <= 10000 and y <= 10000) then return end
+		f.where = { map = m, x = x / 10000, y = y / 10000, at = now }
+		self.env.changed()
 	elseif letter == "B" then
 		local f = p and p.claim and self.friends[p.claim]
 		if f and (p.state == "up" or p.wasUp) then
@@ -1464,6 +1490,77 @@ function E:Tick()
 		end
 	end
 	if gone and self.env.offered then pcall(self.env.offered) end
+	-- where you are, while you share it; friends' places no longer heard of, dropped
+	if self:On() and now >= (self.whereAt or 0) then
+		self.whereAt = now + SSH.WHERE_LOOK
+		self:SendWhere()
+	end
+	local stale = false
+	for _, f in pairs(self.friends) do
+		if f.where and now - f.where.at >= SSH.WHERE_GONE then f.where, stale = nil, true end
+	end
+	if stale then self.env.changed() end
+end
+
+----------------------------------------------------------------------
+-- Where you are (1.2.2): "W map,x,y" to every friend connected while you share it (.share settings location on; off
+-- by default), x and y in ten-thousandths of the zone's map; "W" alone: stopped (turned off, or in an instance). A
+-- friend on an older Terminal: Share lets it be (no letter it reads). Only friends connected get it, in whichever group;
+-- nothing they send is kept past WHERE_GONE without word, nor saved.
+----------------------------------------------------------------------
+
+--- Sharing where you are, on or off (said to friends at once: your place, or that you stopped).
+function E:SetWhere(on)
+	self.whereOn = on and true or false
+	self.whereAt = nil
+	if self:On() then self:SendWhere(true) end
+end
+
+--- Where you are, to every friend connected: when you've moved, every WHERE_EVERY s (more with many friends), standing
+--- still every WHERE_STILL s; "stopped" once when it's off or the game doesn't say (an instance). `force`: now.
+function E:SendWhere(force)
+	local now = self:Now()
+	local m, x, y
+	if self.whereOn and self.env.where then m, x, y = self.env.where() end
+	m, x, y = tonumber(m), tonumber(x), tonumber(y)
+	local last = self.whereLast
+	if not (m and x and y and m > 0 and x >= 0 and x <= 1 and y >= 0 and y <= 1) then
+		if last then
+			self.whereLast = nil
+			for _, f in pairs(self.friends) do
+				if f.toldWhere then f.toldWhere = nil; self:Send(f.route, SSH.V .. "W", "where:" .. f.claim) end
+			end
+		end
+		return
+	end
+	local moved = not last or last.map ~= m or math.abs(x - last.x) > SSH.WHERE_MOVED or math.abs(y - last.y) > SSH.WHERE_MOVED
+	local n = 0
+	for _ in pairs(self.friends) do n = n + 1 end
+	local every = moved and math.max(SSH.WHERE_EVERY, n * SSH.WHERE_PER_FRIEND) or SSH.WHERE_STILL
+	if not force and last and now - last.at < every then return end
+	self.whereLast = { map = m, x = x, y = y, at = now,
+		text = ("%d,%d,%d"):format(m, floor(x * 10000 + 0.5), floor(y * 10000 + 0.5)) }
+	for _, f in pairs(self.friends) do self:WhereTo(f) end
+end
+
+--- Your place as last sent, to one friend (a newer one still waiting takes its place in the queue).
+function E:WhereTo(f)
+	local w = self.whereLast
+	if not (w and f and f.route) then return end
+	f.toldWhere = true
+	f.pingAt = self:Now() -- (it says you're still here: no ping needed besides)
+	self:Send(f.route, SSH.V .. "W " .. w.text, "where:" .. f.claim)
+end
+
+--- Friends' places now: { { name, map, x, y, at, friend } }, by name.
+function E:Places()
+	local out = {}
+	for _, f in pairs(self.friends) do
+		local w = f.where
+		if w then out[#out + 1] = { name = f.name or "?", map = w.map, x = w.x, y = w.y, at = w.at, friend = f } end
+	end
+	sort(out, function(a, b) return a.name < b.name end)
+	return out
 end
 
 --- `.share off`: goodbye to every friend, every group and everything they sent forgotten.
@@ -1478,6 +1575,7 @@ function E:Off()
 	self.invites = {} -- (yours, waiting: the groups are gone. Invites to you stay: you may still say yes)
 	self.groupGen = self.groupGen + 1
 	self.tried, self.retryAt = {}, nil
+	self.whereLast = nil -- (your place: said again to whoever connects next, if you still share it)
 	-- (the goodbyes through the queue: what the game says wait to goes a second later, the ticker kept until they're
 	-- all gone. Review)
 	for _, r in ipairs(byes) do self:Send(r, SSH.V .. "B") end
