@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.2.9 (in testing)
+
+Fixes from a review of 1.2.6-1.2.8 (bugs, consistency, quality, performance):
+
+- OpenMap players' places (`.share settings openmap`):
+  - A place heard again unchanged no longer moves the map's dots, and the rows are made again at most every 3 s
+    (`OM.CHANGED_WAIT`) for all that's heard meanwhile: in a big guild every traveller's message did both.
+  - The places list is made again only when a place changed, and is never expired while the rows are being made
+    (a place gone quiet goes from the ticker or the map).
+  - The game's events are listened to only while the setting is on (every addon's messages pass through
+    `CHAT_MSG_ADDON`).
+  - A hello waiting through a fight goes to the friend as they're reached then: not whispered to a friend gone
+    offline. One the game throttled is tried again instead of lost.
+  - Battle.net friends are read as Share reads them (every game account, your realm only).
+  - One player heard by their first name (Battle.net) and their whole name (guild) shows once.
+  - A friend called by a first name like yours is no longer taken for you (only on the guild's channel does your
+    first name alone count).
+  - An x or y of "nan" is turned down.
+  - The cap of 200 is the guild's: a friend's place is always kept.
+  - The level sent, never shown, is no longer kept.
+- The footer (1.2.6): laid out again only when its text, the width or the font size changes (wrapped, every key laid
+  it out twice). Its line count never falls short of what the width says. It goes back to one line once the terminal
+  closes, so a reopened kept search no longer glides down to size.
+- `.zen` (1.2.8): the party and raid frames' parts are looked for on every open and when the group changes while
+  faded (a party turned raid while open showed its new frames' boxes). Raid frames numbered past 40 (pets, main
+  tanks) and arena frames are covered too.
+
 ## 1.2.8 (in testing)
 
 - `.zen`: the selection box on your target's party frame showed through the faded interface (reported with a

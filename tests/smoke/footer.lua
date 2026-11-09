@@ -20,6 +20,18 @@ do
 	UI.missingNote = string.rep("x", 4000)
 	UI:SetStatus(); FlushAll()
 	check(UI.statusLines == UI.STATUS_MAX_LINES, "however long: " .. UI.STATUS_MAX_LINES .. " lines at most")
+	-- (1.2.9 review) the same footer again (a key, the selection moved): not laid out again
+	local wraps = 0
+	local wrapWas = UI.status.SetWordWrap
+	UI.status.SetWordWrap = function(...) wraps = wraps + 1 return wrapWas(...) end
+	UI:SetStatus(); UI:SetStatus()
+	UI.status.SetWordWrap = wrapWas
+	check(wraps == 0, "the same text at the same width: not laid out again: " .. wraps)
+	-- (1.2.9 review) closed while wrapped: one line again, so a reopened kept search starts at its height
+	UI:Hide(); FlushAll()
+	UI.frame.scripts.OnHide(UI.frame)
+	check(UI.statusLines == 1 and not UI.statusWrapped and UI.footerH == f1, "closed: the footer one line again")
+	UI:Open("linen"); FlushAll()
 	-- short again: one line, the footer as it was
 	UI.missingNote = nil
 	UI:SetStatus(); FlushAll()

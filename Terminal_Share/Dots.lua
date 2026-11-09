@@ -155,7 +155,9 @@ function D.Refresh()
 	-- spot out again and set every dot: 1.2.5 review. OpenMap's stitched view moves under the same map: each time)
 	local OMod = SSH.OpenMap
 	if OMod and OMod.on then OMod.Expire() end -- (a place gone quiet: its dot goes)
-	local sig = tostring(ep and ep.placesGen or 0) .. ":" .. tostring(OMod and OMod.on and OMod.gen or 0) .. ":" .. shown .. ":" .. cw .. ":" .. ch .. ":" .. tostring(scale)
+	-- (OpenMap's places only when they're drawn here: not while OpenMap itself is loaded, it draws its own)
+	local omGen = OMod and OMod.on and not OMod.OpenMapLoaded() and OMod.gen or 0
+	local sig = tostring(ep and ep.placesGen or 0) .. ":" .. tostring(omGen) .. ":" .. shown .. ":" .. cw .. ":" .. ch .. ":" .. tostring(scale)
 	if not stitched and sig == D.lastSig then return D.lastUsed end
 	local list = SSH.AllPlaces and SSH.AllPlaces(ep, true) or (ep and ep:Places() or {})
 	local level = canvas:GetFrameLevel() + 20

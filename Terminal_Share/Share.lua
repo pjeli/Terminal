@@ -263,12 +263,22 @@ function SSH.AllPlaces(ep, dots)
 	if not (OM and OM.on) or (dots and OM.OpenMapLoaded()) then return out end
 	local theirs = OM.Places()
 	if #theirs == 0 then return out end
-	local names = {}
-	for i, w in ipairs(out) do names[i] = Canon(w.name) end
-	for _, w in ipairs(theirs) do
-		local c, dup = Canon(w.name), false
-		for _, n in ipairs(names) do if SameName(c, n) then dup = true break end end
-		if not dup then out[#out + 1] = w end
+	-- (names kept, by their first word: only those can be the same person. OpenMap's among themselves too, the latest
+	-- first: a Battle.net friend may come by their first name alone, and by their whole one from the guild; 1.2.9 review)
+	local byFirst = {}
+	local function Kept(c)
+		local first = c:match("^[^%-]+") or c
+		for _, n in ipairs(byFirst[first] or {}) do if SameName(c, n) then return true end end
+		byFirst[first] = byFirst[first] or {}
+		table.insert(byFirst[first], c)
+		return false
+	end
+	for _, w in ipairs(out) do Kept(Canon(w.name)) end
+	local latest = {}
+	for i, w in ipairs(theirs) do latest[i] = w end
+	sort(latest, function(a, b) return a.at > b.at end)
+	for _, w in ipairs(latest) do
+		if not Kept(Canon(w.name)) then out[#out + 1] = w end
 	end
 	sort(out, function(a, b) return a.name < b.name end)
 	return out
@@ -1432,6 +1442,9 @@ local function People()
 end
 SSH.People = People
 function SSH.Forget() people = nil end
+--- Battle.net friends' characters playing this game on your realm, by game account: { [id] = { name, realm, ... } }
+--- (OpenMap.lua's hellos follow Share's rules: every game account, never another realm's; 1.2.9 review).
+function SSH.BattleNetPlaying() return People().bn end
 
 local function Eligible(route, peer)
 	local P = People()

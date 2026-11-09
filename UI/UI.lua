@@ -130,6 +130,7 @@ do
 			UI.tabKept = nil
 			UI.histSearch = nil -- (Ctrl+R ends with it, closed by the game too)
 			UI.blurred = nil -- (out of focus ends with it: Keys.lua's UI:Blur)
+			UI:UnwrapStatus() -- (a wrapped footer one line again, once it's gone from sight: 1.2.9 review)
 			UI:EndAdvancedOnce()
 			UI:EndFuzzy()
 			if ns.Bar then ns.Bar.Reset() end -- (closed by the game: the bar's picks and its menu go too, as UI:Hide does)

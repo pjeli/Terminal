@@ -205,7 +205,13 @@ UI.STATUS_MAX_LINES = 3
 function UI:FitStatus()
 	local status = UI.status
 	if not status then return end
-	local avail = (Theme.Get().width or 640) - 28
+	local t = Theme.Get()
+	local avail = (t.width or 640) - 28
+	-- (the same text at the same width and size: as it is. SetStatus runs on every key and every move of the
+	-- selection; wrapped, each call laid the text out twice. 1.2.9 review)
+	local key = tostring(status:GetText()) .. "\0" .. avail .. "\0" .. tostring(t.fontSize)
+	if key == self.statusFitKey then return end
+	self.statusFitKey = key
 	if self.statusWrapped then
 		self.statusWrapped = nil
 		status:SetWordWrap(false)
@@ -220,7 +226,9 @@ function UI:FitStatus()
 		if status.SetMaxLines then pcall(status.SetMaxLines, status, UI.STATUS_MAX_LINES) end
 		local ok, n = false, nil
 		if status.GetNumLines then ok, n = pcall(status.GetNumLines, status) end
-		lines = (ok and type(n) == "number" and n > 1) and n or math.ceil(w / avail)
+		-- (never fewer than the width says: a count the game hasn't laid out yet, or words breaking early, left the
+		-- footer a line short, its text over the border; 1.2.9 review)
+		lines = math.max(math.ceil(w / avail), (ok and type(n) == "number") and n or 0)
 		lines = math.max(2, math.min(UI.STATUS_MAX_LINES, lines))
 	end
 	if lines ~= (self.statusLines or 1) then
@@ -229,6 +237,19 @@ function UI:FitStatus()
 		self.hintsRoom = nil -- (the hints' room measured again)
 		self:FitHeight()
 	end
+end
+
+--- The footer one line again (UI:Hide): a terminal reopened on a kept search snapped to the old wrapped footer's
+--- height, then glided down once the search was in (1.2.9 review).
+function UI:UnwrapStatus()
+	local status = UI.status
+	self.statusFitKey = nil
+	if not (status and (self.statusLines or 1) > 1) then return end
+	self.statusWrapped, self.statusLines = nil, 1
+	status:SetWordWrap(false)
+	status:SetWidth(0)
+	UI.ApplyFooterLayout()
+	self.hintsRoom = nil
 end
 
 --- What Enter does to the selected row while ">> party", ">> drop", ">> track"... is typed: the one verb (false: none,

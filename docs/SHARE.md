@@ -290,15 +290,21 @@ y 0..1 on it, the class's file name, the level), `L0` (stopped), `H1` (hello), `
 call for these, so they're read as they arrive; none of OpenMap's code is used.
 
 - Guild: OpenMap sends each place to GUILD, so it's only heard. Friends: OpenMap whispers (or sends over Battle.net)
-  only to friends it has heard from, so Terminal says `H1` to each friend online (`C_FriendList`, Battle.net friends
-  playing this game), again after they've been offline, and answers a friend's `H1` with `H2`, one message each
-  `OM.GAP` (0.5 s), held while chat is locked down. Your own place is never sent this way.
-- Read: a whisper only from a friend online, a guild message only on GUILD; never your own. `L1` must name a map
-  `C_Map.GetMapInfo` has, x and y within 0..1 (not 0,0); a class that isn't capital letters or a level out of range is
-  left out. Kept in memory (`OM.MAX` 200), gone after `OM.GONE` (150 s) without word or on `L0`; off forgets them all.
+  only to friends it has heard from, so Terminal says `H1` to each friend online (`C_FriendList`; Battle.net friends'
+  characters as Share reads them, `SSH.BattleNetPlaying`: every game account, your realm only), again after they've
+  been offline, and answers a friend's `H1` with `H2`, one message each `OM.GAP` (0.5 s), held while chat is locked
+  down and sent the way the friend is reached then (gone offline: not sent); throttled, tried again. Your own place is
+  never sent this way. The game's events are listened to only while the setting is on.
+- Read: a whisper only from a friend online, a guild message only on GUILD; never your own (your whole name; on the
+  guild's channel your first name too). `L1` must name a map `C_Map.GetMapInfo` has, x and y within 0..1 (not 0,0,
+  not nan); a class that isn't capital letters is left out; the level is ignored. Kept in memory (the guild's places
+  `OM.MAX` 200 at most, a friend's always), gone after `OM.GONE` (150 s) without word (the ticker, the map's dots;
+  never while the rows are made) or on `L0`; off forgets them all.
 - Shown: `SSH.AllPlaces(ep, dots)` = Share friends' places, then OpenMap's whose name isn't one of them ("Plamen"
   and "Plamen Warr" are one; two surnames aren't). Rows (`key` `omap:<name>`, "openmap" and "guild" in their
-  text) and dots alike; the rows are made again only when what one shows changes, the dots follow `OM.gen`.
+  text) and dots alike; OpenMap's among themselves too (a Battle.net first name and a guild whole name: the latest).
+  The rows are made again, at most every `OM.CHANGED_WAIT` (3 s), only when what one shows changes; the dots follow
+  `OM.gen`, raised only when a place moved (not while OpenMap is loaded); `OM.Places()` is made again per `OM.gen`.
 - With OpenMap loaded (`OpenMapAPI`): its own hellos and dots; Terminal says nothing and draws no dot for them.
 - Its setting's name is one few words match by scattered letters: "See OpenMap players' locations" matched "npc" and
   "omen", which changed the parse golden's categories.

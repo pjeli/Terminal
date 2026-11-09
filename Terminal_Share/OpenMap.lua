@@ -31,8 +31,10 @@ OM.GAP = 0.5       -- s between messages sent (hellos and answers)
 OM.MAX = 200       -- places kept at most (a big guild)
 OM.SCAN_WAIT = 1   -- s after a friend list event before it's read (they come in bursts)
 OM.FIRST_WAIT = 5  -- s after login before the first hellos
+OM.CHANGED_WAIT = 3 -- s: the rows made again at most this often for places heard (a big guild moving; 1.2.9 review)
 
-local live = {}     -- key -> { name, map, x, y, class, level, guild, at, shown }
+local live = {}     -- key -> { name, map, x, y, class, guild, at, shown }
+local guildCount = 0 -- places kept from the guild alone (OM.MAX caps those; a friend's always kept)
 local friends = {}  -- canonical name -> { key, name, whisper = target } or { key, name, bn = gameAccountID }: online now
 local helloed = {}  -- key -> true: said hello since they came online
 OM.live, OM.friends, OM.helloed = live, friends, helloed
@@ -41,9 +43,13 @@ OM.on = false
 
 local function Now() return GetTime() end
 
+local myRealm -- (yours, once the game says it: it doesn't change; asked on every message before, 1.2.9 review)
 local function MyRealm()
+	if myRealm then return myRealm end
 	local r = Str(Safe(_G.GetNormalizedRealmName)) or Str(Safe(_G.GetRealmName)) or ""
-	return Canon((r:gsub("[%s%-']", "")))
+	r = Canon((r:gsub("[%s%-']", "")))
+	if r ~= "" then myRealm = r end
+	return r
 end
 
 -- a name as the game writes it, canonical, your own realm left out ("Bob-YourRealm", "Bob": "bob"; "Bob-Other":
@@ -66,11 +72,14 @@ local function Shown(name)
 	return name
 end
 
-local function IsMe(c) -- (c: a Key)
-	for _, n in ipairs({ ns.CharacterName and ns.CharacterName() or false, Str(Safe(_G.UnitName, "player")) or false }) do
-		if n then
-			if c == Key(n) then return true end
-		end
+-- you: your whole name (with its surname); `guild`: on the guild's channel your first name alone counts too (your own
+-- place, sent there by OpenMap). A friend called only by a first name like yours isn't you (1.2.9 review).
+local function IsMe(c, guild)
+	local full = ns.CharacterName and ns.CharacterName()
+	if full and c == Key(full) then return true end
+	if guild then
+		local first = Str(Safe(_G.UnitName, "player"))
+		if first and c == Key(first) then return true end
 	end
 	return false
 end
@@ -91,34 +100,45 @@ OM.OpenMapLoaded = OpenMapLoaded
 local outbox, order, sending = {}, {}, false
 OM.outbox, OM.order = outbox, order
 
-local function SendOne(m)
-	if m.bn then
-		local f = (C_BattleNet and C_BattleNet.SendGameData) or _G.BNSendGameData
-		if f then pcall(f, m.bn, OM.PREFIX, m.text) end
-	elseif C_ChatInfo and C_ChatInfo.SendAddonMessage then
-		pcall(C_ChatInfo.SendAddonMessage, OM.PREFIX, m.text, "WHISPER", m.whisper)
+-- the game's answers to a send that say "not now" (Enum.SendAddonMessageResult: AddonMessageThrottle, ChannelThrottle;
+-- as Protocol.lua reads them)
+local THROTTLED = { [3] = true, [8] = true }
+
+-- sent to a friend by the way they're reached now; false when the game said "not now"
+local function SendOne(f, text)
+	local ok, res
+	if f.bn then
+		local send = (C_BattleNet and C_BattleNet.SendGameData) or _G.BNSendGameData
+		if send then ok, res = pcall(send, f.bn, OM.PREFIX, text) end
+	elseif f.whisper and C_ChatInfo and C_ChatInfo.SendAddonMessage then
+		ok, res = pcall(C_ChatInfo.SendAddonMessage, OM.PREFIX, text, "WHISPER", f.whisper)
 	end
+	return not (ok and THROTTLED[Num(res)])
 end
 
-OM.LOCKED_WAIT = 5 -- s before trying again while chat is locked down (in a fight, in some instances)
-local function Pump()
-	if order[1] and ns.ChatLocked and ns.ChatLocked() and C_Timer and C_Timer.After then
-		C_Timer.After(OM.LOCKED_WAIT, Pump) -- (kept for then: a hello lost now isn't said again until they log in again)
-		return
-	end
+OM.LOCKED_WAIT = 5 -- s before trying again while chat is locked down (in a fight, in some instances), or throttled
+local function Later(wait) if C_Timer and C_Timer.After then C_Timer.After(wait, OM.Pump) return true end end
+function OM.Pump()
+	if order[1] and ns.ChatLocked and ns.ChatLocked() and Later(OM.LOCKED_WAIT) then return end -- (kept for then)
 	local key = table.remove(order, 1)
 	if not key then sending = false return end
-	local m = outbox[key]
+	local text = outbox[key]
 	outbox[key] = nil
-	if m and OM.on then SendOne(m) end
-	if C_Timer and C_Timer.After then C_Timer.After(OM.GAP, Pump) else Pump() end
+	-- (sent the way they're reached now: a friend gone offline meanwhile isn't whispered; 1.2.9 review)
+	local f = friends[key]
+	if text and OM.on and f and not SendOne(f, text) and C_Timer and C_Timer.After then
+		if not outbox[key] then table.insert(order, 1, key); outbox[key] = text end -- (throttled: tried again)
+		Later(OM.LOCKED_WAIT)
+		return
+	end
+	if not Later(OM.GAP) then OM.Pump() end
 end
 
 local function ToFriend(f, text)
 	if not f or OpenMapLoaded() then return end -- (OpenMap loaded: it says its own)
 	if not outbox[f.key] then order[#order + 1] = f.key end
-	outbox[f.key] = { text = text, whisper = f.whisper, bn = f.bn }
-	if not sending then sending = true; Pump() end
+	outbox[f.key] = text
+	if not sending then sending = true; OM.Pump() end
 end
 OM.ToFriend = ToFriend
 
@@ -145,17 +165,8 @@ function OM.Scan()
 		local S = ns.Share
 		if n then Add(seen, n, nil, { whisper = S and S.WhisperTarget and S.WhisperTarget(n) or n }) end
 	end
-	local B = C_BattleNet
-	local wow = _G.BNET_CLIENT_WOW or "WoW"
-	for i = 1, (Num(Safe(_G.BNGetNumFriends)) or 0) do
-		local a = B and B.GetFriendAccountInfo and Safe(B.GetFriendAccountInfo, i)
-		local g = type(a) == "table" and a.gameAccountInfo
-		if type(g) == "table" and g.isOnline == true and g.clientProgram == wow
-			and (not g.wowProjectID or not _G.WOW_PROJECT_ID or g.wowProjectID == _G.WOW_PROJECT_ID) then
-			local char, id = Str(g.characterName), Num(g.gameAccountID)
-			if char and id then Add(seen, char, Str(g.realmName), { bn = id }) end
-		end
-	end
+	-- (Battle.net friends' characters as Share reads them: every game account, your realm only)
+	for id, b in pairs(SSH.BattleNetPlaying and SSH.BattleNetPlaying() or {}) do Add(seen, b.name, b.realm, { bn = id }) end
 	for k in pairs(friends) do friends[k] = nil end
 	for k, f in pairs(seen) do friends[k] = f end
 	-- (gone offline: a hello again when they're back, as OpenMap does)
@@ -181,12 +192,29 @@ end
 ----------------------------------------------------------------------
 
 local function Changed() ns:Changed("shared") end
+-- the rows made again a moment later, once for all that's heard meanwhile (every traveller's message did it at once)
+local changeWaiting = false
+local function ChangedSoon()
+	if changeWaiting then return end
+	if not (C_Timer and C_Timer.After) then Changed() return end
+	changeWaiting = true
+	C_Timer.After(OM.CHANGED_WAIT, function() changeWaiting = false; if OM.on then Changed() end end)
+end
+
+local function Forget(key)
+	local p = live[key]
+	if not p then return false end
+	live[key] = nil
+	if p.guildOnly then guildCount = guildCount - 1 end
+	return true
+end
 
 local expiry
+--- Places not heard from for OM.GONE gone (the ticker, the map's dots; never while the rows are being made).
 local function Expire()
 	local now, gone = Now(), false
 	for k, p in pairs(live) do
-		if now - p.at > OM.GONE then live[k] = nil; gone = true end
+		if now - p.at > OM.GONE then Forget(k); gone = true end
 	end
 	if gone then OM.gen = OM.gen + 1; Changed() end
 	if not next(live) and expiry then expiry:Cancel(); expiry = nil end
@@ -199,18 +227,18 @@ local function Watch()
 end
 
 local function Drop(key)
-	if live[key] then live[key] = nil; OM.gen = OM.gen + 1; Changed() end
+	if Forget(key) then OM.gen = OM.gen + 1; Changed() end
 end
 
 --- A message heard: from `sender` ("Name" or "Name-Realm"), the friend it came from (or nil), on the guild's channel or not.
 function OM.Heard(sender, text, friend, guild)
 	if not OM.on or type(text) ~= "string" or #text > 120 then return end
 	local key = friend and friend.key or Key(sender)
-	if not key or IsMe(key) then return end -- (your own, sent to your guild by OpenMap)
+	if not key or IsMe(key, guild) then return end -- (your own, sent to your guild by OpenMap)
 	if not (guild or friend) then return end -- (a whisper only from a friend online)
 	local part = {}
 	for v in (text .. "\t"):gmatch("([^\t]*)\t") do part[#part + 1] = v end
-	local kind, m, x, y, class, level = part[1], part[2], part[3], part[4], part[5], part[6]
+	local kind, m, x, y, class = part[1], part[2], part[3], part[4], part[5]
 	if kind == "H1" then
 		if friend then ToFriend(friend, "H2") end -- (they learn you hear them)
 		return
@@ -220,37 +248,47 @@ function OM.Heard(sender, text, friend, guild)
 	elseif kind ~= "L1" then
 		return
 	end
-	m, x, y, level = tonumber(m), tonumber(x), tonumber(y), tonumber(level)
-	if not (m and x and y) or m ~= floor(m) or m <= 0 or m > 1e6 or x < 0 or x > 1 or y < 0 or y > 1 or (x == 0 and y == 0) then return end
+	m, x, y = tonumber(m), tonumber(x), tonumber(y)
+	-- (x ~= x: "nan" reads as a number that no comparison turns down; 1.2.9 review)
+	if not (m and x and y) or x ~= x or y ~= y or m ~= floor(m) or m <= 0 or m > 1e6 or x < 0 or x > 1 or y < 0 or y > 1
+		or (x == 0 and y == 0) then return end
 	if C_Map and C_Map.GetMapInfo and not Safe(C_Map.GetMapInfo, m) then return end -- (a map this client doesn't have)
 	class = type(class) == "string" and #class <= 20 and class:match("^%u+$") or nil
-	level = level and level == floor(level) and level >= 0 and level <= 1000 and level or nil
 	local p = live[key]
 	if not p then
-		local n = 0
-		for _ in pairs(live) do n = n + 1 if n >= OM.MAX then return end end
-		p = { key = key, name = friend and friend.name or Shown(sender) }
+		-- (a big guild: OM.MAX of its places at most; a friend's always kept. 1.2.9 review)
+		if not friend and guildCount >= OM.MAX then return end
+		p = { key = key, name = friend and friend.name or Shown(sender), guildOnly = not friend }
+		if p.guildOnly then guildCount = guildCount + 1 end
 		live[key] = p
+	elseif friend and p.guildOnly then
+		p.guildOnly = nil; guildCount = guildCount - 1
 	end
-	p.map, p.x, p.y, p.class, p.level, p.at = m, x, y, class, level, Now()
+	p.at = Now()
 	p.guild = p.guild or guild or false
-	p.friend = friend and true or p.friend
-	OM.gen = OM.gen + 1
 	Watch()
-	-- (the rows made again only when what one shows changes: the zone, x and y to the whole number, the class)
-	local shown = m .. ":" .. floor(x * 100 + 0.5) .. ":" .. floor(y * 100 + 0.5) .. ":" .. (class or "")
-	if shown ~= p.shown then p.shown = shown; Changed() end
+	-- (the dots placed again only when a place moved; the rows made again, a moment later, only when what one shows
+	-- changes: the zone, x and y to the whole number, the class. 1.2.9 review: every message did both)
+	if p.map ~= m or p.x ~= x or p.y ~= y or p.class ~= class then
+		p.map, p.x, p.y, p.class = m, x, y, class
+		OM.gen = OM.gen + 1
+		local shown = m .. ":" .. floor(x * 100 + 0.5) .. ":" .. floor(y * 100 + 0.5) .. ":" .. (class or "")
+		if shown ~= p.shown then p.shown = shown; ChangedSoon() end
+	end
 end
 
---- Everyone sharing their place with OpenMap, heard lately: { name, map, x, y, at, class, level, guild, openmap, key }.
+--- Everyone sharing their place with OpenMap, heard lately: { name, map, x, y, at, class, guild, openmap, key }. Made
+--- again only when a place changed (OM.gen); read only: the rows and the map's dots share it.
+local placesList, placesGen = {}, -1
 function OM.Places()
+	if not OM.on then return {} end
+	if placesGen == OM.gen then return placesList end
 	local out = {}
-	if not OM.on then return out end
-	Expire()
 	for k, p in pairs(live) do
-		out[#out + 1] = { name = p.name, map = p.map, x = p.x, y = p.y, at = p.at, class = p.class, level = p.level,
-			guild = p.guild, openmap = true, key = "omap:" .. k, omKey = k }
+		out[#out + 1] = { name = p.name, map = p.map, x = p.x, y = p.y, at = p.at, class = p.class, guild = p.guild,
+			openmap = true, key = "omap:" .. k, omKey = k }
 	end
+	placesList, placesGen = out, OM.gen
 	return out
 end
 
@@ -259,15 +297,17 @@ function OM.SetOn(on)
 	on = on == true
 	if on == OM.on then return end
 	OM.on = on
+	-- (the game's events only while on: every addon's messages come through CHAT_MSG_ADDON; 1.2.9 review)
+	for _, ev in ipairs(OM.EVENTS) do pcall(on and OM.frame.RegisterEvent or OM.frame.UnregisterEvent, OM.frame, ev) end
 	if on then
 		local CI = C_ChatInfo
 		if not OM.registered and CI and CI.RegisterAddonMessagePrefix then
-			pcall(CI.RegisterAddonMessagePrefix, OM.PREFIX)
-			OM.registered = true
+			OM.registered = pcall(CI.RegisterAddonMessagePrefix, OM.PREFIX)
 		end
 		ScanSoon(OM.started and OM.SCAN_WAIT or OM.FIRST_WAIT)
 	else
 		for _, t in ipairs({ live, friends, helloed, outbox }) do for k in pairs(t) do t[k] = nil end end
+		guildCount = 0
 		for i = #order, 1, -1 do order[i] = nil end
 		if expiry then expiry:Cancel(); expiry = nil end
 		OM.gen = OM.gen + 1
@@ -312,12 +352,11 @@ function OM.OnEvent(event, ...)
 		if not (text and id) then return end
 		local f
 		for _, o in pairs(friends) do if o.bn == id then f = o break end end
-		if not f then -- (a Battle.net friend the last read didn't see yet)
-			local g = C_BattleNet and C_BattleNet.GetGameAccountInfoByID and Safe(C_BattleNet.GetGameAccountInfoByID, id)
-			local char = type(g) == "table" and Str(g.characterName)
-			local key = char and Key(char, Str(g.realmName))
-			if not key then return end
-			f = { key = key, name = Shown(char), bn = id }
+		if not f then -- (a Battle.net friend the last read didn't see yet: as Share knows them, your realm only)
+			local b = SSH.BattleNetPlaying and SSH.BattleNetPlaying()[id]
+			local key = b and Key(b.name, b.realm)
+			if not key or IsMe(key) then return end
+			f = { key = key, name = Shown(b.name), bn = id }
 			friends[key] = f
 		end
 		OM.Heard(f.name, text, f, false)
@@ -326,12 +365,11 @@ function OM.OnEvent(event, ...)
 	end
 end
 
+OM.EVENTS = { "CHAT_MSG_ADDON", "BN_CHAT_MSG_ADDON", "FRIENDLIST_UPDATE", "BN_FRIEND_INFO_CHANGED",
+	"BN_FRIEND_ACCOUNT_ONLINE", "BN_FRIEND_ACCOUNT_OFFLINE" }
 do
 	local f = CreateFrame("Frame")
-	for _, ev in ipairs({ "CHAT_MSG_ADDON", "BN_CHAT_MSG_ADDON", "FRIENDLIST_UPDATE", "BN_FRIEND_INFO_CHANGED",
-		"BN_FRIEND_ACCOUNT_ONLINE", "BN_FRIEND_ACCOUNT_OFFLINE", "PLAYER_LOGIN" }) do
-		pcall(f.RegisterEvent, f, ev)
-	end
+	pcall(f.RegisterEvent, f, "PLAYER_LOGIN") -- (the rest while the setting is on: OM.SetOn)
 	f:SetScript("OnEvent", function(_, event, ...) OM.OnEvent(event, ...) end)
 	OM.frame = f
 end

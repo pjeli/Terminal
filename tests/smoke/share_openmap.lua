@@ -73,13 +73,19 @@ do
 	changes = 0
 	Msg("L1\t1429\t0.4000\t0.6000\tMAGE\t30", "GUILD", "Gina-Realm")
 	local g = Place("Gina")
-	check(g and g.map == 1429 and g.x == 0.4 and g.y == 0.6 and g.class == "MAGE" and g.level == 30 and g.guild and g.openmap,
-		"a guild member's place: zone, x, y, class, level")
-	check(changes == 1, "a new place: the rows made again")
-	Msg("L1\t1429\t0.4001\t0.6001\tMAGE\t30", "GUILD", "Gina-Realm")
-	check(changes == 1 and Place("Gina").x == 0.4001, "a move too small to show: kept, the rows left as they are")
+	check(g and g.map == 1429 and g.x == 0.4 and g.y == 0.6 and g.class == "MAGE" and g.guild and g.openmap,
+		"a guild member's place: zone, x, y, class")
+	check(changes == 0, "the rows not made again at once (1.2.9 review: a guild moving made them on every message)")
+	FlushAll()
+	check(changes == 1, "a new place: the rows made again, a moment later")
+	local gen = OM.gen
+	Msg("L1\t1429\t0.4000\t0.6000\tMAGE\t30", "GUILD", "Gina-Realm")
+	check(OM.gen == gen, "the same place again: the map's dots not placed again (1.2.9 review)")
+	Msg("L1\t1429\t0.4001\t0.6001\tMAGE\t30", "GUILD", "Gina-Realm"); FlushAll()
+	check(changes == 1 and Place("Gina").x == 0.4001 and OM.gen == gen + 1, "a move too small to show: kept (the dot moves), the rows left as they are")
 	Msg("L1\t1429\t0.5\t0.6\tMAGE\t30", "GUILD", "Gina-Realm")
-	check(changes == 2 and Place("Gina").x == 0.5, "a move that shows: the rows made again")
+	Msg("L1\t1429\t0.6\t0.6\tMAGE\t30", "GUILD", "Gina-Realm"); FlushAll()
+	check(changes == 2 and Place("Gina").x == 0.6, "two moves that show, in a moment: the rows made again once")
 
 	-- a whisper only from a friend online
 	Msg("L1\t1429\t0.1\t0.1\tWARRIOR\t20", "WHISPER", "Zed-Realm")
@@ -99,8 +105,15 @@ do
 		Msg(bad, "GUILD", "Hal-Realm")
 	end
 	check(not Place("Hal"), "off the map, a map the game doesn't have, 0,0, words, an unknown kind, too long: none kept")
+	-- (nan: "nan" reads as a number on the game's C runtime, and no comparison turns it down; 1.2.9 review)
+	local tonumberWas = _G.tonumber
+	_G.tonumber = function(v, ...) if v == "nan" then return 0 / 0 end return tonumberWas(v, ...) end
+	Msg("L1\t1429\tnan\t0.5\tMAGE\t1", "GUILD", "Hal-Realm")
+	Msg("L1\t1429\t0.5\tnan\tMAGE\t1", "GUILD", "Hal-Realm")
+	_G.tonumber = tonumberWas
+	check(not Place("Hal"), "x or y that is nan: not kept")
 	Msg("L1\t1429\t0.5\t0.5\t<script>\t-3", "GUILD", "Hal-Realm")
-	check(Place("Hal") and Place("Hal").class == nil and Place("Hal").level == nil, "a class or level that isn't one: left out, the place kept")
+	check(Place("Hal") and Place("Hal").class == nil, "a class that isn't one: left out, the place kept")
 
 	-- their hello: answered (they learn you hear them); a stranger's: not
 	Msg("H1", "WHISPER", "Bob-Realm"); FlushAll()
@@ -114,6 +127,8 @@ do
 	check(not Place("Hal"), "L0: stopped sharing, the place gone")
 	now = now + OM.GONE + 1
 	Msg("L1\t1429\t0.5\t0.5\tMAGE\t30", "GUILD", "Gina-Realm")
+	check(#OM.Places() == 3, "gone quiet: still listed until it's looked at (never while the rows are made; 1.2.9 review)")
+	OM.Expire()
 	local left = {}
 	for _, w in ipairs(OM.Places()) do left[#left + 1] = w.name end
 	check(#left == 1 and left[1] == "Gina", "no word for " .. OM.GONE .. " s: gone (Gina, heard again, stays): " .. table.concat(left, ","))
@@ -150,6 +165,49 @@ do
 	ns.ChatLocked = lockedWas
 	FlushAll()
 	check(#sent == n + 1 and sent[#sent].target == "Fay" and sent[#sent].text == "H1", "then it goes")
+
+	-- (1.2.9 review) a hello waiting for a friend gone offline meanwhile: not whispered to nobody
+	ns.ChatLocked = function() return true end
+	online[#online + 1] = { name = "Gus", connected = true }
+	OM.Scan()
+	table.remove(online) -- (Gus logs off before it goes)
+	OM.Scan()
+	ns.ChatLocked = lockedWas
+	n = #sent
+	FlushAll()
+	local toGus = false
+	for i = n + 1, #sent do if sent[i].target == "Gus" then toGus = true end end
+	check(not toGus, "a friend gone offline before their hello went: not whispered")
+	-- (1.2.9 review) the game says "not now" (throttled): tried again, not lost
+	local sendWas, tries = _G.C_ChatInfo.SendAddonMessage, 0
+	_G.C_ChatInfo.SendAddonMessage = function(prefix, text, chan, target)
+		if target == "Hank" then
+			tries = tries + 1
+			if tries == 1 then return 3 end
+		end
+		return sendWas(prefix, text, chan, target)
+	end
+	online[#online + 1] = { name = "Hank", connected = true }
+	n = #sent
+	OM.Scan(); FlushAll()
+	_G.C_ChatInfo.SendAddonMessage = sendWas
+	check(tries == 2 and sent[#sent].target == "Hank" and sent[#sent].text == "H1", "throttled: Hank's hello tried again and sent: " .. tries)
+	-- (1.2.9 review) the cap is the guild's: a friend's place is always kept
+	local maxWas = OM.MAX
+	OM.MAX = 0
+	Msg("L1\t1429\t0.3\t0.3\tMAGE\t9", "GUILD", "Ida-Realm")
+	Msg("L1\t1429\t0.3\t0.3\tMAGE\t9", "WHISPER", "Hank-Realm")
+	OM.MAX = maxWas
+	check(not Place("Ida") and Place("Hank"), "the guild's places at their cap: a new guild member's left out, a friend's kept")
+	-- (1.2.9 review) one player twice, by Battle.net's first name alone and the guild's whole name: shown once
+	OM.Heard("Ivy Moss-Realm", "L1\t1429\t0.2\t0.2\tDRUID", nil, true)
+	OM.Heard("Ivy", "L1\t1429\t0.2\t0.2\tDRUID", { key = "ivy", name = "Ivy", bn = 99 }, false)
+	local ivies = 0
+	for _, w in ipairs(SSH.AllPlaces(SSH.game)) do if w.name:find("^Ivy") then ivies = ivies + 1 end end
+	check(ivies == 1, "Ivy by her first name and her whole name: one place shown: " .. ivies)
+	OM.OnEvent("CHAT_MSG_ADDON", "OpenMapLoc", "L0", "GUILD", "Ivy Moss-Realm")
+	OM.Heard("Ivy", "L0", { key = "ivy", name = "Ivy", bn = 99 }, false)
+	OM.OnEvent("CHAT_MSG_ADDON", "OpenMapLoc", "L0", "WHISPER", "Hank-Realm")
 
 	-- the map's dots: OpenMap's too, unless OpenMap is loaded (it draws its own)
 	check(#SSH.AllPlaces(SSH.game, true) == 2, "the dots: OpenMap players' too")

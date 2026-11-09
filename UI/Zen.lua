@@ -55,8 +55,28 @@ function Z.UnitFrameParts(fn)
 		end
 	end
 	for i = 1, 5 do Each("CompactPartyFrameMember" .. i); Each("CompactPartyFramePet" .. i) end
-	for i = 1, 40 do Each("CompactRaidFrame" .. i) end
+	-- (numbered by a running count: pets and main tanks/assists take numbers past 40; up to the first missing one)
+	for i = 1, 200 do
+		if not _G["CompactRaidFrame" .. i] then break end
+		Each("CompactRaidFrame" .. i)
+	end
 	for g = 1, 8 do for m = 1, 5 do Each("CompactRaidGroup" .. g .. "Member" .. m) end end
+	for i = 1, 5 do Each("CompactArenaFrameMember" .. i) end
+end
+
+local following = {} -- Z.UNIT_PARTS this fade made follow their parent's alpha (back as it ends)
+--- The parts there are now made to follow their parent's alpha (UIParent's, faded), those already following skipped:
+--- as a fade starts, on every open (a part made since the last), and when the group changes while faded (1.2.9 review:
+--- a party turned raid while open showed its new frames' boxes).
+function Z.Follow()
+	Z.UnitFrameParts(function(r)
+		if following[r] then return end
+		local ok, ignoring = true, true
+		if type(r.IsIgnoringParentAlpha) == "function" then ok, ignoring = pcall(r.IsIgnoringParentAlpha, r) end
+		if (not ok or ignoring ~= false) and type(r.SetIgnoreParentAlpha) == "function" and pcall(r.SetIgnoreParentAlpha, r, false) then
+			following[r] = true
+		end
+	end)
 end
 
 -- Terminal's frames that sit on UIParent (its apps' frames come from the Panel registry)
@@ -71,7 +91,6 @@ local also -- Z.ALSO's frames -> their alpha before the fade
 local dim, driver
 local kept = {} -- Terminal's frames already set to ignore UIParent's alpha
 local hidden = {} -- Z.HIDE's frames this fade hid (shown again as it ends)
-local following = {} -- Z.UNIT_PARTS this fade made follow their parent's alpha (back as it ends)
 local watching = false
 
 -- (.console is always zen, whatever .zen says: Z.Force while it shows)
@@ -303,15 +322,8 @@ function Z.Opened()
 				also[f] = okA and type(fa) == "number" and fa or 1
 			end
 		end
-		Z.UnitFrameParts(function(r)
-			local ok, ignoring = true, true
-			if type(r.IsIgnoringParentAlpha) == "function" then ok, ignoring = pcall(r.IsIgnoringParentAlpha, r) end
-			if (not ok or ignoring ~= false) and type(r.SetIgnoreParentAlpha) == "function" and pcall(r.SetIgnoreParentAlpha, r, false) then
-				following[r] = true
-			end
-		end)
 	end
-	if Z.Can() then Z.KeepOwn() end
+	if Z.Can() then Z.KeepOwn(); Z.Follow() end
 	if not Z.active then
 		ns:Trace("zen: Terminal opened, the interface fades and the screen dims")
 		Z.Retint(true) -- (the weather's colour from the start: the dimming fades in already)
@@ -387,6 +399,8 @@ function Z.OnEvent(event, ...)
 		if Z.active then Z.Retint(false) end
 	elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_LEAVING_WORLD" then
 		if Z.Leave(true) then ns:Trace("zen: " .. (event == "PLAYER_REGEN_DISABLED" and "combat" or "a loading screen") .. ": the interface is back at once") end
+	elseif event == "GROUP_ROSTER_UPDATE" then
+		if Z.active and target > 0 and Z.Can() then Z.Follow() end -- (new party/raid frames while faded)
 	elseif event == "ADDON_RESTRICTION_STATE_CHANGED" then
 		local kind, state = ...
 		local E, S = Enum and Enum.AddOnRestrictionType, Enum and Enum.AddOnRestrictionState
@@ -395,7 +409,8 @@ function Z.OnEvent(event, ...)
 end
 
 local ev = CreateFrame("Frame")
-for _, e in ipairs({ "PLAYER_REGEN_DISABLED", "PLAYER_LEAVING_WORLD", "ADDON_RESTRICTION_STATE_CHANGED", "WEATHER_CHANGED" }) do
+for _, e in ipairs({ "PLAYER_REGEN_DISABLED", "PLAYER_LEAVING_WORLD", "ADDON_RESTRICTION_STATE_CHANGED", "WEATHER_CHANGED",
+	"GROUP_ROSTER_UPDATE" }) do
 	pcall(ev.RegisterEvent, ev, e)
 end
 ev:SetScript("OnEvent", function(_, event, ...) Z.OnEvent(event, ...) end)

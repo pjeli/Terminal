@@ -1421,10 +1421,18 @@ do
 	check(Zen.active and box.ign == false and icon.ign == false and unsaid.ign == false,
 		"faded: the target's selection box and the ready-check icon follow their parent's alpha (UIParent's 0): " .. tostring(box.ign))
 	check(follows.ign == false, "one that already follows its parent's: left as it is")
+	-- (1.2.9 review) a raid frame made while faded (the group grew), numbered past 40 (pets, main tanks): followed too
+	local late = Part(true)
+	for i = 1, 41 do _G["CompactRaidFrame" .. i] = CreateFrame("Frame") end
+	_G.CompactRaidFrame41.selectionHighlight = late
+	Zen.OnEvent("GROUP_ROSTER_UPDATE")
+	check(late.ign == false, "the group changed while faded: a new raid frame's box (CompactRaidFrame41) follows too")
 	UI:HideNow()
 	UI.frame.scripts.OnHide(UI.frame)
 	T.FlushAll()
 	Step(0.1); Step(0.11)
+	check(late.ign == true, "back: the late one too")
+	for i = 1, 41 do _G["CompactRaidFrame" .. i] = nil end
 	check(not Zen.active and box.ign == true and icon.ign == true and unsaid.ign == true and follows.ign == false,
 		"back: they ignore their parent's alpha again, as Blizzard made them; the other left alone")
 	ns.db.zen = nil
