@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.3.7", when = "in testing",
+		v = "1.3.8", when = "in testing",
 		items = {
+			"Fixed: on WoW Forever, Enter on an achievement presses the game's achievement key instead of running a /run line that could leave the Legacy window tainted.",
 			"Hunters: \"what can my pet eat\", \"nearest pet food vendor\". Loot rows' tooltips say the boss's level and type (and its drop rate from AtlasLoot); \"summoned bosses in blackrock spire\". Currency tooltips add your alts' amounts (Syndicator).",
 			"Lore and books (with the Spoken addons): \"who is edwin vancleef\", \"lore of duskwood\", \"tell me about goldshire\" (@lore), every book in the game in @book, read or unread, \"books in duskwood\", \"books that mention stalvan\".",
 			"\"Where to get\" knows more: the clams, sacks and boxes an item comes out of, who to skin, where to fish, what to disenchant (with OneForAll); and \"what does <token> give\" lists what a token, libram or sack turns into (AtlasLoot).",

@@ -15,7 +15,6 @@ local ALLOW = {
 	ChatEdit_InsertLink = { files = { "Core/Core.lua" }, why = "puts text in the chat box: no game call or button does" },
 	ChatFrame_OpenChat = { files = { "Core/Core.lua" }, why = "opens the chat box with text: no game call or button does" },
 	OpenAchievementFrameToAchievement = { files = { "Providers/Achievements.lua" }, why = "no game call opens an achievement; nothing protected in that window" },
-	ToggleAchievementFrame = { files = { "Providers/Achievements.lua" }, why = "(the same line's fallback)" },
 	AddonList = { files = { "Providers/Panels.lua", "Providers/Addons.lua" }, why = "no game call or button opens the AddOn list; nothing protected in it" },
 	ShowUIPanel = { files = { "Providers/Panels.lua", "Providers/Addons.lua" }, why = "the AddOn list (above)" },
 	-- (0.49.2, review: Quick Keybind Mode's /run line, HideUIPanel(SettingsPanel) and ShowUIPanel(QuickKeybindFrame), is

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.8 (in testing)
+
+- Achievements: WoW Forever has no `OpenAchievementFrameToAchievement`, and its `ToggleAchievementFrame` opens the
+  Legacy window's Challenges. The achievement rows' `/run` line fell back to it, running the Legacy window's code
+  tainted (its Tree with it). Where the game has the call, the `/run` line turns the window to the achievement as
+  before; on Forever, the game's achievement key alone, not pressed while Challenges already shows (it would close
+  it). Found while building `@legacy`.
+
 ## 1.3.7 (in testing)
 
 - **Pet food** (hunters with a pet out): **what can my pet eat** (`@item is:petfood`: what in your bags your pet eats,

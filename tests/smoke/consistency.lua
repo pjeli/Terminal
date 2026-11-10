@@ -282,11 +282,15 @@ do
 	local slash
 	for _, e in ipairs(ns:GetEntries(ns.providers.slash)) do if e.secure and not e.emote then slash = e break end end
 	check(slash and UI.HoldFor(UI.SecureView(slash, false), true), "a slash command with Ctrl: held open still")
+	-- (a client with OpenAchievementFrameToAchievement: the /run line pressed; WoW Forever's key alone, 1.3.8)
+	local openWas = rawget(_G, "OpenAchievementFrameToAchievement")
+	_G.OpenAchievementFrameToAchievement = function() end
 	UI:Open("@achievement " .. (ach and ach.name or "?")); FlushAll()
 	check(UI.Results()[1] and ach and UI.Results()[1].name == ach.name, "(the achievement found)")
 	UI:Activate(nil, { keepOpen = true })
 	UI:FinishSecure()
 	check(not UI:IsShown(), "Ctrl+Enter on an achievement: closed once the game pressed it")
+	_G.OpenAchievementFrameToAchievement = openWas
 	UI:Hide(); FlushAll()
 	ns.db.easyMode = was
 end
@@ -309,8 +313,22 @@ do
 		"the calculator: one text everywhere, the chat box opened by the game")
 	local arows = ns:GetEntries(ns.providers.achievements)
 	local a = arows[1]
+	-- (with the game's call: a /run line turns the window to it; without (WoW Forever, 1.3.8): no /run line, the key
+	-- alone, not pressed while the window shows. Forever's ToggleAchievementFrame opens Legacy Challenges: run from a
+	-- /run line, it ran the Legacy window's code tainted)
+	local callWas = rawget(_G, "OpenAchievementFrameToAchievement")
+	_G.OpenAchievementFrameToAchievement = function() end
 	local amac = a and a.secure and a.secure.macro(a)
-	check(amac and amac:find("OpenAchievementFrameToAchievement(" .. a.key .. ")", 1, true), "achievements: the window opened by the game: " .. tostring(amac))
+	check(amac and amac:find("OpenAchievementFrameToAchievement(" .. a.key .. ")", 1, true) and not amac:find("ToggleAchievementFrame", 1, true),
+		"achievements: the window opened by the game: " .. tostring(amac))
+	_G.OpenAchievementFrameToAchievement = nil
+	local fmac = a and a.secure and a.secure.macro(a)
+	local legacyWas = ns.Legacy and ns.Legacy.ChallengesShown
+	if ns.Legacy then ns.Legacy.ChallengesShown = function() return true end end
+	check(fmac == nil and a.secure.binding == "TOGGLEACHIEVEMENT" and (not ns.Legacy or a.isOpen(a) == true),
+		"WoW Forever: no /run line, the achievement key, not pressed while Challenges shows: " .. tostring(fmac))
+	if ns.Legacy then ns.Legacy.ChallengesShown = legacyWas end
+	_G.OpenAchievementFrameToAchievement = callWas
 	local trows = ns:GetEntries(ns.providers.terminal)
 	check(trows[1] and trows[1].secure and trows[1].secure.macro, "Terminal Options: opened by the game")
 end

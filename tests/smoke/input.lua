@@ -69,6 +69,8 @@ Advanced(function()
 	ns.Bump = bumpWas
 	UI:Disarm(); UI:Hide(); T.FlushAll()
 	-- armed for another row than the one selected now: stale, Enter works the selected row's press out afresh
+	local openWas = rawget(_G, "OpenAchievementFrameToAchievement")
+	_G.OpenAchievementFrameToAchievement = function() end -- (achievements pressed by their /run line: 1.3.8, not on Forever)
 	UI:Open("@ach level"); T.FlushAll()
 	check(#UI.Results() >= 2, "(two achievements)")
 	UI:EnterEdit()
@@ -77,6 +79,7 @@ Advanced(function()
 	key("ENTER")
 	check(UI.armedEntry and UI.armedEntry.name == UI.Results()[2].name and not rawget(UI.armedEntry, "isShift"),
 		"armed for another row: the selected row's own press: " .. tostring(UI.armedEntry and UI.armedEntry.name))
+	_G.OpenAchievementFrameToAchievement = openWas
 	UI:Disarm(); UI:Hide(); T.FlushAll()
 end)
 
