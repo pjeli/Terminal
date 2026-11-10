@@ -23,7 +23,7 @@ I.LOST = {
 	OneForAll = { "OneForAll", L["Its Library Books, hunter pets, reputation rewards, item sets and gear values are unavailable."] },
 }
 function I.Setup()
-	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune", "WhatsTraining", "TrainerSpells", "OneForAll" }) do
+	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune", "WhatsTraining", "TrainerSpells", "OneForAll", "Spoken" }) do
 		local setup = I._["Setup" .. name]
 		local ok, err = true, nil
 		if setup then ok, err = pcall(setup) end
@@ -120,6 +120,8 @@ ns:RegisterCommand("integrations", {
 		lines[#lines + 1] = "  " .. L["Addon options (Ace3):"] .. " " .. (#apps > 0 and table.concat(apps, ", ") or L["none"])
 		if ns.OneForAll then lines[#lines + 1] = "  OneForAll: " .. ns.OneForAll.Status() .. I.FailedText("OneForAll") end
 		if ns.Auctionator then lines[#lines + 1] = "  Auctionator: " .. ns.Auctionator.Status() end
+		local spoken = ns.Spoken and ns.Spoken.Status()
+		if spoken then lines[#lines + 1] = "  Spoken: " .. spoken end
 		local M = ns.Maps
 		if M and M.TomTom and M.TomTom() then lines[#lines + 1] = "  TomTom: " .. I.TomTomStatus() end
 		if ns.Stored then lines[#lines + 1] = "  " .. L["Alts and banks:"] .. " " .. ns.Stored.Status() end

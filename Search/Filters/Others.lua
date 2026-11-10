@@ -471,7 +471,14 @@ IS.offline = function(e) return e.online == false end
 local function MailIs(test) return function(e) return e.kind == "mail" and e.mailKind == "mail" and test(e, e.mail) or false end end
 IS.cod = MailIs(function(_, m) return m.cod ~= nil end)
 IS.expiring = MailIs(function(e) return e.soon == true end)
-IS.unread = MailIs(function(_, m) return not m.read end)
+local MailUnread = MailIs(function(_, m) return not m.read end)
+-- (and a book you haven't read in the game: Spoken's readables in @book, Providers/Integrations/Spoken.lua)
+IS.unread = function(e)
+	if rawget(e, "readable") then return ns.Spoken ~= nil and not ns.Spoken.IsRead(e) end
+	return MailUnread(e)
+end
+-- (@book's Library Books, OneForAll's, not the readables beside them)
+IS.library = function(e) return e.kind == "book" and not rawget(e, "readable") end
 IS.returned = MailIs(function(_, m) return m.returned == true end)
 -- (auction mail; every @auction row (Auctions.lua: the auction house's news among them) counts as an auction, a sale
 -- with its price as gold; mail you sent: is:sent, to others and to your alts)
@@ -685,7 +692,7 @@ F.VALUES = {
 		"foryou", "cantake", "itemstart", "started",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
 		"auctioneer", "questgiver", "stablemaster", "spirithealer", "battlemaster", "weaponmaster", "pvpvendor", "pvp", "flightpath", "learned", "unlearned", "unknown", "learnable",
-		"cod", "expiring", "unread", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
+		"cod", "expiring", "unread", "library", "returned", "auction", "money", "sent", "incoming", "dead", "tank", "healer", "dps", "far", "inrange", "unbuffed",
 		"shareable", "together", "raid", "dungeon", "key", "class", "broken", "damaged", "holiday", "invite", "today", "guild",
 		"sold", "listed", "mine", "death", "taken", "dealt", "ability", "reward", "canbuy", "tameable", "elite", "rare", "rareelite", "boss",
 		"daily", "repeatable" },
@@ -753,7 +760,7 @@ F.APPLIES = {
 		unlearned = { "flight", "recipes", "professions", "missing", "classspells" },
 		unknown = { "flight", "recipes", "professions", "missing", "classspells" },
 		learnable = { "recipes", "professions", "missing" },
-		cod = MAIL, expiring = MAIL, unread = MAIL, returned = MAIL, auction = { "mail", "auctions" }, money = { "mail", "auctions" },
+		cod = MAIL, expiring = MAIL, unread = { "mail", "book" }, library = { "book" }, returned = MAIL, auction = { "mail", "auctions" }, money = { "mail", "auctions" },
 		sent = MAIL, incoming = { "auctions" },
 		dead = GROUP, tank = GROUP, healer = GROUP, dps = GROUP, far = GROUP, inrange = GROUP, unbuffed = GROUP,
 		shareable = { "groupquests" }, together = { "groupquests" },

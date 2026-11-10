@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.6 (in testing)
+
+- **Lore** (with the Spoken addons, read at run time, nothing shipped): `@lore` (@story) holds every boss story and
+  every zone and subzone written up: the tooltip says how it begins, Enter opens the whole text. Asked: **who is
+  edwin vancleef**, **lore of duskwood**, **tell me about goldshire**.
+- **Books**: `@book` also lists every readable Spoken knows, read or unread (`is:unread`), with where it's found;
+  Enter opens its pages. **books in duskwood**; **books that mention stalvan** searches their pages (only then).
+  OneForAll's Library Books stay as they were (`is:library`; their counts and questions cover only them).
+- A Lore category in Simple mode. A new file (`Providers/Integrations/Spoken.lua`): restart the game.
+
 ## 1.3.5 (in testing)
 
 - **Where to get** an item (`> sources`) lists more: the containers it comes out of (QuestieDB's `itemDrops`: "where
