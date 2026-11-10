@@ -255,7 +255,7 @@ do
 		-- (1.0.52) a quest's rewards and chain in words; the quests an item starts
 		check(P.Canonical("what does wanted hogger give") == "wanted hogger > rewards"
 			and P.Canonical("rewards for wanted hogger") == "wanted hogger > rewards" and P.Canonical("wanted hogger chain") == "wanted hogger > chain"
-			and P.Canonical("next quest after wanted hogger") == "wanted hogger > chain" and P.Canonical("what does wanted give") == "wanted > rewards",
+			and P.Canonical("next quest after wanted hogger") == "wanted hogger > unlocks" and P.Canonical("what does wanted give") == "wanted > rewards",
 			"a quest's rewards and chain in words: " .. tostring(P.Canonical("what does wanted hogger give")))
 		-- (review, 1.0.65) ...only a quest's name: "heavy chain" is an item's, "what does stamina give" no quest's
 		check(P.Canonical("heavy chain") == nil and P.Canonical("what does stamina give") == nil and P.Canonical("rewards from dungeons") == nil

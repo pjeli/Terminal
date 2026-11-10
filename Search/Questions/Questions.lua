@@ -48,6 +48,10 @@ Scan.ANSWERS = {
 	Asks("TurnIn", { examples = { "quests to turn in", "which quests are ready" } }),
 	-- "who gives the defias brotherhood", "where do i turn in ...": its giver, its turn-in NPC (Suggest.lua)
 	Asks("QuestPeople", { custom = "a quest's giver or turn-in NPC: no relation in the search for it" }),
+	-- "why can't i take the defias brotherhood", "can i take ...", "why isn't ... offered": what stops you, each reason a
+	-- row (QuestAccess.lua: QuestieDB's prerequisites, exclusive quests, level cap, breadcrumbs...)
+	Asks("QuestAccess", { examples = { "why cant i take wanted hogger", "can i take wanted hogger", "why isnt wanted hogger offered" },
+		custom = "reasons, not rows a list holds: what stops you taking one quest" }),
 	-- "quests near me", "turn ins near me": the quests whose giver (turn-in) is nearest (Suggest.lua)
 	Asks("NearQuests", { examples = { "quests near me", "turn ins near me" },
 		custom = "quests by their giver's distance, turn-ins as NPCs" }),

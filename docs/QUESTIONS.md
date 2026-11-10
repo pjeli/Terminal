@@ -111,6 +111,7 @@ Kept only where no search can list the same rows, each with its reason in `custo
 | HearthBind, XpRate | a game value, session state |
 | Corpse | your corpse, then the three nearest spirit healers |
 | QuestPeople, NearQuests | a quest's giver / turn-in NPC: no relation in the search for it |
+| QuestAccess | reasons, not rows a list holds: what stops you taking one quest |
 | QuestTrack | its rows are the plan (to track / to untrack), with the "Track N" row that does it |
 | InstanceBosses | boss rows whose Enter walks to the drops chain |
 | AhUpgradesQ, QuestUpgrades, VendorUpgrades | what is an upgrade by how much; a giver's distance or dungeon |
@@ -132,7 +133,7 @@ Each a filter, sort or field anyone can type in Advanced mode, added where a que
   picks first. (Spells and the quest log needed no `_rank`: Keyed's tie is the row's place, the list's order.)
 - **No 100-row cut for a sorted list with no words**: `@bank sort:name` lists the whole bank (up to `Score.LIST_MAX`).
 - **Quest filters**: `is:foryou` (your race, class and side may take it: `QR.ForYou`), `is:cantake` (and you meet its
-  needs: `QR.MeetsRequires`), `is:itemstart` (an item starts it), `is:started` (some progress made).
+  needs: `QR.MeetsRequires`, and nothing in QuestieDB's quest fields stops you: `QR.CanTakeNow`, QuestAccess.lua), `is:itemstart` (an item starts it), `is:started` (some progress made).
 - **Recipe filter**: `prof:` (the recipe's profession, `profName`: Smelting is Mining's).
 - **Sorts**: `sort:need` (the skill a recipe needs), `sort:grey` (grey quests first, then level), `sort:cantake` (quests
   you can take first, saying what each needs).
@@ -282,3 +283,32 @@ What can't be moved without losing something the player sees stays an own answer
   1.0.75: Simple 7327.5 -> 7305.4 ms, Advanced 4919.3 -> 4899.3 ms.
 - In all: 58 entries; 23 are search questions, 9 more in part (each says why the rest is its own), 26 keep their own
   answer for a stated reason; 45 examples are checked row for row against their Alt+` line.
+
+### Quest access (after 1.3.1)
+
+- `Search/Questions/QuestAccess.lua` (`ns.QuestAccess`, after Suggest.lua in the TOC): can you take a quest, by
+  QuestieDB's quest fields (questMeta.lua), read through LibQuestieDB's public `Quest.Get` (`QD.DB`), as Questie reads
+  them: `preQuestSingle` any one done; `preQuestGroup` (only without a preQuestSingle) every one done (a positive id: or
+  one of its own `exclusiveTo` done; a negative id: that quest done); `exclusiveTo` none done or in your log;
+  `requiredMaxLevel`; `nextQuestInChain` not done or in your log; `parentQuest` in your log; `breadcrumbForQuestId` not
+  done or in your log; `breadcrumbs` none in your log; `requiredSpell` known (negative: not known); `requiredMaxRep` your
+  points under it (not known: not held against it). Done and in your log are the game's (IsQuestFlaggedCompleted,
+  GetLogIndexForQuestID). A quest's fields are read once (`QA.Fields`, false for most quests); the game is asked once
+  per quest per pass (the memo a fitter keeps). A !t question (ns.Asker) checks only the level cap.
+- Used by `Z.QuestFitter` (where to quest, the zones' quest counts, quests near me), `is:cantake` and `sort:cantake`
+  (quests here; the detail adds the first reason), quest upgrades.
+- QuestAccess (own answer): "why can't i take <quest>", "can i take <quest>", "why isn't <quest> offered", "why is
+  <quest> not available", "why don't i see <quest>". One row per reason ("Needs <quest> first" (one of several:
+  "Needs A / B first"; a breadcrumb of it in your log too), "You took <quest>: it's one or the other" (done or in your
+  log), "You took <quest>, which comes after it", "Only up to level 30", "A breadcrumb to <quest>, which you've taken",
+  "Only while <quest> is in your log", "Needs <spell> learned", "Only under Friendly with <faction>"), each the quest it
+  names (Enter, Shift+Enter and the tooltip are that quest's); also Done, In log, race/class/side, "Requires level N",
+  skill/standing (QR.RequiresSaid); none: "Nothing stops you: you can take it". The footer is the quest's name. A
+  name's quests: yours (QP.Which), the first not done. (Few new texts on purpose: the translations' 95% gate.)
+- Forward chains: the `unlocks` relation (aliases unlock, next, after, followups, leadsto): `<quest> > unlocks` = its
+  `nextQuestInChain`, `childQuests`, the quest it is a breadcrumb to, then the quests whose prerequisites name it (a
+  reverse index made once per quest list: id -> ids), yours when some are; each says how ("next in its chain" for the
+  first three, "needs it" for the rest) and done / in log. Words
+  (Chains.lua's phrases, the Chains entry): "what does <quest> unlock", "what does <quest> lead to", "what comes after
+  <quest>", "next quest after <quest>" (these two were the chain before it), "what quests come after", "quests after",
+  "what follows". Tests: tests/smoke/questaccess.lua.

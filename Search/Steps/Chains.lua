@@ -115,7 +115,11 @@ P.PHRASES = {
 	{ "^what does (.+) give$", "rewards", "quest" }, { "^what does (.+) reward$", "rewards", "quest" },
 	{ "^rewards for (.+)$", "rewards", "quest" }, { "^rewards from (.+)$", "rewards", "quest" },
 	{ "^what do i get for (.+)$", "rewards", "quest" },
-	{ "^next quests? after (.+)$", "chain", "quest" }, { "^what comes after (.+)$", "chain", "quest" },
+	-- (what a quest opens up, QuestAccess.lua's "unlocks": the quests after it, not the chain before it)
+	{ "^next quests? after (.+)$", "unlocks", "quest" }, { "^what comes after (.+)$", "unlocks", "quest" },
+	{ "^what does (.+) unlock$", "unlocks", "quest" }, { "^what does (.+) lead to$", "unlocks", "quest" },
+	{ "^what quests? comes? after (.+)$", "unlocks", "quest" }, { "^quests? after (.+)$", "unlocks", "quest" },
+	{ "^what follows (.+)$", "unlocks", "quest" },
 	{ "^what does (.+) sell$", "sells" }, { "^what do (.+) sell$", "sells" }, { "^items sold by (.+)$", "sells" },
 	{ "^what is sold by (.+)$", "sells" }, { "^whats sold by (.+)$", "sells" }, { "^(.+) wares$", "sells" },
 	{ "^what does (.+) have for sale$", "sells" },
@@ -144,10 +148,11 @@ P.PHRASE_NPC = { drops = true, sells = true }
 
 -- Simple mode's words for a one-link chain (it never shows ">"): what Enter writes and what the footer says
 P.SIMPLE = { mats = "mats for %s", uses = "what uses %s", sources = "where to get %s", learn = "where to learn %s",
-	chain = "quest chain for %s", drops = "what does %s drop", sells = "what does %s sell", rewards = "rewards for %s" }
+	chain = "quest chain for %s", drops = "what does %s drop", sells = "what does %s sell", rewards = "rewards for %s",
+	unlocks = "what comes after %s" }
 P.SIMPLE_LABEL = { mats = L["Mats for %s"], uses = L["What uses %s"], sources = L["Where to get %s"], alts = L["%s on your alts"],
 	learn = L["Where to learn %s"], chain = L["Quest chain for %s"], ["?"] = L["Which %s?"], drops = L["Drops from %s"],
-	sells = L["Sold by %s"], rewards = L["%s rewards"] }
+	sells = L["Sold by %s"], rewards = L["%s rewards"], unlocks = L["What comes after %s"] }
 
 local function SimpleOn() return ns.Easy and ns.Easy.On and ns.Easy.On() end
 

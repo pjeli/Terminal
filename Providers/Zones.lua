@@ -262,7 +262,8 @@ local function Allows(mask, bitv)
 	if type(mask) ~= "number" or mask == 0 or not bitv or not (_G.bit and _G.bit.band) then return true end
 	return _G.bit.band(mask, bitv) ~= 0
 end
---- A Questie quest at your level (2 below to 3 above), not done, for your race and class: a test for its rows.
+--- A Questie quest at your level (2 below to 3 above), not done, for your race and class, that you can take now: a
+--- test for its rows.
 function Z.QuestFitter(level)
 	local QD = ns.QuestieData
 	local DB = QD and QD.DB and QD.DB()
@@ -272,6 +273,10 @@ function Z.QuestFitter(level)
 	-- that need honored with stormwind" list them)
 	local QR = ns.QuestRewards
 	local meets = QR and QR.MeetsRequires
+	-- (and what QuestieDB says stands in the way: prerequisites, an exclusive quest done, a level cap, a breadcrumb
+	-- leading to a quest done...; QuestAccess.lua. The memo keeps the game's done / in log per quest for this pass)
+	local QA = ns.QuestAccess
+	local canTake = QA and QA.CanTake
 	local memo = {}
 	return function(q)
 		local lv = rawget(q, "level")
@@ -283,6 +288,7 @@ function Z.QuestFitter(level)
 				and Allows(Safe(DB.QueryQuestSingle, id, "requiredClasses"), classBit)) then return false end
 		end
 		if meets and type(id) == "number" and not meets(id, memo) then return false end
+		if canTake and type(id) == "number" and not canTake(id, level, memo) then return false end
 		return true
 	end
 end

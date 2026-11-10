@@ -635,6 +635,8 @@ local function QuestNamed(said)
 	local s = Plain((said:gsub("^the quest ", ""):gsub("^quest ", ""):gsub(" quest$", "")))
 	return byName[s] or byName[(s:gsub("^the ", ""))] or byName["the " .. s]
 end
+--- A quest by its name as a question says it: { id, ids, name }, or nil (Questie's list not built, no such quest).
+QP.Named = QuestNamed
 function QP.Question(text)
 	local t = ns.QuestionText(text)
 	if not t then return nil end

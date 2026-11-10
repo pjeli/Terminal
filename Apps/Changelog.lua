@@ -14,9 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.3.1", when = "in testing",
+		v = "1.3.2", when = "in testing",
 		items = {
-			"No change in the game yet: Terminal's own tests were split to fit their time budget.",
+			"Quest suggestions only list quests you can actually take (QuestieDB's prerequisites, either-or quests, level caps, breadcrumbs); \"why can't i take <quest>\" says what stops you, and \"what does <quest> unlock\" what comes after it.",
 		},
 	},
 	{

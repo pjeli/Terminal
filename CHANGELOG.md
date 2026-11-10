@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.2 (in testing)
+
+- Quest suggestions ("where should i quest", "quests here", the zone counts, quest upgrades, `is:cantake`) leave out
+  quests you can't pick up, by QuestieDB's own fields: prerequisites not done, the other quest of an either-or pair
+  done or in your log, past a quest's level cap, a breadcrumb to a quest you've taken, a spell or a standing it
+  wants. Read through LibQuestieDB's public data, once per quest (`Search/Questions/QuestAccess.lua`, a new file:
+  restart the game).
+- **why can't i take <quest>** (also "can i take", "why isn't <quest> offered"): a row per reason, each acting as the
+  quest it names, or "Nothing stops you".
+- **what does <quest> unlock** ("what comes after", "next quest after"; Advanced `<quest> > unlocks`): the next quest
+  in its chain, its child quests, where a breadcrumb leads, and the quests that need it. "next quest after X" went
+  backwards before.
+
 ## 1.3.1 (in testing)
 
 - Tests: `easy.lua` and `printers.lua` had reached their 20M-instruction budget (19.3M each), and GitHub's run of

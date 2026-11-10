@@ -435,6 +435,7 @@ function QR.UpgradeAnswer()
 			elseif lvl and lvl > 0 and (lvl < me - QR.NEAR_BELOW or lvl > me + QR.NEAR_ABOVE) then ok = false end
 		end
 		if ok then ok = ForYou(db, qid) end
+		if ok then ok = QR.CanTakeNow(qid, me) end -- (no reward of a quest you can't pick up: QuestAccess.lua)
 		if ok then
 			-- (its rewards the game hasn't sent: asked for, a few, and the answer read again once they're in)
 			for _, it in ipairs(items) do
@@ -1297,6 +1298,12 @@ function QR.MyRep(fid)
 	end
 	return nil
 end
+--- Can you take it now, by QuestieDB's prerequisites, exclusive quests, level cap, breadcrumbs, spell and reputation
+--- cap (Search/Questions/QuestAccess.lua, loaded after this file)? true without it.
+function QR.CanTakeNow(id, level, memo)
+	local QA = ns.QuestAccess
+	return not (QA and QA.CanTake) or QA.CanTake(id, level, memo)
+end
 --- Can you take it, by what it needs (a profession's skill, a standing)? true when it needs neither, or the game won't say.
 --- (memo: a table kept across one list's quests, so your skills and standings are read once each)
 function QR.MeetsRequires(id, memo)
@@ -1466,9 +1473,10 @@ function QN.None()
 end
 
 if Fk and Fk.IS then
-	-- is:foryou: a quest your race, class and side may take; is:cantake: and whose needs you meet
+	-- is:foryou: a quest your race, class and side may take; is:cantake: and whose needs you meet, nothing in QuestieDB
+	-- stopping you (prerequisites, an exclusive quest done, a level cap...: QR.CanTakeNow)
 	Fk.IS.foryou = function(e) local id = QuestIdOf(e) return id ~= nil and QR.ForYou(id) end
-	Fk.IS.cantake = function(e) local id = QuestIdOf(e) return id ~= nil and QR.ForYou(id) and QR.MeetsRequires(id) end
+	Fk.IS.cantake = function(e) local id = QuestIdOf(e) return id ~= nil and QR.ForYou(id) and QR.MeetsRequires(id) and QR.CanTakeNow(id) end
 	-- is:itemstart: a quest an item starts (Questie's startedBy, its items; "quests that start from an item")
 	Fk.IS.itemstart = function(e)
 		local db, id = DB(), QuestIdOf(e)
@@ -1495,13 +1503,17 @@ do
 		A.FIELDS.cantake = { label = ns.Lower(L["Can take"]), num = function(e)
 			local id = QuestIdOf(e)
 			if not id then return nil end
-			return (QR.ForYou(id) and QR.MeetsRequires(id)) and 0 or 1
+			return (QR.ForYou(id) and QR.MeetsRequires(id) and QR.CanTakeNow(id)) and 0 or 1
 		end }
 	end
 	if B and B.SORTS then B.SORTS[#B.SORTS + 1] = { id = "cantake", label = L["Can take"], field = "cantake", asc = true, tie = "level" } end
 	ns.FIELD_DETAIL.cantake = function(e)
 		local id = QuestIdOf(e)
 		local said = id and QR.RequiresSaid(id)
+		-- (and the first thing QuestieDB says stops you: "Needs <quest> first")
+		local QA = ns.QuestAccess
+		local why = id and QA and QA.Reasons and QA.Reasons(id)[1]
+		if why then said = said or {}; said[#said + 1] = QA.Say(why) end
 		local own = rawget(e, "detail") or e.detail
 		if not said or #said == 0 then return own end
 		return table.concat(said, ns.DETAIL_SEP) .. ((own and own ~= "") and (ns.DETAIL_SEP .. own) or "")
