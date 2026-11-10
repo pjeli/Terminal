@@ -14,17 +14,15 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.2.11", when = "in testing",
+		v = "1.3.0", when = "released November 2026",
 		items = {
-			"The empty prompt's suggestions know your professions (the nearest anvil or forge for blacksmiths and miners, your trainer when it's time to train) and suggest Terminal's own settings you haven't tried (.zen, .ask guild on, .share settings openmap on...).",
 			"Terminal: Share: friends can share where they are (.share settings location on; off by default; .share <group> location on or off for one group, which wins): each is a class-coloured dot on your world map and a row in your searches, \"where are my friends\"; Enter or a click puts a waypoint on them.",
 			"Terminal: Share: guild members and friends who share where they are with OpenMap show too, dots and rows alike (.share settings openmap on; off by default).",
+			"The empty prompt's suggestions know your professions (the nearest anvil or forge for blacksmiths and miners, your trainer when it's time to train) and suggest Terminal's own settings you haven't tried (.zen, .ask guild on, .share settings openmap on...).",
 			"A footer too long for its line (\"recipes i can learn now\") wraps onto more lines, the terminal growing downwards, instead of being cut off.",
-			"Fixes from a review of sharing where you are: friends on an older Terminal: Share no longer drop you every 30 minutes, and places go out ahead of bags and cost less.",
-			"Fixes from two reviews: friends' dots come back when you reopen the map, a suggestion typed with its note works, OpenMap places cost less, and the footer and .zen are steadier.",
-			"Fixed: with .zen on, your target's highlight on the party and raid frames no longer shows through the faded interface.",
-			"When someone asks Terminal (!t) in a chat it doesn't answer in yet, it now says plainly what to type to turn it on (.ask group on).",
-			"Fixed: with Shift+` (or another Shift chord) bound to Terminal, opening it on a kept search no longer types a ~ after it.",
+			"When someone asks Terminal (!t) in a chat it doesn't answer in yet, it says plainly what to type to turn it on (.ask group on).",
+			"Fixed: with .zen on, your target's highlight on the party and raid frames no longer shows through the faded interface; with Shift+` bound to Terminal, opening it on a kept search no longer types a ~.",
+			"Many fixes from three reviews: friends' places and dots, OpenMap players' places in a big guild, suggestions typed with their note, the footer and .zen.",
 		},
 	},
 	{

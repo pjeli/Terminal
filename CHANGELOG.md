@@ -1,164 +1,49 @@
 # Changelog
 
-## 1.2.11 (in testing)
+## 1.3.0
 
-Fixes from a release review of 1.2.1-1.2.10 (four reviewers: bugs, quality, consistency, performance):
+Terminal 1.3: friends' places on your world map (Terminal: Share, and OpenMap players), suggestions made for your
+professions and Terminal's own settings, a footer that wraps, and the fixes of three reviews.
 
-- Friends' dots on the world map came back only when a friend next moved after you closed and reopened the map.
-- A friend who shared their place but no items kept their place's row in `@shared` after leaving. The "Share your
-  location in <group>" rows didn't follow `.share rename`, `new`, `join`, `leave` or `off`. A remembered group joined
-  again before Terminal reconnected it by itself lost its own location setting for that session.
-- The location setting's text says it's sent every 15 s or more with many friends, as it is.
-- OpenMap players' places: a Battle.net friend just online is said hello to (the friend list Share keeps is read
-  again when a friend comes online, and the hellos wait for it); a dot's tooltip says when they were last heard, not
-  when they last moved; a move too small to see doesn't place the dots again; places gone quiet are looked for every
-  2 s while the map shows, not five times a second.
-- A suggestion typed as it was shown, its note too, works: `.ask guild on (Terminal answers guildmates' !t)` turned
-  nothing on, `.theme (a look of your own)` looked for a theme by that name.
-- Suggestions: Russian blacksmiths, miners and tailors got no anvil, forge or moonwell (their professions' names were
-  cut by bytes); "time to train" isn't said for Cooking, First Aid or Fishing past 150 (a book and a quest), before
-  the level a rank wants, or at 300; Advanced mode's trainer suggestions use the English word Questie's titles have;
-  `.share settings location on` isn't suggested when every group has its own setting.
-- French: "nearest forge" finds the forge, not blacksmithing trainers (Blacksmithing is "Forge").
-- The footer is laid out again when the font changes (it ran past the border).
-- After a key that types nothing opened Terminal (F9, Ctrl+Space), a `~` or a Shift symbol typed in the next half
-  second was dropped.
-- `.zen`: raid frames made as the group changes while faded are looked for a moment later (Blizzard makes them after
-  the event); parts a fight kept from being put back are put back when it ends.
+**Where your friends are (Terminal: Share)**
+- `.share settings location on` (off by default): friends you share a group with see where you are, and you see
+  theirs: a class-coloured dot on the world map (OpenMap's stitched map too), pointed at for who and where, clicked
+  for a waypoint; a row in your searches (**where are my friends**, **where is bob**, `@shared where`), Enter a
+  waypoint on them. Sent as you move, never from a dungeon, raid or battleground; stopping, leaving or a loading screen
+  says so at once.
+- Per group: `.share <group> location on|off|global`, or the **Share your location in <group>** rows; a group's own
+  setting wins over the global one. `.share` says which groups share your location.
+- `.share settings` (alone: the settings as rows; `list` in chat; `<name> on|off|toggle`).
+- `.share settings openmap on` (off by default): guild members and friends who share where they are with the
+  [OpenMap](https://github.com/openmap-world/openmap) addon show too, dots and rows alike. Their OpenMap sends places
+  only to friends it hears from, so Terminal says hello to it; yours is never sent this way. With OpenMap installed it
+  draws its own dots.
 
-## 1.2.10 (in testing)
+**Suggestions**
+- The empty prompt's **try:** suggestions name every profession's trainer (with the skill, and more often, when it's
+  time to train), and where its crafts are made: the nearest anvil and forge for blacksmiths, a forge for miners, a
+  cooking fire, a moonwell for Mooncloth.
+- Terminal's own settings and commands you haven't tried come up now and then, each with a short note: `.zen on`,
+  `.ask guild on`, `.ask group on`, `.share settings openmap on`, `.share settings location on`, `.share`, `.theme`,
+  `.atop`, `.changelog`. Typed as shown, note and all, they work.
 
-The empty prompt's "try:" suggestions, enhanced (asked for: "suggest different terminal settings (try .zen mode;
-try .share settings openmap on; etc). Also if they are blacksmithing or mining, suggest nearby forge, nearby anvil,
-nearby whatever trainers they may need"):
+**The terminal**
+- A footer too long for its line wraps onto up to three lines, the terminal growing downwards, instead of running
+  off the right edge.
+- `.ask`: a question asked in a chat Terminal doesn't answer in yet says plainly what to type (`.ask group on`).
 
-- Every profession you have, as the game lists it, gets its trainer suggested (before: one picked at random). At the
-  top of what you've trained (70 of 75, up to 300) it says so and comes up more often: "nearest blacksmithing
-  trainer (70/75)".
-- Where your crafts are made: the nearest anvil and forge for blacksmithing, a forge for mining (smelting), a
-  cooking fire for cooking, a moonwell for tailoring from 250 (Mooncloth). Advanced mode: `@anvil sort:distance` and
-  the like, where those kinds are there.
-- Terminal's own settings and commands, only while they'd change something, and less often than the game's own
-  suggestions: `.zen on`, `.ask guild on` (in a guild), `.ask group on` (in a group), `.share settings openmap on`
-  (in a guild), `.share settings location on` (in a Share group), `.share`, `.theme`, `.atop`, `.changelog`, each with
-  a short note. Turned on, its suggestion is gone at once.
+**Fixes**
+- `.zen`: the selection box on your target's party or raid frame (and the ready-check icon) no longer shows through
+  the faded interface.
+- With Shift+` (or another Shift chord) bound to Terminal, opening it on a kept search no longer types a `~` after
+  it (reported on CurseForge).
+- From three reviews: friends' dots come back when you reopen the map; a friend's place row goes with them; places
+  go out ahead of bags and cost less, and friends on an older Terminal: Share no longer drop you; OpenMap players'
+  places in a big guild cost far less, and Battle.net friends just online are found; the footer is laid out only when
+  it changes; a `~` typed just after opening isn't dropped; French "nearest forge" finds the forge; Russian
+  profession names are suggested.
 
-## 1.2.9 (in testing)
-
-Fixes from a review of 1.2.6-1.2.8 (bugs, consistency, quality, performance):
-
-- OpenMap players' places (`.share settings openmap`):
-  - A place heard again unchanged no longer moves the map's dots, and the rows are made again at most every 3 s
-    (`OM.CHANGED_WAIT`) for all that's heard meanwhile: in a big guild every traveller's message did both.
-  - The places list is made again only when a place changed, and is never expired while the rows are being made
-    (a place gone quiet goes from the ticker or the map).
-  - The game's events are listened to only while the setting is on (every addon's messages pass through
-    `CHAT_MSG_ADDON`).
-  - A hello waiting through a fight goes to the friend as they're reached then: not whispered to a friend gone
-    offline. One the game throttled is tried again instead of lost.
-  - Battle.net friends are read as Share reads them (every game account, your realm only).
-  - One player heard by their first name (Battle.net) and their whole name (guild) shows once.
-  - A friend called by a first name like yours is no longer taken for you (only on the guild's channel does your
-    first name alone count).
-  - An x or y of "nan" is turned down.
-  - The cap of 200 is the guild's: a friend's place is always kept.
-  - The level sent, never shown, is no longer kept.
-- The footer (1.2.6): laid out again only when its text, the width or the font size changes (wrapped, every key laid
-  it out twice). Its line count never falls short of what the width says. It goes back to one line once the terminal
-  closes, so a reopened kept search no longer glides down to size.
-- `.zen` (1.2.8): the party and raid frames' parts are looked for on every open and when the group changes while
-  faded (a party turned raid while open showed its new frames' boxes). Raid frames numbered past 40 (pets, main
-  tanks) and arena frames are covered too.
-
-## 1.2.8 (in testing)
-
-- `.zen`: the selection box on your target's party frame showed through the faded interface (reported with a
-  screenshot: raid-style party frames, `CompactPartyFrameMember1SelectionHighlight`). Blizzard's party and raid frames
-  set that box and their ready-check icon to ignore their parent's alpha, so fading the interface (UIParent's alpha)
-  passed them by. Fading their own alpha didn't hold in the game (something put it back while faded), so while the
-  interface is faded they follow their parent's alpha instead, and ignore it again once it's back.
-
-## 1.2.7 (in testing)
-
-- Terminal: Share: guild members and friends who share where they are with OpenMap show on your world map as
-  class-coloured dots and in `@shared where` ("where are my friends"), with Share friends' places
-  (`.share settings openmap on`; off by default). Asked for: "Can we have Terminal detect and show OpenMap coordinates
-  of friends that might be using OpenMap", then "Guild and friends".
-- OpenMap's public API has no call for these, so its messages (prefix `OpenMapLoc`) are read as they arrive. A guild
-  member's place comes to the whole guild and is only heard. A friend's OpenMap sends to friends it has heard from, so
-  Terminal says hello (`H1`) to each friend as they come online and answers theirs (`H2`). Your own place is never sent
-  this way. With OpenMap loaded, it says its own hellos and draws its own dots; Terminal lists them only.
-- A whisper is read only from a friend online, a guild message only on the guild's channel. Places are checked (a map
-  the game has, x and y on it) and go after 150 s without word. A Share friend sharing both ways is shown once.
-- New file `Terminal_Share/OpenMap.lua`: a full game restart, not a `/reload`.
-
-## 1.2.6 (in testing)
-
-- A footer too long for its line wraps onto up to three lines, the terminal growing downwards, instead of running off
-  the right edge ("recipes i can learn now": "... 372 more need more skill ('all recipes to learn' lists them)"). The
-  key hints give it their room while it's wrapped; it's one line again as soon as it fits. Reported with a screenshot.
-
-## 1.2.5 (in testing)
-
-Fixes from a review of 1.2.1-1.2.4 (bugs, performance, quality):
-
-- Sharing where you are put off the 10-minute "still here" ping. A friend on an older Terminal: Share (1.2.0, 1.2.1)
-  ignores the place, so they dropped you after 30 minutes of unchanged bags, and connected again a minute later. A
-  place is no longer counted as a ping.
-- A place now goes ahead of friends' bag pieces still waiting, as a ping does. Behind a big snapshot it was put back
-  at the end each time a newer one replaced it, and could miss `WHERE_GONE`.
-- Changing the setting (or a group's own) sends only to the friends whose share changed. It sent your place to every
-  friend on each Enter.
-- With many friends places go out less often, but never less than every 90 s, and standing still never more often than
-  moving (past 20 friends it was; past 50 a friend's dot could time out).
-- A place heard makes the `@shared` rows again only when what a row shows changes. Every place made all of them again,
-  each friend's items with them. The tooltip's "updated" reads the latest. The map's dots are placed again only when
-  a place, the map, its size or zoom changes (they were placed again five times a second).
-- A group's own location setting is kept only for that group: another group by its name, joined with another code,
-  no longer picks it up after a `/reload`.
-- With OpenMap's stitched map showing, it's asked first, before the shown zone's own coordinates are used.
-- "where is <name>" finds a friend with a surname, by the whole name or its first name; "where is my friend" still
-  works.
-- The "nobody shares" note no longer says yours is off while a group of yours shares it.
-- on, toggle, global... can't be a group's name (they're `.share settings` values). The help says `global` for "as the
-  global setting" (`default` still works; `default` is also a group's name).
-- 1.2.1's check for the open key's character runs only right after the key, not on every character typed.
-- Note: builds 1.2.2 and 1.2.3 can't read each other's places (1.2.3 added the class). Neither was released.
-
-## 1.2.4 (in testing)
-
-- `.ask`: when someone asks Terminal (`!t`) in a chat where it isn't switched on, the note says what happened and what to
-  type, the command in its own colour: "Bob asked Terminal a question (!t) in group chat. To let Terminal answer these
-  for you, type .ask group on". The old wording (".ask group on lets Terminal answer for you") wasn't obvious.
-
-## 1.2.3 (in testing)
-
-- Terminal: Share: your location per group as well as for all of them. `.share <group> location on`, `off` or `default`
-  (or `.share settings location <group> ...`, or Enter on **Share your location in <group>**; Shift+Enter puts it back
-  to the global setting). A group's own setting wins over the global one (`.share settings location`); a group without
-  one follows it. A friend sees you when any group you have in common shares it; turned off for a group, its friends
-  are told you stopped. Each group's setting is remembered with the group. `.share` says which groups share it.
-- Friends who share where they are show as a dot in their class's colour on your world map: pointed at, who and where
-  (and how long ago); clicked, a waypoint on them. Also on OpenMap's stitched map, through its public `OpenMapAPI`
-  (`CanvasFromWorldPos`, `ArtTopLevel`). The dots are Terminal: Share's own frames on the map's canvas, placed a few
-  times a second only while the map shows; nothing of the map's own is changed. Your class now goes with your
-  location (a place without one, from a 1.2.2 build, is a white dot).
-
-## 1.2.2 (in testing)
-
-- Terminal: Share: share where you are with the friends you're connected to. Off by default: `.share settings location on`,
-  or Enter on **Share your location** (`.share settings` lists Share's settings as rows; `.share settings list` in chat).
-  Each friend who shares it is a `@shared` row with their zone and x, y; Enter opens the map on them with a pin (or
-  TomTom's arrow), and "where are my friends" or "where is bob" asks for them. Sent as you move (every 15 s, every
-  minute standing still), never from a dungeon, raid or battleground; turned off, friends are told you stopped. Only
-  friends connected to you get it, and like everything friends send it's never saved. Friends on an older Terminal:
-  Share ignore it.
-
-## 1.2.1 (in testing)
-
-- Fixed: with Shift+` (or another Shift chord, Shift+^) bound to Terminal, opening it on a kept search typed the
-  key's character after it ("nearest vendor~"). The character the chord types (~, °) is dropped as ` is. Reported
-  on CurseForge.
+New files: `Terminal_Share/Dots.lua`, `Terminal_Share/OpenMap.lua`. Restart the game, not just `/reload`.
 
 ## 1.2.0
 
