@@ -377,8 +377,7 @@ function Scan.Overview(self, q, noAuto)
 		self.category, self.categoryAuto = b.c.id, true
 		q.kinds, q.easyCat = ns.Easy.Kinds(b.c.id), b.c
 		for id in pairs(q.also or {}) do if Scan.ALSO_CATEGORY[id] == b.c.id then q.kinds[id] = true end end
-		local keep = ns.Easy.KeepFor(b.c, q.kinds)
-		Scan.AddFilter(q, keep, "hard", keep and ("#" .. b.c.id))
+		Scan.AddFilter(q, b.c.keep, "hard", b.c.keep and ("#" .. b.c.id))
 		-- its matches are found already; its lists only counted by name (Questie's, @stored) are searched after (q.extraKinds)
 		q.matched = b.rows
 		for _, h in ipairs(hinting) do

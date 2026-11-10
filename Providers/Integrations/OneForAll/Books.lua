@@ -94,23 +94,11 @@ function B.State(b)
 	return "missing"
 end
 
---- The Library Books among @book's rows (Spoken's readables share the list: Providers/Integrations/Spoken.lua).
-function B.Library(rows)
-	local out = {}
-	for _, e in ipairs(rows) do if not rawget(e, "readable") then out[#out + 1] = e end end
-	return out
-end
-
 --- How many books are turned in (or marked done), of how many.
 function B.Progress(rows)
-	local done, all = 0, 0
-	for _, e in ipairs(rows) do
-		if not rawget(e, "readable") then
-			all = all + 1
-			if e.isDone then done = done + 1 end
-		end
-	end
-	return done, all
+	local done = 0
+	for _, e in ipairs(rows) do if e.isDone then done = done + 1 end end
+	return done, #rows
 end
 
 --- The next reward tier and how many books it takes; nil when every tier is reached (or none known).
@@ -173,14 +161,6 @@ function B.Rows()
 	return out
 end
 
---- @book's rows: the Library Books, then every readable Spoken_Readables knows (when it's there: Spoken.lua).
-function B.AllRows()
-	local rows = B.Rows()
-	local SL = ns.Spoken
-	for _, e in ipairs(SL and SL.BookRows() or {}) do rows[#rows + 1] = e end
-	return rows
-end
-
 OA.AddSetup(function()
 	if not B.Data() then return end
 	B.Rewards()
@@ -190,7 +170,7 @@ OA.AddSetup(function()
 		lazy = true,
 		-- (a book picked up, put in the bank, turned in)
 		events = { "BAG_UPDATE_DELAYED", "QUEST_TURNED_IN", "BANKFRAME_CLOSED" }, guard = 1,
-		collect = B.AllRows,
+		collect = B.Rows,
 	})
 end)
 OA.AddStatus(function()
@@ -214,7 +194,7 @@ local ASK = { i = true, im = true, ["do"] = true, dont = true, the = true, a = t
 
 --- The question: { todo, done, near, rewards, words (narrowing: a zone, a name) }, or nil when the line isn't about them.
 function B.Question(text)
-	if not ns.providers.book or ns.providers.book.readablesOnly then return nil end
+	if not ns.providers.book then return nil end
 	local t = ns.QuestionText(text)
 	if not t then return nil end
 	local library, book, plural, cues, rest = false, false, false, {}, {}
@@ -237,7 +217,7 @@ end
 local Has = OA.Has
 function B.AnyFor(words)
 	local p = ns.providers.book
-	for _, e in ipairs(p and ns:GetEntries(p) or {}) do if not rawget(e, "readable") and Has(e, words) then return true end end
+	for _, e in ipairs(p and ns:GetEntries(p) or {}) do if Has(e, words) then return true end end
 	return false
 end
 
@@ -258,7 +238,7 @@ end
 function B.Answer(q)
 	q = q or {}
 	local p = ns.providers.book
-	local all = B.Library(p and ns:GetEntries(p) or {})
+	local all = p and ns:GetEntries(p) or {}
 	local done = B.Progress(all)
 	local progress = L["%d of %d turned in"]:format(done, #all)
 	if q.rewards then
@@ -296,15 +276,14 @@ function B.Line(q)
 	q = q or {}
 	if q.rewards or q.near then return nil end
 	local parts = { "@book" }
-	if q.todo then parts[#parts + 1] = "is:todo" elseif q.done then parts[#parts + 1] = "is:done"
-	elseif ns.Spoken and ns.Spoken.HasBooks() then parts[#parts + 1] = "is:library" end -- (not Spoken's readables)
+	if q.todo then parts[#parts + 1] = "is:todo" elseif q.done then parts[#parts + 1] = "is:done" end
 	for _, w in ipairs(q.words or {}) do parts[#parts + 1] = w end
 	parts[#parts + 1] = "sort:list"
 	return table.concat(parts, " ") .. " "
 end
 function B.Footer(q, rows)
 	local p = ns.providers.book
-	local all = B.Library(p and ns:GetEntries(p) or {})
+	local all = p and ns:GetEntries(p) or {}
 	local done = B.Progress(all)
 	local note = (q.todo and L["Library Books still to turn in"]) or (q.done and L["Library Books turned in"]) or L["Library Books"]
 	if #rows == 0 then return note end
@@ -318,6 +297,5 @@ function B.ToAdvanced(q)
 	local w = q.words and #q.words > 0 and (table.concat(q.words, " ") .. " ") or ""
 	-- (the reward tiers are the question's own rows, no list's: the question itself, which Advanced answers the same)
 	if q.rewards then return nil end
-	local lib = not (q.todo or q.done) and ns.Spoken and ns.Spoken.HasBooks() and "is:library " or "" -- (not the readables)
-	return "@book " .. (q.todo and "is:todo " or q.done and "is:done " or lib) .. (q.near and "sort:distance " or "") .. w
+	return "@book " .. (q.todo and "is:todo " or q.done and "is:done " or "") .. (q.near and "sort:distance " or "") .. w
 end

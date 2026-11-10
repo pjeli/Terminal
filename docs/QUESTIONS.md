@@ -370,18 +370,6 @@ What can't be moved without losing something the player sees stays an own answer
   with, achievements) nothing. Rows "From <token>".
 - Tests: tests/smoke/pipes_sources.lua.
 
-### Spoken's lore and books
-
-- LoreQ, a search question (`Providers/Integrations/Spoken.lua`, @lore from Spoken_Bosses' and Spoken_Places' data read
-  at run time): "who is edwin vancleef", "lore of duskwood", "tell me about goldshire", "the story of X", "X lore". Its
-  line is `@lore <name>`. Needs a cue (who is/was, tell me about, lore, story...) and words some @lore row's name has:
-  "who is hogger" with no story passes the line on.
-- LoreBooks (Spoken_Readables' books, rows of @book): "books in duskwood" is a search question, `@book in:"duskwood"
-  sort:list` (a place some readable is had in); "books that mention stalvan" (also "about", "containing", "that say") is
-  its own answer: the pages are searched only then (no row carries page text), each book a row whose detail is the words
-  around the first match; "No book mentions X" when none does. "library" leaves both to LibraryBooks.
-- Tests: tests/smoke/spoken.lua.
-
 ### A hunter's pet food; OneForAll's bosses
 
 - PetFood, a search question (Search/Questions/PetFood.lua): "what can my pet eat", "pet food", "feed my pet" are

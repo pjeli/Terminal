@@ -56,10 +56,6 @@ end
 local function IsEmote(e) return e.emote ~= nil end
 E.IsEmote = IsEmote -- (Words.lua's action words: "do" keeps to emotes)
 local function NotEmote(e) return e.emote == nil end
--- (@book holds OneForAll's Library Books and Spoken's readables: the books under Quests, the readables under Lore with
--- Spoken's boss stories and places; Providers/Integrations/Spoken.lua)
-local function NotReadable(e) return not rawget(e, "readable") end
-local function IsLore(e) return rawget(e, "readable") ~= nil or e.kind == "lore" end
 
 -- Each searches these kinds (provider ids; those not loaded are skipped, a category with none never shows),
 -- and only the rows `keep` says yes to when it has one (one list, two categories: emotes and slash commands).
@@ -71,14 +67,11 @@ local function IsLore(e) return rawget(e, "readable") ~= nil or e.kind == "lore"
 E.CATEGORIES = {
 	{ id = "items", label = L["Items"], kinds = { "items" }, icon = "Interface\\Icons\\INV_Misc_Bag_08", was = { "bags" } },
 	{ id = "stored", label = L["Bank & alts"], kinds = { "stored", "shared" }, icon = "Interface\\Icons\\INV_Misc_Bag_10", was = { "alts" } },
-	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie", "attune", "book" }, keep = NotReadable, keepOnly = { book = true },
-		icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
+	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie", "attune", "book" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
 	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents", "training", "classspells" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
 	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp", "enchant" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
 	{ id = "npcs", label = L["NPCs"], kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
 	{ id = "places", label = L["Places"], kinds = { "maps", "dungeon", "raid", "flight", "corpse", "transport" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
-	{ id = "lore", label = L["Lore"], kinds = { "lore", "book" }, keep = IsLore, keepOnly = { book = true },
-		icon = "Interface\\Icons\\INV_Misc_Book_07" },
 	{ id = "loot", label = L["Loot"], kinds = { "loot" }, -- (was "Dungeon loot": quests', crafted, reputation gear too since 1.0.25)
 		icon = "Interface\\Icons\\INV_Box_02" },
 	{ id = "recent", label = L["Recent"], kinds = { "lootlog", "combatlog" }, icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
@@ -172,7 +165,7 @@ function E.CategoryOf(e)
 	local list = ByKind()[e.kind]
 	for i = 1, list and #list or 0 do
 		local c = list[i]
-		if not c.keep or (c.keepOnly and not c.keepOnly[e.kind]) then return c.id end
+		if not c.keep then return c.id end
 		local ok, yes = pcall(c.keep, e)
 		if ok and yes then return c.id end
 	end
@@ -183,16 +176,7 @@ end
 function E.FixedCategory(kind)
 	local list = kind and ByKind()[kind]
 	local c = list and list[1]
-	if c and (not c.keep or (c.keepOnly and not c.keepOnly[kind])) then return c.id end
-	return nil
-end
-
---- A category's `keep` for a search over these kinds (a set), or nil: one that tells apart only some of its kinds' rows
---- (`keepOnly`: Quests' and Lore's @book) adds no filter to a search that has none of those.
-function E.KeepFor(c, kinds)
-	if not (c and c.keep) then return nil end
-	if not c.keepOnly or not kinds then return c.keep end
-	for k in pairs(c.keepOnly) do if kinds[k] then return c.keep end end
+	if c and not c.keep then return c.id end
 	return nil
 end
 

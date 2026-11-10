@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.9 (in testing)
+
+- 1.3.6's Spoken integration is taken out (the player's call: Spoken isn't a data source for Terminal). `@book` is
+  OneForAll's Library Books again, the turn-ins in the major cities, and only them: no flavor books mixed in, no
+  `is:unread` or `is:library` on it, its counts and questions as before 1.3.6. `@lore` and the lore questions ("who is
+  X", "lore of X", "books in X", "books that mention X") are gone with it. (`Providers/Integrations/Spoken.lua`
+  removed: restart the game.)
+
 ## 1.3.8 (in testing)
 
 - Achievements: WoW Forever has no `OpenAchievementFrameToAchievement`, and its `ToggleAchievementFrame` opens the

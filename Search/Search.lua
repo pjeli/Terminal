@@ -388,8 +388,7 @@ function Scan.SimpleScope(self, q)
 		for id in pairs(q.kindIds) do if ns.providers[id] then q.kinds[id] = true end end
 		if easyCat then
 			q.easyCat = easyCat
-			local keep = ns.Easy.KeepFor(easyCat, q.kinds)
-			Scan.AddFilter(q, keep, "hard", keep and ("#" .. easyCat.id))
+			Scan.AddFilter(q, easyCat.keep, "hard", easyCat.keep and ("#" .. easyCat.id))
 		end
 		Scan.KindExtras(q)
 		return
@@ -404,8 +403,7 @@ function Scan.SimpleScope(self, q)
 	if q.kindOnly and easyCat.id == q.kindCat and q.kinds and q.kinds[q.kindOnly] then q.kinds = { [q.kindOnly] = true } end
 	-- (a list only searched when asked, the recipes you don't know with is:unknown: with its category's; ALSO_CATEGORY)
 	for id in pairs(q.also or {}) do if Scan.ALSO_CATEGORY[id] == easyCat.id then q.kinds[id] = true end end
-	local keep = ns.Easy.KeepFor(easyCat, q.kinds)
-	Scan.AddFilter(q, keep, "hard", keep and ("#" .. easyCat.id))
+	Scan.AddFilter(q, easyCat.keep, "hard", easyCat.keep and ("#" .. easyCat.id))
 end
 
 --- The lists searched (the @kinds or the category's, else every list not only searched by @kind), the signature a

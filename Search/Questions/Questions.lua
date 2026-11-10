@@ -190,12 +190,6 @@ Scan.ANSWERS = {
 	Asks("SharePlaces", { examples = { "where are my friends", "friends location" } }),
 	-- "library books", "books i still need", "nearest library book": OneForAll's Library Books (Providers/Integrations/OneForAll/Books.lua)
 	Asks("LibraryBooks", { custom = "the reward tiers, and the nearest spot of each book" }),
-	-- "who is edwin vancleef", "lore of duskwood", "tell me about goldshire": Spoken's boss stories and places (@lore,
-	-- Providers/Integrations/Spoken.lua)
-	Asks("LoreQ", { examples = { "who is edwin vancleef", "lore of duskwood", "tell me about goldshire" } }),
-	-- "books in duskwood" (@book in:<place>), "books that mention stalvan": Spoken_Readables' books (Spoken.lua)
-	Asks("LoreBooks", { examples = { "books in duskwood", "books that mention stalvan" },
-		custom = "the pages are searched only when asked: no row carries their text" }),
 	-- "enchants for my weapon", "enchants for bracers", "agility enchants", "enchants i can make": OneForAll's enchants
 	-- (@enchant, Providers/Integrations/OneForAll/Enchants.lua)
 	Asks("Enchants", { examples = { "enchants for my weapon", "enchants for bracers", "agility enchants", "enchants i can make" } }),
