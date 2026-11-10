@@ -142,6 +142,29 @@ each one's value: only settings this client has are shown.
 Settings Blizzard's own code never names aren't listed: the game would still have them, but Terminal has no source
 for their names.
 
+## Legacy and PvP ranks
+
+`LG.CHALLENGES`, `LG.REWARDS` and the ids above them in `Providers/Legacy.lua`, from `gen_data.py legacy`, for
+`@legacy`, `@legacyreward`, `@pvprank` and their questions ("legacy points", "my pvp rank"). Only ids are carried: every
+name and text is the game's, read in the client's language when a list is made.
+
+| What | Source |
+|---|---|
+| The ids Blizzard's own windows use: the Legacy reward track (major faction 2802), Legacy Points (trait currency 4225), the Legacy Tree's three trees (1187-1189), each class's challenge category | Blizzard's interface code for this build ([Gethe/wow-ui-source](https://github.com/Gethe/wow-ui-source), branch `forever`, 1.60.1 (70532)): `Blizzard_APIDocumentationGenerated/LegacyConstantsDocumentation.lua` (`Constants.LegacyConsts`) |
+| The PvP rank (major faction 2800) | The same code's `Blizzard_UIPanels_Game/Camelot/PVPRankFrame.lua` (`PVP_RANK_POINTS_FACTION_ID`) |
+| The challenges: which achievements, their category, the points each gives | DB2 `TraitCurrencySource`: every row of trait currency 4225 with an `AchievementID` (131 rows), each checked against its `Achievement` row (its `Reward_lang` says "Earn N Legacy Point(s)." for the same N; no other achievement says it gives Legacy Points) and given its `Category` (all in `Achievement_Category` 15577-15620: classes, professions, dungeons, raids, adventure, PvP ranks, reputations, season journey) |
+| The tree's system | DB2 `TraitTree`: the three trees' `TraitSystemID` (45) |
+| The rewards: what each track gives at which level | DB2 `RenownRewards`, `CovenantID` 48 (the Legacy rewards: each description says to claim it from Innkeeper Wiley in Ratchet; `Level` is the points needed) and 46 (the PvP ranks: named "Rank N Rewards" at `Level` N), with their icon, item, spell, mount and player condition (the two sides' Black War Mounts) |
+| Who gives the Legacy rewards | The Legacy rewards' `Description_lang` ("Visit Innkeeper Wiley in Ratchet to claim your reward."): one NPC and town for all four |
+| The Legacy rank, PvP rank and Rank Points currencies | DB2 `CurrencyTypes`, by name: "Renown - Legacy Rank" (3485), "Renown - PvP Rank" (3473), "Rank Points" (3468) |
+
+Some challenges are in `Achievement` twice, under two ids (61499-62054 and 63969-64033, flags differ): both are
+carried, and the game decides: the one its category lists (`GetAchievementInfo(category, i)`, as the Legacy window
+reads them) is shown. In the game the points, the rewards' names and the tree are read as Blizzard's Legacy window reads
+them: `C_MajorFactions.GetCurrentRenownLevel(2802)`, `C_MajorFactions.GetRenownRewardsForLevel`, `C_Traits` (config by
+tree, tree nodes, entries, definitions); the PvP rank as the character window's PvP pane does
+(`C_MajorFactions.GetMajorFactionProgressionInfo(2800)`).
+
 ## Not used
 
 - Wowhead: its robots.txt doesn't allow automated reading, and it has no public interface.

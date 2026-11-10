@@ -3503,4 +3503,9 @@ L["You took %s: it's one or the other"] = "Вы взяли «%s»: можно т
 L["needs it"] = "требует его"
 L["next in its chain"] = "следующее в цепочке"
 L["the quests a quest opens up (Questie)"] = "задания, которые открывает задание (Questie)"
+L["%d to spend"] = "%d можно потратить"
+L["@legacy: WoW Forever's Legacy challenges of a group (a class, a profession, dungeons, raids, pvp...); is:todo those still to do. @legacyreward, @legacyperk: its rewards, its tree's perks; @pvprank rank:11: what PvP rank 11 unlocks"] = "@legacy: испытания Наследия WoW Forever одной группы (класс, профессия, подземелья, рейды, PvP...); is:todo — ещё не выполненные. @legacyreward, @legacyperk: его награды, бонусы его дерева; @pvprank rank:11: что открывает PvP-ранг 11"
+L["Legacy points: %d"] = "Очки Наследия: %d"
+L["Nothing read from the game for this yet: open the Legacy window once, then ask again."] = "Игра пока ничего об этом не сообщила: откройте окно Наследия один раз и спросите снова."
+L["PvP rank"] = "PvP-ранг"
 --@end-do-not-package@

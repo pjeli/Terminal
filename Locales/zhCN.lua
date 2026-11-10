@@ -3503,4 +3503,9 @@ L["You took %s: it's one or the other"] = "你已接过%s：二者只能选其�
 L["needs it"] = "需要它"
 L["next in its chain"] = "任务链中的下一个"
 L["the quests a quest opens up (Questie)"] = "某个任务开启的任务（Questie）"
+L["%d to spend"] = "%d点可用"
+L["@legacy: WoW Forever's Legacy challenges of a group (a class, a profession, dungeons, raids, pvp...); is:todo those still to do. @legacyreward, @legacyperk: its rewards, its tree's perks; @pvprank rank:11: what PvP rank 11 unlocks"] = "@legacy：WoW Forever某一类的传承挑战（职业、专业、地下城、团队副本、PvP……）；is:todo 为尚未完成的。@legacyreward、@legacyperk：其奖励、其天赋树的效果；@pvprank rank:11：PvP等级11解锁的内容"
+L["Legacy points: %d"] = "传承点数：%d"
+L["Nothing read from the game for this yet: open the Legacy window once, then ask again."] = "尚未从游戏中读取到相关内容：请先打开一次传承窗口，然后再问。"
+L["PvP rank"] = "PvP等级"
 --@end-do-not-package@

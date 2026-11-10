@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.3 (in testing)
+
+- **Legacy** (WoW Forever): `@legacy` lists every Legacy challenge with your points ("Legacy points: N", to spend),
+  done or still to do, by group (a class, a profession, dungeons, raids, PvP, adventure: `cat:mage`, `is:todo`). Enter
+  opens the Legacy window on Challenges (the game's own achievement key), Shift+Enter links it. Asked: **legacy
+  points**, **which legacy points am i missing**, **what gives legacy points for mage**, **legacy points for my class**.
+- `@legacyreward` (**legacy rewards**): each reward with the points it needs and whether you have them, claimed from
+  Innkeeper Wiley in Ratchet (Enter: a waypoint on him). `@legacyperk` (**legacy perks**): the Legacy Tree's perks,
+  ranks taken and what each does.
+- **PvP ranks**: `@pvprank` (**my pvp rank**, **rank points**): your rank and Rank Points, and what each rank
+  unlocks, reached or not (**what does pvp rank 11 unlock**, `rank:11`).
+- The challenges and rewards are the client's own tables (achievement categories and renown rewards, written by
+  `tests/gen_data.py legacy` from wago.tools' DB2 exports of 1.60.1, evidence in docs/DATA_SOURCES.md); their names
+  and what you've done come from the game, in its language, as Blizzard's Legacy window reads them. A new file
+  (`Providers/Legacy.lua`): restart the game.
+
 ## 1.3.2 (in testing)
 
 - Quest suggestions ("where should i quest", "quests here", the zone counts, quest upgrades, `is:cantake`) leave out

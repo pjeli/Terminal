@@ -1,4 +1,4 @@
-"""Terminal's game data, made again from its sources: python tests/gen_data.py [flights|instances|fishing|cookingfires|music|cvars|all] [--check]
+"""Terminal's game data, made again from its sources: python tests/gen_data.py [flights|instances|fishing|cookingfires|music|cvars|legacy|all] [--check]
 
 Each table the addon carries about the world is written here from where it comes from (docs/DATA_SOURCES.md says which
 and why), never typed in by hand:
@@ -14,6 +14,9 @@ and why), never typed in by hand:
                                                                    their names from the wowdev community listfile
   cvars      Providers/CVarList.lua              ns.CVAR_LIST     Blizzard's interface code for the build (wow-ui-source,
                                                                    branch forever): the settings it names
+  legacy     Providers/Legacy.lua                LG.CHALLENGES, LG.REWARDS and the Legacy / PvP rank ids
+                                                                   Blizzard's TraitCurrencySource, Achievement, TraitTree,
+                                                                   RenownRewards, CurrencyTypes (DB2) and its interface code
 
 Blizzard's tables come from wago.tools' DB2 exports of the client build below (WoW Forever: product "wowf"). What the
 addon decides itself stays in the Lua files and is read from there: which instances WoW Forever has (I.INSTANCES), the
@@ -424,8 +427,115 @@ def shorthand(check):
     lines.append("}\n")
     write(rel, old, block(old, "shorthand", "".join(lines)), check)
 
+# ----------------------------------------------------------------------------------------------------------------------
+# legacy: WoW Forever's Legacy challenges and rewards, and the PvP ranks' rewards (Providers/Legacy.lua)
+# ----------------------------------------------------------------------------------------------------------------------
+
+# RenownRewards' CovenantID of each track: the Legacy rewards' rows say where to claim them ("Visit Innkeeper Wiley in
+# Ratchet to claim your reward."), the PvP ranks' are named "Rank N Rewards" at Level N (both checked below)
+LEGACY_TRACK, PVP_TRACK = 48, 46
+# CurrencyTypes by name: the Legacy rank (points earned), the PvP rank and its Rank Points
+CURRENCIES = (("legacyRank", "Renown - Legacy Rank"), ("pvpRank", "Renown - PvP Rank"), ("rankPoints", "Rank Points"))
+CLASS_CATEGORY = re.compile(r"LEGACY_DEFAULT_CATEGORY_([A-Z]+)")
+
+def legacy(check):
+    """The challenges: every achievement Legacy Points come from (TraitCurrencySource rows of the Legacy Points trait
+    currency, Blizzard's LEGACY_POINTS_TRAIT_CURRENCY_ID), each checked against its Achievement row (its reward says
+    "Earn N Legacy Point(s)." for the same N), with its category; the Legacy and PvP rank rewards (RenownRewards); the
+    ids Blizzard's own Legacy and PvP rank windows use (wow-ui-source). Names and descriptions aren't kept: the game
+    gives them in the client's language at run time."""
+    path, version = ui_source()
+    def ui(rel):
+        with open(os.path.join(path, "Interface", "AddOns", *rel.split("/")), encoding="utf-8") as f:
+            return f.read()
+    consts = {k: int(v) for k, v in re.findall(r'\{ Name = "(\w+)", Type = "number", Value = (\d+) \}',
+        ui("Blizzard_APIDocumentationGenerated/LegacyConstantsDocumentation.lua"))}
+    need = ("LEGACY_REWARD_TRACK_FACTION_ID", "LEGACY_POINTS_TRAIT_CURRENCY_ID", "LEGACY_TREE_PROFESSIONS_ID",
+        "LEGACY_TREE_ADVENTURE_ID", "LEGACY_TREE_PROGRESSION_ID")
+    if any(k not in consts for k in need):
+        raise SystemExit("LegacyConstantsDocumentation.lua: the Legacy constants aren't all there")
+    m = re.search(r"local PVP_RANK_POINTS_FACTION_ID = (\d+);", ui("Blizzard_UIPanels_Game/Camelot/PVPRankFrame.lua"))
+    if not m:
+        raise SystemExit("PVPRankFrame.lua: no PVP_RANK_POINTS_FACTION_ID")
+    pvp_faction = int(m.group(1))
+    trees = [consts[k] for k in ("LEGACY_TREE_PROFESSIONS_ID", "LEGACY_TREE_ADVENTURE_ID", "LEGACY_TREE_PROGRESSION_ID")]
+    systems = {t["TraitSystemID"] for t in db2("TraitTree") if int(t["ID"]) in trees}
+    if len(systems) != 1:
+        raise SystemExit(f"the Legacy trees' TraitSystemID: {systems}")
+    tree_system = int(systems.pop())
+    classes = sorted((v, CLASS_CATEGORY.match(k).group(1)) for k, v in consts.items() if CLASS_CATEGORY.match(k))
+    currency = consts["LEGACY_POINTS_TRAIT_CURRENCY_ID"]
+    ach = {int(a["ID"]): a for a in db2("Achievement")}
+    cats = {int(c["ID"]): c for c in db2("Achievement_Category")}
+    challenges = []
+    for s in db2("TraitCurrencySource"):
+        if int(s["TraitCurrencyID"]) != currency or int(s["AchievementID"]) == 0:
+            continue
+        a = ach.get(int(s["AchievementID"]))
+        said = a and re.match(r"Earn (\d+) Legacy Points?\.$", a["Reward_lang"])
+        if not said or int(said.group(1)) != int(s["Amount"]):
+            raise SystemExit(f"TraitCurrencySource {s['ID']}: achievement {s['AchievementID']} doesn't say it gives {s['Amount']} Legacy Points")
+        if int(a["Category"]) not in cats:
+            raise SystemExit(f"achievement {a['ID']}: no category {a['Category']}")
+        challenges.append((int(a["ID"]), int(a["Category"]), int(s["Amount"]), a["Title_lang"], cats[int(a["Category"])]["Name_lang"]))
+    if len(challenges) < 100:
+        raise SystemExit(f"only {len(challenges)} Legacy challenges read: has a table's layout changed?")
+    others = [a["ID"] for a in ach.values() if "Legacy Point" in a["Reward_lang"] and int(a["ID"]) not in {c[0] for c in challenges}]
+    if others:
+        raise SystemExit(f"achievements saying they give Legacy Points that no TraitCurrencySource row gives: {others}")
+    challenges.sort(key=lambda c: (c[1], c[0]))
+    rewards = []
+    for r in db2("RenownRewards"):
+        track = int(r["CovenantID"])
+        if track not in (LEGACY_TRACK, PVP_TRACK):
+            continue
+        if track == LEGACY_TRACK and not re.search(r"Visit (.+?) in (.+?) to claim", r["Description_lang"]):
+            raise SystemExit(f"RenownRewards {r['ID']}: not a Legacy reward (no 'Visit ... to claim')")
+        if track == PVP_TRACK and r["Name_lang"] != f"Rank {r['Level']} Rewards":
+            raise SystemExit(f"RenownRewards {r['ID']}: not a PvP rank's reward ({r['Name_lang']!r} at level {r['Level']})")
+        rewards.append([int(r[k]) for k in ("ID", "CovenantID", "Level", "Icon", "ItemID", "SpellID", "MountID", "PlayerConditionID")]
+            + [r["ToastDescription_lang"] or r["Name_lang"]])
+    rewards.sort(key=lambda r: (r[1], r[2], r[0]))
+    claims = {re.search(r"Visit (.+?) in (.+?) to claim", r["Description_lang"]).groups()
+        for r in db2("RenownRewards") if int(r["CovenantID"]) == LEGACY_TRACK}
+    if len(claims) != 1:
+        raise SystemExit(f"the Legacy rewards are claimed from more than one NPC: {claims}")
+    npc, town = claims.pop()
+    names = {c[1]: c[0] for c in CURRENCIES}
+    currencies = {names[t["Name_lang"]]: int(t["ID"]) for t in db2("CurrencyTypes") if t["Name_lang"] in names}
+    if len(currencies) != len(CURRENCIES):
+        raise SystemExit(f"CurrencyTypes: not all of {[c[1] for c in CURRENCIES]} found")
+    lines = [f"-- from Blizzard's interface code {version} (LegacyConstantsDocumentation.lua, PVPRankFrame.lua) and the\n",
+        f"-- client's tables (wago.tools, build {BUILD}): TraitCurrencySource, Achievement, TraitTree, RenownRewards, CurrencyTypes\n",
+        f"LG.LEGACY_FACTION = {consts['LEGACY_REWARD_TRACK_FACTION_ID']} -- the Legacy reward track (its renown level: the points earned)\n",
+        f"LG.PVP_FACTION = {pvp_faction} -- the PvP rank (its renown level: your rank, its reputation: Rank Points)\n",
+        f"LG.POINTS_CURRENCY = {currency} -- Legacy Points, the trait currency the Legacy Tree spends\n",
+        f"LG.TREES = {{ {', '.join(str(t) for t in trees)} }} -- the Legacy Tree's three trees: professions, adventure, progression\n",
+        f"LG.TREE_SYSTEM = {tree_system} -- their TraitSystemID\n",
+        "LG.CURRENCY = { " + ", ".join(f"{k} = {currencies[k]}" for k, _ in CURRENCIES) + " }\n",
+        "LG.CLASS_OF = { -- a class's challenges' category (Blizzard's LEGACY_DEFAULT_CATEGORY_<CLASS>)\n"]
+    for cat, cls in classes:
+        lines.append(f"\t[{cat}] = \"{cls}\",\n")
+    lines.append("}\n")
+    lines.append(f"LG.CLAIM = {{ npc = \"{npc}\", town = \"{town}\" }} -- who gives the Legacy rewards (the rewards' descriptions)\n")
+    lines.append(f"-- {len(challenges)} challenges: {{ achievement, category, Legacy Points }} (some twice under two ids: the game reports one)\n")
+    lines.append("LG.CHALLENGES = {\n")
+    for c in challenges:
+        lines.append(f"\t{{ {c[0]}, {c[1]}, {c[2]} }}, -- {c[3]} ({c[4]})\n")
+    lines.append("}\n")
+    lines.append(f"LG.LEGACY_TRACK, LG.PVP_TRACK = {LEGACY_TRACK}, {PVP_TRACK}\n")
+    lines.append(f"-- {len(rewards)} rewards: {{ id, track, level (points or rank), icon, item, spell, mount, player condition }}\n")
+    lines.append("LG.REWARDS = {\n")
+    for r in rewards:
+        lines.append("\t{ " + ", ".join(str(v) for v in r[:8]) + f" }}, -- {r[8]}\n")
+    lines.append("}\n")
+    rel = "Providers/Legacy.lua"
+    old = read(rel)
+    write(rel, old, block(old, "legacy", "".join(lines)), check)
+    print(f"  {len(challenges)} challenges, {len(rewards)} rewards")
+
 STEPS = {"flights": flights, "instances": instances, "fishing": fishing, "cookingfires": cookingfires, "music": music, "cvars": cvars,
-    "shorthand": shorthand}
+    "shorthand": shorthand, "legacy": legacy}
 
 def main(args):
     check = "--check" in args

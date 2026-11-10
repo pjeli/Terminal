@@ -3503,4 +3503,9 @@ L["You took %s: it's one or the other"] = "Vous avez pris %s : c'est l'une ou l'
 L["needs it"] = "en a besoin"
 L["next in its chain"] = "suivante dans sa chaîne"
 L["the quests a quest opens up (Questie)"] = "les quêtes qu'une quête débloque (Questie)"
+L["%d to spend"] = "%d à dépenser"
+L["@legacy: WoW Forever's Legacy challenges of a group (a class, a profession, dungeons, raids, pvp...); is:todo those still to do. @legacyreward, @legacyperk: its rewards, its tree's perks; @pvprank rank:11: what PvP rank 11 unlocks"] = "@legacy : les défis d'Héritage de WoW Forever d'un groupe (une classe, un métier, donjons, raids, JcJ...) ; is:todo ceux qui restent. @legacyreward, @legacyperk : ses récompenses, les avantages de son arbre ; @pvprank rank:11 : ce que débloque le rang JcJ 11"
+L["Legacy points: %d"] = "Points d'Héritage : %d"
+L["Nothing read from the game for this yet: open the Legacy window once, then ask again."] = "Rien n'a encore été lu du jeu à ce sujet : ouvrez une fois la fenêtre d'Héritage, puis redemandez."
+L["PvP rank"] = "Rang JcJ"
 --@end-do-not-package@

@@ -312,3 +312,23 @@ What can't be moved without losing something the player sees stays an own answer
   (Chains.lua's phrases, the Chains entry): "what does <quest> unlock", "what does <quest> lead to", "what comes after
   <quest>", "next quest after <quest>" (these two were the chain before it), "what quests come after", "quests after",
   "what follows". Tests: tests/smoke/questaccess.lua.
+
+### Legacy and PvP ranks (after 1.3.2)
+
+- Four search questions, `Providers/Legacy.lua` (WoW Forever's Legacy: challenges, points, rewards, the tree; the PvP
+  ranks), each its list's line with `sort:list`:
+  - LegacyPoints: "legacy points", "my legacy points" (`@legacy sort:list`: the points row on top, then every
+    challenge); "which legacy points am i missing", "legacy challenges i havent done" (`is:todo`); "legacy challenges
+    done" (`is:done`); a group word narrows it, "what gives legacy points for mage", "blacksmithing legacy points",
+    "legacy points for my class" (`cat:<word>`, and what gives them for a group is the todo ones). A group word is a
+    class (English, the client's names) or a start of a challenge category's name (or its parent's, or their initials:
+    pvp); any other word and it isn't this question. Needs "legacy" and points/challenges.
+  - LegacyRewards: "legacy rewards", "what can i claim with legacy points" (`@legacyreward`).
+  - LegacyPerks: "legacy perks", "my perks", "legacy talents" (`@legacyperk`). Not "legacy tree" alone: that's the
+    window's own row (Panels.lua).
+  - PvpRank: "my pvp rank", "rank points", "pvp rank rewards", "what does pvp rank 11 unlock" (`@pvprank rank:11`: a
+    rank isn't a level, so not `lvl:`, which Simple lines like "from level 10 to 20" read).
+- Asked as a question, the Legacy window's row for that page (Panels.lua's Legacy Challenges / Rewards / Tree) is the
+  lead row, and with nothing found it stays above the line saying why (the question takes lines that searched the
+  panel rows before). Footers: the points earned and challenges done, the points to spend, your rank.
+- Tests: tests/smoke/legacy.lua "[legacy: questions]" (owners, Alt+` lines, rows).

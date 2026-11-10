@@ -18,6 +18,9 @@ local function AchievementLink(e) return GetAchievementLink and GetAchievementLi
 local function LinkAchievement(e)
 	if not ns.LinkInChat(AchievementLink(e)) then ns:Print(L["Couldn't link %s in chat."]:format(tostring(e.name))) end
 end
+-- (an achievement row's fallback, link and Shift+Enter, for other lists of achievements: Legacy.lua's challenges)
+ns.AchievementActions = { activate = OpenAchievement, getLink = AchievementLink, secondary = LinkAchievement,
+	secondarySecure = ns.ChatBoxSpec(AchievementLink), secondaryIsOpen = ns.ChatBoxNeverOpen }
 
 ----------------------------------------------------------------------
 -- Achievements (heavy: indexed once, only when you actually search)

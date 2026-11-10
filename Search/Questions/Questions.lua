@@ -176,6 +176,13 @@ Scan.ANSWERS = {
 	Asks("GroupQuests", { over = { "Group", "Attunements" }, examples = { "party quests", "quests to share" } }),
 	-- "my lockouts", "raid lockouts", "am i saved", "raid id": Lockouts.lua
 	Asks("Lockouts", { examples = { "my lockouts", "am i saved", "lockouts by raid" } }),
+	-- WoW Forever's Legacy and PvP ranks (Providers/Legacy.lua): "legacy points", "which legacy points am i missing",
+	-- "what gives legacy points for mage" (@legacy is:todo cat:mage), "legacy rewards", "legacy perks", "my pvp rank",
+	-- "what does pvp rank 11 unlock" (@pvprank lvl:11)
+	Asks("LegacyPoints", { examples = { "legacy points", "which legacy points am i missing", "what gives legacy points for mage" } }),
+	Asks("LegacyRewards", { examples = { "legacy rewards", "what can i claim with legacy points" } }),
+	Asks("LegacyPerks", { examples = { "legacy perks", "my perks" } }),
+	Asks("PvpRank", { examples = { "my pvp rank", "rank points", "what does pvp rank 11 unlock" } }),
 	-- "what layer am i on", "my layer": the layer the creatures around you are on (Providers/Layer.lua)
 	Asks("Layer", { examples = { "what layer am i on", "my layer" } }),
 	-- "where are my friends", "friends location", "where is bob" (a friend sharing it): friends' places by Terminal: Share

@@ -80,6 +80,9 @@ E.CATEGORIES = {
 	{ id = "group", label = L["Group"], kinds = { "group" }, icon = "Interface\\Icons\\Spell_Holy_PrayerOfFortitude" },
 	{ id = "collections", label = L["Collections"], kinds = { "mounts", "toys", "pets", "titles", "achievements" },
 		icon = "Interface\\Icons\\Ability_Mount_RidingHorse" },
+	-- (WoW Forever's Legacy: its challenges and points, rewards, the tree's perks, and the PvP ranks; Providers/Legacy.lua)
+	{ id = "legacy", label = L["Legacy"], kinds = { "legacy", "legacyreward", "legacyperk", "pvprank" },
+		icon = "Interface\\Icons\\INV_Misc_Coin_17" },
 	{ id = "character", label = L["Character"],
 		kinds = { "gold", "experience", "layer", "lockouts", "durability", "mail", "auctions", "reputation", "currency", "skills", "equipmentset", "itemset" },
 		icon = "Interface\\Icons\\INV_Misc_Book_09" },
@@ -300,6 +303,9 @@ E.VERBS = {
 	toys = { L["use"], L["show in journal"] }, pets = { L["summon"], L["show in journal"] }, mounts = { L["summon"], L["show in journal"] },
 	titles = { L["wear"] },
 	achievements = { L["show"], L["link in chat"] },
+	-- (Providers/Legacy.lua: a challenge as an achievement; a reward's giver on the map; the rest said in chat)
+	legacy = function(e) if e.legacyPoints then return L["show in chat"] end return L["show"], L["link in chat"] end,
+	legacyreward = { L["set waypoint"] }, legacyperk = { L["show in chat"] }, pvprank = { L["show in chat"] },
 	professions = { L["open"], L["link in chat"] }, recipes = { L["show recipe"], L["link in chat"] },
 	addons = AddonVerbs,
 	camp = { L["show recipe"], L["make / use"] },
