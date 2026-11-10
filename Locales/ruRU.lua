@@ -3508,4 +3508,8 @@ L["@legacy: WoW Forever's Legacy challenges of a group (a class, a profession, d
 L["Legacy points: %d"] = "Очки Наследия: %d"
 L["Nothing read from the game for this yet: open the Legacy window once, then ask again."] = "Игра пока ничего об этом не сообщила: откройте окно Наследия один раз и спросите снова."
 L["PvP rank"] = "PvP-ранг"
+L["%d enchants (@enchant)"] = "Чар: %d (@enchant)"
+L["@enchant (its enchants) is unavailable."] = "@enchant (его чары) недоступен."
+L["Enchant"] = "Чары"
+L["Enchants from OneForAll"] = "Чары из OneForAll"
 --@end-do-not-package@

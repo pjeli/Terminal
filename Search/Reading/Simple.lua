@@ -69,7 +69,7 @@ E.CATEGORIES = {
 	{ id = "stored", label = L["Bank & alts"], kinds = { "stored", "shared" }, icon = "Interface\\Icons\\INV_Misc_Bag_10", was = { "alts" } },
 	{ id = "quests", label = L["Quests"], kinds = { "quests", "questie", "attune", "book" }, icon = "Interface\\GossipFrame\\AvailableQuestIcon" },
 	{ id = "spells", label = L["Spells"], kinds = { "spells", "talents", "training", "classspells" }, icon = "Interface\\Icons\\Spell_Holy_MagicalSentry" },
-	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
+	{ id = "crafting", label = L["Crafting"], kinds = { "professions", "recipes", "camp", "enchant" }, icon = "Interface\\Icons\\Trade_BlackSmithing" },
 	{ id = "npcs", label = L["NPCs"], kinds = { "npc" }, icon = "Interface\\Icons\\INV_Misc_Head_Human_01" },
 	{ id = "places", label = L["Places"], kinds = { "maps", "dungeon", "raid", "flight", "corpse", "transport" }, icon = "Interface\\Icons\\INV_Misc_Map_01" },
 	{ id = "loot", label = L["Loot"], kinds = { "loot" }, -- (was "Dungeon loot": quests', crafted, reputation gear too since 1.0.25)

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.4 (in testing)
+
+- **Enchants** (with OneForAll, read at run time): `@enchant` (enchants, enchantment) lists each enchant with the slot
+  it goes on (the game's names), what it gives, how you get it ("Enchanting 80", or OneForAll's source for the ones
+  that aren't crafted) and "You know it" when you do; ones not in WoW Forever yet are greyed. `slot:`, `stat:` and
+  `is:known` work on them ("agility bracers", `stat:stamina>=3`, `slot:2h`).
+- Asked: **enchants for bracers**, **enchants for my weapon** (by what you hold), **agility enchants**, **enchants i
+  can make**. Enter opens a recipe you know as its recipe row does, else where to learn it (`> learn`), or where to
+  get the item for an enchant that isn't crafted; Shift+Enter links it. In Simple mode's Crafting category.
+- A new file (`Providers/Integrations/OneForAll/Enchants.lua`): restart the game.
+
 ## 1.3.3 (in testing)
 
 - **Legacy** (WoW Forever): `@legacy` lists every Legacy challenge with your points ("Legacy points: N", to spend),

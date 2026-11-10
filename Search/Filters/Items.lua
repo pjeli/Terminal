@@ -707,6 +707,16 @@ KEYS.stat = function(v)
 	if op and not cmp then return nil end
 	local names -- (how effect texts name it: worked out once, when first needed)
 	return function(e)
+		-- an enchant option (OneForAll's, @enchant): the stats it gives; one with none (a proc), its text
+		local es = e.enchantStats
+		if es then
+			for key, value in pairs(es) do
+				if StatIs(key, word) and (not cmp or cmp(value)) then return true end
+			end
+			if next(es) ~= nil or not e.enchantText then return false end
+			names = names or EffectNames(word)
+			return EffectHas(e.enchantText, names, cmp)
+		end
 		local got = Stats(e)
 		if got and next(got) then
 			for key, value in pairs(got) do
@@ -743,6 +753,14 @@ KEYS.slot = function(v)
 		return loc ~= "" and SlotIs(loc, want, flat)
 	end
 	return function(e)
+		-- an enchant option (OneForAll's, @enchant): the slot types it goes on
+		local locs = e.enchantSlots
+		if locs then
+			for _, loc in ipairs(locs) do
+				if SlotIs(loc, want, flat) then return true end
+			end
+			return false
+		end
 		local id = ItemOf(e)
 		if not id then
 			-- an enchant: the slot its name or text names ("Enchant Bracer", "enchant boots")

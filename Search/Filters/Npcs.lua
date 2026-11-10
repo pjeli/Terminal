@@ -645,9 +645,11 @@ IS.buyable = IS.canbuy
 IS.learned = function(e)
 	return (e.kind == "flight" and e.learned == true) or e.kind == "recipes" or (e.kind == "spells" and e.ability == nil)
 		or ((e.kind == "classspells" or IS.ability(e)) and rawget(e, "known") == true)
+		or (e.kind == "enchant" and e.known == true) -- (OneForAll's enchants: those whose recipe you know)
 end
 IS.unlearned = function(e)
 	return (e.kind == "flight" and e.learned ~= true) or e.kind == "missing" or ((e.kind == "classspells" or IS.ability(e)) and rawget(e, "known") ~= true)
+		or (e.kind == "enchant" and e.spell ~= nil and e.known ~= true)
 end
 IS.learnable = function(e) return e.kind == "missing" and e.canLearn == true end
 IS.canlearn = IS.learnable

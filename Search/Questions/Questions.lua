@@ -190,6 +190,9 @@ Scan.ANSWERS = {
 	Asks("SharePlaces", { examples = { "where are my friends", "friends location" } }),
 	-- "library books", "books i still need", "nearest library book": OneForAll's Library Books (Providers/Integrations/OneForAll/Books.lua)
 	Asks("LibraryBooks", { custom = "the reward tiers, and the nearest spot of each book" }),
+	-- "enchants for my weapon", "enchants for bracers", "agility enchants", "enchants i can make": OneForAll's enchants
+	-- (@enchant, Providers/Integrations/OneForAll/Enchants.lua)
+	Asks("Enchants", { examples = { "enchants for my weapon", "enchants for bracers", "agility enchants", "enchants i can make" } }),
 	-- "where is my body", "my corpse", "where did i die": Corpse.lua (and the nearest spirit healers)
 	Asks("Corpse", { examples = { "where is my body", "my corpse" }, custom = "your corpse, then the nearest spirit healers" }),
 	-- "durability", "repair cost", "what needs repair", "broken gear": Durability.lua

@@ -3508,4 +3508,8 @@ L["@legacy: WoW Forever's Legacy challenges of a group (a class, a profession, d
 L["Legacy points: %d"] = "传承点数：%d"
 L["Nothing read from the game for this yet: open the Legacy window once, then ask again."] = "尚未从游戏中读取到相关内容：请先打开一次传承窗口，然后再问。"
 L["PvP rank"] = "PvP等级"
+L["%d enchants (@enchant)"] = "%d个附魔（@enchant）"
+L["@enchant (its enchants) is unavailable."] = "@enchant（其附魔）不可用。"
+L["Enchant"] = "附魔"
+L["Enchants from OneForAll"] = "来自 OneForAll 的附魔"
 --@end-do-not-package@

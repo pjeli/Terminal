@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.3.3", when = "in testing",
+		v = "1.3.4", when = "in testing",
 		items = {
+			"Enchants (with OneForAll): @enchant lists every enchant with its slot, what it gives and how you get it; \"enchants for bracers\", \"enchants for my weapon\", \"agility enchants\", \"enchants i can make\"; Enter opens its recipe or where to learn it.",
 			"WoW Forever's Legacy: \"which legacy points am i missing\", \"what gives legacy points for mage\", \"legacy rewards\" (and where to claim them: Innkeeper Wiley, Ratchet), \"legacy perks\"; and PvP ranks: \"my pvp rank\", \"what does pvp rank 11 unlock\".",
 			"Quest suggestions only list quests you can actually take (QuestieDB's prerequisites, either-or quests, level caps, breadcrumbs); \"why can't i take <quest>\" says what stops you, and \"what does <quest> unlock\" what comes after it.",
 		},

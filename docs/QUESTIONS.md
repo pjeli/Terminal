@@ -332,3 +332,13 @@ What can't be moved without losing something the player sees stays an own answer
   lead row, and with nothing found it stays above the line saying why (the question takes lines that searched the
   panel rows before). Footers: the points earned and challenges done, the points to spend, your rank.
 - Tests: tests/smoke/legacy.lua "[legacy: questions]" (owners, Alt+` lines, rows).
+
+### OneForAll's enchants
+
+- One search question, Enchants (`Providers/Integrations/OneForAll/Enchants.lua`, @enchant from OneForAll's
+  ENCHANT_OPTIONS/ENCHANTS read at run time), its line `@enchant ... sort:list`: "enchants for bracers" (`slot:bracers`:
+  any slot word, Filters/Items.lua's SLOT_ALIAS), "enchants for my weapon" (your main hand's slot: `slot:2h` for a
+  two-hander, else `slot:1h`; nothing worn: `slot:weapon`), "agility enchants" (`stat:agility`: Upgrades.lua's
+  F.STAT_WORDS), "enchants i can make" (`is:known`: the recipe in your index or IsPlayerSpell). Needs an enchant word and
+  one of those (or a word some enchant has): "enchants" alone is the list's own name.
+- Tests: tests/smoke/oneforall_enchants.lua.
