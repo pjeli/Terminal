@@ -261,6 +261,18 @@ local function Gather()
 		if n then profs[#profs + 1] = n end
 	end
 	f.prof = Pick(profs)
+	-- (1.2.10, the player: "if they are blacksmithing or mining, suggest nearby forge, nearby anvil, nearby whatever
+	-- trainers they may need") every profession you have, as the game says it, with its skill: each one's trainer, and
+	-- the places its crafts need
+	f.profs = {}
+	local P = ns.Professions
+	if P and P.PlayerProfessions then
+		local okP, list = pcall(P.PlayerProfessions)
+		for _, pr in ipairs(okP and type(list) == "table" and list or {}) do
+			local n = Short(pr.name and Lower(pr.name), 20)
+			if n then f.profs[#f.profs + 1] = { name = n, line = Num(pr.skillLine), rank = Num(pr.rank) or 0, max = Num(pr.maxRank) or 0 } end
+		end
+	end
 	f.carry = {}
 	for _, e in ipairs(Entries("consumables")) do
 		local n = Short(e.name and Lower(e.name), 24)
@@ -294,11 +306,102 @@ local function Gather()
 	return f
 end
 
+-- The places a profession's crafts are made at (by skill line; the object kinds "nearest <word>" finds, Objects.lua),
+-- and from what skill (Mooncloth, at a moonwell, from 250)
+E.PROF_PLACES = {
+	[164] = { { "anvil" }, { "forge" } }, -- Blacksmithing: an anvil, and a forge for its smelting-side recipes
+	[186] = { { "forge" } }, -- Mining: smelting, at a forge
+	[185] = { { "cooking fire" } }, -- Cooking
+	[197] = { { "moonwell", 250 } }, -- Tailoring: Mooncloth
+}
+-- a profession's skill at the top of what you've trained (75 of 75): time to see its trainer, offered more often. Not
+-- at the top rank (E.PROF_TOP): nothing more to train
+E.PROF_TOP = 300
+E.PROF_NEAR = 5 -- (this close to the top of a rank counts: training ahead)
+--- Is a profession { rank, max } at the top of what you've trained, with more to learn?
+function E.ProfCapped(pr)
+	return pr.max > 0 and pr.max < E.PROF_TOP and pr.rank >= pr.max - E.PROF_NEAR
+end
+
+local function ProfessionExamples(f, add, advanced)
+	f.trainerFor = {}
+	for _, pr in ipairs(f.profs or {}) do
+		local word = pr.name
+		f.trainerFor[word] = true
+		if advanced then
+			add("@npc trainer:" .. word:gsub(" ", "") .. " sort:distance", nil, "city", E.ProfCapped(pr))
+		else
+			add(E.ProfCapped(pr) and ("nearest " .. word .. " trainer (" .. pr.rank .. "/" .. pr.max .. ")")
+				or ("nearest " .. word .. " trainer"), "Questie", "city", E.ProfCapped(pr))
+		end
+		for _, place in ipairs(E.PROF_PLACES[pr.line or 0] or {}) do
+			if pr.rank >= (place[2] or 0) then
+				if advanced then add("@" .. place[1]:gsub(" ", "") .. " sort:distance", nil, nil)
+				else add("nearest " .. place[1], "Questie", nil) end
+			end
+		end
+	end
+end
+
+----------------------------------------------------------------------
+-- Terminal's own settings and commands worth knowing, each offered only while it would change something (1.2.10, the
+-- player: "suggest different terminal settings (try .zen mode; try .share settings openmap on; etc)")
+----------------------------------------------------------------------
+
+local function Command(name) return ns.FindCommand and ns:FindCommand(name) ~= nil end
+--- { line, note } pairs: the settings off that would do something here, the commands worth a look.
+function E.SettingTips()
+	local out = {}
+	local function tip(line, note) out[#out + 1] = { line, note } end
+	local db = type(ns.db) == "table" and ns.db or {}
+	if Command("zen") and db.zen ~= true then tip(".zen on", L["the game fades while Terminal is open"]) end
+	local A = ns.Ask
+	if A and A.On and Command("ask") then
+		if Safe(IsInGuild) == true and not A.On("guild") then tip(".ask guild on", L["Terminal answers guildmates' !t"]) end
+		if Safe(IsInGroup) == true and not A.On("group") then tip(".ask group on", L["Terminal answers your group's !t"]) end
+	end
+	local SSH = ns.Ssh
+	if SSH and SSH.Setting and SSH.SETTINGS then
+		if SSH.SETTINGS.openmap and Safe(IsInGuild) == true and not SSH.Setting("openmap") then
+			tip(".share settings openmap on", L["see guildmates who share with OpenMap"])
+		end
+		local ep = SSH.game
+		if SSH.SETTINGS.location and ep and ep.On and ep:On() and not (ep.WhereAny and ep:WhereAny()) then
+			tip(".share settings location on", L["your Share friends see where you are"])
+		end
+		if ep and ep.On and not ep:On() and Command("share") then tip(".share", L["friends' bags in your searches"]) end
+	end
+	if Command("theme") then tip(".theme", L["a look of your own"]) end
+	if Command("atop") then tip(".atop", L["which addons use the most"]) end
+	if Command("changelog") then tip(".changelog", L["what's new"]) end
+	return out
+end
+
+--- What the settings' tips depend on, as one short string (Pool: asked on every open, so only values read, nothing
+--- looked up): a setting turned on makes the rotation again, its tip gone.
+function E.SettingKey()
+	local db = type(ns.db) == "table" and ns.db or {}
+	local A, SSH = ns.Ask, ns.Ssh
+	local ep = SSH and SSH.game
+	local function B(v) return v and "1" or "0" end
+	return B(db.zen == true) .. B(A and A.On and A.On("guild")) .. B(A and A.On and A.On("group"))
+		.. B(SSH and SSH.Setting and SSH.Setting("openmap")) .. B(ep and ep.On and ep:On()) .. B(ep and ep.WhereAny and ep:WhereAny())
+end
+
+local function SettingExamples(add)
+	for _, t in ipairs(E.SettingTips()) do add(t[1] .. " (" .. t[2] .. ")", nil, nil, nil, true) end
+end
+
 -- Advanced mode's, each kept only if it works here (its @kinds known, its filters parse)
 local function AdvancedExamples(f, add)
 	local level, zone, prof = f.level, f.zone, f.prof
 	if f.classFile and PRIMARY[f.classFile] then add("@gear stat:" .. PRIMARY[f.classFile] .. " is:upgrade", nil, "field") end
-	if prof then add("@recipe is:skillup " .. prof, nil, "city"); add("@npc trainer:" .. prof:gsub(" ", "") .. " sort:distance", nil, "city") end
+	ProfessionExamples(f, add, true)
+	if prof then
+		add("@recipe is:skillup " .. prof, nil, "city")
+		-- (one the game's list didn't name: from the profession rows)
+		if not f.trainerFor[prof] then add("@npc trainer:" .. prof:gsub(" ", "") .. " sort:distance", nil, "city") end
+	end
 	if f.inGuild then add("@guild is:online") end
 	if level then add("@questie lvl:" .. level .. "-" .. (level + 2) .. (zone and (" in:" .. zone:gsub(" ", "_")) or ""), nil, "field") end
 	if f.dungeon then add("@loot " .. f.dungeon .. " is:upgrade", nil, "field") end
@@ -317,7 +420,11 @@ local function SimpleExamples(f, add)
 	if f.reagents then add("nearest reagent vendor", "Questie", nil, f.reagents == "often") end
 	if f.sells then add("nearest vendor sells:" .. f.sells, "Questie", nil, true) end -- (a reagent sold elsewhere)
 	if f.cls then add("nearest " .. f.cls .. " trainer", "Questie", "city") end
-	if prof then add(prof .. " skillup", nil, "city"); add("nearest " .. prof .. " trainer", "Questie", "city") end
+	ProfessionExamples(f, add, false)
+	if prof then
+		add(prof .. " skillup", nil, "city")
+		if not f.trainerFor[prof] then add("nearest " .. prof .. " trainer", "Questie", "city") end
+	end
 	if #f.carry > 0 then add("use " .. Pick(f.carry), nil, "field") end
 	if f.level and f.level < 60 then add(Pick(SLOT_WORDS) .. " upgrades", nil, "field") end
 	if dungeon then add(dungeon, nil, "field"); add(dungeon .. " upgrades", "AtlasLoot", "field") end
@@ -349,12 +456,16 @@ E.HasForExample = Has
 --- The character's own examples, tagged as the fixed ones are: { text, need, at, mine = true }, those it has the
 --- addon (or guild, group) for.
 local function Personal(advanced)
-	local out = {}
+	local out, seen = {}, {}
 	local f = Gather()
-	local function add(s, need, at, urgent)
-		if s and Has(need) and (not advanced or Valid(s)) then out[#out + 1] = { s, need, at, mine = true, todo = urgent or nil } end
+	local function add(s, need, at, urgent, setting)
+		if s and not seen[s] and Has(need) and (not advanced or Valid((s:gsub(" %b()$", "")))) then
+			seen[s] = true
+			out[#out + 1] = { s, need, at, mine = not setting or nil, todo = urgent or nil, setting = setting or nil }
+		end
 	end
 	if advanced then AdvancedExamples(f, add) else SimpleExamples(f, add) end
+	SettingExamples(add)
 	return out
 end
 E.PersonalTagged = Personal
@@ -395,6 +506,7 @@ E.PLACE_WEIGHT = {
 	instance = { city = 0.4, field = 0.8, instance = 5 },
 }
 E.MINE_WEIGHT, E.TIP_WEIGHT = 1.5, 0.5
+E.SETTING_WEIGHT = 0.7 -- (Terminal's settings and commands: now and then, not ahead of the game's own)
 -- "what should i do" when there's something worth doing (Suggest.lua's SG.Pressing: lists already read only)
 E.TODO_WEIGHT = 4 -- (as an example for where you are)
 E.rand01 = math.random
@@ -406,7 +518,8 @@ function E.Ordered(list, place)
 	local keyed = {}
 	for i, x in ipairs(list) do
 		local at = x[3] -- ({ text, need, at })
-		local w = x.tip and E.TIP_WEIGHT or ((at and weights[at] or 1) * (x.mine and E.MINE_WEIGHT or 1) * (x.todo and E.TODO_WEIGHT or 1))
+		local w = x.tip and E.TIP_WEIGHT or x.setting and E.SETTING_WEIGHT
+			or ((at and weights[at] or 1) * (x.mine and E.MINE_WEIGHT or 1) * (x.todo and E.TODO_WEIGHT or 1))
 		local u = E.rand01()
 		if type(u) ~= "number" or u <= 0 then u = 1e-6 end
 		keyed[#keyed + 1] = { x = x, k = u ^ (1 / w), i = i }
@@ -432,6 +545,8 @@ local function Pool()
 	local level = UnitLevel and Num(Safe(UnitLevel, "player"))
 	local zone = GetRealZoneText and Str(Safe(GetRealZoneText))
 	local place, setup = E.Place(), Setup()
+	-- (a setting's tip gone once it's on: the settings are part of the setup)
+	setup = setup .. "|" .. E.SettingKey()
 	if pool.list and pool.adv == adv and pool.level == level and pool.zone == zone and pool.place == place
 		and pool.setup == setup and now - (pool.made or 0) < 60 then
 		return pool.list

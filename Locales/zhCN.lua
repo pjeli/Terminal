@@ -3479,4 +3479,13 @@ L["OpenMap players' too: .share settings openmap on."] = "也查看 OpenMap 玩�
 L["Places on OpenMap"] = "OpenMap 中的位置"
 L["Sharing where they are with OpenMap (.share settings openmap)"] = "通过 OpenMap 分享位置（.share settings openmap）"
 L["Terminal: Share, shared with OpenMap. Click: a waypoint on them"] = "Terminal: Share，通过 OpenMap 分享。点击：在其位置设置路径点"
+L["Terminal answers guildmates' !t"] = "Terminal 回答公会成员的 !t"
+L["Terminal answers your group's !t"] = "Terminal 回答队伍成员的 !t"
+L["a look of your own"] = "属于你的外观"
+L["friends' bags in your searches"] = "在搜索中查看好友的背包"
+L["see guildmates who share with OpenMap"] = "查看通过 OpenMap 分享的公会成员"
+L["the game fades while Terminal is open"] = "Terminal 打开时游戏界面淡出"
+L["what's new"] = "更新内容"
+L["which addons use the most"] = "哪些插件占用最多"
+L["your Share friends see where you are"] = "Share 好友能看到你的位置"
 --@end-do-not-package@

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.10 (in testing)
+
+The empty prompt's "try:" suggestions, enhanced (asked for: "suggest different terminal settings (try .zen mode;
+try .share settings openmap on; etc). Also if they are blacksmithing or mining, suggest nearby forge, nearby anvil,
+nearby whatever trainers they may need"):
+
+- Every profession you have, as the game lists it, gets its trainer suggested (before: one picked at random). At the
+  top of what you've trained (70 of 75, up to 300) it says so and comes up more often: "nearest blacksmithing
+  trainer (70/75)".
+- Where your crafts are made: the nearest anvil and forge for blacksmithing, a forge for mining (smelting), a
+  cooking fire for cooking, a moonwell for tailoring from 250 (Mooncloth). Advanced mode: `@anvil sort:distance` and
+  the like, where those kinds are there.
+- Terminal's own settings and commands, only while they'd change something, and less often than the game's own
+  suggestions: `.zen on`, `.ask guild on` (in a guild), `.ask group on` (in a group), `.share settings openmap on`
+  (in a guild), `.share settings location on` (in a Share group), `.share`, `.theme`, `.atop`, `.changelog`, each with
+  a short note. Turned on, its suggestion is gone at once.
+
 ## 1.2.9 (in testing)
 
 Fixes from a review of 1.2.6-1.2.8 (bugs, consistency, quality, performance):

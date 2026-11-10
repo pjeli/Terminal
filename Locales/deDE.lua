@@ -3479,4 +3479,13 @@ L["OpenMap players' too: .share settings openmap on."] = "Auch die von OpenMap-S
 L["Places on OpenMap"] = "Standorte aus OpenMap"
 L["Sharing where they are with OpenMap (.share settings openmap)"] = "Teilt seinen Standort mit OpenMap (.share settings openmap)"
 L["Terminal: Share, shared with OpenMap. Click: a waypoint on them"] = "Terminal: Share, mit OpenMap geteilt. Klick: ein Wegpunkt auf sie"
+L["Terminal answers guildmates' !t"] = "Terminal beantwortet das !t deiner Gildenmitglieder"
+L["Terminal answers your group's !t"] = "Terminal beantwortet das !t deiner Gruppe"
+L["a look of your own"] = "ein eigenes Aussehen"
+L["friends' bags in your searches"] = "die Taschen von Freunden in deinen Suchen"
+L["see guildmates who share with OpenMap"] = "Gildenmitglieder sehen, die mit OpenMap teilen"
+L["the game fades while Terminal is open"] = "das Spiel blendet aus, solange Terminal offen ist"
+L["what's new"] = "was neu ist"
+L["which addons use the most"] = "welche Addons am meisten brauchen"
+L["your Share friends see where you are"] = "deine Share-Freunde sehen, wo du bist"
 --@end-do-not-package@

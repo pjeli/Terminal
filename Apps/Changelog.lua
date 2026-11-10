@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.2.9", when = "in testing",
+		v = "1.2.10", when = "in testing",
 		items = {
+			"The empty prompt's suggestions know your professions (the nearest anvil or forge for blacksmiths and miners, your trainer when it's time to train) and suggest Terminal's own settings you haven't tried (.zen, .ask guild on, .share settings openmap on...).",
 			"Terminal: Share: friends can share where they are (.share settings location on; off by default; .share <group> location on or off for one group, which wins): each is a class-coloured dot on your world map and a row in your searches, \"where are my friends\"; Enter or a click puts a waypoint on them.",
 			"Terminal: Share: guild members and friends who share where they are with OpenMap show too, dots and rows alike (.share settings openmap on; off by default).",
 			"A footer too long for its line (\"recipes i can learn now\") wraps onto more lines, the terminal growing downwards, instead of being cut off.",
