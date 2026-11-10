@@ -336,8 +336,8 @@ What can't be moved without losing something the player sees stays an own answer
 
 ### OneForAll's enchants
 
-- One search question, Enchants (`Providers/Integrations/OneForAll/Enchants.lua`, @enchant from OneForAll's
-  ENCHANT_OPTIONS/ENCHANTS read at run time), its line `@enchant ... sort:list`: "enchants for bracers" (`slot:bracers`:
+- One search question, Enchants (`Providers/Integrations/OneForAll/Enchants.lua`, @enchant from AtlasLoot's Enchanting
+  spells that make no item, kept with its loot index (1.3.10), else OneForAll's ENCHANT_OPTIONS/ENCHANTS read at run time), its line `@enchant ... sort:list`: "enchants for bracers" (`slot:bracers`:
   any slot word, Filters/Items.lua's SLOT_ALIAS), "enchants for my weapon" (your main hand's slot: `slot:2h` for a
   two-hander, else `slot:1h`; nothing worn: `slot:weapon`), "agility enchants" (`stat:agility`: Upgrades.lua's
   F.STAT_WORDS), "enchants i can make" (`is:known`: the recipe in your index or IsPlayerSpell). Needs an enchant word and

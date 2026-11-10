@@ -23,7 +23,8 @@ I.LOST = {
 	OneForAll = { "OneForAll", L["Its Library Books, hunter pets, reputation rewards, item sets and gear values are unavailable."] },
 }
 function I.Setup()
-	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune", "WhatsTraining", "TrainerSpells", "OneForAll" }) do
+	-- (Enchants last: AtlasLoot's or OneForAll's, either set up before it; OneForAll/Enchants.lua)
+	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune", "WhatsTraining", "TrainerSpells", "OneForAll", "Enchants" }) do
 		local setup = I._["Setup" .. name]
 		local ok, err = true, nil
 		if setup then ok, err = pcall(setup) end

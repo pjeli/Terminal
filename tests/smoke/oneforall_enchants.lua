@@ -28,6 +28,7 @@ do
 		I.failed, OA.on = {}, nil
 		OA.Forget()
 		I._.SetupOneForAll()
+		I._.SetupEnchants() -- (its own setup since 1.3.10: AtlasLoot's or OneForAll's)
 		ns:AliasesChanged()
 		if ns.Easy.ForgetKinds then ns.Easy.ForgetKinds() end
 	end
@@ -132,10 +133,13 @@ do
 
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
 		check(lines:find(L["%d enchants (@enchant)"]:format(7), 1, true), ".integrations: " .. lines)
-		-- without OneForAll: no @enchant, no question
+		-- without OneForAll or AtlasLoot: no @enchant, no question (1.3.10: AtlasLoot alone gives it, its enchants first)
 		_G.OneForAll = nil
+		local coreWas = I.LoadedCore
+		I.LoadedCore = function() return nil end
 		Fresh()
-		check(not ns.providers.enchant and EN.Question("enchants for bracers") == nil, "without OneForAll: none")
+		I.LoadedCore = coreWas
+		check(not ns.providers.enchant and EN.Question("enchants for bracers") == nil, "without OneForAll or AtlasLoot: none")
 	end)
 	_G.OneForAll = save.lib
 	ns.providers, ns.providerOrder = save.providers, save.order

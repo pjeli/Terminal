@@ -54,7 +54,8 @@ end
 -- The index is kept between sessions (db.lootCache), so a /reload doesn't load every loot module
 -- again: rows come from the cache at once and a module is loaded only to open its window. It is
 -- rebuilt when AtlasLoot, a module, the game version or this format changes (CacheKey).
-local CACHE_FORMAT = 3 -- (2: indexed for the window's game version, I.WindowVersion; 3: each place's kind and level)
+local CACHE_FORMAT = 4 -- (2: indexed for the window's game version, I.WindowVersion; 3: each place's kind and level;
+-- 4: Enchanting's spells that make no item, the enchants, kept beside the groups: @enchant, OneForAll/Enchants.lua)
 
 --- One loot row (compact: shared fields come from loot.meta); its name is filled in once the
 --- server has sent it. page: the page the item is on (AtlasLoot shows 100 positions per page).
@@ -262,6 +263,8 @@ local function IndexModule(addon, storage, groups)
 						for _, row in ipairs(list) do
 							local id = type(row) == "table" and row[2]
 							local pos = type(row) == "table" and tonumber(row[1]) or 1
+							-- (an Enchanting spell that makes no item is an enchant: noted for @enchant, 1.3.10)
+							if tableKind == "Profession" and type(id) == "number" then I._.NoteEnchant(id, A) end
 							id = type(id) == "number" and id > 0 and RowItem(tableKind, id, A) or nil
 							if id then
 								local page = math.floor((pos - 1) / 100)
@@ -296,10 +299,39 @@ local function CacheKey(mods)
 	return table.concat(parts, " ")
 end
 
+----------------------------------------------------------------------
+-- AtlasLoot's enchants (1.3.10, the player: "Have Atlasloot's data be the primary; and OFA be the fallback"): the
+-- Enchanting spells on its crafting pages that make no item, kept with the index (`enchants`, ids) and read by @enchant
+----------------------------------------------------------------------
+
+loot.enchants = {} -- spell id -> true
+I.ENCHANTING = 10 -- (AtlasLoot's profession number for Enchanting: P.AL_PROFS)
+--- A crafting page's spell: kept when it's Enchanting's and makes no item.
+function I._.NoteEnchant(id, A)
+	local P = A and A.Data and A.Data.Profession
+	if not (P and P.GetProfessionData) then return end
+	local d = Safe(P.GetProfessionData, id)
+	if type(d) == "table" and d[2] == I.ENCHANTING and not (type(d[1]) == "number" and d[1] > 0) then loot.enchants[id] = true end
+end
+--- AtlasLoot's enchants: their spell ids, lowest first (none until its index is read or built).
+function I.LootEnchants()
+	local out = {}
+	for id in pairs(loot.enchants) do out[#out + 1] = id end
+	table.sort(out)
+	return out
+end
+function I.EnchantsText() return table.concat(I.LootEnchants(), " ") end
+function I._.ForgetEnchants() for k in pairs(loot.enchants) do loot.enchants[k] = nil end end -- (tests)
+--- Is AtlasLoot's index read or built (so its enchants are all there)?
+function I.LootReady() return loot.done == true end
+
 --- Rows from the saved index, without loading any module. False when there's none to use.
 local function FromCache(key)
 	local c = ns.db and ns.db.lootCache
 	if type(c) ~= "table" or c.key ~= key or type(c.groups) ~= "table" then return false end
+	if type(c.enchants) == "string" then
+		for id in c.enchants:gmatch("%d+") do loot.enchants[tonumber(id)] = true end
+	end
 	for _, g in ipairs(c.groups) do
 		local addon, content, boss, inst, bossName, packed = g[1], g[2], g[3], g[4], g[5], g[6]
 		if type(addon) == "string" and type(packed) == "string" then
@@ -441,6 +473,7 @@ LoadLootModules = function()
 	if FromCache(key) then
 		loot.loaded, loot.done, loot.cached = #mods, true, true
 		loot.byKey = {}
+		ns:Changed("enchant")
 		ns:Trace(("loot: %d rows from the saved index (%s)"):format(#loot.rows, key))
 		Dirty()
 		return PumpNames()
@@ -460,9 +493,10 @@ LoadLootModules = function()
 				-- (modules loaded, no item read from them: its item tables changed; said, and no empty index kept)
 				I.Failed("AtlasLoot", L["@loot (its loot tables) is unavailable."], "ItemDB.GetItemTable gave no items")
 			elseif ns.db then
-				ns.db.lootCache = { key = key, groups = groups } -- kept for the next session
+				ns.db.lootCache = { key = key, groups = groups, enchants = I.EnchantsText() } -- kept for the next session
 			end
 			Dirty()
+			ns:Changed("enchant") -- (AtlasLoot's enchants are in: @enchant made again from them)
 			return PumpNames()
 		end
 		Safe(A.Loader.LoadModule, A.Loader, addon)

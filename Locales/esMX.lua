@@ -3531,4 +3531,5 @@ L["Summoned"] = "Invocado"
 L["Vendors of your pet's food"] = "Vendedores de comida para tu mascota"
 L["boss levels and types (on @loot)"] = "niveles y tipos de jefes (en @loot)"
 L["items your hunter's pet eats (the game says, else Questie's food types); @npc sells:petfood: the vendors of its food"] = "objetos que come la mascota de tu cazador (según el juego, si no los tipos de comida de Questie); @npc sells:petfood: los vendedores de su comida"
+L["Enchants from AtlasLoot"] = "Encantamientos de AtlasLoot"
 --@end-do-not-package@

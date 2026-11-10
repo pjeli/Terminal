@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.10 (in testing)
+
+- `@enchant` takes AtlasLoot's enchants first, OneForAll's only without them (asked for: AtlasLoot is the more
+  popular). While building its loot index Terminal keeps the Enchanting spells on AtlasLoot's crafting pages that make
+  no item (index format 4: built again once); each is named and described by the game in its language, the skill it
+  needs is AtlasLoot's, the slot comes from its English name ("Enchant Bracer - ..."; other languages: `slot:` and
+  `stat:` read its description). `@enchant` no longer needs OneForAll: AtlasLoot alone gives it.
+
 ## 1.3.9 (in testing)
 
 - 1.3.6's Spoken integration is taken out (the player's call: Spoken isn't a data source for Terminal). `@book` is

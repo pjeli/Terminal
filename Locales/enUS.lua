@@ -798,6 +798,7 @@ L["Elven lo-fi"] = true
 L["Emote"] = true
 L["Emotes"] = true
 L["Enchant"] = true
+L["Enchants from AtlasLoot"] = true
 L["Enchants from OneForAll"] = true
 L["End a search with  >> party  (or guild, raid, say, whisper Name) to send the result to chat;  >>> party  sends every result at once"] = true
 L["Ends"] = true
