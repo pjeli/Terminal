@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "1.3.1", when = "in testing",
+		items = {
+			"No change in the game yet: Terminal's own tests were split to fit their time budget.",
+		},
+	},
+	{
 		v = "1.3.0", when = "released November 2026",
 		items = {
 			"Terminal: Share: friends can share where they are (.share settings location on; off by default; .share <group> location on or off for one group, which wins): each is a class-coloured dot on your world map and a row in your searches, \"where are my friends\"; Enter or a click puts a waypoint on them.",
@@ -53,16 +59,6 @@ CL.LOG = {
 			"Inside a group you stepped into, the bar's Group and Sort work too; kinds and categories are in Title Case on English clients.",
 			"Console: grep -A, -B, -C and -H; sed, awk and grep behave as on Linux in more cases.",
 			"Many fixes and lighter typing from a full review; Terminal is on Wago too, for WoWUp and the Wago app.",
-		},
-	},
-	{
-		v = "1.0.0", when = "released November 2026",
-		items = {
-			"Share by invite: .share invite <name>, and they type .share accept. Groups get codes Terminal makes that nobody can guess; typed passwords are gone, so invite your friends again.",
-			"Simple mode's questions in German, Spanish, French, Russian and Chinese: \"Quests zum Abbrechen\", \"où est mon corps\", \"mis subastas\" and 45 more.",
-			"Stats, food and weapon damage in your language: \"Ausdauer Essen\" finds stamina food; shorthand like \"brd\" and your language's little words too.",
-			"Other languages: trainers found by their translated titles, Chinese searches that find only names with the characters typed, fonts with Russian, Chinese and Korean letters.",
-			"After an update, one line in chat says how many new things there are; .changelog shows them.",
 		},
 	},
 }

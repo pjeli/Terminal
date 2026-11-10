@@ -1,20 +1,24 @@
 -- The printers read the line's reading (docs/FRONT_END.md, Phase 4): Alt+` (Easy.ToAdvanced, Search.lua's
 -- ns.LineToAdvanced) and .explain (Easy.Explain). Over the parse corpus: Alt+` of Alt+` is the same line (invariant 6),
 -- and .explain says the same of both (invariant 5), whichever mode it's typed in; the words keep their case.
-local T = ...
+local T, PART, PARTS = ...
+PART, PARTS = PART or 1, PARTS or 1
 local ns, check = T.ns, T.check
 local E = ns.Easy
 
-print("[printers: Alt+` and .explain read the line's reading]")
+print("[printers: Alt+` and .explain read the line's reading, part " .. PART .. " of " .. PARTS .. "]")
 
 local function Trim(s) return (tostring(s or ""):gsub("^%s+", ""):gsub("%s+$", "")) end
 
-local corpus = {}
+local corpus, all = {}, 0 -- (this part's lines: every PARTS-th; the whole file is too much for one test budget)
 do
 	local f = assert(io.open("Terminal/tests/parse_corpus.txt", "r"))
 	for line in f:lines() do
 		line = line:gsub("\r$", "")
-		if line ~= "" and not line:find("^#") then corpus[#corpus + 1] = line end
+		if line ~= "" and not line:find("^#") then
+			all = all + 1
+			if all % PARTS == PART % PARTS then corpus[#corpus + 1] = line end
+		end
 	end
 	f:close()
 end
@@ -54,13 +58,13 @@ local ok, err = pcall(function()
 			if said ~= saidAgain then notSaid[#notSaid + 1] = line .. ": " .. tostring(said) .. " / " .. tostring(saidAgain) end
 		end
 	end
-	check(n > 300, "printers: the corpus read (" .. n .. " lines)")
+	check(n > 300 / PARTS, "printers: the corpus read (" .. n .. " lines)")
 	check(#notSame == 0, "printers: Alt+` of Alt+` is the same line: " .. #notSame .. " differ, first: " .. tostring(notSame[1]))
 	check(#notSaid == 0, "printers: .explain says the same of both: " .. #notSaid .. " differ, first: " .. tostring(notSaid[1]))
 
 	-- .explain of an Advanced line is the same typed in either mode (it reads the line as Advanced mode does)
 	local differ = {}
-	for i = 1, #corpus, 4 do
+	for i = 1, #corpus, math.max(1, 4 / PARTS) do
 		local adv = Trim(E.ToAdvanced(corpus[i]))
 		if adv ~= "" then
 			ns.db.easyMode = true

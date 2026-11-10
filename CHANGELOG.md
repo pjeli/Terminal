@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1 (in testing)
+
+- Tests: `easy.lua` and `printers.lua` had reached their 20M-instruction budget (19.3M each), and GitHub's run of
+  1.3.0 went over it (`easy.lua`'s right-click menu block). Split: `easy_2.lua` (action words onward), and the printers
+  as `tests/printers.lua` run in two parts (`printers_1.lua`, `printers_2.lua`, every other corpus line). No change
+  in the game.
+
 ## 1.3.0
 
 Terminal 1.3: friends' places on your world map (Terminal: Share, and OpenMap players), suggestions made for your

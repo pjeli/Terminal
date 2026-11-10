@@ -294,7 +294,7 @@ A new .lua file needs a full game restart, not a /reload: say so when a phase ad
 - Measure with `tests/easybench.py` (Phase 0) and `tests/bench.py`. Results are noisy: run each three times and compare the medians.
 - **Budget:** per-keystroke total and worst key within +5% of 0.67.5 at every phase. The reading should make it faster, because it replaces about six tokenizations with one.
 - **Allocation:** a token table per word and a claim per match are fine (lines are short). No closures created per keystroke, no allocation in a recognizer that doesn't match, and the `first`-token index keeps most recognizers from being asked at all.
-- **Instruction budgets:** each smoke file has 20M instructions (the main run 40M). `easy.lua` is about 13M, `datewords.lua` and `explain.lua` are small. The golden test runs about 300 lines, so split it into two files if it nears its budget.
+- **Instruction budgets:** each smoke file has 20M instructions (the main run 60M). `easy.lua` was about 13M (19.3M by 1.3.0, then split: `easy_2.lua`; `printers.lua` too, into two parts), `datewords.lua` and `explain.lua` are small. The golden test runs about 300 lines, so split it into two files if it nears its budget.
 - **0.67.5 baseline** (October 25, 2026, on the player's PC: Windows, Python 3.12, lupa 2.8):
   - `python tests/easybench.py 3`, the 397 corpus lines typed a key at a time (6283 keys a mode), medians of 3 runs:
 
@@ -349,12 +349,12 @@ Answered: see Decisions at the top.
 Found while making the Phase 0 golden file (October 25, 2026), each as `tests/parse_golden.txt` shows it at 0.67.5:
 
 1. **Alt+` lowers the search words.** "Hogger but not in my bank" prints `hogger | except @bank`. The query keeps only
-   lowercased tokens. **Fixed in Phase 4** (the words printed as typed; `tests/smoke/printers.lua`): the golden file's
+   lowercased tokens. **Fixed in Phase 4** (the words printed as typed; `tests/printers.lua` (run in two parts, `printers_1.lua`/`printers_2.lua`, since 1.3.0)): the golden file's
    Alt+` and `.explain` lines of the 19 corpus lines with capitals changed, nothing else.
 2. **Alt+` lines often end in a space** (348 of the 397): "sword" prints `"sword|type:sword "`. Harmless when typed, but
    invariant 6 (Alt+` of Alt+` is the same) should compare without it, or the printer should trim. **Kept on
    purpose:** `ns.QueryToAdvanced` ends the line with a space to type on (Alt+` leaves the caret there);
-   `tests/smoke/printers.lua` compares trimmed.
+   `tests/printers.lua` (run in two parts, `printers_1.lua`/`printers_2.lua`, since 1.3.0) compares trimmed.
 3. **Names read as phrases when nothing has the name** (the harness has no such rows): "Next Level Thinking" is
    `thinking lvl:me+1`, "Last Day of Summer" `summer since:1d`, "Tonight We Dine" `we dine since:today`. In the game the
    0.66.21 retry reads them as names when a name has the words; Phase 5 keeps that and keys it by claims (done: only the
@@ -384,7 +384,7 @@ Found while making the Phase 0 golden file (October 25, 2026), each as `tests/pa
    bank" read `linen -in is:bank`, now `linen | except @bank`. `tests/smoke/compare.lua`.
 8. **"items by zone q:rare" prints `@items`** (Phase 4). `PerField.Line` writes the alias as typed; Alt+` of it writes
    the kind's own word, `@item`. Harmless (both name the same list). **Fixed:** the per line writes the kind's own word
-   (`ns:KindName`), as Alt+` does for every other list; `tests/smoke/printers.lua` checks the corpus line.
+   (`ns:KindName`), as Alt+` does for every other list; `tests/printers.lua` (run in two parts, `printers_1.lua`/`printers_2.lua`, since 1.3.0) checks the corpus line.
 9. **Alt+` of a question with a date after it now follows the search** (Phase 4, the shared retry order,
    `Scan.ReadQuestion`). When the dates' rest is taken by a question that reads dates itself (the calendar's,
    `ownDates`), the search answers the whole line without the date filters. The old printer instead asked the whole line
