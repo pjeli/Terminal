@@ -342,3 +342,29 @@ What can't be moved without losing something the player sees stays an own answer
   F.STAT_WORDS), "enchants i can make" (`is:known`: the recipe in your index or IsPlayerSpell). Needs an enchant word and
   one of those (or a word some enchant has): "enchants" alone is the list's own name.
 - Tests: tests/smoke/oneforall_enchants.lua.
+
+### More item sources, and what tokens give (after 1.3.4)
+
+- The sources chain ("where to get / find / farm <item>", `<item> > sources`) has three more sources, each a row whose
+  Enter walks on where there's a step:
+  - Containers: QuestieDB's item field `itemDrops` (the items it comes out of: clams, lockboxes, bags), in Chains.lua's
+    `AddQuestie` (`P.ITEM_WORDS.contains`/`foundIn`): the container's row, "Contains it" (chat: "found in"), Enter: the
+    container's own sources. Not for recipe items (the learn chain's words have none).
+  - OneForAll's `REAGENT_SOURCES` (Providers/Integrations/OneForAll/Reagents.lua, a "sources" definition registered at
+    its setup): `sk` the NPCs to skin (Questie's NPC rows through `P.AddNpcs`, nearest first, "Skinning"; one Questie
+    doesn't know: OneForAll's `REAGENT_MOBS` name, a plain row), `f` the zones to fish (the zone's @map row through
+    `Zones.Row`, "Fishing 130"; a zone Terminal's list doesn't name: a plain row), `de` "Disenchanting items of item
+    level a-b", `ci` the item it's found in (by name through Questie's names: its row; else plain), `c` what makes it
+    (only when neither your recipes nor AtlasLoot's crafts say). Its `v`/`d` are Questie's already. Missing table: quiet
+    (optional part); one in another shape: said once.
+  - Tokens: AtlasLoot's `Data.Token` (Search/Questions/Tokens.lua, a "sources" definition): the tokens of the loot list
+    giving it (a reverse index made once per loot list), "Gives it" / "Contains it" (a sack: types 2 and 11), the class
+    when the token is per class.
+- What a token gives: a second `rewards` definition (Tokens.lua, after Rewards.lua in the TOC so the quest's stays the
+  first): `<token> > rewards` / `> gives`, and the phrases "what does <token> give", "what do i get for <token>", "what
+  does <token> turn into / contain", "what's in <token>", only when the words name a token of the loot list exactly
+  (`P.TokenNamed`, the phrase's "token" check). `TK.Gives`: the first group (before a 0) without the token itself;
+  class groups ("CLASS_PRIEST") each their class's, yours first (`GetClassItemsForToken`), each row saying the class;
+  types 2/3/9/11 (possible items, quest rewards, loot, contents) every group; 5/7/10 (a reagent for crafts, bought
+  with, achievements) nothing. Rows "From <token>".
+- Tests: tests/smoke/pipes_sources.lua.

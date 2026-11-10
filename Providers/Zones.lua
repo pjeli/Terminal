@@ -146,6 +146,13 @@ local function FishText(z)
 	if not (z and z.fish) then return nil end
 	return z.fishHigh and L["Fishing %d (%d in places)"]:format(z.fish, z.fishHigh) or L["Fishing %d"]:format(z.fish)
 end
+Z.FishText = FishText -- ("Fishing 130": a fishing source's zone, OneForAll/Reagents.lua)
+
+--- A zone's record by its English name (Z.LEVELS'), or nil.
+function Z.ByName(name)
+	if type(name) ~= "string" then return nil end
+	for _, z in ipairs(Z.LIST) do if z[6] == name then return byMap[z[1]] end end
+end
 
 ----------------------------------------------------------------------
 -- The questions
@@ -325,6 +332,8 @@ local function ZoneRow(z, detail, score, dist)
 		secondary = M and M.PinOnly,
 	}
 end
+
+Z.Row = ZoneRow -- (a zone as a row of its own: OneForAll/Reagents.lua's "fished in")
 
 local function Join(parts) return table.concat(parts, ns.DETAIL_SEP) end
 

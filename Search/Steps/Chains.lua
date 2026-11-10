@@ -16,7 +16,9 @@ local L = ns.L
 --
 -- A link is a ">" standing on its own (spaces around it: lvl:>20 is a filter; ">>" sends to chat). The word after it
 -- names the relation; the rest of that part narrows what it gave, by name. Recipes come from your own professions and,
--- for any crafted item, from AtlasLoot's crafting data; sellers, droppers and gathering spots from Questie. (Revived
+-- for any crafted item, from AtlasLoot's crafting data; sellers, droppers, gathering spots and the containers an item comes
+-- out of from Questie; the tokens it comes from (Questions/Tokens.lua, AtlasLoot's) and what it's skinned from, fished
+-- in, disenchanted from (Providers/Integrations/OneForAll/Reagents.lua): other "sources" definitions. (Revived
 -- from the shelved `pipes` branch.) (This was Pipes.lua; the "|" steps, sums and groups, are Aggregate.lua beside it.)
 
 local P = {}
@@ -115,6 +117,11 @@ P.PHRASES = {
 	{ "^what does (.+) give$", "rewards", "quest" }, { "^what does (.+) reward$", "rewards", "quest" },
 	{ "^rewards for (.+)$", "rewards", "quest" }, { "^rewards from (.+)$", "rewards", "quest" },
 	{ "^what do i get for (.+)$", "rewards", "quest" },
+	-- (what a token or a bag turns into, AtlasLoot's: Tokens.lua's "rewards"; only when the words name one: "what does
+	-- libram of focus give", "what does blue sack of gems contain")
+	{ "^what does (.+) give$", "rewards", "token" }, { "^what do i get for (.+)$", "rewards", "token" },
+	{ "^what does (.+) turn into$", "rewards", "token" }, { "^what does (.+) contain$", "rewards", "token" },
+	{ "^whats in (.+)$", "rewards", "token" }, { "^what's in (.+)$", "rewards", "token" }, { "^what is in (.+)$", "rewards", "token" },
 	-- (what a quest opens up, QuestAccess.lua's "unlocks": the quests after it, not the chain before it)
 	{ "^next quests? after (.+)$", "unlocks", "quest" }, { "^what comes after (.+)$", "unlocks", "quest" },
 	{ "^what does (.+) unlock$", "unlocks", "quest" }, { "^what does (.+) lead to$", "unlocks", "quest" },
@@ -207,7 +214,8 @@ function P.Canonical(text, words)
 		if what and what:find("%S") then
 			what = what:gsub("^the ", ""):gsub("^a ", ""):gsub("^an ", "")
 			if not P.NotAName(what) and not (P.PHRASE_NPC[ph[2]] and not P.NpcNamed(what))
-				and not (ph[3] == "thing" and P.NotAThing(what)) and not (ph[3] == "quest" and not P.QuestNamed(what)) then
+				and not (ph[3] == "thing" and P.NotAThing(what)) and not (ph[3] == "quest" and not P.QuestNamed(what))
+				and not (ph[3] == "token" and not (P.TokenNamed and P.TokenNamed(what))) then
 				return what .. " > " .. ph[2]
 			end
 		end
@@ -671,9 +679,8 @@ P.NPCS_LOOKED = 400 -- (the NPCs of one list looked at for their distance: a wor
 -- and how far ("  ·  120 yd"); `friendly`: only those friendly to you (sellers)
 -- (friendly: only those who'd serve you; none would: those who wouldn't, said so (`others`, "Sells it to the other
 -- faction only"), not "Nowhere known to get it": 0.68.17, a Horde quartermaster's armour asked for by an Alliance player)
-local function AddNpcs(out, I, id, field, what, max, how, friendly, others)
-	local list = I.ItemField(id, field)
-	if type(list) ~= "table" then return end
+local function AddNpcList(out, I, list, what, max, how, friendly, others)
+	if type(list) ~= "table" or not I.NpcRow then return end
 	local here = I.Here and I.Here() or nil
 	local got, theirs = {}, {}
 	for k, nid in ipairs(list) do
@@ -696,6 +703,10 @@ local function AddNpcs(out, I, id, field, what, max, how, friendly, others)
 		out[#out + 1] = NearSaid(View(g.row, rest, nil, how), g.d, rest)
 	end
 end
+--- NPCs by id (Questie's NPC rows), the nearest `max`, each a view saying `what` it is to the item and how far; the
+--- sources' other definitions' (OneForAll's skinning, Providers/Integrations/OneForAll/Reagents.lua).
+P.AddNpcs = AddNpcList
+local function AddNpcs(out, I, id, field, ...) return AddNpcList(out, I, I.ItemField(id, field), ...) end
 
 -- a vein or chest with no known spot: said so (the row is still one to send: "gathered from Copper Vein")
 local function NoSpot(e) ns:Print(L["No known spot for %s."]:format(tostring(e.name))) end
@@ -735,7 +746,7 @@ end
 -- own, or (where to learn a recipe) its recipe item's
 P.ITEM_WORDS = { sells = L["Sells it"], sold = L["sold by"], drops = L["Drops it"], dropped = L["dropped by"],
 	found = L["Gathered or found here"], gathered = L["gathered from"], quest = L["A quest's reward"], reward = L["a reward from"],
-	theirs = L["Sells it to the other faction only"] }
+	theirs = L["Sells it to the other faction only"], contains = L["Contains it"], foundIn = L["found in"] }
 P.RECIPE_WORDS = { sells = L["Sells the recipe"], sold = L["the recipe is sold by"], drops = L["Drops the recipe"],
 	dropped = L["the recipe drops from"], found = L["The recipe is found here"], gathered = L["the recipe is found in"],
 	quest = L["The recipe is a quest's reward"], reward = L["the recipe is a reward from"],
@@ -748,6 +759,15 @@ local function AddQuestie(out, I, id, w)
 	AddNpcs(out, I, id, "npcDrops", w.drops, 15, w.dropped)
 	local objs = I.ItemField(id, "objectDrops")
 	if type(objs) == "table" and I.ObjectName then AddObjects(out, I, objs, w.found, w.gathered) end
+	-- (the items it comes out of: clams, lockboxes, bags, QuestieDB's itemDrops; Enter on one: where to get that)
+	local boxes = w.contains and I.ItemField(id, "itemDrops")
+	if type(boxes) == "table" then
+		for k, bid in ipairs(boxes) do
+			if k > 15 then break end
+			local r = type(bid) == "number" and bid ~= id and NpcItemRow(bid, w.contains, w.foundIn)
+			if r then out[#out + 1] = r end
+		end
+	end
 	local quests = I.ItemField(id, "questRewards")
 	if type(quests) == "table" and I.QuestRow then
 		for _, qid in ipairs(quests) do
@@ -853,6 +873,7 @@ local function ProfName(prof)
 	if type(n) == "string" and n ~= "" and not (ns.Secret and ns.Secret(n)) then return n end
 	return prof[3]
 end
+P.ProfName = ProfName -- (an AL_PROFS entry's name: OneForAll's skinning, fishing and disenchanting sources)
 
 --- AtlasLoot's profession entry (P.AL_PROFS) for a skill line, or for a profession's name (the game's or English).
 function P.ProfOfLine(line)

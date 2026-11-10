@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.5 (in testing)
+
+- **Where to get** an item (`> sources`) lists more: the containers it comes out of (QuestieDB's `itemDrops`: "where
+  to find black pearl": Big-mouth Clam, "Contains it"; Enter: the clam's own sources), and with OneForAll the
+  creatures to skin for it (Questie's NPC rows), the zones to fish it in, the item levels to disenchant for it, the
+  items it's found in, and how it's crafted when nothing else says.
+- **what does <token> give** ("what does libram of focus give", "what's in blue sack of gems"; `> rewards`, `> gives`):
+  what a token, libram or bag turns into, by AtlasLoot (your class's first for class tokens). The other way round,
+  an item made from a token says "From <token> · Gives it" among its sources.
+- New files (`Providers/Integrations/OneForAll/Reagents.lua`, `Search/Questions/Tokens.lua`): restart the game.
+
 ## 1.3.4 (in testing)
 
 - **Enchants** (with OneForAll, read at run time): `@enchant` (enchants, enchantment) lists each enchant with the slot
