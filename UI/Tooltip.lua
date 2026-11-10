@@ -234,6 +234,8 @@ function UI:UpdateTooltip()
 		-- a spell's id: spells, talents, What's Training's spells
 		local sid = ns.SpellIds and ns.SpellIds.Of(e)
 		if sid then t:AddLine(L["Spell ID: %d"]:format(sid), 0.6, 0.6, 0.6) end
+		-- (a list's own lines after the game's: a loot row's boss, Loot.lua's I.LootTipMore)
+		if e.tipMore then pcall(e.tipMore, e, t) end
 		t.entry = e
 		t:Show()
 		HideComparisons(t)

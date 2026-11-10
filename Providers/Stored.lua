@@ -401,6 +401,55 @@ function S.GroupLines(e, t)
 	t:AddDoubleLine(L["Total"], tostring(e.total), 1, 0.82, 0, 1, 0.82, 0)
 end
 
+--- Your other characters' amounts of a currency, from Syndicator (its API's GetCurrencyInfo), counted as its tooltip
+--- counts them (the same SYNDICATOR_CONFIG settings @stored honours: connected realms only, one faction only); the
+--- character you're on left out (its amount is the game's). { { who, class, count } }, the most first; nil without
+--- Syndicator, or while it's still reading.
+function S.CurrencyHolders(id)
+	local A = SyndicatorAPI()
+	if not (A and type(A.GetCurrencyInfo) == "function" and type(id) == "number" and SyndicatorReady(A)) then return nil end
+	local cfg = SyndicatorConfig()
+	local ok, list = pcall(A.GetCurrencyInfo, id, ConnectedOnly(cfg), cfg.tooltips_faction_only == true)
+	if not (ok and type(list) == "table") then return nil end
+	local current = A.GetCurrentCharacter and ns.Safe(A.GetCurrentCharacter)
+	local myRealm = type(current) == "string" and current:match("%-(.+)$")
+	local out = {}
+	for _, c in ipairs(list) do
+		local n = type(c) == "table" and tonumber(c.quantity)
+		if n and n > 0 and type(c.character) == "string" then
+			local realm = type(c.realmNormalized) == "string" and c.realmNormalized or ""
+			local full = c.character .. (realm ~= "" and ("-" .. realm) or "")
+			if full ~= current then
+				local who = c.character
+				if myRealm and realm ~= "" and realm ~= myRealm then who = who .. "-" .. realm end
+				out[#out + 1] = { who = who, class = c.className, count = n }
+			end
+		end
+	end
+	table.sort(out, function(a, b) if a.count ~= b.count then return a.count > b.count end return a.who < b.who end)
+	return out
+end
+
+--- A currency's tooltip lines for your characters: yours (`mine`, the game's amount) and your alts' (S.CurrencyHolders),
+--- a line each, class-coloured as @stored's holders, and the total; nothing when no alt has any.
+function S.CurrencyLines(id, mine, t)
+	local alts = S.CurrencyHolders(id)
+	if not (alts and #alts > 0) then return false end
+	t:AddLine(" ")
+	local total = mine or 0
+	local _, myClass = ns.Safe(UnitClass, "player")
+	if (mine or 0) > 0 then
+		t:AddDoubleLine((ClassHex(myClass) or "|cffffffff") .. (S.mineName or ns.CharacterName() or L["You"]) .. "|r |cff9d9d9d" .. L["(you)"] .. "|r",
+			"|cffffffff" .. mine .. "|r", 1, 1, 1, 1, 1, 1)
+	end
+	for _, h in ipairs(alts) do
+		t:AddDoubleLine((ClassHex(h.class) or "|cffffffff") .. h.who .. "|r", "|cffffffff" .. h.count .. "|r", 1, 1, 1, 1, 1, 1)
+		total = total + h.count
+	end
+	t:AddDoubleLine(L["Total"], tostring(total), 1, 0.82, 0, 1, 0.82, 0)
+	return true
+end
+
 --- The terminal's tooltip for a stored item: who has how many, and where, like Baganator's.
 local function Tooltip(e, t)
 	local c = e.quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[e.quality]

@@ -60,7 +60,7 @@ Scan.ANSWERS = {
 	-- "quests that start from an item": the quests an item starts (Suggest.lua)
 	Asks("ItemQuests", { examples = { "quests that start from an item" } }),
 	-- "what level is hogger", "duskwood level": the level Terminal has for it (Suggest.lua)
-	Asks("LevelOf", { custom = "one row from three kinds: the level is the answer" }),
+	Asks("LevelOf", { custom = "one row from three kinds: the level is the answer", examples = { "what level is vancleef" } }),
 	-- "bigger bags": bags bigger than your smallest (Suggest.lua)
 	Asks("BiggerBags", { examples = { "bigger bags", "bags with more slots" },
 		custom = "bags from four lists, one row per item, bigger than your smallest" }),
@@ -199,6 +199,12 @@ Scan.ANSWERS = {
 	-- "enchants for my weapon", "enchants for bracers", "agility enchants", "enchants i can make": OneForAll's enchants
 	-- (@enchant, Providers/Integrations/OneForAll/Enchants.lua)
 	Asks("Enchants", { examples = { "enchants for my weapon", "enchants for bracers", "agility enchants", "enchants i can make" } }),
+	-- "what can my pet eat", "who sells pet food", "nearest pet food vendor": a hunter's pet's food (@item is:petfood,
+	-- @npc sells:petfood; Search/Questions/PetFood.lua)
+	Asks("PetFood", { examples = { "what can my pet eat", "pet food", "who sells pet food", "nearest pet food vendor" } }),
+	-- "summoned bosses in blackrock spire", "which bosses are summoned": OneForAll's (Providers/Integrations/OneForAll/Bosses.lua)
+	Asks("OneForAllBosses", { examples = { "summoned bosses in blackrock spire", "which bosses are summoned" },
+		custom = "OneForAll's bosses aren't a list: one row per boss, its level and type" }),
 	-- "where is my body", "my corpse", "where did i die": Corpse.lua (and the nearest spirit healers)
 	Asks("Corpse", { examples = { "where is my body", "my corpse" }, custom = "your corpse, then the nearest spirit healers" }),
 	-- "durability", "repair cost", "what needs repair", "broken gear": Durability.lua

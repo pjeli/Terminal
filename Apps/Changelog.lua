@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.3.6", when = "in testing",
+		v = "1.3.7", when = "in testing",
 		items = {
+			"Hunters: \"what can my pet eat\", \"nearest pet food vendor\". Loot rows' tooltips say the boss's level and type (and its drop rate from AtlasLoot); \"summoned bosses in blackrock spire\". Currency tooltips add your alts' amounts (Syndicator).",
 			"Lore and books (with the Spoken addons): \"who is edwin vancleef\", \"lore of duskwood\", \"tell me about goldshire\" (@lore), every book in the game in @book, read or unread, \"books in duskwood\", \"books that mention stalvan\".",
 			"\"Where to get\" knows more: the clams, sacks and boxes an item comes out of, who to skin, where to fish, what to disenchant (with OneForAll); and \"what does <token> give\" lists what a token, libram or sack turns into (AtlasLoot).",
 			"Enchants (with OneForAll): @enchant lists every enchant with its slot, what it gives and how you get it; \"enchants for bracers\", \"enchants for my weapon\", \"agility enchants\", \"enchants i can make\"; Enter opens its recipe or where to learn it.",

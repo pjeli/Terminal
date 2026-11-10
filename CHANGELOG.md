@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.7 (in testing)
+
+- **Pet food** (hunters with a pet out): **what can my pet eat** (`@item is:petfood`: what in your bags your pet eats,
+  by the game's own check, its diet in the footer), **nearest pet food vendor** / **who sells pet food** (`@npc
+  sells:petfood`). Otherwise a note says it's for a hunter with a pet out.
+- **Bosses** (with OneForAll): loot rows' tooltips name the boss's level and creature type, and "Summoned" where it
+  is; AtlasLoot's drop rate where OneForAll gives none. **what level is vancleef** finds a boss by part of its name;
+  **summoned bosses in blackrock spire** lists those with their instance, level and type (Enter: their loot).
+- **Currencies**: a currency's tooltip lists your other characters' amounts and the total (Syndicator, as `@stored`
+  counts them).
+- New files (`Search/Questions/PetFood.lua`, `Providers/Integrations/OneForAll/Bosses.lua`): restart the game.
+
 ## 1.3.6 (in testing)
 
 - **Lore** (with the Spoken addons, read at run time, nothing shipped): `@lore` (@story) holds every boss story and

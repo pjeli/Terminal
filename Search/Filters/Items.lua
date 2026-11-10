@@ -797,6 +797,8 @@ end
 
 -- is: values for items
 IS.quest = QuestItem
+-- is:petfood: an item your hunter's pet eats (Search/Questions/PetFood.lua: the game's answer, else Questie's food type)
+IS.petfood = function(e) return e.itemID ~= nil and ns.PetFood ~= nil and ns.PetFood.Eats(e.itemID) end
 IS.soulbound = Soulbound
 IS.enchanted, IS.unenchanted = Enchanted, Unenchanted
 IS.boe = BoE

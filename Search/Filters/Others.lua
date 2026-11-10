@@ -687,7 +687,7 @@ IS.skillups, IS.gray, IS.trivial = IS.skillup, IS.grey, IS.grey
 
 -- the values Tab offers after "key:" (the main spellings only)
 F.VALUES = {
-	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "enchanted", "unenchanted", "craftable", "skillup",
+	is = { "done", "todo", "complete", "ready", "usable", "equippable", "upgrade", "online", "offline", "quest", "soulbound", "boe", "enchanted", "unenchanted", "petfood", "craftable", "skillup",
 		"orange", "yellow", "green", "grey", "red", "leftbehind", "drop", "tracked", "untracked", "here", "passive", "unplaced", "known",
 		"foryou", "cantake", "itemstart", "started",
 		"capped", "vendor", "trainer", "classtrainer", "proftrainer", "flightmaster", "innkeeper", "banker", "repair",
@@ -743,7 +743,7 @@ F.APPLIES = {
 	is = {
 		done = QUESTS, todo = QUESTS, complete = { "quests" }, ready = { "spells" }, -- (ready on a quest = complete: offered once)
 		usable = ITEMS, equippable = ITEMS, upgrade = UPGRADES, quest = MADE, soulbound = OWN, boe = MADE,
-		enchanted = HELD, unenchanted = HELD,
+		enchanted = HELD, unenchanted = HELD, petfood = ITEMS,
 		online = PEOPLE, offline = PEOPLE,
 		craftable = RECIPES, skillup = RECIPES, orange = RECIPE_QUEST, yellow = RECIPE_QUEST, green = RECIPE_QUEST,
 		red = { "quests" }, tracked = { "quests" }, untracked = { "quests" }, here = { "quests" },
@@ -886,6 +886,7 @@ F.HELP = {
 	{ "sort:best", L["with is:upgrade: the biggest upgrades first, by how much each beats what you wear (Simple mode's upgrades sorts so on its own)"] },
 	{ "sort:plan", L["levelling a profession: your recipes that still give skill, by how many times your materials make each (bags and bank; with alts too), vendor-bought materials left out; the footer says the skill they'd give"] },
 	{ "do:use", L["what Enter does, as Simple mode's action words: use cast summon equip wear target link where (do:cast frost nova)"] },
+	{ "is:petfood", L["items your hunter's pet eats (the game says, else Questie's food types); @npc sells:petfood: the vendors of its food"] },
 	{ "sells:linen_cloth", L["@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)"] },
 	{ "reward:outlaw_sabre", L["@questie, @quest: the quests whose reward is that item (its name, part of it, or a close spelling); reward:bag, reward:quiver, reward:ammo_pouch: any one"] },
 	{ "is:drop", L["quests to drop: grey (the quest log shows it grey) or leftbehind (in a zone you've outlevelled), not complete; >>> drop drops every quest listed, Terminal asks first"] },

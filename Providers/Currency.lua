@@ -19,6 +19,18 @@ end
 -- Currencies
 ----------------------------------------------------------------------
 
+--- A currency's tooltip: the game's own (SetCurrencyByID), else its name and your amount; then your other characters'
+--- amounts and the total, from Syndicator, as @stored's tooltip lists an item's holders (Stored.lua's S.CurrencyLines).
+local function CurrencyTooltip(e, t)
+	local id = e.currencyID
+	local shown = id and type(t.SetCurrencyByID) == "function" and pcall(t.SetCurrencyByID, t, id)
+	if not shown then
+		t:SetText(e.name, 1, 0.82, 0)
+		t:AddLine(e.detail, 1, 1, 1)
+	end
+	if id and ns.Stored and ns.Stored.CurrencyLines then pcall(ns.Stored.CurrencyLines, id, e.quantity, t) end
+end
+
 --- A currency's id: in its list info on newer clients, else read from its link (both C calls).
 local function CurrencyID(info, index)
 	local id = ns.Num(info.currencyID)
@@ -71,6 +83,7 @@ ns:RegisterProvider("currency", {
 					maxWeeklyQuantity = ns.Num(info.maxWeeklyQuantity),
 					quantityEarnedThisWeek = ns.Num(info.quantityEarnedThisWeek),
 					detail = tostring(ns.Num(info.quantity) or 0) .. (((ns.Num(info.maxQuantity) or 0) > 0) and ("/" .. ns.Num(info.maxQuantity)) or ""),
+					tooltip = CurrencyTooltip,
 					secure = TOKEN_SECURE, isOpen = TokenOpen, after = PointAtCurrency, -- (the game opens the tab)
 					activate = OpenCurrency,
 				}

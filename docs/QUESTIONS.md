@@ -121,6 +121,7 @@ Kept only where no search can list the same rows, each with its reason in `custo
 | Chains, AttuneHow | a chain already: the same pipeline either way |
 | Armory, OneForAllWorld, HunterPets | OneForAll's own rows and orders (a faction's rewards by standing, a boat by where it goes, beasts that aren't @npc rows) |
 | ProfTraining | can-learn first, then the skill needed, with the next rank's text |
+| OneForAllBosses | OneForAll's bosses aren't a list: one row per summoned boss, its instance, level and type |
 | Partly: Mail ("my mail", gold, auction mail), WhatsTraining (what it costs), ClassSpells (upcoming, a level, a name), Attunements and CollectionsQ (with words), QuestNeeds (a standing needed), QuestsHere (level or zone unknown), AuctionatorQ (bags and bank together, alts, everywhere), LibraryBooks (rewards, nearest) | their other forms are search questions |
 
 An own answer is still filtered and sorted by what's typed after it and by the bar (`Scan.AnswerView`).
@@ -380,3 +381,17 @@ What can't be moved without losing something the player sees stays an own answer
   its own answer: the pages are searched only then (no row carries page text), each book a row whose detail is the words
   around the first match; "No book mentions X" when none does. "library" leaves both to LibraryBooks.
 - Tests: tests/smoke/spoken.lua.
+
+### A hunter's pet food; OneForAll's bosses
+
+- PetFood, a search question (Search/Questions/PetFood.lua): "what can my pet eat", "pet food", "feed my pet" are
+  `@item is:petfood` (the game's `C_PetInfo.CanPetEatItem`, else QuestieDB's item `foodType` against
+  `C_PetInfo.GetPetFoodTypes()`' diet); "who sells pet food", "nearest pet food vendor", "where to buy pet food" are
+  `@npc sells:petfood faction:friendly sort:distance` (Questie's vendors of food of that diet). Both GetPetFoodTypes and
+  CanPetEatItem are in Forever's own UI code (PetHappiness.lua, ItemUtil.lua). Its footer is the diet as the game's pet
+  tooltip says it (PET_DIET_TEMPLATE); not a hunter, or no pet out: a note says it's for a hunter with a pet out.
+- OneForAllBosses, its own answer (Providers/Integrations/OneForAll/Bosses.lua): "summoned bosses in blackrock spire",
+  "which bosses are summoned": OneForAll's DUNGEONS' bosses whose BOSS_SUMMONED is set, each with its instance, level
+  (BOSS_LEVELS or its GetBossLevel) and type (BOSS_TYPES). LevelOf ("what level is vancleef") asks OneForAll's bosses by
+  part of a name when nothing else has the name, and says a Questie NPC's type and "Summoned" when OneForAll knows it.
+- Tests: tests/smoke/petfood.lua, tests/smoke/oneforall_bosses.lua.

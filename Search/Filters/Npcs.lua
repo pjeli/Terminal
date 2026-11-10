@@ -569,6 +569,16 @@ KEYS.sells = function(v)
 			return by and by[id] ~= nil or false
 		end
 	end
+	-- sells:petfood: a vendor of food your hunter's pet eats (Search/Questions/PetFood.lua)
+	if v == "petfood" then
+		local by
+		return function(e)
+			local id = NpcID(e)
+			if not id then return false end
+			if by == nil then by = ns.PetFood and ns.PetFood.Vendors() or false end
+			return by and by[id] == true or false
+		end
+	end
 	local set -- (looked up on the first NPC row, then kept for the search: up to 20k rows ask)
 	return function(e)
 		local id = NpcID(e)

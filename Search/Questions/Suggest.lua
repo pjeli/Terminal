@@ -979,11 +979,23 @@ function LV.Question(text)
 					end
 				end
 				local I = ns.Integrations
+				local OB = ns.OneForAllBosses
 				local id = I and I.NpcIdNamed and (I.NpcIdNamed(what) or I.NpcIdNamed("the " .. what))
 				if id and I.NpcField then
 					local lo, hi = Num(I.NpcField(id, "minLevel")), Num(I.NpcField(id, "maxLevel"))
 					local e = lo and I.NpcRow and I.NpcRow(id)
-					if e then return { row = e, said = LevelSaid(lo, hi) } end
+					-- (a dungeon boss: OneForAll's creature type and "Summoned" said too)
+					local b = e and OB and OB.Find(nil, nil, id)
+					local more = b and OB.Said(b, true)
+					if e then return { row = e, said = LevelSaid(lo, hi) .. (more and (SEP .. more) or "") } end
+				end
+				-- a dungeon boss by part of its name ("vancleef"), OneForAll's: its level, type, summoned or not
+				local b = OB and OB.Named(what)
+				local blo, bhi = b and OB.Levels(b)
+				if blo then
+					local e = b.npc and I and I.NpcRow and I.NpcRow(b.npc) or nil
+					local more = OB.Said(b, true)
+					return { row = e, name = b.name, said = LevelSaid(blo, bhi) .. (more and (SEP .. more) or "") .. SEP .. b.inst }
 				end
 			end
 			return nil

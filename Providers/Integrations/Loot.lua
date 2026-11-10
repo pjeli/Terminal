@@ -556,6 +556,45 @@ function I.LootSplit(d)
 	return nil, d
 end
 
+--- The NPC a loot row's boss table is (AtlasLoot's npcID; a table of them: the first), or nil: its module not loaded
+--- this session (rows from the saved index) or a table that isn't a boss.
+function I.LootNpc(e)
+	local A = AL()
+	local st = type(A) == "table" and type(A.ItemDB) == "table" and type(A.ItemDB.Storage) == "table" and A.ItemDB.Storage[e.addon]
+	local c = type(st) == "table" and st[e.content]
+	local b = type(c) == "table" and type(c.items) == "table" and c.items[e.boss]
+	local npc = type(b) == "table" and b.npcID
+	if type(npc) == "table" then npc = npc[1] end
+	return ns.Num(npc)
+end
+
+--- A loot row's tooltip lines after the item's (UI/Tooltip.lua's tipMore): its boss's level, creature type and whether
+--- it's summoned (OneForAll's, Bosses.lua), and AtlasLoot's drop rate when OneForAll gave the row none (its detail says
+--- that one). Nothing when neither knows; the drop rate only while the boss's module is loaded (AtlasLoot keeps its
+--- rates in the module).
+function I.LootTipMore(e, t)
+	local d = rawget(e, "detail")
+	local boss, inst = I.LootSplit(d)
+	local npc = I.LootNpc(e)
+	local B = ns.OneForAllBosses
+	local rec = B and B.Find and B.Find(boss, inst, npc)
+	local said = rec and B.Said(rec)
+	local pct
+	if npc and not (type(d) == "string" and d:find(ns.DETAIL_SEP, 1, true)) then
+		local A = AL()
+		local DR = type(A) == "table" and type(A.Data) == "table" and A.Data.Droprate
+		pct = type(DR) == "table" and ns.Num(Safe(DR.GetData, DR, npc, e.itemID)) or nil
+	end
+	if not (said or pct) then return end
+	t:AddLine(" ")
+	if said then t:AddLine((boss or rec.name) .. ": " .. said, 1, 0.82, 0, true) end
+	if pct then
+		local W = ns.OneForAllWorld
+		local s = W and W.ChanceText and W.ChanceText(pct) or L["%s%% to drop"]:format(tostring(pct))
+		t:AddLine(s .. ns.DETAIL_SEP .. "AtlasLoot", 1, 1, 1)
+	end
+end
+
 local function SetupAtlasLoot()
 	if loot.on or not AtlasLootPresent() then return end
 	loot.on = true
@@ -617,7 +656,7 @@ local function SetupAtlasLoot()
 		end,
 	})
 	loot.meta = ns:CompactMeta(ns.providers.loot, { activate = OpenLoot, secondary = LinkLoot, secondarySecure = LOOT_CHATBOX,
-		secondaryIsOpen = ns.Never }, {
+		secondaryIsOpen = ns.Never, tipMore = function(e, t) return I.LootTipMore(e, t) end }, {
 		icon = function(t) return C_Item.GetItemIconByID and C_Item.GetItemIconByID(t.itemID) or nil end,
 		link = function(t) return "item:" .. t.itemID end,
 		-- (read when drawn: its quality's colour, as bag items show; nothing kept on the row)
