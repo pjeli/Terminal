@@ -23,6 +23,7 @@ SSH.Dots = D
 
 D.SIZE = 12        -- the dot, on screen, at any zoom
 D.EVERY = 0.2      -- s between placings while the map shows
+D.EXPIRE_EVERY = 2 -- s between looks for OpenMap places gone quiet, while the map shows
 local MASK = "Interface\\CHARACTERFRAME\\TempPortraitAlphaMask" -- (a round white disc: coloured, a dot)
 
 local pins = {}
@@ -90,7 +91,8 @@ local function Enter(pin)
 	local zone = I and I.ZoneName and I.ZoneName(w.map)
 	GameTooltip:AddLine(("%s  %.1f, %.1f"):format(zone or "?", w.x * 100, w.y * 100), 1, 1, 1)
 	local ep = SSH.game
-	local ago = ep and (ep:Now() - w.at) or 0
+	local heard = w.omKey and SSH.OpenMap and SSH.OpenMap.live[w.omKey] -- (heard since the list was made; 1.3.0 review)
+	local ago = ep and (ep:Now() - (heard and heard.at or w.at)) or 0
 	if ago >= 60 then GameTooltip:AddLine(L["Updated %s"]:format(ns.Ago(ago)), 0.8, 0.8, 0.8) end
 	GameTooltip:AddLine(w.openmap and L["Terminal: Share, shared with OpenMap. Click: a waypoint on them"]
 		or L["Terminal: Share. Click: a waypoint on them"], 0.6, 0.6, 0.6, true)
@@ -154,7 +156,8 @@ function D.Refresh()
 	-- (the same places on the same map at the same size and zoom: nothing to do. Every 0.2 s it worked each friend's
 	-- spot out again and set every dot: 1.2.5 review. OpenMap's stitched view moves under the same map: each time)
 	local OMod = SSH.OpenMap
-	if OMod and OMod.on then OMod.Expire() end -- (a place gone quiet: its dot goes)
+	-- (a place gone quiet: its dot goes; looked at every 2 s, not on every placing. 1.3.0 review)
+	if OMod and OMod.on and (D.expiredAt or 0) + D.EXPIRE_EVERY <= GetTime() then D.expiredAt = GetTime(); OMod.Expire() end
 	-- (OpenMap's places only when they're drawn here: not while OpenMap itself is loaded, it draws its own)
 	local omGen = OMod and OMod.on and not OMod.OpenMapLoaded() and OMod.gen or 0
 	local sig = tostring(ep and ep.placesGen or 0) .. ":" .. tostring(omGen) .. ":" .. shown .. ":" .. cw .. ":" .. ch .. ":" .. tostring(scale)
@@ -189,7 +192,9 @@ function D.Start()
 	driver = CreateFrame("Frame", nil, W)
 	local wait = 0
 	driver:SetScript("OnShow", function() wait = 0 end)
-	driver:SetScript("OnHide", function() HideFrom(1) end)
+	-- (hidden: placed again on the next show, whatever the signature; the dots stayed hidden on a reopened map until a
+	-- friend next moved. 1.3.0 review)
+	driver:SetScript("OnHide", function() HideFrom(1); D.lastSig = nil end)
 	driver:SetScript("OnUpdate", function(_, elapsed)
 		wait = wait - (elapsed or 0)
 		if wait > 0 then return end

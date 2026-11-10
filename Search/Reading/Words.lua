@@ -116,6 +116,9 @@ local PROF_LINES = { { 171, 2259, "alchemy" }, { 164, 2018, "blacksmithing" }, {
 	{ 202, 4036, "engineering" }, { 182, 2366, "herbalism" }, { 165, 2108, "leatherworking" }, { 186, 2575, "mining" },
 	{ 393, 8613, "skinning" }, { 197, 3908, "tailoring" }, { 185, 2550, "cooking" }, { 129, 3273, "firstaid" },
 	{ 356, 7620, "fishing" } }
+-- a profession's trainer: word by its skill line (Examples.lua's Advanced suggestions: Questie's titles are English)
+E.PROF_WORD = {}
+for _, p in ipairs(PROF_LINES) do E.PROF_WORD[p[1]] = p[3] end
 local CLASS_WORDS = { WARRIOR = "warrior", PALADIN = "paladin", HUNTER = "hunter", ROGUE = "rogue", PRIEST = "priest",
 	SHAMAN = "shaman", MAGE = "mage", WARLOCK = "warlock", DRUID = "druid" }
 -- NPC roles by the minimap's tracking menu's names ("Gastwirt", "Aubergiste": "nächster Gastwirt" finds the innkeeper)
@@ -140,6 +143,10 @@ function E.GameWords()
 		word = Str(word)
 		if not word then return end
 		local w = Lower(word):gsub("^%s+", ""):gsub("%s+$", "")
+		-- (never a place's word: French Blacksmithing is "Forge", and "nearest forge" found its trainers, not the forge;
+		-- 1.3.0 review)
+		local I = ns.Integrations
+		if I and I.OBJECT_KINDS and I.OBJECT_KINDS[w] then return end
 		if w ~= "" and #w >= 2 and rawget(E.WORDS, w) == nil and gameWords[w] == nil and not E.STOP[w] then gameWords[w] = spec end
 	end
 	for i = 0, 5 do Add(_G["ITEM_QUALITY" .. i .. "_DESC"], "q:" .. i) end

@@ -209,7 +209,7 @@ function UI:FitStatus()
 	local avail = (t.width or 640) - 28
 	-- (the same text at the same width and size: as it is. SetStatus runs on every key and every move of the
 	-- selection; wrapped, each call laid the text out twice. 1.2.9 review)
-	local key = tostring(status:GetText()) .. "\0" .. avail .. "\0" .. tostring(t.fontSize)
+	local key = tostring(status:GetText()) .. "\0" .. avail .. "\0" .. tostring(t.fontSize) .. "|" .. tostring(t.font) -- (and the face: 1.3.0 review)
 	if key == self.statusFitKey then return end
 	self.statusFitKey = key
 	if self.statusWrapped then
@@ -239,7 +239,7 @@ function UI:FitStatus()
 	end
 end
 
---- The footer one line again (UI:Hide): a terminal reopened on a kept search snapped to the old wrapped footer's
+--- The footer one line again (the frame's OnHide): a terminal reopened on a kept search snapped to the old wrapped footer's
 --- height, then glided down once the search was in (1.2.9 review).
 function UI:UnwrapStatus()
 	local status = UI.status

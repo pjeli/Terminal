@@ -274,9 +274,14 @@ function SSH.AllPlaces(ep, dots)
 		return false
 	end
 	for _, w in ipairs(out) do Kept(Canon(w.name)) end
-	local latest = {}
-	for i, w in ipairs(theirs) do latest[i] = w end
-	sort(latest, function(a, b) return a.at > b.at end)
+	-- (when each was last heard: the list is kept per move, a place heard again unchanged is newer than it says)
+	local latest, at = {}, {}
+	for i, w in ipairs(theirs) do
+		latest[i] = w
+		local heard = OM.live[w.omKey]
+		at[w] = heard and heard.at or w.at
+	end
+	sort(latest, function(a, b) return at[a] > at[b] end)
 	for _, w in ipairs(latest) do
 		if not Kept(Canon(w.name)) then out[#out + 1] = w end
 	end
@@ -430,7 +435,7 @@ SSH.SETTINGS = {
 	location = {
 		default = false,
 		name = L["Share your location"],
-		desc = L["Friends you're connected to by Share see where you are: a class-coloured dot on their world map, and a row in their searches (Enter: a waypoint on you). Sent as you move, every 15 s (every minute standing still), never from a dungeon, raid or battleground. A group's own setting (.share <group> location on or off) wins over this one."],
+		desc = L["Friends you're connected to by Share see where you are: a class-coloured dot on their world map, and a row in their searches (Enter: a waypoint on you). Sent as you move, every 15 s or more with many friends (every minute standing still), never from a dungeon, raid or battleground. A group's own setting (.share <group> location on or off) wins over this one."],
 		words = "location position coordinates map waypoint gps", -- (no "where...": "@shared where" is friends' places)
 		apply = function(on) if SSH.game then SSH.game:SetWhere(on) end end,
 	},
@@ -871,6 +876,7 @@ function SSH.NewGroup(ep, name)
 	SSH.Remember(name, key, mode, code)
 	SSH.StartTicker()
 	SSH.Badge()
+	ns:Changed("shared") -- (its own location row; 1.3.0 review)
 	return ep.groups[name]
 end
 
@@ -882,10 +888,14 @@ function SSH.JoinWithCode(ep, group, code)
 	local key = SSH.KeyOfCode(code)
 	local saved = Saved().groups[group]
 	local mode = type(saved) == "table" and MODES[saved.mode] and saved.mode or ep.defaultMode
-	ep:JoinGroup(group, key, mode).code = code
+	local jg = ep:JoinGroup(group, key, mode)
+	jg.code = code
+	-- (the same group joined again, before Restore got to it: its own location setting, as Restore gives it; 1.3.0 review)
+	if type(saved) == "table" and type(saved.location) == "boolean" and saved.key == C.Hex(key) then jg.where = saved.location end
 	SSH.Remember(group, key, mode, code)
 	SSH.StartTicker()
 	SSH.Badge()
+	ns:Changed("shared") -- (its own location row)
 	return { L["Share: joined %s with its code; saying hello to your friends and guild"]:format(group) }
 end
 
@@ -1017,6 +1027,7 @@ function SSH.RenameCmd(ep, rest)
 	local db = Saved()
 	db.groups[to], db.groups[from] = db.groups[from], nil
 	SSH.Badge()
+	ns:Changed("shared") -- (its location row by its new name; 1.3.0 review)
 	return { L["Share: %s is now %s (only for you: friends in it keep their own name for it)"]:format(from, to) }
 end
 
@@ -1171,6 +1182,7 @@ ns:RegisterCommand("share", {
 			SSH.Remember(group, nil)
 			if #ep.queue == 0 and not ep:On() then SSH.StopTicker() end
 			SSH.Badge()
+			ns:Changed("shared") -- (its location row goes; 1.3.0 review)
 			return { L["Share: left %s; its code is forgotten"]:format(group) }
 		end
 		if word == "off" then
@@ -1178,6 +1190,7 @@ ns:RegisterCommand("share", {
 			SSH.ForgetGroups()
 			if #ep.queue == 0 then SSH.StopTicker() end -- (else once the goodbyes are gone)
 			SSH.Badge()
+			ns:Changed("shared") -- (the groups' location rows go; 1.3.0 review)
 			return { L["Share: off. Your groups and their codes are forgotten, and your friends' items are gone"] }
 		end
 		-- (.ssh all, .ssh mats...; .ssh share all too)
@@ -1889,7 +1902,7 @@ function SSH.OnEvent(event, ...)
 		or event == "PLAYER_MONEY" then
 		if ep:On() then ep:Changed() end -- (sent only when what you share changed: Share compares the text)
 	elseif event == "FRIENDLIST_UPDATE" or event == "GUILD_ROSTER_UPDATE" or event == "BN_FRIEND_INFO_CHANGED"
-		or event == "BN_FRIEND_LIST_SIZE_CHANGED" then
+		or event == "BN_FRIEND_LIST_SIZE_CHANGED" or event == "BN_FRIEND_ACCOUNT_ONLINE" or event == "BN_FRIEND_ACCOUNT_OFFLINE" then
 		peopleStale = true
 	elseif event == "PLAYER_LOGOUT" then
 		ep:Bye()
@@ -1912,7 +1925,8 @@ do
 	local f = CreateFrame("Frame")
 	for _, ev in ipairs({ "CHAT_MSG_ADDON", "BN_CHAT_MSG_ADDON", "BAG_UPDATE_DELAYED", "PLAYERBANKSLOTS_CHANGED", "MAIL_INBOX_UPDATE",
 		"PLAYER_MONEY", "FRIENDLIST_UPDATE", "GUILD_ROSTER_UPDATE",
-		"BN_FRIEND_INFO_CHANGED", "BN_FRIEND_LIST_SIZE_CHANGED", "PLAYER_LOGOUT", "PLAYER_LOGIN" }) do
+		"BN_FRIEND_INFO_CHANGED", "BN_FRIEND_LIST_SIZE_CHANGED", "BN_FRIEND_ACCOUNT_ONLINE", "BN_FRIEND_ACCOUNT_OFFLINE",
+		"PLAYER_LOGOUT", "PLAYER_LOGIN" }) do
 		pcall(f.RegisterEvent, f, ev)
 	end
 	f:SetScript("OnEvent", function(_, event, ...) SSH.OnEvent(event, ...) end)

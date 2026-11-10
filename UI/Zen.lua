@@ -40,8 +40,8 @@ Z.HIDE = { "Minimap" }
 -- Parts of Blizzard's party and raid frames that ignore their parent's alpha (CompactUnitFrame.xml, ignoreParentAlpha):
 -- the selection box on your target's frame and the ready-check icon. UIParent's fade passed them by: the box stayed lit
 -- over the faded interface (1.2.8, the player's screenshot: CompactPartyFrameMember1SelectionHighlight, raid-style
--- party frames). Fading their own alpha didn't hold (something put it back while faded), so while faded they follow
--- their parent's alpha (UIParent's 0) and ignore it again once the interface is back. Blizzard never reads it.
+-- party frames). While faded they follow their parent's alpha (UIParent's 0) and ignore it again once the interface
+-- is back (their own alpha didn't hold: set back while faded). Blizzard sets that flag only from XML, never reads it.
 Z.UNIT_PARTS = { "selectionHighlight", "readyCheckIcon" }
 
 --- Each such part of the party and raid frames there are now, given to `fn`. By name, never a walk over UIParent's
@@ -271,11 +271,19 @@ local function Apply(v)
 	if v > 0 then d:Show() else d:Hide() end
 end
 
+--- The parts back as Blizzard made them (ignoring their parent's alpha). In a fight that might be refused for a
+--- secure frame's part: then kept for when it ends (PLAYER_REGEN_ENABLED; 1.3.0 review).
+function Z.Unfollow()
+	if InCombatLockdown and InCombatLockdown() then return false end
+	for r in pairs(following) do pcall(r.SetIgnoreParentAlpha, r, true); following[r] = nil end
+	return true
+end
+
 local function Done()
 	Z.active = false
 	Tinting(false)
 	ShowRest()
-	for r in pairs(following) do pcall(r.SetIgnoreParentAlpha, r, true); following[r] = nil end
+	Z.Unfollow()
 	uiAlpha, also, shownStep = nil, nil, nil
 	ns:Trace("zen: the interface is back")
 end
@@ -400,7 +408,17 @@ function Z.OnEvent(event, ...)
 	elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_LEAVING_WORLD" then
 		if Z.Leave(true) then ns:Trace("zen: " .. (event == "PLAYER_REGEN_DISABLED" and "combat" or "a loading screen") .. ": the interface is back at once") end
 	elseif event == "GROUP_ROSTER_UPDATE" then
-		if Z.active and target > 0 and Z.Can() then Z.Follow() end -- (new party/raid frames while faded)
+		-- (new party/raid frames while faded: looked for a moment later, once a burst; Blizzard's raid frames are made by
+		-- its own handler of this event, which may come after this one. 1.3.0 review)
+		if Z.active and target > 0 and not Z.followWaiting and C_Timer and C_Timer.After then
+			Z.followWaiting = true
+			C_Timer.After(0.1, function()
+				Z.followWaiting = nil
+				if Z.active and target > 0 and Z.Can() then Z.Follow() end
+			end)
+		end
+	elseif event == "PLAYER_REGEN_ENABLED" then
+		if not Z.active and next(following) then Z.Unfollow() end -- (parts a fight kept following: back now)
 	elseif event == "ADDON_RESTRICTION_STATE_CHANGED" then
 		local kind, state = ...
 		local E, S = Enum and Enum.AddOnRestrictionType, Enum and Enum.AddOnRestrictionState
@@ -410,7 +428,7 @@ end
 
 local ev = CreateFrame("Frame")
 for _, e in ipairs({ "PLAYER_REGEN_DISABLED", "PLAYER_LEAVING_WORLD", "ADDON_RESTRICTION_STATE_CHANGED", "WEATHER_CHANGED",
-	"GROUP_ROSTER_UPDATE" }) do
+	"GROUP_ROSTER_UPDATE", "PLAYER_REGEN_ENABLED" }) do
 	pcall(ev.RegisterEvent, ev, e)
 end
 ev:SetScript("OnEvent", function(_, event, ...) Z.OnEvent(event, ...) end)

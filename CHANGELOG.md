@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.2.11 (in testing)
+
+Fixes from a release review of 1.2.1-1.2.10 (four reviewers: bugs, quality, consistency, performance):
+
+- Friends' dots on the world map came back only when a friend next moved after you closed and reopened the map.
+- A friend who shared their place but no items kept their place's row in `@shared` after leaving. The "Share your
+  location in <group>" rows didn't follow `.share rename`, `new`, `join`, `leave` or `off`. A remembered group joined
+  again before Terminal reconnected it by itself lost its own location setting for that session.
+- The location setting's text says it's sent every 15 s or more with many friends, as it is.
+- OpenMap players' places: a Battle.net friend just online is said hello to (the friend list Share keeps is read
+  again when a friend comes online, and the hellos wait for it); a dot's tooltip says when they were last heard, not
+  when they last moved; a move too small to see doesn't place the dots again; places gone quiet are looked for every
+  2 s while the map shows, not five times a second.
+- A suggestion typed as it was shown, its note too, works: `.ask guild on (Terminal answers guildmates' !t)` turned
+  nothing on, `.theme (a look of your own)` looked for a theme by that name.
+- Suggestions: Russian blacksmiths, miners and tailors got no anvil, forge or moonwell (their professions' names were
+  cut by bytes); "time to train" isn't said for Cooking, First Aid or Fishing past 150 (a book and a quest), before
+  the level a rank wants, or at 300; Advanced mode's trainer suggestions use the English word Questie's titles have;
+  `.share settings location on` isn't suggested when every group has its own setting.
+- French: "nearest forge" finds the forge, not blacksmithing trainers (Blacksmithing is "Forge").
+- The footer is laid out again when the font changes (it ran past the border).
+- After a key that types nothing opened Terminal (F9, Ctrl+Space), a `~` or a Shift symbol typed in the next half
+  second was dropped.
+- `.zen`: raid frames made as the group changes while faded are looked for a moment later (Blizzard makes them after
+  the event); parts a fight kept from being put back are put back when it ends.
+
 ## 1.2.10 (in testing)
 
 The empty prompt's "try:" suggestions, enhanced (asked for: "suggest different terminal settings (try .zen mode;

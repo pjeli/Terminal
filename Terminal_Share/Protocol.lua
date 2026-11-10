@@ -982,7 +982,7 @@ function E:Drop(f, why)
 	end
 	if f.where then self.placesGen = (self.placesGen or 0) + 1 end -- (their dot goes)
 	if why then self.env.say(L["Share: %s disconnected (%s)"]:format(f.name or "?", why)) end
-	if HasData(f) then self.env.changed() end
+	if HasData(f) or f.where then self.env.changed() end -- (their place's row goes too, items or none; 1.3.0 review)
 end
 
 --- What you share in a mode, as text (the same text as before: not sent again), and in its parts (SSH.EncodeParts: a
@@ -1639,7 +1639,7 @@ function E:Off()
 	local had, byes = false, {}
 	for _, f in pairs(self.friends) do
 		byes[#byes + 1] = f.route
-		if HasData(f) then had = true end
+		if HasData(f) or f.where then had = true end -- (a place's row too: 1.3.0 review)
 	end
 	self.peers, self.friends, self.waiting, self.queue, self.hellos = {}, {}, {}, {}, {}
 	self.groups, self.snaps, self.markCache = {}, {}, {}

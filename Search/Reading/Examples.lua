@@ -269,7 +269,9 @@ local function Gather()
 	if P and P.PlayerProfessions then
 		local okP, list = pcall(P.PlayerProfessions)
 		for _, pr in ipairs(okP and type(list) == "table" and list or {}) do
-			local n = Short(pr.name and Lower(pr.name), 20)
+			-- (any length: the game's own names, and a 20-byte cap dropped Russian Blacksmithing, Mining and Tailoring, a
+			-- Cyrillic letter being two bytes; 1.3.0 review)
+			local n = type(pr.name) == "string" and pr.name ~= "" and Lower(pr.name)
 			if n then f.profs[#f.profs + 1] = { name = n, line = Num(pr.skillLine), rank = Num(pr.rank) or 0, max = Num(pr.maxRank) or 0 } end
 		end
 	end
@@ -318,21 +320,35 @@ E.PROF_PLACES = {
 -- at the top rank (E.PROF_TOP): nothing more to train
 E.PROF_TOP = 300
 E.PROF_NEAR = 5 -- (this close to the top of a rank counts: training ahead)
---- Is a profession { rank, max } at the top of what you've trained, with more to learn?
-function E.ProfCapped(pr)
-	return pr.max > 0 and pr.max < E.PROF_TOP and pr.rank >= pr.max - E.PROF_NEAR
+-- Cooking, First Aid, Fishing: a trainer teaches them up to 150; Expert is a book, Artisan a quest (classic's rules)
+E.PROF_SECONDARY = { [185] = true, [129] = true, [356] = true }
+E.PROF_SECONDARY_TOP = 150
+-- the level the next rank wants, by the top of the one you have (Journeyman 10, Expert 20, Artisan 35)
+E.PROF_RANK_LEVEL = { [75] = 10, [150] = 20, [225] = 35 }
+--- Is a profession { line, rank, max } at the top of what you've trained, with more a trainer teaches you now?
+function E.ProfCapped(pr, level)
+	local top = E.PROF_SECONDARY[pr.line or 0] and E.PROF_SECONDARY_TOP or E.PROF_TOP
+	if not (pr.max > 0 and pr.max < top and pr.rank >= pr.max - E.PROF_NEAR) then return false end
+	local need = E.PROF_RANK_LEVEL[pr.max]
+	return not (need and level and level < need)
 end
+--- At the very top (300): nothing left to learn from a trainer.
+function E.ProfDone(pr) return pr.max >= E.PROF_TOP and pr.rank >= pr.max - E.PROF_NEAR end
 
 local function ProfessionExamples(f, add, advanced)
 	f.trainerFor = {}
 	for _, pr in ipairs(f.profs or {}) do
 		local word = pr.name
 		f.trainerFor[word] = true
-		if advanced then
-			add("@npc trainer:" .. word:gsub(" ", "") .. " sort:distance", nil, "city", E.ProfCapped(pr))
+		local capped = E.ProfCapped(pr, f.level)
+		if E.ProfDone(pr) then -- (nothing to train)
+		elseif advanced then
+			-- (trainer: reads Questie's English titles: the English word by skill line, whatever the client's language)
+			local en = E.PROF_WORD and E.PROF_WORD[pr.line or 0] or word:gsub(" ", "")
+			add("@npc trainer:" .. en .. " sort:distance", nil, "city", capped)
 		else
-			add(E.ProfCapped(pr) and ("nearest " .. word .. " trainer (" .. pr.rank .. "/" .. pr.max .. ")")
-				or ("nearest " .. word .. " trainer"), "Questie", "city", E.ProfCapped(pr))
+			add(capped and ("nearest " .. word .. " trainer (" .. pr.rank .. "/" .. pr.max .. ")")
+				or ("nearest " .. word .. " trainer"), "Questie", "city", capped)
 		end
 		for _, place in ipairs(E.PROF_PLACES[pr.line or 0] or {}) do
 			if pr.rank >= (place[2] or 0) then
@@ -366,7 +382,10 @@ function E.SettingTips()
 			tip(".share settings openmap on", L["see guildmates who share with OpenMap"])
 		end
 		local ep = SSH.game
-		if SSH.SETTINGS.location and ep and ep.On and ep:On() and not (ep.WhereAny and ep:WhereAny()) then
+		-- (only with a group that follows the global setting: one with its own off isn't changed by it; 1.3.0 review)
+		local follows = false
+		for _, g in pairs(ep and ep.groups or {}) do if g.where == nil then follows = true break end end
+		if SSH.SETTINGS.location and follows and not SSH.Setting("location") then
 			tip(".share settings location on", L["your Share friends see where you are"])
 		end
 		if ep and ep.On and not ep:On() and Command("share") then tip(".share", L["friends' bags in your searches"]) end
@@ -574,6 +593,20 @@ local function Pool()
 	return list
 end
 E.ExamplePool = Pool
+
+--- A line typed as a suggestion was shown, its "(note)" too ("nearest blacksmithing trainer (70/75)"): without the
+--- note. Any other line as it is (a search for something in brackets stays one). Only the suggestions already made
+--- are looked at, never made here (it's asked on every search).
+function E.WithoutNote(text)
+	if type(text) ~= "string" or not text:find("%)%s*$") then return text end
+	local body = text:match("^(.-)%s*%b()%s*$")
+	if not body or body == "" then return text end
+	local typed = "try: " .. Lower((text:gsub("%s+$", "")))
+	for _, x in ipairs(pool.list or {}) do
+		if Lower(x) == typed then return body end
+	end
+	return text
+end
 --- What's to buy, as one string: the ammo, then the reagents ("arrow|17028,17033"; "|" for nothing).
 function E.BuyKey(ammo, reagents)
 	return (ammo or "") .. "|" .. table.concat(reagents or {}, ",")

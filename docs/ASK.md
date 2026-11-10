@@ -33,7 +33,7 @@ Not tried in game yet: see "Trying it in game" at the end.
 **Off by default, per channel** (the player's call). The answer goes out under your character's name. Settings:
 `db.ask = { guild, group, whisper }` (in Terminal.lua; nil = all off). The first time Terminal sees a `!t` question
 in a channel that's off, it tells you once, in your chat only: "Bob asked Terminal a question (!t) in guild chat. To let
-Terminal answer these for you, type .ask guild on" (the command in its own colour; 1.2.2, the player: the old wording
+Terminal answer these for you, type .ask guild on" (the command in its own colour; 1.2.4, the player: the old wording
 wasn't obvious). Not again that session.
 
 ## A question in another language

@@ -29,7 +29,9 @@ OM.PREFIX = "OpenMapLoc"
 OM.GONE = 150      -- s without word before a place goes (as OpenMap's own dots)
 OM.GAP = 0.5       -- s between messages sent (hellos and answers)
 OM.MAX = 200       -- places kept at most (a big guild)
-OM.SCAN_WAIT = 1   -- s after a friend list event before it's read (they come in bursts)
+OM.SCAN_WAIT = 3   -- s after a friend list event before it's read (they come in bursts; past Share's 2 s for a
+                   -- friend list it was told changed, so a Battle.net friend just online is in it: 1.3.0 review)
+OM.DOT_MOVE = 0.001 -- (a move smaller than this on a zone's map doesn't place the map's dots again; 1.3.0 review)
 OM.FIRST_WAIT = 5  -- s after login before the first hellos
 OM.CHANGED_WAIT = 3 -- s: the rows made again at most this often for places heard (a big guild moving; 1.2.9 review)
 
@@ -269,7 +271,7 @@ function OM.Heard(sender, text, friend, guild)
 	Watch()
 	-- (the dots placed again only when a place moved; the rows made again, a moment later, only when what one shows
 	-- changes: the zone, x and y to the whole number, the class. 1.2.9 review: every message did both)
-	if p.map ~= m or p.x ~= x or p.y ~= y or p.class ~= class then
+	if p.map ~= m or p.class ~= class or not p.x or math.abs(p.x - x) >= OM.DOT_MOVE or math.abs(p.y - y) >= OM.DOT_MOVE then
 		p.map, p.x, p.y, p.class = m, x, y, class
 		OM.gen = OM.gen + 1
 		local shown = m .. ":" .. floor(x * 100 + 0.5) .. ":" .. floor(y * 100 + 0.5) .. ":" .. (class or "")

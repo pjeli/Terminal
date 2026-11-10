@@ -82,7 +82,7 @@ do
 	Msg("L1\t1429\t0.4000\t0.6000\tMAGE\t30", "GUILD", "Gina-Realm")
 	check(OM.gen == gen, "the same place again: the map's dots not placed again (1.2.9 review)")
 	Msg("L1\t1429\t0.4001\t0.6001\tMAGE\t30", "GUILD", "Gina-Realm"); FlushAll()
-	check(changes == 1 and Place("Gina").x == 0.4001 and OM.gen == gen + 1, "a move too small to show: kept (the dot moves), the rows left as they are")
+	check(changes == 1 and Place("Gina").x == 0.4 and OM.gen == gen, "a move too small to see (under OM.DOT_MOVE): the dots and rows left as they are (1.3.0 review)")
 	Msg("L1\t1429\t0.5\t0.6\tMAGE\t30", "GUILD", "Gina-Realm")
 	Msg("L1\t1429\t0.6\t0.6\tMAGE\t30", "GUILD", "Gina-Realm"); FlushAll()
 	check(changes == 2 and Place("Gina").x == 0.6, "two moves that show, in a moment: the rows made again once")

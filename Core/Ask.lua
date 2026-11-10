@@ -484,7 +484,7 @@ function Inst:OnChat(event, text, sender, guid)
 	if not env.setting(ch.set) then
 		if not self.told[ch.set] then
 			self.told[ch.set] = true
-			-- (1.2.2, the player: "the wording here is not obvious": what happened, then the command to type, in its
+			-- (1.2.4, the player: "the wording here is not obvious": what happened, then the command to type, in its
 			-- own colour)
 			env.print(L["%s asked Terminal a question (!t) in %s chat. To let Terminal answer these for you, type %s"]:format(Ambig(sender),
 				SAID[ch.set], "|cffffd200.ask " .. ch.set .. " on|r"))

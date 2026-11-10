@@ -669,6 +669,9 @@ function UI:Refresh()
 	self.args = nil
 	self.mode = "search"
 	local text = edit:GetText():gsub("^%s+", "")
+	-- (a suggestion typed as it was shown, its note too: the note isn't part of it. ".ask guild on (Terminal answers
+	-- guildmates' !t)" left the setting off; 1.3.0 review)
+	if ns.Easy and ns.Easy.WithoutNote then text = ns.Easy.WithoutNote(text) end
 	if text == "" and ns.Bar then ns.Bar.Reset() end -- (the prompt cleared: what the bar picked goes too)
 	-- (a .command or /slash line: no search for the bar's picks; they'd come back on the next search)
 	if ns.Bar and (text:sub(1, 1) == "." or text:sub(1, 1) == "/") and not self.fzf then ns.Bar.Reset() end

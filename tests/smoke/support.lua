@@ -1425,7 +1425,7 @@ do
 	local late = Part(true)
 	for i = 1, 41 do _G["CompactRaidFrame" .. i] = CreateFrame("Frame") end
 	_G.CompactRaidFrame41.selectionHighlight = late
-	Zen.OnEvent("GROUP_ROSTER_UPDATE")
+	Zen.OnEvent("GROUP_ROSTER_UPDATE"); T.FlushAll() -- (looked at a moment later: 1.3.0 review)
 	check(late.ign == false, "the group changed while faded: a new raid frame's box (CompactRaidFrame41) follows too")
 	UI:HideNow()
 	UI.frame.scripts.OnHide(UI.frame)

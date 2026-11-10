@@ -298,13 +298,13 @@ call for these, so they're read as they arrive; none of OpenMap's code is used.
 - Read: a whisper only from a friend online, a guild message only on GUILD; never your own (your whole name; on the
   guild's channel your first name too). `L1` must name a map `C_Map.GetMapInfo` has, x and y within 0..1 (not 0,0,
   not nan); a class that isn't capital letters is left out; the level is ignored. Kept in memory (the guild's places
-  `OM.MAX` 200 at most, a friend's always), gone after `OM.GONE` (150 s) without word (the ticker, the map's dots;
+  `OM.MAX` 200 at most, a friend's always), gone after `OM.GONE` (150 s) without word (looked at every 15 s, every 2 s on the open map;
   never while the rows are made) or on `L0`; off forgets them all.
 - Shown: `SSH.AllPlaces(ep, dots)` = Share friends' places, then OpenMap's whose name isn't one of them ("Plamen"
-  and "Plamen Warr" are one; two surnames aren't). Rows (`key` `omap:<name>`, "openmap" and "guild" in their
+  and "Plamen Warr" are one; two surnames aren't). Rows (`key` `omap:<the name, canonical>`, "openmap" and "guild" in their
   text) and dots alike; OpenMap's among themselves too (a Battle.net first name and a guild whole name: the latest).
   The rows are made again, at most every `OM.CHANGED_WAIT` (3 s), only when what one shows changes; the dots follow
-  `OM.gen`, raised only when a place moved (not while OpenMap is loaded); `OM.Places()` is made again per `OM.gen`.
+  `OM.gen`, raised only when a place moved by `OM.DOT_MOVE` (0.001) or more (not while OpenMap is loaded); `OM.Places()` is made again per `OM.gen`.
 - With OpenMap loaded (`OpenMapAPI`): its own hellos and dots; Terminal says nothing and draws no dot for them.
 - Its setting's name is one few words match by scattered letters: "See OpenMap players' locations" matched "npc" and
   "omen", which changed the parse golden's categories.
