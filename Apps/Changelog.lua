@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.3.10", when = "in testing",
+		v = "1.3.11", when = "in testing",
 		items = {
+			"@enchant lists AtlasLoot's enchants and OneForAll's together (armor kits, spurs and arcanums kept), slots read in any language, descriptions filled in once the game sends them.",
 			"@enchant now comes from AtlasLoot first (the Enchanting recipes on its crafting pages), with OneForAll's list only when AtlasLoot has none.",
 			"Fixed: on WoW Forever, Enter on an achievement presses the game's achievement key instead of running a /run line that could leave the Legacy window tainted.",
 			"Hunters: \"what can my pet eat\", \"nearest pet food vendor\". Loot rows' tooltips say the boss's level and type (and its drop rate from AtlasLoot); \"summoned bosses in blackrock spire\". Currency tooltips add your alts' amounts (Syndicator).",

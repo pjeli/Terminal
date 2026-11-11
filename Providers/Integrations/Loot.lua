@@ -322,8 +322,6 @@ function I.LootEnchants()
 end
 function I.EnchantsText() return table.concat(I.LootEnchants(), " ") end
 function I._.ForgetEnchants() for k in pairs(loot.enchants) do loot.enchants[k] = nil end end -- (tests)
---- Is AtlasLoot's index read or built (so its enchants are all there)?
-function I.LootReady() return loot.done == true end
 
 --- Rows from the saved index, without loading any module. False when there's none to use.
 local function FromCache(key)

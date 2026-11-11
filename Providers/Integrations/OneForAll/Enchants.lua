@@ -15,6 +15,10 @@ local OA = ns.OneForAll
 -- with its loot index, Loot.lua's I.LootEnchants), each named and described by the game in its language, the skill it
 -- needs from AtlasLoot, the slot from its English name ("Enchant Bracer - ..."). OneForAll's options only without them.
 -- Set up on its own (Setup.lua's "Enchants"), so it needs neither addon in particular.
+-- 1.3.11 (review): both, by spell: AtlasLoot's first, each given OneForAll's slot masks, stats and "not in WoW Forever
+-- yet" for the same spell (the slot then in any language), then OneForAll's options AtlasLoot doesn't list (armor kits,
+-- spurs, arcanums: not Enchanting's, or not crafted). A description the game hadn't sent is asked for and the list made
+-- again when it comes (Spells.lua's SP.WatchDescs).
 
 local EN = {}
 OA.Enchants = EN
@@ -88,6 +92,9 @@ end
 
 --- OneForAll's options, checked: { { e, name, prof, spell, item, req, src, absent, c, t, m, text, stats, order } }, or nil.
 function EN.OFAData()
+	-- (optional with AtlasLoot: @enchant is there without OneForAll's)
+	local I = ns.Integrations
+	local optional = I and I.LoadedCore and I.LoadedCore() and true or nil
 	return OA.Part("enchants", "ENCHANT_OPTIONS", L["@enchant (its enchants) is unavailable."], function(raw, lib)
 		local texts = type(lib.ENCHANTS) == "table" and lib.ENCHANTS or {}
 		local out, bad = {}, 0
@@ -113,7 +120,7 @@ function EN.OFAData()
 		if #out == 0 then return nil, "OneForAll.ENCHANT_OPTIONS: no option in the shape expected (" .. bad .. " entries not)" end
 		if bad > 0 then ns:Trace(("oneforall: %d enchant options not in the shape expected, left out"):format(bad)) end
 		return out
-	end)
+	end, optional)
 end
 
 -- an enchant's slot from its English name ("Enchant 2H Weapon - Agility": the words between "Enchant" and " - ")
@@ -122,14 +129,13 @@ local AL_SLOTS = {
 	chest = { "INVTYPE_CHEST", "INVTYPE_ROBE" }, shield = { "INVTYPE_SHIELD" }, ["2h weapon"] = { "INVTYPE_2HWEAPON" },
 	weapon = { "INVTYPE_WEAPON", "INVTYPE_WEAPONMAINHAND", "INVTYPE_WEAPONOFFHAND", "INVTYPE_2HWEAPON" },
 }
-EN.AL_SLOTS = AL_SLOTS
 --- The slot types an enchant goes on by its name, and the slot as the game names it; nothing for a name that isn't
---- English or doesn't say (stat: and slot: then read its text).
+--- English or doesn't say (slot: then reads its name and text, Filters/Items.lua).
 function EN.SlotsOfName(name)
 	local part = type(name) == "string" and name:match("^Enchant (.-) %- ")
 	local locs = part and AL_SLOTS[Lower(part)]
 	if not locs then return {}, "" end
-	local label = (part:lower() == "weapon" and ns.GameText("WEAPON", "Weapon"))
+	local label = (Lower(part) == "weapon" and ns.GameText("WEAPON", "Weapon"))
 		or (locs[1] == "INVTYPE_SHIELD" and ns.GameText("SHIELDSLOT", "Shield")) or ns.GameText(locs[1], part)
 	return locs, label
 end
@@ -140,39 +146,73 @@ local function SpellName(id)
 	if not n and _G.GetSpellInfo then n = Str(Safe(_G.GetSpellInfo, id)) end
 	return n
 end
+-- descriptions asked for (id -> true, "in" once its data came: Spells.lua's SP.WatchDescs); the list is made again then
+local asked, watcher = {}, nil
+EN.DESC_WAIT = 1 -- (s after descriptions arrive before @enchant is made again: they come in bursts)
 local function SpellText(id)
 	local f = C_Spell and C_Spell.GetSpellDescription or _G.GetSpellDescription
 	local s = f and Str(Safe(f, id))
 	if s and s ~= "" then return s end
-	if C_Spell and C_Spell.RequestLoadSpellData then Safe(C_Spell.RequestLoadSpellData, id) end -- (in a moment, next time)
+	local S = C_Spell
+	if asked[id] or not (S and S.RequestLoadSpellData) then return nil end -- (asked once: one that never says has none)
+	asked[id] = true
+	local SP = ns.Spells
+	if not watcher and SP and SP.WatchDescs then
+		watcher = SP.WatchDescs(function() return asked end, function() return EN.DESC_WAIT end, function() ns:Changed("enchant") end)
+		EN.descFrame = watcher
+	end
+	Safe(S.RequestLoadSpellData, id)
 	return nil
 end
+function EN.ForgetTexts() asked = {} end -- (tests)
 
---- AtlasLoot's enchants as options (the shape OneForAll's are in, the slot worked out: locs, slotName), or nil when
---- AtlasLoot has none (not installed, its index not read yet, no crafting module).
-function EN.FromAtlasLoot()
+--- AtlasLoot's enchants as options (the shape OneForAll's are in), or nil when AtlasLoot has none (not installed, its
+--- index not read yet, no crafting module). `ofa`: OneForAll's options, whose slot masks, stats and "not in WoW Forever
+--- yet" an enchant of the same spell takes; without one the slot comes from its English name (locs, slotName).
+function EN.FromAtlasLoot(ofa)
 	local I = ns.Integrations
 	local ids = I and I.LootEnchants and I.LootEnchants() or {}
 	if #ids == 0 then return nil end
 	local A = rawget(_G, "AtlasLoot")
 	local P = type(A) == "table" and type(A.Data) == "table" and A.Data.Profession
+	local bySpell = {}
+	for _, o in ipairs(ofa or {}) do if o.spell then bySpell[o.spell] = o end end
 	local out = {}
 	for i, id in ipairs(ids) do
 		local name = SpellName(id)
 		if name then
 			local d = P and P.GetProfessionData and Safe(P.GetProfessionData, id)
-			local locs, slotName = EN.SlotsOfName(name)
-			out[#out + 1] = { e = id, name = name, prof = "Enchanting", spell = id, req = type(d) == "table" and Num(d[3]) or nil,
-				c = 0, t = 0, m = 0, locs = locs, slotName = slotName, text = SpellText(id), stats = {}, order = i,
-				source = "AtlasLoot" }
+			local o = bySpell[id]
+			local opt = { e = id, name = name, prof = "Enchanting", spell = id,
+				req = (type(d) == "table" and Num(d[3])) or (o and o.req) or nil,
+				-- (the game's words first, in its language; OneForAll's English while the game's haven't come)
+				text = SpellText(id) or (o and o.text) or nil, stats = o and o.stats or {}, absent = o and o.absent or nil,
+				order = i, source = "AtlasLoot" }
+			if o then opt.c, opt.t, opt.m = o.c, o.t, o.m
+			else opt.c, opt.t, opt.m = 0, 0, 0; opt.locs, opt.slotName = EN.SlotsOfName(name) end
+			out[#out + 1] = opt
 		end
 	end
 	return #out > 0 and out or nil
 end
 
---- The options @enchant lists: AtlasLoot's when it has any, else OneForAll's (nil: neither).
+--- The options @enchant lists: AtlasLoot's first, then OneForAll's that AtlasLoot doesn't list (nil: neither has any).
 function EN.Data()
-	return EN.FromAtlasLoot() or EN.OFAData()
+	local ofa = EN.OFAData()
+	local out = EN.FromAtlasLoot(ofa)
+	if not out then return ofa end
+	local have = {}
+	for _, o in ipairs(out) do have[o.spell] = true end
+	for _, o in ipairs(ofa or {}) do
+		if not (o.spell and have[o.spell]) then
+			-- (a copy: OneForAll's own are kept as read; its place after AtlasLoot's)
+			local c = {}
+			for k, v in pairs(o) do c[k] = v end
+			c.order = #out + 1
+			out[#out + 1] = c
+		end
+	end
+	return out
 end
 
 -- a profession's name in the game's words, else OneForAll's
@@ -199,10 +239,9 @@ local function SpellLink(e)
 	local f = C_Spell and C_Spell.GetSpellLink or _G.GetSpellLink
 	return Str(f and Safe(f, e.spell)) or e.name
 end
-local function ItemLink(e)
-	local f = C_Item and C_Item.GetItemInfo or _G.GetItemInfo
-	return Str(f and select(2, Safe(f, e.itemID))) or e.name
-end
+local function ItemLink(e) return ns.ItemLink(e.itemID) or e.name end
+local function LinkSpell(e) ns.LinkInChat(SpellLink(e)) end
+local function LinkItem(e) ns.LinkInChat(ItemLink(e)) end
 local function Walk(e, rel)
 	local P = ns.Pipes
 	OA.Walk(P and P.Phrase and P.Phrase(rel == "sources" and (e.itemName or e.name) or e.name, rel) or e.name, e)
@@ -243,7 +282,9 @@ function EN.Rows()
 			key = o.spell and ("s" .. o.spell) or ("i" .. o.item), name = o.name, _lname = Lower(o.name), icon = icon,
 			spell = o.spell, itemID = (not o.spell) and o.item or nil, itemName = o.name,
 			profName = o.prof and pname or nil, profLine = o.prof and PROF[o.prof] and PROF[o.prof][1] or nil, need = o.req,
-			enchantSlots = locs, enchantStats = o.stats, enchantText = o.text and Lower(o.text) or nil, effect = o.text,
+			-- (no slot known, a name in another language: nil, so slot: reads its name and text instead)
+			enchantSlots = #locs > 0 and locs or nil, enchantStats = o.stats,
+			enchantText = Lower(o.name .. (o.text and (" " .. o.text) or "")), effect = o.text,
 			slotName = slotName, how = how, known = isKnown or nil, absent = o.absent or nil, order = o.order, source = o.source,
 			color = o.absent and GREY or nil, tooltip = Tooltip,
 			detail = ns.Detail(slotName ~= "" and slotName or nil, o.text, how, isKnown and L["You know it"] or nil,
@@ -256,12 +297,12 @@ function EN.Rows()
 		elseif o.spell then
 			-- (you know it, its window's recipes not read yet: says so; else where to learn it)
 			if isKnown then row.activate = NotIndexed else row.activate, row.staysOpen = WalkLearn, true end
-			row.getLink, row.secondary = SpellLink, function(e) ns.LinkInChat(SpellLink(e)) end
+			row.getLink, row.secondary = SpellLink, LinkSpell
 			row.secondarySecure, row.secondaryIsOpen = SPELL_CHATBOX, ns.ChatBoxNeverOpen
 		else
 			-- (an arcanum, a mantle: its item, where to get it)
 			row.activate, row.staysOpen = WalkSources, true
-			row.getLink, row.secondary = ItemLink, function(e) ns.LinkInChat(ItemLink(e)) end
+			row.getLink, row.secondary = ItemLink, LinkItem
 			row.secondarySecure, row.secondaryIsOpen = ITEM_CHATBOX, ns.ChatBoxNeverOpen
 		end
 		out[#out + 1] = row
@@ -283,6 +324,11 @@ function EN.Setup()
 	ns:RegisterProvider("enchant", {
 		label = L["Enchant"], color = "ffb48cff", aliases = { "enchant", "enchants", "enchantment", "enchantments" },
 		lazy = true, follows = "recipes", -- (made again with your recipe index: the ones you know open as recipes)
+		-- (AtlasLoot's enchants come in with its loot index: while that's being built, its line)
+		busy = function()
+			local lp = ns.providers.loot
+			return lp and type(lp.busy) == "function" and lp.busy(lp) or nil
+		end,
 		events = { "NEW_RECIPE_LEARNED", "SKILL_LINES_CHANGED", "LEARNED_SPELL_IN_SKILL_LINE" }, guard = 1,
 		collect = EN.Rows,
 	})

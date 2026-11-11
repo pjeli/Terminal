@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.11 (in testing)
+
+- `@enchant` (review of 1.3.10): AtlasLoot's enchants and OneForAll's together, by spell. With AtlasLoot installed,
+  OneForAll's armor kits, spurs, shield spikes, scopes, arcanums and the enchants AtlasLoot doesn't list had gone;
+  they're back, after AtlasLoot's. An enchant both list takes OneForAll's slot (so `slot:` and "enchants for
+  bracers" work on every client language, not only English names), its stats and "not in WoW Forever yet".
+- A description the game hadn't sent yet is asked for and `@enchant` made again when it comes (it stayed empty all
+  session, and `stat:` with it); `stat:` and `slot:` read the enchant's name too. An enchant whose slot can't be told
+  isn't ruled out by `slot:` any more. While AtlasLoot's index is being built, `@enchant` shows its loading line;
+  a OneForAll without enchant data no longer says `@enchant` is unavailable when AtlasLoot gives it.
+
 ## 1.3.10 (in testing)
 
 - `@enchant` takes AtlasLoot's enchants first, OneForAll's only without them (asked for: AtlasLoot is the more

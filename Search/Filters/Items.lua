@@ -763,8 +763,9 @@ KEYS.slot = function(v)
 		end
 		local id = ItemOf(e)
 		if not id then
-			-- an enchant: the slot its name or text names ("Enchant Bracer", "enchant boots")
-			local text = e.recipeID and RecipeText(e)
+			-- an enchant: the slot its name or text names ("Enchant Bracer", "enchant boots"); @enchant's without a slot
+			-- known (another language, a name that doesn't say), its name and text
+			local text = (e.recipeID and RecipeText(e)) or e.enchantText
 			if not text then return false end
 			for _, w in ipairs(words) do
 				if text:find(w, 1, true) then return true end
