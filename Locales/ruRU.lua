@@ -3532,4 +3532,5 @@ L["Vendors of your pet's food"] = "Торговцы кормом для ваше
 L["boss levels and types (on @loot)"] = "уровни и типы боссов (в @loot)"
 L["items your hunter's pet eats (the game says, else Questie's food types); @npc sells:petfood: the vendors of its food"] = "предметы, которые ест питомец охотника (по данным игры, иначе по типам корма Questie); @npc sells:petfood: торговцы его кормом"
 L["Enchants from AtlasLoot"] = "Чары из AtlasLoot"
+L["(reached)"] = "(достигнуто)"
 --@end-do-not-package@

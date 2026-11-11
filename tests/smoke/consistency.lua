@@ -322,12 +322,17 @@ do
 	check(amac and amac:find("OpenAchievementFrameToAchievement(" .. a.key .. ")", 1, true) and not amac:find("ToggleAchievementFrame", 1, true),
 		"achievements: the window opened by the game: " .. tostring(amac))
 	_G.OpenAchievementFrameToAchievement = nil
+	-- (1.3.12, review: Forever's bindings have no TOGGLEACHIEVEMENT: the achievement button, Legacy.lua's ChallengesMacro)
+	local tlWas = rawget(_G, "ToggleLegacySystemUI")
+	_G.ToggleLegacySystemUI = function() end
 	local fmac = a and a.secure and a.secure.macro(a)
 	local legacyWas = ns.Legacy and ns.Legacy.ChallengesShown
 	if ns.Legacy then ns.Legacy.ChallengesShown = function() return true end end
-	check(fmac == nil and a.secure.binding == "TOGGLEACHIEVEMENT" and (not ns.Legacy or a.isOpen(a) == true),
-		"WoW Forever: no /run line, the achievement key, not pressed while Challenges shows: " .. tostring(fmac))
+	check(fmac == "/click AchievementMicroButton" and (not ns.Legacy or a.isOpen(a) == true),
+		"WoW Forever: no /run line, the achievement button, not pressed while Challenges shows: " .. tostring(fmac))
 	if ns.Legacy then ns.Legacy.ChallengesShown = legacyWas end
+	_G.ToggleLegacySystemUI = tlWas
+	check(a.secure.macro(a) == nil and a.secure.binding == "TOGGLEACHIEVEMENT", "neither: the achievement key")
 	_G.OpenAchievementFrameToAchievement = callWas
 	local trows = ns:GetEntries(ns.providers.terminal)
 	check(trows[1] and trows[1].secure and trows[1].secure.macro, "Terminal Options: opened by the game")

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.12 (in testing)
+
+- **Legacy** (review of 1.3.3 and 1.3.8): WoW Forever's own key bindings have no achievement key (the Legacy
+  window's is its own), so Enter on a `@legacy` or `@achievement` row pressed nothing. It now presses the achievement
+  button, as the Legacy Challenges row does, or the Legacy window's button once that one is seen not to open
+  Challenges.
+- A challenge only another of your characters earned shows not done, as the Legacy window shows it. The points row
+  and Rank Points follow the game at once (renown, tree points and reputation events; they waited up to a minute).
+  Each Legacy tree's perks are read with that tree's own config (only the first tree's were sure to show).
+  `@legacyreward` reads the challenges only when the game gives no points total. `sort:list` is offered on the four
+  lists; "(reached)" is translated; a perk's colour codes aren't searched.
+
 ## 1.3.11 (in testing)
 
 - `@enchant` (review of 1.3.10): AtlasLoot's enchants and OneForAll's together, by spell. With AtlasLoot installed,

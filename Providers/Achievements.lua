@@ -6,9 +6,14 @@ local L = ns.L
 -- named button turns the window to an achievement) and nothing protected sits behind it (tests/smoke/macros.lua ALLOW).
 -- (1.3.8: WoW Forever has no OpenAchievementFrameToAchievement, and its ToggleAchievementFrame opens the Legacy
 -- window's Challenges: run from a /run line, that ran the Legacy window's code tainted, its Tree with it. Without the
--- call, no /run line: the game's achievement key alone, pressed only when the window isn't showing)
+-- call, no /run line: the achievement button alone (1.3.12), pressed only when the window isn't showing)
+-- (1.3.12, review: on Forever the achievement button, not the key: its bindings have no TOGGLEACHIEVEMENT; Legacy.lua)
 local function AchievementMacro(e)
-	if type(e.key) ~= "number" or not _G.OpenAchievementFrameToAchievement then return nil end
+	if not _G.OpenAchievementFrameToAchievement then
+		local LG = ns.Legacy
+		return LG and LG.ChallengesMacro and LG.ChallengesMacro() or nil
+	end
+	if type(e.key) ~= "number" then return nil end
 	return ("/run OpenAchievementFrameToAchievement(%d)"):format(e.key)
 end
 local ACH_SECURE = { macro = AchievementMacro, binding = "TOGGLEACHIEVEMENT", buttons = { "AchievementMicroButton" }, opensWindow = true }
@@ -17,7 +22,7 @@ local ACH_SECURE = { macro = AchievementMacro, binding = "TOGGLEACHIEVEMENT", bu
 local function AchievementShown()
 	if _G.OpenAchievementFrameToAchievement then return false end
 	local LG = ns.Legacy
-	if LG and LG.ChallengesShown then return LG.ChallengesShown() == true end
+	if rawget(_G, "ToggleLegacySystemUI") and LG and LG.ChallengesShown then return LG.ChallengesShown() == true end
 	local f = _G.AchievementFrame
 	return type(f) == "table" and f.IsShown and f:IsShown() == true or false
 end

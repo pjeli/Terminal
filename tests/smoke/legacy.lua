@@ -47,7 +47,7 @@ _G.GetAchievementInfo = function(a, i)
 	if i then id = LISTED[a] and LISTED[a][i] end
 	local x = id and ACH[id]
 	if not x then return nil end
-	return id, x[1], 0, x[2], 1, 1, 26, x[3], 0, 136000 + id % 1000
+	return id, x[1], 0, x[2], 1, 1, 26, x[3], 0, 136000 + id % 1000, nil, false, x[4] ~= false
 end
 _G.GetCategoryNumAchievements = function(c) return LISTED[c] and #LISTED[c] or 0 end
 _G.GetCategoryInfo = function(c) local x = CATS[c] if x then return x[1], x[2] end end
@@ -66,20 +66,22 @@ _G.C_MajorFactions = {
 }
 C_CurrencyInfo.GetCurrencyInfo = function(id) if id == 3468 then return { quantity = 1200, name = "Rank Points" } end end
 C_Item.GetItemNameByID = function(id) if id == 277717 then return "Spectral Bear Tabard" end end
-local PERK_TREES = { [1187] = { 5001, 5002 }, [1188] = { 5003 }, [1189] = {} }
+local PERK_TREES = { [1187] = { 5001, 5002 }, [1188] = { 5003, 5004 }, [1189] = {} }
 _G.C_Traits = {
-	GetConfigIDByTreeID = function(t) if PERK_TREES[t] then return 900 end end,
+	GetConfigIDByTreeID = function(t) if t == 1188 then return 901 end if PERK_TREES[t] then return 900 end end,
 	GetTreeCurrencyInfo = function(c, t) if c == 900 and t == 1187 then return { { traitCurrencyID = 4225, quantity = 3, spent = 17 } } end return {} end,
 	GetTreeNodes = function(t) return PERK_TREES[t] end,
-	GetNodeInfo = function(_, n)
+	GetNodeInfo = function(c, n)
 		if n == 5001 then return { isVisible = true, maxRanks = 3, activeRank = 2, entryIDs = { 61 } } end
 		if n == 5002 then return { isVisible = true, maxRanks = 1, activeRank = 0, activeEntry = { entryID = 62 }, entryIDs = { 62 } } end
 		if n == 5003 then return { isVisible = false, maxRanks = 1, activeRank = 0, entryIDs = { 63 } } end
+		if n == 5004 and c == 901 then return { isVisible = true, maxRanks = 2, activeRank = 1, entryIDs = { 64 } } end
 	end,
 	GetEntryInfo = function(_, e) return { definitionID = e + 10 } end,
 	GetDefinitionInfo = function(d)
 		if d == 71 then return { spellID = 9001 } end
 		if d == 72 then return { overrideName = "Swift Learner", overrideDescription = "Learn faster." } end
+		if d == 74 then return { overrideName = "Pathfinder", overrideDescription = "Run |cffffffffquicker|r." } end
 		return {}
 	end,
 }
@@ -123,6 +125,39 @@ do
 	_G.LegacySystemFrame = { IsShown = function() return true end, currentPage = 2 }
 	check(exp.isOpen(exp) == true, "Challenges already shown: nothing pressed")
 	_G.LegacySystemFrame = was.frame
+	-- (1.3.12, review) on Forever no achievement key: the achievement button, else the Legacy window's own
+	local S = ns.Secure
+	local function Got(spec) local r = S.Resolve(spec, exp) return r and (r.macro or r.binding) end
+	check(Got(LG.SECURE) == "TOGGLEACHIEVEMENT" or Got(LG.SECURE) == nil, "elsewhere: the achievement key")
+	local tl, route = rawget(_G, "ToggleLegacySystemUI"), ns.db.legacyRoute
+	_G.ToggleLegacySystemUI = function() end
+	check(Got(LG.SECURE) == "/click AchievementMicroButton", "on Forever: the achievement button pressed: " .. tostring(Got(LG.SECURE)))
+	ns.db.legacyRoute = false
+	check(Got(LG.SECURE) == "/click LegacyMicroButton", "that button seen not to open Challenges: the Legacy button")
+	ns.db.legacyRoute = route
+	local ach = ns.providers.achievements
+	if ach then
+		local spec
+		for _, e in ipairs(ns:GetEntries(ach) or {}) do if e.secure then spec = e.secure break end end
+		check(spec == nil or Got(spec) == "/click AchievementMicroButton", "an achievement row on Forever: the button too: " .. tostring(spec and Got(spec)))
+	end
+	_G.ToggleLegacySystemUI = tl
+	-- earned only by another character: not done, as the window shows it
+	ACH[684][4] = false
+	local alt = ByName(Rows("legacy"), "Conqueror of the Lair")
+	check(alt and alt.isDone == false, "a challenge another character earned: not done (the window's wasEarnedByMe)")
+	ACH[684][4] = nil
+	-- the rewards read the challenges only when neither the track nor the currency says
+	local asked, gi = 0, _G.GetAchievementInfo
+	_G.GetAchievementInfo = function(...) asked = asked + 1 return gi(...) end
+	Rows("legacyreward")
+	_G.GetAchievementInfo = gi
+	check(asked == 0, "@legacyreward with the reward track: no challenge read: " .. asked)
+	local SL = ns.Filters.APPLIES.sort.list
+	local has = {}
+	for _, x in ipairs(SL) do has[x] = true end
+	check(has.legacy and has.legacyreward and has.legacyperk and has.pvprank, "sort:list applies to the four lists")
+	Rows("legacy")
 	check(Names(UI:Search("@legacy is:todo sort:list")) == "Experienced Mage, Journeyman Blacksmith, Played in the WoW: Forever Beta",
 		"@legacy is:todo: " .. Names(UI:Search("@legacy is:todo sort:list")))
 	check(Names(UI:Search("@legacy is:done sort:list")) == "Novice Mage, Conqueror of the Lair", "@legacy is:done: " .. Names(UI:Search("@legacy is:done sort:list")))
@@ -160,7 +195,10 @@ io.write("[legacy: the tree's perks]\n")
 do
 	local rows = Rows("legacyperk")
 	local herb, swift = ByName(rows, "Herbal Insight"), ByName(rows, "Swift Learner")
-	check(#rows == 2 and herb and herb.rank == 2 and herb.maxRank == 3 and tostring(herb.detail):find("2/3", 1, true) and herb.tip == "Find more herbs."
+	local path = ByName(rows, "Pathfinder")
+	check(path and path.rank == 1 and tostring(rawget(path, "_ltext") or path.text):find("run quicker", 1, true),
+		"a tree with its own config: its perks read with it, the text without colour codes (1.3.12): " .. Names(rows))
+	check(#rows == 3 and herb and herb.rank == 2 and herb.maxRank == 3 and tostring(herb.detail):find("2/3", 1, true) and herb.tip == "Find more herbs."
 		and swift and swift.isDone == false and swift.tip == "Learn faster.", "ranks taken of the most, what each does: " .. Names(rows))
 	local tr = _G.C_Traits
 	_G.C_Traits = { GetConfigIDByTreeID = function() return nil end }
@@ -217,7 +255,7 @@ do
 	got = Ask("legacy rewards")
 	check(got == "Replica Ironforge Air Rifle, Spectral Bear Cub, Spectral Bear Tabard", "\"legacy rewards\": " .. got)
 	got = Ask("legacy perks")
-	check(got == "Herbal Insight, Swift Learner", "\"legacy perks\": " .. got)
+	check(got == "Herbal Insight, Swift Learner, Pathfinder", "\"legacy perks\": " .. got)
 	got, note = Ask("my pvp rank")
 	check(got:find("^Rank 11") and tostring(note):find("Rank 11", 1, true), "\"my pvp rank\": " .. got .. " / " .. tostring(note))
 	got = Ask("what does pvp rank 11 unlock")

@@ -3532,4 +3532,5 @@ L["Vendors of your pet's food"] = "出售你宠物食物的商人"
 L["boss levels and types (on @loot)"] = "首领等级和类型（见 @loot）"
 L["items your hunter's pet eats (the game says, else Questie's food types); @npc sells:petfood: the vendors of its food"] = "猎人宠物能吃的物品（以游戏为准，否则按 Questie 的食物类型）；@npc sells:petfood：出售其食物的商人"
 L["Enchants from AtlasLoot"] = "来自 AtlasLoot 的附魔"
+L["(reached)"] = "（已达到）"
 --@end-do-not-package@

@@ -8,7 +8,7 @@ local L = ns.L
 --   @legacy        the points earned (a row on top) and every challenge: an achievement in the Legacy categories, its
 --                  name and text from GetAchievementInfo, its group the category's name (GetCategoryInfo); is:done /
 --                  is:todo, cat:<group> (a class, a profession, dungeons, raids, pvp...). Enter: the Legacy window on
---                  Challenges (the achievement key, the game's own route); Shift+Enter: its link in chat
+--                  Challenges (the achievement button the game presses, its own route); Shift+Enter: its link in chat
 --   @legacyreward  the Legacy rewards: the points each needs, whether you have them, who gives them (Enter: a waypoint
 --                  to him, Questie's NPC)
 --   @legacyperk    the Legacy Tree's perks: ranks taken of the most, what each does (C_Traits)
@@ -273,7 +273,7 @@ end
 
 --- The Legacy Points earned as the window shows them (its reward track's renown level, Blizzard_LegacySystemUtil.lua;
 --- else the Legacy rank currency; else the points of the challenges done), where they came from ("track", "currency",
---- "count"), and those left to spend in the tree.
+--- "count"), and those left to spend in the tree. `challenges`: the rows, or a function making them (only then).
 function LG.Points(challenges)
 	local unspent = select(2, TreePoints())
 	local M = MF()
@@ -282,6 +282,7 @@ function LG.Points(challenges)
 	n = Currency(LG.CURRENCY.legacyRank)
 	if n and n > 0 then return n, "currency", unspent end
 	local sum = 0
+	if type(challenges) == "function" then challenges = challenges() end
 	for _, e in ipairs(challenges or {}) do if e.isDone then sum = sum + (e.points or 1) end end
 	return sum, "count", unspent
 end
@@ -291,11 +292,20 @@ end
 ----------------------------------------------------------------------
 
 local AA -- Achievements.lua's row actions (its Enter's fallback, link, Shift+Enter), read when the rows are made
--- Enter: the Legacy window on Challenges by the achievement key (Forever's ToggleAchievementFrame is
+-- Enter: the Legacy window on Challenges by the achievement button (Forever's ToggleAchievementFrame is
 -- ToggleLegacyChallenges: Blizzard_AchievementUI/Camelot), pressed by the game; nothing to press while it shows them.
 -- (Not Achievements' /run line: from a /run line the Legacy window's code runs tainted, its Tree's talent panel with it
 -- (Panels.lua, 0.48.4); and no clean route turns it to one challenge: ShowLegacyChallenge is Blizzard Lua.)
-LG.SECURE = { binding = "TOGGLEACHIEVEMENT", buttons = { "AchievementMicroButton" }, opensWindow = true }
+-- (1.3.12, review: Forever's own bindings (Bindings_Camelot.xml) have no TOGGLEACHIEVEMENT, though its name string is
+-- there, so the override binding pressed nothing. There the achievement button is pressed, as Panels.lua's Legacy
+-- Challenges row does; once seen not to open Challenges (Panels' db.legacyRoute false), the Legacy window's own button)
+function LG.ChallengesMacro()
+	if not rawget(_G, "ToggleLegacySystemUI") then return nil end -- (not WoW Forever: the achievement key)
+	if ns.db and ns.db.legacyRoute == false then return "/click LegacyMicroButton" end
+	return "/click AchievementMicroButton"
+end
+LG.SECURE = { macro = function() return LG.ChallengesMacro() end, binding = "TOGGLEACHIEVEMENT", buttons = { "AchievementMicroButton" },
+	opensWindow = true }
 local CHALLENGES_PAGE = 2 -- (LegacySystemFrame's page number for Challenges: Panels.lua's LEGACY_PAGES)
 function LG.ChallengesShown()
 	local f = rawget(_G, "LegacySystemFrame")
@@ -340,10 +350,12 @@ end
 
 local function ChallengeRow(c, info, cache)
 	local id, cat, points = c[1], c[2], c[3]
-	local name, completed, description, icon = info[2], info[4], info[8], info[10]
+	local name, completed, description, icon, mine = info[2], info[4], info[8], info[10], info[13]
 	local ci = CategoryInfo(cat, cache)
 	local parent = ci.parent and ci.parent > 0 and CategoryInfo(ci.parent, cache).name or nil
-	local done = completed == true
+	-- (done as the Legacy window says: one only another character earned shows not done there, LegacySystemUtil.lua's
+	-- IsChallengeVisible reads wasEarnedByMe; 1.3.12, review)
+	local done = completed == true and mine ~= false
 	local groups = { Lower(ci.name or ""), parent and Lower(parent) or "" }
 	local class = LG.CLASS_OF[cat]
 	if class then groups[#groups + 1] = Lower(class) end
@@ -375,7 +387,7 @@ function LG.Challenges()
 		-- (only the achievement asked for: an id the game doesn't have answers nothing, or another one)
 		if Num(info[1]) == c[1] and Str(info[2]) then
 			local k = c[2] .. "\0" .. info[2]
-			local score = (listed[c[1]] and 2 or 0) + (info[4] == true and 1 or 0)
+			local score = (listed[c[1]] and 2 or 0) + ((info[4] == true and info[13] ~= false) and 1 or 0)
 			local had = seen[k]
 			if not had then
 				seen[k] = { c = c, info = info, score = score }
@@ -415,7 +427,8 @@ ns:RegisterProvider("legacy", {
 	color = LEGACY_COLOR,
 	aliases = { "legacy", "challenge", "challenges", "legacychallenge" },
 	explicit = true, lazy = true,
-	events = { "ACHIEVEMENT_EARNED" },
+	-- (its points row: the reward track's level and the tree's points to spend change after the challenge)
+	events = { "ACHIEVEMENT_EARNED", "MAJOR_FACTION_RENOWN_LEVEL_CHANGED", "TRAIT_TREE_CURRENCY_INFO_UPDATED" },
 	refreshOnOpen = 60,
 	collect = function() return LG.CollectChallenges() end,
 })
@@ -474,7 +487,8 @@ local function RewardName(r, said, pvp)
 end
 
 function LG.CollectRewards()
-	local earned = LG.Points(LG.Challenges())
+	-- (the challenges read only when neither the track nor the currency says: 1.3.12, review)
+	local earned = LG.Points(LG.Challenges)
 	local rows, claim = {}, LG.ClaimText()
 	for _, x in ipairs(TrackRewards(LG.LEGACY_TRACK, LG.LEGACY_FACTION)) do
 		local r, said = x[1], x[2]
@@ -564,7 +578,8 @@ ns:RegisterProvider("pvprank", {
 	color = PVP_COLOR,
 	aliases = { "pvprank", "pvpranks" },
 	explicit = true, lazy = true,
-	events = { "MAJOR_FACTION_RENOWN_LEVEL_CHANGED" },
+	-- (Rank Points: the PvP rank faction's reputation)
+	events = { "MAJOR_FACTION_RENOWN_LEVEL_CHANGED", "UPDATE_FACTION" },
 	refreshOnOpen = 60,
 	collect = function() return LG.CollectPvp() end,
 })
@@ -585,13 +600,15 @@ function LG.CollectPerks()
 	end
 	local Spell = rawget(_G, "C_Spell")
 	for ti, tree in ipairs(config and LG.TREES or {}) do
+		-- (each tree's own config, as Blizzard_LegacyTree.lua asks; the first's when the game gives none: 1.3.12, review)
+		local cfg = Num(Safe(T.GetConfigIDByTreeID, tree)) or config
 		local nodes = Safe(T.GetTreeNodes, tree)
 		if type(nodes) ~= "table" or #nodes == 0 then
 			stop = stop or ("no nodes in tree " .. tree)
 		else
 			local treeName = ns.GameText(TREE_NAMES[ti])
 			for _, node in ipairs(nodes) do
-				local n = Safe(T.GetNodeInfo, config, node)
+				local n = Safe(T.GetNodeInfo, cfg, node)
 				local entryID, max
 				if type(n) == "table" then
 					entryID = (type(n.activeEntry) == "table" and Num(n.activeEntry.entryID))
@@ -599,7 +616,7 @@ function LG.CollectPerks()
 					max = Num(n.maxRanks)
 				end
 				if entryID and max and max > 0 and n.isVisible ~= false then
-					local entry = Safe(T.GetEntryInfo, config, entryID)
+					local entry = Safe(T.GetEntryInfo, cfg, entryID)
 					local defID = type(entry) == "table" and Num(entry.definitionID)
 					local def = defID and Safe(T.GetDefinitionInfo, defID)
 					local spell = type(def) == "table" and Num(def.spellID) or nil
@@ -611,7 +628,7 @@ function LG.CollectPerks()
 							key = node, name = name, isDone = rank >= max, rank = rank, maxRank = max,
 							icon = Num(def.overrideIcon) or (spell and Spell and Num(Safe(Spell.GetSpellTexture, spell))) or nil,
 							detail = ns.Detail(treeName, rank .. "/" .. max), tip = desc,
-							text = ns.Join(" ", desc and Lower(desc) or nil, treeName and Lower(treeName) or nil, "legacy perk"),
+							text = ns.Join(" ", desc and Lower(ns.Plain(desc)) or nil, treeName and Lower(treeName) or nil, "legacy perk"),
 							color = rank == 0 and GREY or nil, activate = Say, staysOpen = false,
 						}
 					else
@@ -664,6 +681,15 @@ do
 	if A then
 		A.cat = { ["*"] = { "legacy" } }
 		A.rank = { ["*"] = { "pvprank" } }
+		-- (the questions' lines end in sort:list: offered on them too)
+		local SL = A.sort and A.sort.list
+		if type(SL) == "table" then
+			for _, id in ipairs({ "legacy", "legacyreward", "legacyperk", "pvprank" }) do
+				local had = false
+				for _, x in ipairs(SL) do if x == id then had = true end end
+				if not had then SL[#SL + 1] = id end
+			end
+		end
 		for _, k in ipairs({ "done", "todo" }) do
 			local l = A.is and A.is[k] -- (done's and todo's are one list: added once)
 			if type(l) == "table" then
@@ -727,19 +753,25 @@ local TABS = { challenges = "LegacySystemFrame.LegacyChallengeTab", rewards = "L
 local CLASS_SET = {}
 for _, file in pairs(LG.CLASS_OF) do CLASS_SET[file] = true end
 -- the class a word names (its English file name, the client's names for it, a plural): its file name lowercase, or nil
+-- (the words made once: every question reads every word of a line through it)
+local classWords
 local function ClassWord(w)
-	local male, female = rawget(_G, "LOCALIZED_CLASS_NAMES_MALE"), rawget(_G, "LOCALIZED_CLASS_NAMES_FEMALE")
-	for file in pairs(CLASS_SET) do
-		local names = { Lower(file) }
-		for _, t in ipairs({ male, female }) do
-			if type(t) == "table" and Str(t[file]) then names[#names + 1] = Lower(t[file]) end
-		end
-		for _, n in ipairs(names) do
-			if w == n or w == n .. "s" or w == n .. "es" then return Lower(file) end
+	if not classWords then
+		classWords = {}
+		local male, female = rawget(_G, "LOCALIZED_CLASS_NAMES_MALE"), rawget(_G, "LOCALIZED_CLASS_NAMES_FEMALE")
+		for file in pairs(CLASS_SET) do
+			local names = { Lower(file) }
+			for _, t in ipairs({ male, female }) do
+				if type(t) == "table" and Str(t[file]) then names[#names + 1] = Lower(t[file]) end
+			end
+			for _, n in ipairs(names) do
+				for _, x in ipairs({ n, n .. "s", n .. "es" }) do classWords[x] = classWords[x] or Lower(file) end
+			end
 		end
 	end
-	return nil
+	return classWords[w]
 end
+function LG.ForgetClassWords() classWords = nil end -- (tests)
 
 --- Does this word name a challenge group (a class, or a category of the challenges listed)? Its cat: value, or nil.
 local function GroupWord(w)

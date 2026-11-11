@@ -3532,4 +3532,5 @@ L["Vendors of your pet's food"] = "Marchands de nourriture pour votre familier"
 L["boss levels and types (on @loot)"] = "niveaux et types des boss (sur @loot)"
 L["items your hunter's pet eats (the game says, else Questie's food types); @npc sells:petfood: the vendors of its food"] = "objets que mange le familier de votre chasseur (selon le jeu, sinon les types de nourriture de Questie) ; @npc sells:petfood : les marchands de sa nourriture"
 L["Enchants from AtlasLoot"] = "Enchantements d'AtlasLoot"
+L["(reached)"] = "(atteint)"
 --@end-do-not-package@
