@@ -14,18 +14,15 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.3.13", when = "in testing",
+		v = "1.4.0", when = "released November 2026",
 		items = {
-			"Fixed: \"feed pet\" finds the hunter's spell again; \"hunter level\" and the like aren't read as a boss's level; !t \"can i take X\" isn't answered with your own quests.",
-			"Fixed: on WoW Forever, Enter on a Legacy challenge or an achievement presses the achievement button (Forever has no achievement key to press); the Legacy points, perks and PvP Rank Points are up to date at once.",
-			"@enchant lists AtlasLoot's enchants and OneForAll's together (armor kits, spurs and arcanums kept), slots read in any language, descriptions filled in once the game sends them.",
-			"@enchant now comes from AtlasLoot first (the Enchanting recipes on its crafting pages), with OneForAll's list only when AtlasLoot has none.",
-			"Fixed: on WoW Forever, Enter on an achievement presses the game's achievement key instead of running a /run line that could leave the Legacy window tainted.",
-			"Hunters: \"what can my pet eat\", \"nearest pet food vendor\". Loot rows' tooltips say the boss's level and type (and its drop rate from AtlasLoot); \"summoned bosses in blackrock spire\". Currency tooltips add your alts' amounts (Syndicator).",
-			"\"Where to get\" knows more: the clams, sacks and boxes an item comes out of, who to skin, where to fish, what to disenchant (with OneForAll); and \"what does <token> give\" lists what a token, libram or sack turns into (AtlasLoot).",
-			"Enchants (with OneForAll): @enchant lists every enchant with its slot, what it gives and how you get it; \"enchants for bracers\", \"enchants for my weapon\", \"agility enchants\", \"enchants i can make\"; Enter opens its recipe or where to learn it.",
-			"WoW Forever's Legacy: \"which legacy points am i missing\", \"what gives legacy points for mage\", \"legacy rewards\" (and where to claim them: Innkeeper Wiley, Ratchet), \"legacy perks\"; and PvP ranks: \"my pvp rank\", \"what does pvp rank 11 unlock\".",
 			"Quest suggestions only list quests you can actually take (QuestieDB's prerequisites, either-or quests, level caps, breadcrumbs); \"why can't i take <quest>\" says what stops you, and \"what does <quest> unlock\" what comes after it.",
+			"WoW Forever's Legacy: \"which legacy points am i missing\", \"what gives legacy points for mage\", \"legacy rewards\" (and where to claim them), \"legacy perks\"; and PvP ranks: \"my pvp rank\", \"what does pvp rank 11 unlock\".",
+			"Enchants (with AtlasLoot or OneForAll): @enchant lists every enchant with its slot, what it gives and how you get it; \"enchants for bracers\", \"enchants for my weapon\", \"agility enchants\", \"enchants i can make\"; Enter opens its recipe or where to learn it.",
+			"\"Where to get\" knows more: the clams, sacks and boxes an item comes out of, who to skin, where to fish, what to disenchant (with OneForAll); and \"what does <token> give\" lists what a token, libram or sack turns into (AtlasLoot).",
+			"Hunters: \"what can my pet eat\", \"nearest pet food vendor\". Loot rows' tooltips say the boss's level and type (and its drop rate from AtlasLoot); \"summoned bosses in blackrock spire\". Currency tooltips add your alts' amounts (Syndicator).",
+			"Fixed: on WoW Forever, Enter on an achievement or a Legacy challenge opens the Legacy window's Challenges by the achievement button, without leaving the Legacy window tainted.",
+			"Many fixes from three reviews: enchants from both addons together and in every language, the Legacy points kept up to date, \"feed pet\" finds the spell again.",
 		},
 	},
 	{

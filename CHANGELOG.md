@@ -1,142 +1,74 @@
 # Changelog
 
-## 1.3.13 (in testing)
+## 1.4.0
 
-- Questions (review of 1.3.2-1.3.7): "feed pet" (the hunter's spell) is searched as typed again, not read as "what
-  can my pet eat"; "feed my pet" still asks. "<words> level" ("hunter level", "mana level") no longer finds a
-  boss by part of its name (Blind Hunter): only "what level is X", "level of X" and "how high is X" do.
-- `!t can i take <quest>` asked by someone else isn't answered any more: the answer said what you had done or had in
-  your log as if it were theirs.
-- Your pet's diet is read whether the game gives it as a list or as names.
-- Faster: `is:cantake`, `sort:cantake` and quest upgrades say yes at once for a quest with nothing to judge (most);
-  the tokens' names are looked at again once a second at most while some are still missing, not on every keystroke.
+Terminal 1.4: quests you can actually take, WoW Forever's Legacy and PvP ranks, enchants, more places to get things,
+hunters' pet food, bosses' levels, alts' currencies, and the fixes of three reviews.
 
-## 1.3.12 (in testing)
-
-- **Legacy** (review of 1.3.3 and 1.3.8): WoW Forever's own key bindings have no achievement key (the Legacy
-  window's is its own), so Enter on a `@legacy` or `@achievement` row pressed nothing. It now presses the achievement
-  button, as the Legacy Challenges row does, or the Legacy window's button once that one is seen not to open
-  Challenges.
-- A challenge only another of your characters earned shows not done, as the Legacy window shows it. The points row
-  and Rank Points follow the game at once (renown, tree points and reputation events; they waited up to a minute).
-  Each Legacy tree's perks are read with that tree's own config (only the first tree's were sure to show).
-  `@legacyreward` reads the challenges only when the game gives no points total. `sort:list` is offered on the four
-  lists; "(reached)" is translated; a perk's colour codes aren't searched.
-
-## 1.3.11 (in testing)
-
-- `@enchant` (review of 1.3.10): AtlasLoot's enchants and OneForAll's together, by spell. With AtlasLoot installed,
-  OneForAll's armor kits, spurs, shield spikes, scopes, arcanums and the enchants AtlasLoot doesn't list had gone;
-  they're back, after AtlasLoot's. An enchant both list takes OneForAll's slot (so `slot:` and "enchants for
-  bracers" work on every client language, not only English names), its stats and "not in WoW Forever yet".
-- A description the game hadn't sent yet is asked for and `@enchant` made again when it comes (it stayed empty all
-  session, and `stat:` with it); `stat:` and `slot:` read the enchant's name too. An enchant whose slot can't be told
-  isn't ruled out by `slot:` any more. While AtlasLoot's index is being built, `@enchant` shows its loading line;
-  a OneForAll without enchant data no longer says `@enchant` is unavailable when AtlasLoot gives it.
-
-## 1.3.10 (in testing)
-
-- `@enchant` takes AtlasLoot's enchants first, OneForAll's only without them (asked for: AtlasLoot is the more
-  popular). While building its loot index Terminal keeps the Enchanting spells on AtlasLoot's crafting pages that make
-  no item (index format 4: built again once); each is named and described by the game in its language, the skill it
-  needs is AtlasLoot's, the slot comes from its English name ("Enchant Bracer - ..."; other languages: `slot:` and
-  `stat:` read its description). `@enchant` no longer needs OneForAll: AtlasLoot alone gives it.
-
-## 1.3.9 (in testing)
-
-- 1.3.6's Spoken integration is taken out (the player's call: Spoken isn't a data source for Terminal). `@book` is
-  OneForAll's Library Books again, the turn-ins in the major cities, and only them: no flavor books mixed in, no
-  `is:unread` or `is:library` on it, its counts and questions as before 1.3.6. `@lore` and the lore questions ("who is
-  X", "lore of X", "books in X", "books that mention X") are gone with it. (`Providers/Integrations/Spoken.lua`
-  removed: restart the game.)
-
-## 1.3.8 (in testing)
-
-- Achievements: WoW Forever has no `OpenAchievementFrameToAchievement`, and its `ToggleAchievementFrame` opens the
-  Legacy window's Challenges. The achievement rows' `/run` line fell back to it, running the Legacy window's code
-  tainted (its Tree with it). Where the game has the call, the `/run` line turns the window to the achievement as
-  before; on Forever, the game's achievement key alone, not pressed while Challenges already shows (it would close
-  it). Found while building `@legacy`.
-
-## 1.3.7 (in testing)
-
-- **Pet food** (hunters with a pet out): **what can my pet eat** (`@item is:petfood`: what in your bags your pet eats,
-  by the game's own check, its diet in the footer), **nearest pet food vendor** / **who sells pet food** (`@npc
-  sells:petfood`). Otherwise a note says it's for a hunter with a pet out.
-- **Bosses** (with OneForAll): loot rows' tooltips name the boss's level and creature type, and "Summoned" where it
-  is; AtlasLoot's drop rate where OneForAll gives none. **what level is vancleef** finds a boss by part of its name;
-  **summoned bosses in blackrock spire** lists those with their instance, level and type (Enter: their loot).
-- **Currencies**: a currency's tooltip lists your other characters' amounts and the total (Syndicator, as `@stored`
-  counts them).
-- New files (`Search/Questions/PetFood.lua`, `Providers/Integrations/OneForAll/Bosses.lua`): restart the game.
-
-## 1.3.6 (in testing)
-
-- **Lore** (with the Spoken addons, read at run time, nothing shipped): `@lore` (@story) holds every boss story and
-  every zone and subzone written up: the tooltip says how it begins, Enter opens the whole text. Asked: **who is
-  edwin vancleef**, **lore of duskwood**, **tell me about goldshire**.
-- **Books**: `@book` also lists every readable Spoken knows, read or unread (`is:unread`), with where it's found;
-  Enter opens its pages. **books in duskwood**; **books that mention stalvan** searches their pages (only then).
-  OneForAll's Library Books stay as they were (`is:library`; their counts and questions cover only them).
-- A Lore category in Simple mode. A new file (`Providers/Integrations/Spoken.lua`): restart the game.
-
-## 1.3.5 (in testing)
-
-- **Where to get** an item (`> sources`) lists more: the containers it comes out of (QuestieDB's `itemDrops`: "where
-  to find black pearl": Big-mouth Clam, "Contains it"; Enter: the clam's own sources), and with OneForAll the
-  creatures to skin for it (Questie's NPC rows), the zones to fish it in, the item levels to disenchant for it, the
-  items it's found in, and how it's crafted when nothing else says.
-- **what does <token> give** ("what does libram of focus give", "what's in blue sack of gems"; `> rewards`, `> gives`):
-  what a token, libram or bag turns into, by AtlasLoot (your class's first for class tokens). The other way round,
-  an item made from a token says "From <token> · Gives it" among its sources.
-- New files (`Providers/Integrations/OneForAll/Reagents.lua`, `Search/Questions/Tokens.lua`): restart the game.
-
-## 1.3.4 (in testing)
-
-- **Enchants** (with OneForAll, read at run time): `@enchant` (enchants, enchantment) lists each enchant with the slot
-  it goes on (the game's names), what it gives, how you get it ("Enchanting 80", or OneForAll's source for the ones
-  that aren't crafted) and "You know it" when you do; ones not in WoW Forever yet are greyed. `slot:`, `stat:` and
-  `is:known` work on them ("agility bracers", `stat:stamina>=3`, `slot:2h`).
-- Asked: **enchants for bracers**, **enchants for my weapon** (by what you hold), **agility enchants**, **enchants i
-  can make**. Enter opens a recipe you know as its recipe row does, else where to learn it (`> learn`), or where to
-  get the item for an enchant that isn't crafted; Shift+Enter links it. In Simple mode's Crafting category.
-- A new file (`Providers/Integrations/OneForAll/Enchants.lua`): restart the game.
-
-## 1.3.3 (in testing)
-
-- **Legacy** (WoW Forever): `@legacy` lists every Legacy challenge with your points ("Legacy points: N", to spend),
-  done or still to do, by group (a class, a profession, dungeons, raids, PvP, adventure: `cat:mage`, `is:todo`). Enter
-  opens the Legacy window on Challenges (the game's own achievement key), Shift+Enter links it. Asked: **legacy
-  points**, **which legacy points am i missing**, **what gives legacy points for mage**, **legacy points for my class**.
-- `@legacyreward` (**legacy rewards**): each reward with the points it needs and whether you have them, claimed from
-  Innkeeper Wiley in Ratchet (Enter: a waypoint on him). `@legacyperk` (**legacy perks**): the Legacy Tree's perks,
-  ranks taken and what each does.
-- **PvP ranks**: `@pvprank` (**my pvp rank**, **rank points**): your rank and Rank Points, and what each rank
-  unlocks, reached or not (**what does pvp rank 11 unlock**, `rank:11`).
-- The challenges and rewards are the client's own tables (achievement categories and renown rewards, written by
-  `tests/gen_data.py legacy` from wago.tools' DB2 exports of 1.60.1, evidence in docs/DATA_SOURCES.md); their names
-  and what you've done come from the game, in its language, as Blizzard's Legacy window reads them. A new file
-  (`Providers/Legacy.lua`): restart the game.
-
-## 1.3.2 (in testing)
-
+**Quests**
 - Quest suggestions ("where should i quest", "quests here", the zone counts, quest upgrades, `is:cantake`) leave out
   quests you can't pick up, by QuestieDB's own fields: prerequisites not done, the other quest of an either-or pair
   done or in your log, past a quest's level cap, a breadcrumb to a quest you've taken, a spell or a standing it
-  wants. Read through LibQuestieDB's public data, once per quest (`Search/Questions/QuestAccess.lua`, a new file:
-  restart the game).
+  wants.
 - **why can't i take <quest>** (also "can i take", "why isn't <quest> offered"): a row per reason, each acting as the
-  quest it names, or "Nothing stops you".
+  quest it names, or "Nothing stops you". Not answered for someone else's `!t` question (your quests aren't theirs).
 - **what does <quest> unlock** ("what comes after", "next quest after"; Advanced `<quest> > unlocks`): the next quest
-  in its chain, its child quests, where a breadcrumb leads, and the quests that need it. "next quest after X" went
-  backwards before.
+  in its chain, its child quests, where a breadcrumb leads, and the quests that need it.
 
-## 1.3.1 (in testing)
+**Legacy and PvP ranks (WoW Forever)**
+- `@legacy` lists every Legacy challenge with your points ("Legacy points: N", to spend), done or still to do, by
+  group (a class, a profession, dungeons, raids, PvP, adventure: `cat:mage`, `is:todo`); one only another character
+  earned shows not done, as the Legacy window shows it. Enter opens the Legacy window on Challenges (the achievement
+  button, pressed by the game), Shift+Enter links it. Asked: **legacy points**, **which legacy points am i missing**,
+  **what gives legacy points for mage**, **legacy points for my class**.
+- `@legacyreward` (**legacy rewards**): each reward with the points it needs and whether you have them, claimed from
+  Innkeeper Wiley in Ratchet (Enter: a waypoint on him). `@legacyperk` (**legacy perks**): the Legacy Tree's perks,
+  ranks taken and what each does, all three trees.
+- `@pvprank` (**my pvp rank**, **rank points**): your rank and Rank Points, and what each rank unlocks, reached or
+  not (**what does pvp rank 11 unlock**, `rank:11`). All four follow the game at once (renown, tree points,
+  reputation).
+- The challenges and rewards are the client's own tables (achievement categories and renown rewards, written by
+  `tests/gen_data.py legacy` from wago.tools' DB2 exports of 1.60.1, evidence in docs/DATA_SOURCES.md); their names
+  and what you've done come from the game, in its language, as Blizzard's Legacy window reads them.
 
-- Tests: `easy.lua` and `printers.lua` had reached their 20M-instruction budget (19.3M each), and GitHub's run of
-  1.3.0 went over it (`easy.lua`'s right-click menu block). Split: `easy_2.lua` (action words onward), and the printers
-  as `tests/printers.lua` run in two parts (`printers_1.lua`, `printers_2.lua`, every other corpus line). No change
-  in the game.
+**Enchants**
+- `@enchant` (enchants, enchantment), with AtlasLoot or OneForAll read at run time: AtlasLoot's Enchanting spells
+  that make no item first, then OneForAll's armor kits, spurs, shield spikes, scopes, arcanums and the enchants
+  AtlasLoot doesn't list. Each with the slot it goes on (the game's names; OneForAll's masks in any language), what
+  it gives (the game's description, asked for when it isn't in yet), how you get it ("Enchanting 80", or OneForAll's
+  source) and "You know it" when you do; ones not in WoW Forever yet are greyed. `slot:`, `stat:` and `is:known`
+  work on them.
+- Asked: **enchants for bracers**, **enchants for my weapon** (by what you hold), **agility enchants**, **enchants i
+  can make**. Enter opens a recipe you know as its recipe row does, else where to learn it (`> learn`), or where to
+  get the item for an enchant that isn't crafted; Shift+Enter links it. In Simple mode's Crafting category.
+
+**Where to get it, tokens**
+- **Where to get** an item (`> sources`) lists more: the containers it comes out of (QuestieDB's `itemDrops`: "where
+  to find black pearl": Big-mouth Clam), and with OneForAll the creatures to skin for it, the zones to fish it in,
+  the item levels to disenchant for it, the items it's found in, and how it's crafted when nothing else says.
+- **what does <token> give** ("what does libram of focus give", "what's in blue sack of gems"; `> rewards`, `> gives`):
+  what a token, libram or bag turns into, by AtlasLoot (your class's first for class tokens). The other way round,
+  an item made from a token says "From <token> · Gives it" among its sources.
+
+**Hunters, bosses, currencies**
+- **what can my pet eat** (`@item is:petfood`: what in your bags your pet eats, by the game's own check, its diet in
+  the footer), **nearest pet food vendor** / **who sells pet food** (`@npc sells:petfood`), for a hunter with a pet
+  out. "feed pet" is still the spell.
+- Bosses (with OneForAll): loot rows' tooltips name the boss's level and creature type, and "Summoned" where it is;
+  AtlasLoot's drop rate where OneForAll gives none. **what level is vancleef** finds a boss by part of its name;
+  **summoned bosses in blackrock spire** lists those with their instance, level and type (Enter: their loot).
+- A currency's tooltip lists your other characters' amounts and the total (Syndicator, as `@stored` counts them).
+
+**Fixes**
+- On WoW Forever, Enter on an achievement or a Legacy challenge ran a `/run` line that left the Legacy window
+  tainted, or pressed an achievement key Forever doesn't have: it presses the achievement button now.
+- From three reviews: `@enchant` lists both addons' enchants together and reads slots in every language; the Legacy
+  Tree's perks are read per tree; "<words> level" no longer finds a boss by part of its name; quest suggestions
+  and token names cost less per keystroke.
+
+New files: `Providers/Legacy.lua`, `Providers/Integrations/OneForAll/Enchants.lua`, `.../OneForAll/Bosses.lua`,
+`.../OneForAll/Reagents.lua`, `Search/Questions/QuestAccess.lua`, `PetFood.lua`, `Tokens.lua`. Restart the game, not
+just `/reload`. The AtlasLoot loot index is built again once.
 
 ## 1.3.0
 
