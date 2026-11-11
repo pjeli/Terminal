@@ -42,8 +42,10 @@ function PF.ReadDiet()
 	if not (_G.UnitExists and Safe(UnitExists, "pet") == true) then return nil, "pet" end
 	local got
 	local C = rawget(_G, "C_PetInfo")
-	if C and type(C.GetPetFoodTypes) == "function" then got = Safe(C.GetPetFoodTypes)
+	-- (a list, or the names as values, as the old global gives them: either taken, 1.3.13, review)
+	if C and type(C.GetPetFoodTypes) == "function" then got = { Safe(C.GetPetFoodTypes) }
 	elseif type(rawget(_G, "GetPetFoodTypes")) == "function" then got = { Safe(_G.GetPetFoodTypes) } end
+	if got and type(got[1]) == "table" then got = got[1] end
 	local names, types, unknown = {}, {}, false
 	for _, n in ipairs(type(got) == "table" and got or {}) do
 		n = Str(n)
@@ -170,14 +172,17 @@ local FILL = { what = true, can = true, could = true, does = true, ["do"] = true
 function PF.Question(text)
 	local t = ns.QuestionText(text)
 	if not t then return nil end
-	local pet, food, sell = false, false, false
+	local pet, food, sell, asked, feed = false, false, false, false, false
 	for w in t:gmatch("%S+") do
 		if PET[w] then pet = true
-		elseif FOOD[w] then food = true
+		elseif FOOD[w] then food = true; if w == "feed" then feed = true else asked = true end
 		elseif SELL[w] or NEAR[w] then sell = true
-		elseif not FILL[w] then return nil end
+		elseif not FILL[w] then return nil
+		elseif w ~= "the" and w ~= "a" then asked = true end
 	end
 	if not (pet and food) then return nil end
+	-- ("feed pet", the hunter's spell, is searched as typed; "feed my pet", "what can i feed it" ask: 1.3.13, review)
+	if feed and not (asked or sell) then return nil end
 	return { what = sell and "sell" or "eat" }
 end
 
@@ -189,7 +194,7 @@ end
 function PF.Footer(q)
 	local d = PF.Diet()
 	if not d then return nil end
-	if q and q.what == "sell" then return L["Vendors of your pet's food"] .. SEP .. table.concat(d.names, ", ") end
+	if q and q.what == "sell" then return L["Vendors of your pet's food"] .. SEP .. table.concat(d.names, Str(rawget(_G, "PET_FOOD_DELIMIT")) or ", ") end
 	return PF.DietText(d)
 end
 function PF.None(q)

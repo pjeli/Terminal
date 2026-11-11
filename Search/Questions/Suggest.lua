@@ -944,6 +944,9 @@ end
 local LV = {}
 ns.LevelOf = LV
 local LV_SAID = { "^what level is (.+)$", "^what level are (.+)$", "^what lvl is (.+)$", "^level of (.+)$", "^(.+) level range$", "^(.+) levels$", "^(.+) level$", "^how high is (.+)$" }
+-- (the patterns that ask about a name outright: only they find a boss by part of its name; "hunter level", "mana level"
+-- found Blind Hunter and the like: 1.3.13, review)
+local LV_ASKED = { [1] = true, [2] = true, [3] = true, [4] = true, [8] = true }
 local function Named(list, want)
 	for _, e in ipairs(list) do
 		local n = rawget(e, "_lname") or Lower(tostring(e.name))
@@ -959,7 +962,7 @@ function LV.Question(text)
 	local t = ns.QuestionText(text)
 	if not t then return nil end
 	t = t:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
-	for _, pat in ipairs(LV_SAID) do
+	for pi, pat in ipairs(LV_SAID) do
 		local what = t:match(pat)
 		if what then
 			what = what:gsub("^the ", "")
@@ -990,7 +993,7 @@ function LV.Question(text)
 					if e then return { row = e, said = LevelSaid(lo, hi) .. (more and (SEP .. more) or "") } end
 				end
 				-- a dungeon boss by part of its name ("vancleef"), OneForAll's: its level, type, summoned or not
-				local b = OB and OB.Named(what)
+				local b = LV_ASKED[pi] and OB and OB.Named(what)
 				local blo, bhi = b and OB.Levels(b)
 				if blo then
 					local e = b.npc and I and I.NpcRow and I.NpcRow(b.npc) or nil

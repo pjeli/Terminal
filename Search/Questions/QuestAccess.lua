@@ -202,6 +202,9 @@ end
 --- kept across one list's quests (the game is asked once per quest done or in your log).
 function QA.CanTake(id, level, memo)
 	if type(id) ~= "number" then return true end
+	-- (most quests have none of these fields: said before a memo or your level is made, 1.3.13, review: is:cantake and
+	-- the quest upgrades ask it once a row)
+	if not QA.Fields(id) then return true end
 	return Check(id, level or MyLevel(), Memo(memo), nil)
 end
 
@@ -263,6 +266,9 @@ local ALLOW = { ["not"] = true } -- ("why is <quest> not offered": the question 
 local function Plain(s) return (s:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")) end
 
 function QA.Question(text)
+	-- (someone's !t question: what you've done, your log, race and skills aren't theirs, so "can i take X" isn't
+	-- answered for them: 1.3.13, review)
+	if ns.Asker then return nil end
 	local t = ns.QuestionText(text, ALLOW)
 	if not t then return nil end
 	t = Plain(t)

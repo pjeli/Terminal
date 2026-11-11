@@ -121,7 +121,7 @@ Kept only where no search can list the same rows, each with its reason in `custo
 | Chains, AttuneHow | a chain already: the same pipeline either way |
 | Armory, OneForAllWorld, HunterPets | OneForAll's own rows and orders (a faction's rewards by standing, a boat by where it goes, beasts that aren't @npc rows) |
 | ProfTraining | can-learn first, then the skill needed, with the next rank's text |
-| OneForAllBosses | OneForAll's bosses aren't a list: one row per summoned boss, its instance, level and type |
+| OneForAllBosses | OneForAll's bosses aren't a list: one row per boss, its level and type |
 | Partly: Mail ("my mail", gold, auction mail), WhatsTraining (what it costs), ClassSpells (upcoming, a level, a name), Attunements and CollectionsQ (with words), QuestNeeds (a standing needed), QuestsHere (level or zone unknown), AuctionatorQ (bags and bank together, alts, everywhere), LibraryBooks (rewards, nearest) | their other forms are search questions |
 
 An own answer is still filtered and sorted by what's typed after it and by the bar (`Scan.AnswerView`).
@@ -294,8 +294,10 @@ What can't be moved without losing something the player sees stays an own answer
   `requiredMaxLevel`; `nextQuestInChain` not done or in your log; `parentQuest` in your log; `breadcrumbForQuestId` not
   done or in your log; `breadcrumbs` none in your log; `requiredSpell` known (negative: not known); `requiredMaxRep` your
   points under it (not known: not held against it). Done and in your log are the game's (IsQuestFlaggedCompleted,
-  GetLogIndexForQuestID). A quest's fields are read once (`QA.Fields`, false for most quests); the game is asked once
-  per quest per pass (the memo a fitter keeps). A !t question (ns.Asker) checks only the level cap.
+  GetLogIndexForQuestID). A quest's fields are read once (`QA.Fields`, false for most quests: `QA.CanTake` says yes
+  before anything else then); the game is asked once per quest per pass where a memo is kept (`Z.QuestFitter`'s). In
+  a !t question (ns.Asker) the suggestions check only the asker's level cap, and "can i take X" isn't answered (your
+  quests aren't theirs: 1.3.13).
 - Used by `Z.QuestFitter` (where to quest, the zones' quest counts, quests near me), `is:cantake` and `sort:cantake`
   (quests here; the detail adds the first reason), quest upgrades.
 - QuestAccess (own answer): "why can't i take <quest>", "can i take <quest>", "why isn't <quest> offered", "why is

@@ -15,7 +15,9 @@ do
 		_G.UnitClass = function() return "Warrior", class end
 		_G.UnitExists = function(u) return u == "pet" and out end
 		local diet, eats = { "Meat", "Fish" }, { [1001] = true }
-		_G.C_PetInfo = { GetPetFoodTypes = function() return diet end, CanPetEatItem = function(id) return eats[id] == true end }
+		local asNames = false -- (1.3.13: the names as values, as the old global gives them, taken too)
+		_G.C_PetInfo = { GetPetFoodTypes = function() if asNames then return unpack(diet) end return diet end,
+			CanPetEatItem = function(id) return eats[id] == true end }
 		_G.PET_DIET_TEMPLATE = "Diet: %s"
 		-- QuestieDB: 2001 raw meat (a vendor sells it), 2002 bread, 2003 an unknown kind of food, 2004 a sword
 		local ITEMS = { [2001] = { foodType = 7, vendors = { 501 } }, [2002] = { foodType = 4, vendors = { 502 } },
@@ -32,6 +34,7 @@ do
 		check(What("what can my pet eat") == "eat" and What("pet food") == "eat" and What("what does my pet eat") == "eat"
 			and What("feed my pet") == "eat" and What("who sells pet food") == "sell" and What("nearest pet food vendor") == "sell"
 			and What("where to buy pet food") == "sell", "the questions: what it eats, who sells it")
+		check(What("feed pet") == nil and What("feed the pet") == nil, "\"feed pet\": the hunter's spell, not the question (1.3.13)")
 		check(What("pet trainer") == nil and What("my pets") == nil and What("pet food recipes") == nil and What("food") == nil,
 			"not the pet trainers', the collections', or a recipe search")
 		check(PF.Line({ what = "eat" }) == "@item is:petfood " and PF.Line({ what = "sell" }) == "@npc sells:petfood faction:friendly sort:distance ",
@@ -47,6 +50,10 @@ do
 		check(none[1].name == L["Only for a hunter with a pet out: the game tells its diet then"], "the note says it's for a hunter with a pet out")
 		-- a hunter with no pet out: the same
 		class = "HUNTER"; PF.Forget()
+		out, asNames = true, true
+		local d = PF.ReadDiet()
+		check(d and #d.names == 2 and d.names[2] == "Fish", "the diet given as names, not a list: read the same")
+		out, asNames = false, false
 		local _, why = PF.Diet()
 		check(why == "pet" and not petfood({ kind = "items", itemID = 1001 }), "a hunter without a pet out: no diet yet")
 		out = true; PF.Forget()

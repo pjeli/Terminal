@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.13 (in testing)
+
+- Questions (review of 1.3.2-1.3.7): "feed pet" (the hunter's spell) is searched as typed again, not read as "what
+  can my pet eat"; "feed my pet" still asks. "<words> level" ("hunter level", "mana level") no longer finds a
+  boss by part of its name (Blind Hunter): only "what level is X", "level of X" and "how high is X" do.
+- `!t can i take <quest>` asked by someone else isn't answered any more: the answer said what you had done or had in
+  your log as if it were theirs.
+- Your pet's diet is read whether the game gives it as a list or as names.
+- Faster: `is:cantake`, `sort:cantake` and quest upgrades say yes at once for a quest with nothing to judge (most);
+  the tokens' names are looked at again once a second at most while some are still missing, not on every keystroke.
+
 ## 1.3.12 (in testing)
 
 - **Legacy** (review of 1.3.3 and 1.3.8): WoW Forever's own key bindings have no achievement key (the Legacy

@@ -146,6 +146,16 @@ do
 		check(rows and Names(rows) == "Nothing stops you: you can take it" and rows[1].qid == 103, "[quest access] nothing stops you: " .. (rows and Names(rows) or "-"))
 		check(QA.Question("can i take nothing like this") == nil and QA.Question("why cant i fly") == nil and QA.Question("can i craft") == nil,
 			"[quest access] no quest named: not this question")
+		-- (1.3.13, review) someone's !t question: your quests aren't theirs, so not answered as if they were
+		ns.Asker = { level = 11, class = "MAGE" }
+		check(QA.Question("can i take the missing diplomat") == nil, "[quest access] a !t question: not answered with your quests")
+		ns.Asker = nil
+		-- a quest with none of the fields: said at once, your level not even asked
+		local ul, asks = _G.UnitLevel, 0
+		_G.UnitLevel = function(...) asks = asks + 1 return ul(...) end
+		local fine = QA.CanTake(103)
+		_G.UnitLevel = ul
+		check(fine == true and asks == 0, "[quest access] nothing to judge: true, nothing asked: " .. asks)
 		-- (Enter and the tooltip are the quest's own: its name in the Wowhead line, not the reason's)
 		do
 			local shown

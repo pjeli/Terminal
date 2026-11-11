@@ -113,8 +113,11 @@ local function Index()
 			end
 		end
 	end
-	-- (names: the game's, as they come in; looked at again only while some are missing)
-	if not x.whole then
+	-- (names: the game's, as they come in; looked at again only while some are missing, once a second at most: an item
+	-- the client never names would have had every keystroke read them all, 1.3.13, review)
+	local now = GetTime and GetTime() or 0
+	if not x.whole and (not x.namesAt or now - x.namesAt >= 1) then
+		x.namesAt = now
 		local all = true
 		local get = C_Item and C_Item.GetItemNameByID
 		for _, id in ipairs(x.ids) do

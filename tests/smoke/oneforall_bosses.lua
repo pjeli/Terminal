@@ -67,6 +67,10 @@ do
 		local r = res[1]
 		check(r and tostring(r.name):find("Edwin VanCleef", 1, true) and tostring(r.name):find(L["Lv %d"]:format(21), 1, true)
 			and tostring(r.name):find("The Deadmines", 1, true), "what level is vancleef: OneForAll's: " .. tostring(r and r.name))
+		-- (1.3.13, review) "<words> level" isn't asked about a boss by part of its name ("hunter level": Blind Hunter)
+		local LV = ns.LevelOf
+		check(LV.Question("vancleef level") == nil and LV.Question("what level is vancleef") ~= nil,
+			"\"vancleef level\": not a boss by part of its name; \"what level is vancleef\": it is")
 
 		-- @loot's tooltip: the boss's line; AtlasLoot's drop rate where OneForAll gave none
 		A.ItemDB.Storage.ZZBosses = { DM = { items = { { npcID = { 639 } } } } }
