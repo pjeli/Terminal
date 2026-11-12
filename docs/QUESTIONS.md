@@ -119,7 +119,7 @@ Kept only where no search can list the same rows, each with its reason in `custo
 | RewardQuests | the quests in the order of the items they reward, with the item's chain |
 | BiggerBags, HaveQ | one row per item from several lists (bags, bank, alts; loot, recipes) |
 | Chains, AttuneHow | a chain already: the same pipeline either way |
-| Armory, OneForAllWorld, HunterPets | OneForAll's own rows and orders (a faction's rewards by standing, a boat by where it goes, beasts that aren't @npc rows) |
+| Armory, OneForAllWorld, HunterPets | OneForAll's own rows and orders (a faction's rewards by standing, a boat by where it goes, beasts that aren't @npc rows); the item sets also AtlasLoot's (1.4.9) |
 | ProfTraining | can-learn first, then the skill needed, with the next rank's text |
 | OneForAllBosses | OneForAll's bosses aren't a list: one row per boss, its level and type |
 | Partly: Mail ("my mail", gold, auction mail), WhatsTraining (what it costs), ClassSpells (upcoming, a level, a name), Attunements and CollectionsQ (with words), QuestNeeds (a standing needed), QuestsHere (level or zone unknown), AuctionatorQ (bags and bank together, alts, everywhere), LibraryBooks (rewards, nearest) | their other forms are search questions |

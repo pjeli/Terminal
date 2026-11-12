@@ -20,7 +20,8 @@ I.LOST = {
 	Attune = { "Attune", L["@attune is unavailable."] },
 	WhatsTraining = { "What's Training", L["@training is unavailable."] },
 	TrainerSpells = { "TrainerSpells", L["Its trainers, weapon masters, class spells and profession training are unavailable."] },
-	OneForAll = { "OneForAll", L["Its Library Books, hunter pets, reputation rewards, item sets and gear values are unavailable."] },
+	-- (its Library Books and item sets: Questie's and AtlasLoot's then, when those are installed)
+	OneForAll = { "OneForAll", L["Its hunter pets, reputation rewards and gear values are unavailable."] },
 }
 function I.Setup()
 	-- (Enchants last: AtlasLoot's or OneForAll's, either set up before it; OneForAll/Enchants.lua. Books after OneForAll
@@ -92,7 +93,7 @@ local NOT_FOUND = { [L["not found"]] = true, [L["not found (What's Training or T
 	[L["not found (install Syndicator/Baganator or Bagnon)"]] = true }
 
 ns:RegisterCommand("integrations", {
-	desc = L["Show which other addons Terminal found (AtlasLoot, Questie, Attune, What's Training, TrainerSpells, OneForAll)"],
+	desc = L["Show which other addons Terminal found, and what each gives"],
 	run = function()
 		local lines = { L["Integrations:"] }
 		-- (an addon that's there but failed to start is said, with why; one that isn't there isn't)
@@ -127,10 +128,10 @@ ns:RegisterCommand("integrations", {
 		-- (@enchant: AtlasLoot's and OneForAll's together, so said on a line of its own)
 		local enchants = ns.Enchants and ns.Enchants.Status and ns.Safe(ns.Enchants.Status)
 		if enchants then lines[#lines + 1] = "  " .. L["Enchants:"] .. " " .. enchants end
-		-- (@book without OneForAll: QuestieDB's)
+		-- (@book: OneForAll's, else QuestieDB's)
 		local books = ns.LibraryBooks and ns.LibraryBooks.Status and ns.Safe(ns.LibraryBooks.Status)
 		if books then lines[#lines + 1] = "  " .. L["Library Books:"] .. " " .. books end
-		-- (@itemset without OneForAll: AtlasLoot's)
+		-- (@itemset: OneForAll's, else AtlasLoot's)
 		local sets = ns.Armory and ns.Armory.SetsStatus and ns.Safe(ns.Armory.SetsStatus)
 		if sets then lines[#lines + 1] = "  " .. L["Item sets:"] .. " " .. sets end
 		if ns.Auctionator then Add("Auctionator:", ns.Auctionator.Status()) end

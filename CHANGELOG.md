@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.16 (in testing)
+
+- **Wording, from the release review**: `.integrations` gives the enchants, the Library Books and the item sets a line
+  each whoever provides them ("Library Books: 39 from OneForAll (`@book`)"), and OneForAll's own line keeps its
+  factions' rewards; its description no longer lists six addons. When OneForAll's books or item sets aren't in the
+  shape expected, chat says Questie's or AtlasLoot's are used instead, and a failing OneForAll no longer claims its
+  books and sets are gone. The pieces link says "(OneForAll or AtlasLoot)"; a set's tooltip says Enter and
+  Shift+Enter in one line as other tooltips do; the rewards say "Lv 35" and, without any, "QuestieDB lists no rewards
+  for the Library Books"; a set piece's line is written as the sets' are; a Library Book with no spot says "show in
+  chat" in the footer, not "set waypoint".
+
 ## 1.4.15 (in testing)
 
 - **`@book` from QuestieDB, never given up on too soon** (the release review): when QuestieDB's quests couldn't be

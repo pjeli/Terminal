@@ -63,7 +63,7 @@ do
 		Fresh()
 		local p = ns.providers.book
 		check(p and ns:ResolveProvider("books") == p and ns:ResolveProvider("library") == p, "@book, @books, @library")
-		check(not Said(L["@book (its Library Books) is unavailable."]) and not Said(L["The Library Books' rewards are unavailable."]), "its tables as expected: nothing said of the books: " .. tostring(said[1]))
+		check(not Said(L["OneForAll's Library Books are unavailable; @book uses Questie's when it's installed."]) and not Said(L["The Library Books' rewards are unavailable."]), "its tables as expected: nothing said of the books: " .. tostring(said[1]))
 		local rows = ns:GetEntries(p)
 		local by = {}
 		for _, e in ipairs(rows) do by[e.name] = e end
@@ -147,15 +147,17 @@ do
 		ns.db.easyMode = false; UI:EasyChanged()
 		-- .integrations: found, how many books
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(lines:find("OneForAll", 1, true) and lines:find(L["%d Library Books (@book)"]:format(4), 1, true), ".integrations: " .. lines)
+		check(lines:find("OneForAll", 1, true) and lines:find("  " .. L["Library Books:"] .. " " .. L["%d from %s (%s)"]:format(4, "OneForAll", "@book"), 1, true),
+			".integrations: the books on a line of their own, naming OneForAll (1.4.16): " .. lines)
 
 		-- not in the shape expected: said once, with what's unavailable
 		said = {}
 		OneForAll.BOOKS = "moved"
 		Fresh()
-		check(not ns.providers.book, "BOOKS changed: no @book")
-		local m = Said(L["@book (its Library Books) is unavailable."])
-		check(m and m:find("OneForAll", 1, true), "said in chat, with what's unavailable: " .. tostring(said[1]))
+		-- (no QuestieDB here: nothing to fall back on; with it, @book would be QuestieDB's: tests/smoke/books_questie.lua)
+		check(not ns.providers.book and B.Data() == nil, "BOOKS changed, no QuestieDB books here: no @book")
+		local m = Said(L["OneForAll's Library Books are unavailable; @book uses Questie's when it's installed."])
+		check(m and m:find("OneForAll", 1, true), "said in chat, naming the fallback (1.4.16): " .. tostring(said[1]))
 		local n = #said
 		OA.Forget(); B.Data()
 		check(#said == n, "said once a session")
@@ -167,7 +169,7 @@ do
 		-- without OneForAll: no @book, no question
 		_G.OneForAll = nil
 		Fresh()
-		check(not ns.providers.book and B.Question("library books") == nil, "without OneForAll: no @book, no question")
+		check(not ns.providers.book and B.Data() == nil and B.Question("library books") == nil, "without OneForAll or QuestieDB's books: no @book, no question")
 		lines = table.concat(ns.commands.integrations.run(""), "\n")
 		-- (1.4.12, the player: an addon that isn't there isn't listed)
 		check(not lines:find("OneForAll:", 1, true) and not lines:find(L["not found"], 1, true), ".integrations: not listed, nor any other not found: " .. lines)

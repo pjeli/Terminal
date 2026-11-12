@@ -202,7 +202,7 @@ do
 		check(all:find(L["Item sets from AtlasLoot"], 1, true) and not all:find("OneForAll", 1, true)
 			and all:find(L["(%d) Set: %s"]:format(3, "Increases the block value of your shield by 30."), 1, true)
 			and all:find("Belt of Might", 1, true), "a set's tooltip: whose list, its bonuses, its pieces (one not in the loot named by the game): " .. all)
-		check(all:find(L["Enter: show in AtlasLoot"], 1, true) ~= nil, "and its tooltip: " .. all)
+		check(all:find(L["Enter: show in AtlasLoot    Shift+Enter: its pieces"], 1, true) ~= nil, "and its tooltip: " .. all)
 		I.OpenLootSet, I.LootSetPlace = openWas, placeWas
 		check(proph and #proph.bonuses == 0 and not Tip(proph):find("Flash Heal", 1, true), "bonuses not sent yet: none said")
 		bonusIn = true
@@ -231,7 +231,7 @@ do
 		check(#res == 2, "@itemset golemagg: the sets with a piece of his: " .. Names(res))
 		check(A.Question("my class sets") ~= nil and A.Question("pieces of battlegear of might") ~= nil and A.Question("item sets") ~= nil, "the questions, as with OneForAll")
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(lines:find("  " .. L["Item sets:"] .. " " .. L["%d from AtlasLoot (@itemset)"]:format(4), 1, true), ".integrations says whose they are: " .. lines)
+		check(lines:find("  " .. L["Item sets:"] .. " " .. L["%d from %s (%s)"]:format(4, "AtlasLoot", "@itemset"), 1, true), ".integrations says whose they are: " .. lines)
 
 		-- every loot row is looked at once; the idle warm-up reads them ahead a slice a frame
 		local was = asked
@@ -288,7 +288,8 @@ do
 		A.WarmAtlasSets(ns:GetEntries(ns.providers.loot)); FlushAll()
 		check(asked == 0, "nor read ahead")
 		lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(not lines:find(L["Item sets:"], 1, true), ".integrations: on OneForAll's line then")
+		check(lines:find("  " .. L["Item sets:"] .. " " .. L["%d from %s (%s)"]:format(1, "OneForAll", "@itemset"), 1, true),
+			".integrations: its own line, naming OneForAll then (1.4.16): " .. lines)
 		_G.OneForAll = nil
 
 		-- (1.4.10) the window on a set: the page listing it, its button pointed at, its items shown as a click on it shows them

@@ -77,7 +77,7 @@ Scan.ANSWERS = {
 	Asks("QuestsHere", { over = { "Zones" }, custom = "your level or zone not known: says so", examples = { "quests here", "zone quests" } }),
 	Asks("CanCraft", { examples = { "what can i craft", "what can i cook" } }),
 	-- "argent dawn rewards", "what can i buy at honored", "my class sets", "pieces of battlegear of might": OneForAll's
-	-- armory (Providers/Integrations/OneForAll/Armory.lua; was before the auctions' "what can i buy")
+	-- armory, the item sets also AtlasLoot's (Providers/Integrations/OneForAll/Armory.lua; was before the auctions' "what can i buy")
 	Asks("Armory", { over = { "Auctions" }, custom = "a faction's rewards by standing, sets started first, a set's pieces" }),
 	-- "favor recipes i don't know", "nearest boat", "zeppelin to orgrimmar", "zone exits": OneForAll's world (World.lua)
 	Asks("OneForAllWorld", { custom = "a boat or zeppelin by where it goes, roads of your map, Merchant's Favor recipes" }),
@@ -188,7 +188,8 @@ Scan.ANSWERS = {
 	-- "where are my friends", "friends location", "where is bob" (a friend sharing it): friends' places by Terminal: Share
 	-- (Terminal_Share/Share.lua's ns.SharePlaces; .share settings location)
 	Asks("SharePlaces", { examples = { "where are my friends", "friends location" } }),
-	-- "library books", "books i still need", "nearest library book": OneForAll's Library Books (Providers/Integrations/OneForAll/Books.lua)
+	-- "library books", "books i still need", "nearest library book": the Library Books, OneForAll's else QuestieDB's
+	-- (Providers/Integrations/OneForAll/Books.lua)
 	Asks("LibraryBooks", { custom = "the reward tiers, and the nearest spot of each book" }),
 	-- "enchants for my weapon", "enchants for bracers", "agility enchants", "enchants i can make": OneForAll's enchants
 	-- (@enchant, Providers/Integrations/OneForAll/Enchants.lua)

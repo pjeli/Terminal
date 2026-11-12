@@ -36,7 +36,8 @@ B.UNSURE = { unknown = L["spot not confirmed"], reported = L["spot reported by p
 --- OneForAll's books, checked: { { name, quest, item, zone, subzone, x, y, set, container, note, status, raw }, ... }, or
 --- nil.
 function B.OFAData()
-	return OA.Part("books", "BOOKS", L["@book (its Library Books) is unavailable."], function(raw, lib)
+	-- (said when its table isn't as expected: @book then is QuestieDB's, when that's installed)
+	return OA.Part("books", "BOOKS", L["OneForAll's Library Books are unavailable; @book uses Questie's when it's installed."], function(raw, lib)
 		local maps = type(lib.MAP_IDS) == "table" and lib.MAP_IDS or {}
 		local sets = type(lib.SETS) == "table" and lib.SETS or {}
 		local out, bad = {}, 0
@@ -365,14 +366,13 @@ end
 OA.AddSetup(B.Setup)
 if I._ then I._.SetupBooks = B.Setup end
 OA.AddStatus(function()
-	local d = B.OFAData()
-	return d and L["%d Library Books (@book)"]:format(#d) or nil
+	return nil -- (the Library Books: a line of their own, "Library Books:", whoever gives them: B.Status)
 end)
 --- .integrations' line when the books are QuestieDB's (OneForAll's are counted on its own line); nil otherwise.
 function B.Status()
 	local d, source = B.Data()
-	if source ~= "QuestieDB" then return nil end
-	return L["%d from QuestieDB (@book). OneForAll adds notes on each spot and the rewards."]:format(#d)
+	if not d then return nil end
+	return L["%d from %s (%s)"]:format(#d, source, "@book")
 end
 
 ----------------------------------------------------------------------
@@ -447,7 +447,7 @@ local function RewardRows(done)
 		end
 	elseif not OA.Loaded() then
 		for _, t in ipairs(B.QuestieRewards()) do
-			local level = L["level %d"]:format(t.level)
+			local level = L["Lv %d"]:format(t.level)
 			Add(t, t.quest .. ": " .. level .. (QuestDone(t.questID) and ("  " .. L["(claimed)"]) or ""), ns.Detail(t.quest, level))
 		end
 	end
@@ -464,7 +464,7 @@ function B.Answer(q)
 		local rows = RewardRows(done)
 		if #rows == 0 then
 			return { ns.NoteRow(OA.Loaded() and L["OneForAll lists no rewards for the Library Books"]
-				or L["The Library Books' rewards aren't known without OneForAll"]) }, L["Library Book rewards"]
+				or L["QuestieDB lists no rewards for the Library Books"]) }, L["Library Book rewards"]
 		end
 		return rows, L["Library Book rewards"] .. SEP .. progress
 	end

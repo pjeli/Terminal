@@ -132,7 +132,7 @@ do
 		ns.db.easyMode = false; UI:EasyChanged()
 
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(lines:find("  " .. L["Enchants:"] .. " " .. L["%d from %s (@enchant)"]:format(7, "OneForAll"), 1, true),
+		check(lines:find("  " .. L["Enchants:"] .. " " .. L["%d from %s (%s)"]:format(7, "OneForAll", "@enchant"), 1, true),
 			".integrations: OneForAll's alone, on a line of their own: " .. lines)
 		check(not ns.OneForAll.Status():find("@enchant", 1, true), "OneForAll's own line no longer counts them (1.4.5): " .. ns.OneForAll.Status())
 		-- without OneForAll or AtlasLoot: no @enchant, no question (1.3.10: AtlasLoot alone gives it, its enchants first)

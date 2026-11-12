@@ -125,6 +125,7 @@ do
 		said = {}
 		if folio then folio.activate(folio) end
 		check(said[1] == L["QuestieDB has no spot for %s."]:format("Folio of Stars"), "Enter on it: said, in QuestieDB's name: " .. tostring(said[1]))
+		check(ns.Easy.Verbs(folio) == L["show in chat"] and ns.Easy.Verbs(tome) ~= L["show in chat"], "its footer says so (1.4.16); one with a spot: the map's")
 		local tip = { lines = {}, SetText = function(self, t) self.lines[#self.lines + 1] = t end, AddLine = function(self, t) self.lines[#self.lines + 1] = t end }
 		if tome then tome.tooltip(tome, tip) end
 		local all = table.concat(tip.lines, "\n")
@@ -150,7 +151,7 @@ do
 		QR.Index = function() return indexed and {} or nil end
 		QR.RewardsOf = function(q) if indexed and q == 506 then return { { id = 7101, name = "Scholarly Pendant" }, { id = 7102, name = "Erudite's Amulet" } } end end
 		r = B.Answer(B.Question("library book rewards"))
-		check(#r == 3 and r[1].raw and r[1].name == "Friend of the Library: " .. L["level %d"]:format(20)
+		check(#r == 3 and r[1].raw and r[1].name == "Friend of the Library: " .. L["Lv %d"]:format(20)
 			and tostring(r[1].detail) == "Scholarly Pendant, Erudite's Amulet", "the rewards from QuestieDB: a Librarian's reward quest, what it gives: "
 				.. Names(r) .. " / " .. tostring(r[1] and r[1].detail))
 		check(r[2] and r[2].itemID == 7101 and r[2].link == "item:7101" and not r[2].raw and r[3] and r[3].itemID == 7102
@@ -169,12 +170,12 @@ do
 		QUESTS[506] = nil
 		Fresh()
 		r = B.Answer(B.Question("library book rewards"))
-		check(r[1] and r[1].name == L["The Library Books' rewards aren't known without OneForAll"], "no reward quest in QuestieDB: said: " .. Names(r))
+		check(r[1] and r[1].name == L["QuestieDB lists no rewards for the Library Books"], "no reward quest in QuestieDB: said: " .. Names(r))
 		QUESTS[506] = q506
 		Fresh()
 		QR.RewardsOf, QR.Index = rewardsOf, indexWas
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(lines:find("  " .. L["Library Books:"] .. " " .. L["%d from QuestieDB (@book). OneForAll adds notes on each spot and the rewards."]:format(4), 1, true),
+		check(lines:find("  " .. L["Library Books:"] .. " " .. L["%d from %s (%s)"]:format(4, "QuestieDB", "@book"), 1, true),
 			".integrations says whose they are: " .. lines)
 
 		-- a QuestieDB without base-data reads (older): the corrected sort only, the mage trainer's books not told apart
@@ -236,7 +237,8 @@ do
 		local d, source = B.Data()
 		check(source == "OneForAll" and d and d[1].name == "Its Own Tome" and asked == 0, "with OneForAll: its books, QuestieDB's quests not read: " .. tostring(source) .. " / " .. asked)
 		lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(not lines:find(L["Library Books:"], 1, true) and lines:find(L["%d Library Books (@book)"]:format(1), 1, true), ".integrations: on OneForAll's line then")
+		check(lines:find("  " .. L["Library Books:"] .. " " .. L["%d from %s (%s)"]:format(1, "OneForAll", "@book"), 1, true),
+			".integrations: its own line, naming OneForAll then (1.4.16): " .. lines)
 		_G.OneForAll = nil
 
 		-- a QuestieDB with no such quest (another game version's): no empty @book; neither addon: none either

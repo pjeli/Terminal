@@ -174,4 +174,9 @@ tree, tree nodes, entries, definitions); the PvP rank as the character window's 
   Merchant's Favor recipes, boats and roads, drop chances, gear value, the reagents' skinning, fishing and disenchanting
   sources) are read in the game from its namespace, each
   checked first, while it's installed (Providers/Integrations/OneForAll/OneForAll.lua), never copied into Terminal.
-  AtlasLoot's token data (what a token turns into) is read through its `AtlasLoot.Data.Token` functions in the game.
+  AtlasLoot's token data (what a token turns into) is read through its `AtlasLoot.Data.Token` functions in the game,
+  and its item sets (without OneForAll, 1.4.9) through `AtlasLoot.Data.ItemSet` and its set pages; a dungeon set's class
+  is read from the columns those pages lay the classes in (Providers/Integrations/OneForAll/Armory.lua's A.ClassGrid).
+  The Library Books without OneForAll (1.4.7) are QuestieDB's own quests and objects, picked out by their shape (a
+  quest a Librarian or the Special sort's object starts), read in the game; QuestieDB's base data (`Quest.GetRaw`)
+  gives the sort its WoW Forever corrections change.

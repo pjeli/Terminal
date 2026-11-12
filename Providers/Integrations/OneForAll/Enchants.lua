@@ -362,8 +362,8 @@ function EN.Status()
 	if not data or #data == 0 then return nil end
 	local al = 0
 	for _, o in ipairs(data) do if o.source == "AtlasLoot" then al = al + 1 end end
-	if al == 0 then return L["%d from %s (@enchant)"]:format(#data, "OneForAll") end
-	if al == #data then return L["%d from %s (@enchant)"]:format(#data, "AtlasLoot") end
+	if al == 0 then return L["%d from %s (%s)"]:format(#data, "OneForAll", "@enchant") end
+	if al == #data then return L["%d from %s (%s)"]:format(#data, "AtlasLoot", "@enchant") end
 	return L["%d (@enchant): %d from AtlasLoot, %d more from OneForAll"]:format(#data, al, #data - al)
 end
 

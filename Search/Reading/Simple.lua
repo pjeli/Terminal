@@ -287,7 +287,9 @@ E.VERBS = {
 	-- (OneForAll's beasts to tame, the questions' rows: its spot on the map, a waypoint there; Questie's: target)
 	npc = function(e) if e.tameable == true then return PLACE() end return ShowVerb(), L["target"] end,
 	maps = MapVerbs, dungeon = PLACE, raid = PLACE, corpse = PLACE, mailbox = PLACE, forge = PLACE, anvil = PLACE,
-	cookingfire = PLACE, moonwell = PLACE, object = PLACE, flight = PLACE, book = PLACE, transport = PLACE,
+	cookingfire = PLACE, moonwell = PLACE, object = PLACE, flight = PLACE, transport = PLACE,
+	-- (a Library Book with no spot known: Enter only says so, 1.4.16)
+	book = function(e) if rawget(e, "ui") or e.ui then return PLACE() end return L["show in chat"] end,
 	guild = { L["whisper"], L["invite"] }, friends = { L["whisper"], L["invite"] }, who = WhoVerbs,
 	questie = { L["Wowhead link"], L["show in game"] },
 	attune = { L["show in Attune"], L["put in the chat box"] },

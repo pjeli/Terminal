@@ -99,7 +99,8 @@ end
 --- Forever yet), side, classes = { FILE = true } or nil (any class), armor, level, bonuses = { { pieces, text } },
 --- pieces = { { id, name, slot, quality, icon, sources = { text... } } } } }, or nil.
 function A.OFASets()
-	return OA.Part("itemsets", "ARMORY_SETS", L["@itemset (its item sets) is unavailable."], function(raw)
+	-- (said when its table isn't as expected: @itemset then is AtlasLoot's, when that's installed)
+	return OA.Part("itemsets", "ARMORY_SETS", L["OneForAll's item sets are unavailable; @itemset uses AtlasLoot's when it's installed."], function(raw)
 		local out = {}
 		for i, s in ipairs(raw) do
 			local name = type(s) == "table" and OA.Text(s.n)
@@ -554,7 +555,7 @@ local function SetTooltip(e, t)
 			t:AddLine(L["(%d) Set: %s"]:format(b.pieces, b.text), on and 0.4 or 0.6, on and 1 or 0.6, on and 0.4 or 0.6, true)
 		end
 	end
-	t:AddLine(e.activate == OpenSet and I.LootSetPlace and I.LootSetPlace(e.setID) and (L["Enter: show in AtlasLoot"] .. SEP .. L["Shift+Enter: its pieces"])
+	t:AddLine(e.activate == OpenSet and I.LootSetPlace and I.LootSetPlace(e.setID) and L["Enter: show in AtlasLoot    Shift+Enter: its pieces"]
 		or L["Enter: its pieces"], 0.62, 0.62, 0.62)
 	t:AddLine(e.source == "AtlasLoot" and L["Item sets from AtlasLoot"] or L["Item sets from OneForAll"], 0.5, 0.5, 0.5)
 end
@@ -625,8 +626,7 @@ function A.PieceRows(setID)
 					quality = p.quality or ns.ItemQuality(p.id), slot = p.slot, set = s.name, sources = p.sources, have = have, isDone = have ~= nil,
 					classFiles = s.classes, anyClass = s.classes == nil, order = s.order * 100 + i, tooltip = PieceTooltip, generic = false,
 					source = source,
-					detail = s.name .. (p.slot and (SEP .. p.slot) or "") .. (p.sources[1] and (SEP .. p.sources[1]) or "")
-						.. (have and (SEP .. (have == "equipped" and L["worn"] or L["yours"])) or ""),
+					detail = ns.Detail(s.name, p.slot, p.sources[1], have and (have == "equipped" and L["worn"] or L["yours"])),
 					text = Lower(table.concat({ L["set piece"], "set piece", s.name, s.sub or "", p.slot or "", table.concat(p.sources, " "),
 						ClassNames(s.classes) }, " ")),
 				}
@@ -688,7 +688,7 @@ function A.SetupSets()
 		A.piecesRelation = true
 		ns:RegisterRelation("pieces", {
 			aliases = { "piece", "setpieces" },
-			desc = L["an item set's pieces, where each comes from (OneForAll)"],
+			desc = L["an item set's pieces, where each comes from (OneForAll or AtlasLoot)"],
 			available = function() return ns.providers.itemset ~= nil end, addon = "OneForAllSets",
 			seedKinds = { "itemset" },
 			applies = function(e) return e.kind == "itemset" and not e.setPiece and e.setID ~= nil end,
@@ -707,16 +707,16 @@ function A.SetupSets()
 	end
 end
 if I._ then I._.SetupItemSets = A.SetupSets end
---- .integrations' line when the sets are AtlasLoot's (OneForAll's are counted on its own line); nil otherwise.
+--- .integrations' "Item sets:" line: how many @itemset lists and whose they are; nil without any. (Its own line whoever
+--- gives them, as the enchants and the Library Books: 1.4.16, the release review)
 function A.SetsStatus()
 	local sets, source = A.Sets()
-	if source ~= "AtlasLoot" then return nil end
-	return L["%d from AtlasLoot (@itemset)"]:format(#sets)
+	if not sets then return nil end
+	return L["%d from %s (%s)"]:format(#sets, source, "@itemset")
 end
 OA.AddStatus(function()
-	local f, s = A.Factions(), A.OFASets()
-	if not (f or s) then return nil end
-	return L["%d factions' rewards (> rewards), %d item sets (@itemset)"]:format(f and #f or 0, s and #s or 0)
+	local f = A.Factions()
+	return f and L["%d factions' rewards (> rewards)"]:format(#f) or nil
 end)
 
 ----------------------------------------------------------------------

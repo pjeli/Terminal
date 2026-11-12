@@ -41,7 +41,7 @@ do
 		check(said:find("  " .. ns.L["Enchants:"] .. " " .. EN.Status(), 1, true), ".integrations says it: " .. said)
 		local ofaWas = EN.OFAData
 		EN.OFAData = function() return nil end
-		check(EN.Status() == ns.L["%d from %s (@enchant)"]:format(3, "AtlasLoot"), "AtlasLoot's alone (no OneForAll): still said: " .. tostring(EN.Status()))
+		check(EN.Status() == ns.L["%d from %s (%s)"]:format(3, "AtlasLoot", "@enchant"), "AtlasLoot's alone (no OneForAll): still said: " .. tostring(EN.Status()))
 		EN.OFAData = ofaWas
 		local by = {}
 		for _, o in ipairs(data) do by[o.spell] = o end

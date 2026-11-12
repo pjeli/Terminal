@@ -88,7 +88,7 @@ do
 		check(ps and not ns.providers.setpiece and not ns.providers.repreward and ns:ResolveProvider("tierset") == ps
 			and ns:ResolveProvider("setpiece") == ps, "@itemset (@setpiece its other name); no @repreward, no @setpiece")
 		check(ns:ResolveProvider("sets") ~= ps, "@sets: still your equipment sets")
-		check(not Said(L["Its reputation rewards are unavailable."]) and not Said(L["@itemset (its item sets) is unavailable."]),
+		check(not Said(L["Its reputation rewards are unavailable."]) and not Said(L["OneForAll's item sets are unavailable; @itemset uses AtlasLoot's when it's installed."]),
 			"its tables as expected: nothing said: " .. tostring(said[1]))
 		-- (review, 1.0.21) what the question reads per keystroke, made once with the data
 		local ad = A.Factions()[1]
@@ -218,7 +218,7 @@ do
 		check(A.ToAdvanced(A.Question("pieces of battlegear of might")) == "Battlegear of Might > pieces ", "to Advanced: the chain")
 		ns.db.easyMode = false; UI:EasyChanged()
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(lines:find(L["%d factions' rewards (> rewards), %d item sets (@itemset)"]:format(4, 3), 1, true), ".integrations: " .. lines)
+		check(lines:find(L["%d factions' rewards (> rewards)"]:format(4), 1, true), ".integrations: " .. lines)
 		check(A.ToAdvanced(A.Question("argent dawn rewards")) == "@reputation is:reward argent dawn ", "to Advanced: @reputation's filters: "
 			.. tostring(A.ToAdvanced(A.Question("argent dawn rewards"))))
 		check(A.ToAdvanced(A.Question("timbermaw rewards")) == "@reputation is:reward timbermaw hold ", "to Advanced: a faction you haven't met too")
@@ -338,11 +338,12 @@ do
 		said = {}
 		OneForAll.ARMORY_SETS = { "renamed" }
 		Fresh()
-		check(not ns.providers.itemset and A.Question("argent dawn rewards") ~= nil, "sets changed: no @itemset, the rewards still")
-		check(Said(L["@itemset (its item sets) is unavailable."]), "said in chat: " .. tostring(said[1]))
+		-- (no AtlasLoot set data here: nothing to fall back on; with it, AtlasLoot's: tests/smoke/itemsets_atlasloot.lua)
+		check(not ns.providers.itemset and A.Sets() == nil and A.Question("argent dawn rewards") ~= nil, "sets changed, no AtlasLoot sets here: no @itemset, the rewards still")
+		check(Said(L["OneForAll's item sets are unavailable; @itemset uses AtlasLoot's when it's installed."]), "said in chat, naming the fallback (1.4.16): " .. tostring(said[1]))
 		_G.OneForAll = nil
 		Fresh()
-		check(not ns.providers.itemset and A.Question("argent dawn rewards") == nil, "without OneForAll: none, no question")
+		check(not ns.providers.itemset and A.Sets() == nil and A.Question("argent dawn rewards") == nil, "without OneForAll or AtlasLoot's sets: none, no question")
 	end)
 	_G.OneForAll = save.lib
 	ns.providers, ns.providerOrder = save.providers, save.order
