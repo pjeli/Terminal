@@ -20,8 +20,9 @@ I.OBJECT_KINDS = { mailbox = "mailbox", mailboxes = "mailbox", mail = "mailbox",
 I.OBJECT_NAMES = { mailbox = { "mailbox" }, forge = { "forge", "the great forge" }, anvil = { "anvil" },
 	moonwell = { "moonwell" } }
 -- kinds that are a list of object ids, not names: the server decides which objects count, and some campfires are only
--- scenery, so a name can't tell generated: tests/gen_data.py cookingfires (do not edit by hand) 2231 objects, Mangos
--- Zero's gameobject_template: type 8 (spell focus), focus 4 (Cooking Fire)
+-- scenery, so a name can't tell
+-- generated: tests/gen_data.py cookingfires (do not edit by hand)
+-- 2231 objects, Mangos Zero's gameobject_template: type 8 (spell focus), focus 4 (Cooking Fire)
 I.COOKING_FIRE_IDS = {
 	1766, 1798, 1799, 1801, 1802, 1803, 1804, 1805, 1806, 1807, 1808, 1809, 1810, 1811, 1812, 1813,
 	1814, 1815, 1816, 1817, 1818, 1819, 1820, 1821, 1822, 1824, 1825, 1826, 1827, 1828, 1829, 1830,

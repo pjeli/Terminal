@@ -1,166 +1,61 @@
 # Changelog
 
-## 1.4.17 (in testing)
+## 1.5.0
 
-- **Read-ahead, even after an early search** (the release review): what waits on a list (the pet foods, the loot's
-  tokens and item sets) ran only when the idle warm-up built that list itself; a search in the first seconds after
-  login built it first, and the read-ahead never ran. The warm-up now runs it on a list it finds built, once.
-- **`.integrations` counts `@enchant`'s rows** when they're made and current, instead of making the whole list again
-  (with every description asked of the game) each time it's run.
+Terminal 1.5: Library Books and item sets without OneForAll (from Questie and AtlasLoot), a tidier `.integrations`, the
+Legacy innkeeper on every client language, faster close spellings and read-ahead, and the fixes of a release review.
 
-## 1.4.16 (in testing)
+**Library Books without OneForAll**
+- `@book` with Questie or the QuestieDB addon alone: QuestieDB's own data has WoW Forever's 40 Library Books, read
+  while it's installed, never copied: each book's quest (its name, in the client's language), the item, and the world
+  object it lies in with its spot (a second zone's spot said as "Also found at"). No list is kept: a book is told by
+  its shape among QuestieDB's quests (started by a world object and by an NPC titled "Librarian", or of the Special
+  sort with the item it asks for lying in that object; the sort as QuestieDB's base data has it, `Quest.GetRaw`: its
+  WoW Forever corrections move the Library quests to your capital). "library books", "books i still need",
+  "nearest library book", `is:todo` / `is:done` and Enter's waypoint work as with OneForAll; how far along you are is
+  the game's own answer. QuestieDB's quests are read a slice a frame after Questie's own indexing, asked again until
+  they can be.
+- **library book rewards** lists each reward as an item's own row under its tier (the item's tooltip, its colour,
+  Enter as any item). Without OneForAll: the Librarians' reward quests and the items Questie says they give,
+  "(claimed)" once turned in; how many books each takes is OneForAll's to say.
+- OneForAll's list still comes first when it's installed (a note on each spot, the sets, the reward tiers, books you
+  marked done).
 
-- **Wording, from the release review**: `.integrations` gives the enchants, the Library Books and the item sets a line
-  each whoever provides them ("Library Books: 39 from OneForAll (`@book`)"), and OneForAll's own line keeps its
-  factions' rewards; its description no longer lists six addons. When OneForAll's books or item sets aren't in the
-  shape expected, chat says Questie's or AtlasLoot's are used instead, and a failing OneForAll no longer claims its
-  books and sets are gone. The pieces link says "(OneForAll or AtlasLoot)"; a set's tooltip says Enter and
-  Shift+Enter in one line as other tooltips do; the rewards say "Lv 35" and, without any, "QuestieDB lists no rewards
-  for the Library Books"; a set piece's line is written as the sets' are; a Library Book with no spot says "show in
-  chat" in the footer, not "set waypoint".
+**Item sets without OneForAll**
+- `@itemset` with AtlasLoot alone: its public set data (`AtlasLoot.Data.ItemSet`), read while it's installed. The sets
+  are those of the items in its loot list; a set's name is the game's, its pieces' slots the game's words, where a
+  piece comes from its loot rows' boss and place, its bonuses AtlasLoot's lines. Worked out once per AtlasLoot index
+  (read ahead while idle); a piece's name is asked for when shown.
+- Enter opens AtlasLoot on the page that lists the set, points at it and shows its items, as a click on it does;
+  Shift+Enter lists its pieces in Terminal. Where each set is listed is noted with AtlasLoot's index (built again once).
+- Whose a set is: AtlasLoot's own set icon for its raid and PvP sets; the dungeon sets, which its data marks with no
+  class, by the column AtlasLoot's set pages lay each class in (learned from the pages whose every set it marks, given
+  only on pages that fill exactly those columns: the 18 dungeon sets, as its data file's notes say). "my class sets",
+  `class:` and "pieces of <set>" work as with OneForAll, whose list still comes first.
 
-## 1.4.15 (in testing)
+**`.integrations`**
+- Lists only the addons Terminal found (one installed that failed to start still says so, with why; none: "none").
+- The enchants, the Library Books and the item sets get a line each, saying how many and from which addon
+  ("Enchants: 312 (`@enchant`): 290 from AtlasLoot, 22 more from OneForAll"); OneForAll's line keeps its factions'
+  rewards.
 
-- **`@book` from QuestieDB, never given up on too soon** (the release review): when QuestieDB's quests couldn't be
-  read yet at the moment Terminal looked, `@book` was gone for the session. It's asked again every 2 s (up to a
-  minute), and meanwhile reaching for `@book` isn't told to install OneForAll.
-- **The right addon named**: OneForAll's parts shared one name in the install hints, so only the last (boats and
-  zeppelins) counted, and `> pieces` with no item sets said "Install OneForAll" instead of "OneForAll or AtlasLoot".
-  Each part has a name of its own now.
+**Other changes**
+- Legacy rewards: Innkeeper Wiley is found by QuestieDB's untranslated name on a client in another language (QuestieDB
+  translates names there), so Enter on a reward has its waypoint.
+- Close spellings of a long word in under half the time: a word is measured only when enough of the typed letters are
+  in it (20,000 names: 150-180 ms became 55-70 ms, the same words found).
+- Read ahead while idle, a slice a frame: a hunter's pet foods and the loot's tokens and item sets, also when a search
+  built their list first; asked for before that's done, the rest is read at once.
+- The install hints name the right addon: "OneForAll or Questie" for `@book`, "OneForAll or AtlasLoot" for
+  `@itemset` and `> pieces` (OneForAll's parts shared one name, so only the last counted).
+- Wording: a book with no spot says "show in chat"; rewards say "Lv N"; a malformed OneForAll books or sets table
+  says the other addon's are used instead.
+- Under the hood: one shared helper each for spell and item names, your class and the chat-box pair; the four largest
+  files split (`Providers/MailRows.lua`, `Search/Steps/ChainLearn.lua` and `ChainRun.lua`,
+  `Search/Questions/QuestUpgrades.lua` and `QuestFacts.lua`, `UI/BarMenu.lua`).
+- `tests/gen_data.py --check` passes again: the cooking fires' marker line had been merged into a comment.
 
-## 1.4.14 (in testing)
-
-- **AtlasLoot's item sets worked out once per index** (the release review): they were keyed on the `@loot` list, a new
-  table every time item names come in (every 2 s for a while after login), so the next search read every loot row
-  again and made every set again inside a keystroke. They're now worked out once per AtlasLoot index
-  (`I.LootRowsRaw`: its own rows, the same table while the index stands), each piece's sources from those rows, and a
-  piece's name and quality are asked for when it's shown: one the server hadn't sent yet is named once it comes,
-  instead of staying "item 12345" for the session.
-
-## 1.4.13 (in testing)
-
-- **Dungeon sets' classes, for real** (the release review): AtlasLoot gives a set page's own table again for every
-  difficulty the page hasn't got, so reading its index met each set row three or four times. Every page then showed
-  each class more than once, no class column was learned, and 1.4.11's dungeon sets still said "any class" in game
-  (its test had given the rows by hand). Each row is now noted once (`I._.NoteSet`), older saved indexes included,
-  and the class columns count a repeated row once.
-
-## 1.4.12 (in testing)
-
-- **`.integrations` lists only what's there** (the player: "If an integration is not found ... just don't list it"):
-  an addon that isn't installed has no line any more; one that is installed but failed to start still says so, with
-  why. With none at all: "none".
-- **All 40 Library Books without OneForAll** (the player's `.integrations` said 32 from QuestieDB): QuestieDB's WoW
-  Forever corrections move every Library quest from the Special sort to your capital, so the eight a mage trainer takes
-  weren't told apart in game (the base data checked in 1.4.7 has the Special sort). The sort is now read from
-  QuestieDB's base data (`Quest.GetRaw`, as NPC titles already were).
-
-## 1.4.11 (in testing)
-
-- **Dungeon sets name their class** (the player's screenshot of "my class sets" on 1.4.10: every dungeon set said
-  "any class", so the list held every class's): AtlasLoot's data marks a class only on its raid tier sets; the dungeon
-  sets' pieces carry no class. Its set pages lay every class's sets in the same nine columns, so each column's class is
-  learned from the pages whose every set AtlasLoot does mark (tier, Zul'Gurub, Ahn'Qiraj, PvP), and a set takes its
-  column's class only on a page whose sets fill exactly those columns (the Dungeon Sets pages). A dungeon's own page
-  of one or two sets is never read that way, and a column two classes share, or a page with a column nothing tells,
-  gives nothing: "any class" then, as before. Against AtlasLoot's own data: the 18 dungeon sets get the classes its
-  data file's notes give them, and no other set is touched.
-  Every set page row is now kept with its position (AtlasLoot's index is built again once).
-
-## 1.4.10 (in testing)
-
-- **Enter on AtlasLoot's item sets opens AtlasLoot on them** (the player's screenshot of 1.4.9: Enter listed the
-  pieces in Terminal, not the set in AtlasLoot): its set pages (the tier sets, a dungeon's own) were skipped when
-  its index was read, since they hold set numbers, not items. Where each set is listed is now noted with the index
-  and saved with it; Enter opens the window there, points at the set and shows its items as a click on it does.
-  Shift+Enter lists its pieces in Terminal; a set listed on no page still lists them on Enter. The footer and the
-  tooltip say which. AtlasLoot's index is built again once.
-- **Class sets said "any class"**: AtlasLoot's requirements table answers nothing on WoW Forever. The class is now read
-  from AtlasLoot's own set icon (it gives a class's icon for a set of one class), so "Battlegear of Valor" says
-  Paladin and `class:` / "my class sets" pick it.
-
-## 1.4.9 (in testing)
-
-- **`@itemset` without OneForAll** (the player's pick from a survey of unused data): AtlasLoot's public set data
-  (`AtlasLoot.Data.ItemSet`, `Data.Requirements`), read while it's installed, never copied. AtlasLoot gives no list of
-  its sets, so they're the sets of the items in its loot list (every loot row looked at once, read ahead by the idle
-  warm-up). A set's name is the game's own; its pieces' slots the game's words; where a piece comes from is its loot
-  rows' boss and place; whose it is, the classes AtlasLoot lets wear its first piece; its bonuses AtlasLoot's lines
-  read back (asked for again when the game hadn't sent their texts).
-- "my class sets", "pieces of <set>", `<set> > pieces`, `class:`, the pieces you have and Enter work as with OneForAll.
-  OneForAll's list still comes first when it's installed (its groups, levels, "not in WoW Forever yet", sources of
-  pieces no boss drops); `.integrations` has an "Item sets:" line naming AtlasLoot otherwise.
-
-## 1.4.8 (in testing)
-
-- **"library book rewards" shows the rewards** (the player: "I can see the rows but how come I cannot see the reward
-  loot"): each tier was one line naming its items, with nothing to hover. Under a tier's line each item it gives is now
-  an item's own row: the item's tooltip, its quality colour, Enter and Shift+Enter as any item.
-- Without OneForAll the rewards come from QuestieDB: the Librarians' reward quests ("Friend of the Library", "Greater
-  Friend of the Library": a quest a Librarian gives that starts at no object), lowest level first, each with the items
-  Questie says it gives, "(claimed)" once turned in. How many books a reward takes isn't in QuestieDB (its level is
-  said); OneForAll's tiers say it. AtlasLoot has none of these items.
-
-## 1.4.7 (in testing)
-
-- **`@book` without OneForAll** (the player's ask): QuestieDB's own data has WoW Forever's Library Books, read while
-  it's installed, never copied: each book's quest (its name, in the client's language), the item, and the world object
-  it lies in with its spot on the map (a second zone's spot said as "Also found at"). No list of them is kept; a book
-  is told by its shape among QuestieDB's quests: started by a world object and by an NPC, that NPC titled "Librarian",
-  or the quest of the Special sort with the item it asks for lying in that object. Against QuestieDB_Forever's data
-  (November 2026): 40 quests, every one of OneForAll's 39 among them, no other quest.
-- "library books", "books i still need", "nearest library book", `is:todo` / `is:done` and Enter's waypoint work as with
-  OneForAll; how far along you are is the game's own answer (the quest turned in, the book in your bags or bank).
-- OneForAll's list still comes first whenever it's installed: it adds a note on each spot, the sets, the reward tiers
-  and books you marked done. Without it "library book rewards" says so, and `.integrations` has a "Library Books:"
-  line naming QuestieDB. Every quest is looked at once, a slice a frame, after Questie's own indexing.
-
-## 1.4.6 (in testing)
-
-- **Close spellings, faster:** when nothing matches a word of 8 letters or more, every word of about its length in
-  every name was measured letter pair by letter pair. A word is now measured only when enough of the typed letters
-  are in it at all (every mistake but two swapped keys leaves at most one typed letter the word hasn't got). Over
-  20,000 names of two or three words: 150-180 ms became 55-70 ms, the same words found (27,000 words measured
-  became 500-800); shorter words, already checked by their first letters, gain a little.
-
-## 1.4.5 (in testing)
-
-- **`.integrations` and `@enchant`:** OneForAll's line counted only OneForAll's enchants, though `@enchant` lists
-  AtlasLoot's first and works with either addon alone. They're now on a line of their own: "Enchants: 312
-  (`@enchant`): 290 from AtlasLoot, 22 more from OneForAll", or one addon's alone.
-
-## 1.4.4 (in testing)
-
-- **Read ahead, a slice a frame:** the first "what can my pet eat" / "nearest pet food vendor" looked at every Questie
-  item in one go, and the first "what does <token> give" or "where to get <item>" at every loot row. Both are now read
-  by the idle warm-up a few milliseconds a frame (`PF.Warm` after Questie's quests are in, a hunter's only; `TK.Warm`
-  after the loot list is built; `ns:AfterWarm(list, fn)` is the hook). Asked for before that's done, what's left is
-  read at once, as before.
-
-## 1.4.3 (in testing)
-
-- **Legacy rewards on a client in another language:** Innkeeper Wiley was looked up by his English name in QuestieDB's
-  names, which QuestieDB translates on a German, French, Spanish, Russian or Chinese client: he was never found, so
-  Enter on a reward had no waypoint. He's now found by QuestieDB's untranslated name (read once a session) and named
-  in the client's language.
-
-## 1.4.2 (in testing)
-
-Code clean-up, no change in behaviour:
-- One shared helper each for a spell's name (`ns.SpellName`), an item's name (`ns.ItemName`), your class
-  (`ns.ClassToken`), squeezing spaces (`ns.Squeeze`) and the two halves of a "link in chat" row (`ns.ChatBoxPair`).
-- The four largest files are split where their sections already divided them (pure moves; what a part reads of the
-  file it came from is handed over on the module's `_` table): `Providers/Mail.lua` + `MailRows.lua`;
-  `Search/Steps/Chains.lua` + `ChainLearn.lua` + `ChainRun.lua`; `Search/Questions/Rewards.lua` + `QuestUpgrades.lua` +
-  `QuestFacts.lua`; `UI/Bar.lua` + `BarMenu.lua`.
-
-New files: restart the game, not just `/reload`.
-
-## 1.4.1 (in testing)
-
-Code clean-up, no change in behaviour: one shared helper each for a spell's name (`ns.SpellName`), an item's name
-(`ns.ItemName`), your class (`ns.ClassToken`), squeezing spaces (`ns.Squeeze`) and the two halves of a "link in chat"
-row (`ns.ChatBoxPair`), replacing the copies that 20 files kept of their own.
+New files: restart the game, not just `/reload`. AtlasLoot's loot index is built again once.
 
 ## 1.4.0
 
