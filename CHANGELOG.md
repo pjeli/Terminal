@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.6 (in testing)
+
+- **Close spellings, faster:** when nothing matches a word of 8 letters or more, every word of about its length in
+  every name was measured letter pair by letter pair. A word is now measured only when enough of the typed letters
+  are in it at all (every mistake but two swapped keys leaves at most one typed letter the word hasn't got). Over
+  20,000 names of two or three words: 150-180 ms became 55-70 ms, the same words found (27,000 words measured
+  became 500-800); shorter words, already checked by their first letters, gain a little.
+
 ## 1.4.5 (in testing)
 
 - **`.integrations` and `@enchant`:** OneForAll's line counted only OneForAll's enchants, though `@enchant` lists

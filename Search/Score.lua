@@ -240,6 +240,33 @@ local function SquashOne(c)
 end
 local function Squash(s) return (s:gsub("[\192-\244][\128-\191]+", SquashOne)) end
 
+-- Could `tk` (n bytes) be within `edits` mistakes of bytes ws..wf of `word`? Every mistake but two keys swapped
+-- leaves at most one typed letter the word hasn't got (a wrong key, a key too many: one; a key missed: none), so more
+-- typed letters than that missing from the word's own (counted, a letter twice needing it twice) can't be that close.
+-- A look at each letter once, against Fuzzy.typo's table of every pair: most words of the right length go here
+-- (1.4.6: a word of 8 letters or more had no such look before it, only the short ones' first letters).
+local bag = {} -- (how many of each byte the word has: filled, used and emptied per word, never made anew)
+local bagCheck = true
+local function BagNear(tk, n, word, ws, wf, edits)
+	for k = ws, wf do
+		local b = byte(word, k)
+		bag[b] = (bag[b] or 0) + 1
+	end
+	local missing = 0
+	for i = 1, n do
+		local b = byte(tk, i)
+		local c = bag[b]
+		if c and c > 0 then
+			bag[b] = c - 1
+		else
+			missing = missing + 1
+			if missing > edits then break end
+		end
+	end
+	for k = ws, wf do bag[byte(word, k)] = nil end
+	return missing <= edits
+end
+
 --- The name's word closest to tk within `limit` (Fuzzy.typo's costs): the distance and the word's first and last byte,
 --- or nil. Words are runs of letters, digits and apostrophes.
 local function NearWord(tk, lname, limit)
@@ -264,6 +291,7 @@ local function NearWord(tk, lname, limit)
 			local t1, t2, w1, w2 = byte(tk, 1), byte(tk, 2), byte(word, ws), byte(word, ws + 1)
 			maybe = t1 == w1 or t2 == w2 or t2 == w1 or t1 == w2
 		end
+		if maybe and bagCheck then maybe = BagNear(tk, n, word, ws, wf, lengths) end
 		if maybe then
 			local d = Fuzzy.typo(tk, word, ws, wf, bestD and bestD - 1 or limit)
 			if d then
@@ -391,6 +419,8 @@ ns.Score = {
 	FreqBonus = FreqBonus, ScoreEntry = ScoreEntry, TokenScore = TokenScore, RowText = RowText,
 	NearLimit = NearLimit, NearWord = NearWord, Positions = Positions, Better = Better, KeyLess = KeyLess,
 	SortAndTrim = SortAndTrim,
+	-- (tests and timings: NearWord without its letters-in-common look, to compare)
+	BagCheck = function(on) bagCheck = on ~= false end,
 }
 -- for the window (UI.lua): the matched letters of a row on screen, the sorting
 UI.Positions, UI.SortAndTrim = Positions, SortAndTrim

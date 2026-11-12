@@ -628,3 +628,45 @@ do
 	local res = UI:Search("sqrt(2)")
 	check(res[1] and res[1].kind == "calc" and res[1].name == "= 1.414214", "sqrt(2) in the prompt: the answer on top")
 end
+
+do -- (1.4.6) close spellings: a word of the right length is measured letter pair by letter pair only when enough of the
+	-- typed letters are in it at all (a word of 8 letters or more had every such word measured: the slow part)
+	local S = ns.Score
+	local typo, calls = Fuzzy.typo, 0
+	Fuzzy.typo = function(...) calls = calls + 1 return typo(...) end
+	local names = { "thorium belt", "moonblade guardian", "stoneguard captain", "windmaster elder", "shadow priest trainer", "fireball",
+		"zul'gurub", "darnassus sentinel", "ironforge mountaineer", "stormwind harbor", "thunder bluff", "undercity apothecary",
+		"\208\187\209\140\208\189\209\143\208\189\208\176\209\143 \209\130\208\186\208\176\208\189\209\140", "\208\186\208\190\208\182\208\176" }
+	-- two keys swapped, a key twice, a key missed, a wrong key, two mistakes, and words nothing is close to
+	local typed = { "thoruim", "thoriumm", "thorim", "thprium", "moonbalde", "mooonblade", "moonblaed", "moonblsde", "stonegaurd", "stoneguadr",
+		"stnoeguard", "windmastre", "wndmaster", "windmasterr", "shaodw", "shadwo", "firebal", "fierball", "gurubb", "darnasus", "sentinle",
+		"ironforeg", "mountainer", "muontaineer", "stromwind", "harbro", "thundre", "apothecray", "undercitty",
+		"\208\187\209\140\208\189\209\143\208\176\208\189\209\143", "zzqqxxyy", "abcdefgh", "dnuorgrednu" }
+	local function All(on)
+		S.BagCheck(on)
+		calls = 0
+		local out, found = {}, 0
+		for _, tk in ipairs(typed) do
+			local limit = S.NearLimit(#tk, tk)
+			for _, n in ipairs(names) do
+				local d, f, t
+				if limit then d, f, t = S.NearWord(tk, n, limit) end
+				if d then found = found + 1 end
+				out[#out + 1] = tostring(d) .. ":" .. tostring(f) .. ":" .. tostring(t)
+			end
+		end
+		return table.concat(out, " "), calls, found
+	end
+	local plain, plainCalls, plainFound = All(false)
+	local quick, quickCalls, quickFound = All(true)
+	check(plain == quick and quickFound == plainFound, "the same words found, as far off, with the look at the letters in common as without: "
+		.. quickFound .. " / " .. plainFound)
+	check(quickFound >= 25, "(most of the misspellings are found: " .. quickFound .. ")")
+	check(quickCalls * 2 < plainCalls, "and under half as many words measured letter pair by letter pair: " .. quickCalls .. " of " .. plainCalls)
+	S.BagCheck(true)
+	calls = 0
+	check(S.NearWord("moonbalde", "moonblade guardian", 5) ~= nil and calls == 1, "two keys swapped: every letter is in the word, so it's measured (and \"guardian\" isn't): " .. calls)
+	calls = 0
+	check(S.NearWord("zzqqxxyy", "moonblade guardian stoneguard", 5) == nil and calls == 0, "none of the typed letters in a word: not measured at all: " .. calls)
+	Fuzzy.typo = typo
+end
