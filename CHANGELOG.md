@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.14 (in testing)
+
+- **AtlasLoot's item sets worked out once per index** (the release review): they were keyed on the `@loot` list, a new
+  table every time item names come in (every 2 s for a while after login), so the next search read every loot row
+  again and made every set again inside a keystroke. They're now worked out once per AtlasLoot index
+  (`I.LootRowsRaw`: its own rows, the same table while the index stands), each piece's sources from those rows, and a
+  piece's name and quality are asked for when it's shown: one the server hadn't sent yet is named once it comes,
+  instead of staying "item 12345" for the session.
+
 ## 1.4.13 (in testing)
 
 - **Dungeon sets' classes, for real** (the release review): AtlasLoot gives a set page's own table again for every

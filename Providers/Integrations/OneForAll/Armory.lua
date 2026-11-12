@@ -236,16 +236,15 @@ end
 A.GRID_MIN = 8 -- (columns told apart: fewer, and no page is taken for a class grid)
 
 -- one set as OneForAll's are shaped, or nil (no items, or the game doesn't know a set by that number here)
-local function AtlasSet(IS, Req, setID, order, grid)
+local function AtlasSet(IS, Req, setID, order, grid, byItem)
 	local items = Safe(IS.GetSetItems, setID)
 	local name = ns.Str(Safe(IS.GetSetName, setID))
 	if type(items) ~= "table" or #items == 0 or not name or name == rawget(_G, "UNKNOWN") then return nil end
-	local P = ns.Pipes
 	local inst = (C_Item and C_Item.GetItemInfoInstant) or rawget(_G, "GetItemInfoInstant")
 	local pieces, places, armor = {}, {}, nil
 	for _, iid in ipairs(items) do
 		if type(iid) == "number" then
-			local rows = P and P.LootRowsOf and P.LootRowsOf(iid) or {}
+			local rows = byItem[iid] or {}
 			local src, seen = {}, {}
 			for _, r in ipairs(rows) do
 				local d = ns.Str(r.detail)
@@ -259,9 +258,9 @@ local function AtlasSet(IS, Req, setID, order, grid)
 			local _, _, sub, loc, icon, class, subClass = Safe(inst, iid)
 			-- (cloth, leather, mail, plate: the armour's kind as the game names it)
 			if not armor and class == 4 and type(subClass) == "number" and subClass >= 1 and subClass <= 4 then armor = ns.Str(sub) end
-			pieces[#pieces + 1] = { id = iid, name = (rows[1] and ns.Str(rows[1].name)) or ns.ItemName(iid),
-				slot = type(loc) == "string" and ns.Str(rawget(_G, loc)) or nil, chest = loc == "INVTYPE_CHEST" or loc == "INVTYPE_ROBE",
-				quality = ns.ItemQuality(iid), icon = icon, sources = src }
+			-- (its name and quality: asked for when shown, A.PieceName; the server sends them a while after login)
+			pieces[#pieces + 1] = { id = iid, slot = type(loc) == "string" and ns.Str(rawget(_G, loc)) or nil,
+				chest = loc == "INVTYPE_CHEST" or loc == "INVTYPE_ROBE", icon = icon, sources = src, row = rows[1] }
 		end
 	end
 	if #pieces == 0 then return nil end
@@ -288,57 +287,78 @@ local function AtlasSet(IS, Req, setID, order, grid)
 		armor = armor, bonuses = A.AtlasBonuses(setID), pieces = pieces }
 end
 
-local atlas -- { list (the loot list it's of), at (the next loot row to look at), seen, have, ids (sets, as met), sets }
+-- (worked out once per AtlasLoot index, I.LootRowsRaw: 1.4.14, the release review. They were keyed on the @loot
+-- list, a new table every time item names come in, every 2 s for a while after login: the whole loot read again, and
+-- every set made again, inside a keystroke)
+local atlas -- { list (the loot rows it's of), n (how many then), at (the next row to look at), seen, have, ids (sets, as
+-- met), byItem (item -> its rows), sets }
 local DONE = math.huge
-local function AtlasFresh(list) return { list = list, at = AtlasApi() and 1 or DONE, seen = {}, have = {}, ids = {} } end
+-- the rows to read: the index's own (the same table while it stands), else @loot's (no index: tests, another loot list)
+local function AtlasRows()
+	local raw = I.LootRowsRaw and I.LootRowsRaw()
+	if raw then return raw end
+	local p = ns.providers.loot
+	return p and ns:GetEntries(p) or {}
+end
+local function AtlasFresh(list)
+	return { list = list, n = #list, at = AtlasApi() and 1 or DONE, seen = {}, have = {}, ids = {}, byItem = {} }
+end
 local function AtlasOne(x, i, IS)
 	local l = x.list[i]
 	local id = l and l.itemID
-	if type(id) == "number" and not x.seen[id] then
+	if type(id) ~= "number" then return end
+	local t = x.byItem[id]
+	if not t then t = {}; x.byItem[id] = t end
+	t[#t + 1] = l
+	if not x.seen[id] then
 		x.seen[id] = true
 		local set = Num(Safe(IS.GetSetIDforItemID, id))
 		if set and not x.have[set] then x.have[set] = true; x.ids[#x.ids + 1] = set end
 	end
 end
+local function Current(x, list) return x and x.list == list and x.n == #list end
 --- AtlasLoot's item sets, in the order its loot list meets them; nil when it has none (not installed, no set data, its
 --- loot not read yet).
 function A.AtlasSets()
 	local IS, Req = AtlasApi()
 	if not IS then return nil end
-	local p = ns.providers.loot
-	local list = p and ns:GetEntries(p) or {}
+	local list = AtlasRows()
 	local x = atlas
-	if not (x and x.list == list) then
+	if x and x.list == list and #list > x.n and x.at == DONE then
+		-- (the same index grown, a module read: only its new rows; the sets made again)
+		x.at, x.n, x.sets = x.n + 1, #list, nil
+	elseif not Current(x, list) then
 		x = AtlasFresh(list)
 		atlas = x
 	end
 	if x.at ~= DONE then
 		for i = x.at, #list do AtlasOne(x, i, IS) end
-		x.at, x.seen = DONE, nil
+		x.at = DONE
 	end
 	if not x.sets then
 		local out = {}
 		local grid = A.ClassGrid(IS)
 		for _, id in ipairs(x.ids) do
-			local s = AtlasSet(IS, Req, id, #out + 1, grid)
+			local s = AtlasSet(IS, Req, id, #out + 1, grid, x.byItem)
 			if s then out[#out + 1] = s end
 		end
 		x.sets = out
 	end
 	return #x.sets > 0 and x.sets or nil
 end
---- The read-ahead: the loot list's rows a slice a frame (Core's warm-up runs it once the loot list is built), only
---- when the sets would be AtlasLoot's.
-function A.WarmAtlasSets(list)
+--- The read-ahead: AtlasLoot's index a slice a frame (Core's warm-up runs it once the loot list is built), only when
+--- the sets would be AtlasLoot's.
+function A.WarmAtlasSets()
 	local IS = AtlasApi()
-	if type(list) ~= "table" or not IS or not I.RunSliced or (OA.Loaded() and A.OFASets()) then return end
-	if atlas and atlas.list == list then return end
+	if not IS or not I.RunSliced or (OA.Loaded() and A.OFASets()) then return end
+	local list = AtlasRows()
+	if Current(atlas, list) then return end
 	local x = AtlasFresh(list)
 	atlas = x
 	I.RunSliced("item sets: among the loot", #list, function(i)
 		if atlas == x and x.at ~= DONE and i >= x.at then AtlasOne(x, i, IS); x.at = i + 1 end
 	end, function()
-		if atlas == x and x.at ~= DONE then x.at, x.seen = DONE, nil end
+		if atlas == x and x.at ~= DONE then x.at = DONE end
 	end)
 end
 ns:AfterWarm("loot", A.WarmAtlasSets)
@@ -352,6 +372,15 @@ function A.Sets()
 	if al then return al, "AtlasLoot" end
 	return nil
 end
+
+--- A piece's name: its own (OneForAll's), else the game's once it's come (AtlasLoot's index, the client); kept then.
+function A.PieceName(p)
+	if p.name then return p.name end
+	local n = (p.row and ns.Str(p.row.name)) or (I.LootName and I.LootName(p.id)) or ns.ItemName(p.id)
+	if n then p.name = n end
+	return n
+end
+local PieceName = A.PieceName
 
 local function ItemCount(id)
 	local f = (C_Item and C_Item.GetItemCount) or _G.GetItemCount
@@ -512,7 +541,7 @@ local function SetTooltip(e, t)
 	t:AddLine(L["%d of %d pieces"]:format(e.owned, e.total), e.owned > 0 and 0.4 or 0.8, 1, e.owned > 0 and 0.4 or 0.8)
 	for _, p in ipairs(e.pieces) do
 		local have = A.Owned(p.id)
-		t:AddLine((have and "|cff66ff66+|r " or "|cff808080-|r ") .. (p.name or L["item %s"]:format(p.id)) .. (p.slot and (" (" .. p.slot .. ")") or ""),
+		t:AddLine((have and "|cff66ff66+|r " or "|cff808080-|r ") .. (PieceName(p) or L["item %s"]:format(p.id)) .. (p.slot and (" (" .. p.slot .. ")") or ""),
 			1, 1, 1)
 	end
 	-- (AtlasLoot's bonuses are worded by the game: not sent yet when the list was made, asked for again now)
@@ -534,7 +563,7 @@ end
 function A.PiecesText(s)
 	local t = {}
 	for _, p in ipairs(s.pieces) do
-		t[#t + 1] = p.name or ""
+		t[#t + 1] = PieceName(p) or ""
 		for _, x in ipairs(p.sources) do t[#t + 1] = x end
 	end
 	return table.concat(t, " ")
@@ -590,10 +619,10 @@ function A.PieceRows(setID)
 		if s.id == setID then
 			for i, p in ipairs(s.pieces) do
 				local have = A.Owned(p.id)
-				local name = p.name or L["item %s"]:format(p.id)
+				local name = PieceName(p) or L["item %s"]:format(p.id)
 				out[#out + 1] = {
 					key = s.id .. ":" .. p.id, kind = "itemset", setPiece = true, name = name, _lname = Lower(name), itemID = p.id, icon = Icon(p.icon),
-					quality = p.quality, slot = p.slot, set = s.name, sources = p.sources, have = have, isDone = have ~= nil,
+					quality = p.quality or ns.ItemQuality(p.id), slot = p.slot, set = s.name, sources = p.sources, have = have, isDone = have ~= nil,
 					classFiles = s.classes, anyClass = s.classes == nil, order = s.order * 100 + i, tooltip = PieceTooltip, generic = false,
 					source = source,
 					detail = s.name .. (p.slot and (SEP .. p.slot) or "") .. (p.sources[1] and (SEP .. p.sources[1]) or "")

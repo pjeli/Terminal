@@ -364,6 +364,9 @@ function I._.ReadSetPlaces(text)
 end
 --- Where AtlasLoot lists this item set, or nil (no set page of it in the modules read).
 function I.LootSetPlace(id) return loot.sets[id] end
+--- AtlasLoot's loot rows as indexed (the same table while its index stands: names coming in don't make a new one, as
+--- the loot list's own rebuilds do), or nil while AtlasLoot isn't on. (@itemset's sets are worked out once per it.)
+function I.LootRowsRaw() return loot.on and loot.rows or nil end
 --- Every set page row read, in order: { { id, addon, content, boss, diff, pos, page } }.
 function I.LootSetRows() return loot.setRows end
 function I._.ForgetSets()

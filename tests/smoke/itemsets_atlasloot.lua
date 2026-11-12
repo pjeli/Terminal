@@ -20,10 +20,11 @@ do
 		count = _G.GetItemCount, eq = _G.IsEquippedItem, citem = C_Item and C_Item.GetItemCount, ceq = C_Item and C_Item.IsEquippedItem,
 		inst = C_Item and C_Item.GetItemInfoInstant, name = C_Item and C_Item.GetItemNameByID, unknown = rawget(_G, "UNKNOWN"),
 		head = rawget(_G, "INVTYPE_HEAD"), chest = rawget(_G, "INVTYPE_CHEST"), waist = rawget(_G, "INVTYPE_WAIST"),
-		clock = _G.debugprofilestop, walk = UI.WalkTo, bg = ns.background, setRows = I.LootSetRows }
+		clock = _G.debugprofilestop, walk = UI.WalkTo, bg = ns.background, setRows = I.LootSetRows, rawRows = I.LootRowsRaw }
 	local ok, err = pcall(function()
 		_G.OneForAll = nil
 		OA.Loaded = function() return type(rawget(_G, "OneForAll")) == "table" end
+		I.LootRowsRaw = function() return nil end -- (no AtlasLoot index here: @loot's list, the stand-in below)
 		_G.UnitClass = function() return "Warrior", "WARRIOR" end
 		_G.UnitFactionGroup = function() return "Alliance" end
 		_G.UNKNOWN, _G.INVTYPE_HEAD, _G.INVTYPE_CHEST, _G.INVTYPE_WAIST = "Unknown", "Head", "Chest", "Waist"
@@ -248,6 +249,33 @@ do
 		local hooked = false
 		for _, fn in ipairs(ns.afterWarm.loot or {}) do if fn == A.WarmAtlasSets then hooked = true end end
 		check(hooked, "it runs after the warm-up builds the loot list")
+		-- (1.4.14, the release review) worked out once per AtlasLoot index: the @loot list made again as names come in
+		-- (a new table every time) doesn't read the loot again or make the sets again
+		local RAW = ns:GetEntries(ns.providers.loot)
+		I.LootRowsRaw = function() return RAW end
+		A.ForgetAtlasSets(); asked = 0
+		local first = A.AtlasSets()
+		check(asked == 8 and first and #first == 4, "from the index's own rows: " .. asked)
+		ns.providers.loot._dirty = true
+		local again = ns:GetEntries(ns.providers.loot)
+		check(again ~= RAW and A.AtlasSets() == first and asked == 8, "@loot made again (names in): nothing read again, the same sets: " .. asked)
+		RAW[#RAW + 1] = { name = "New Thing", itemID = 4002, detail = "Garr  Molten Core" }
+		check(A.AtlasSets() ~= first and asked == 9, "the index grown (a module read): only its new row read: " .. asked)
+		table.remove(RAW)
+		-- a piece's name asked for when shown: one the server hadn't sent when the sets were made, named once it's come
+		local belt
+		for _, p in ipairs(A.PieceRows(209)) do if p.itemID == 16864 then belt = p end end
+		local nameWas = C_Item.GetItemNameByID
+		C_Item.GetItemNameByID = function() return nil end
+		A.ForgetAtlasSets()
+		local unnamed
+		for _, p in ipairs(A.PieceRows(209)) do if p.itemID == 16864 then unnamed = p end end
+		check(belt and belt.name == "Belt of Might" and unnamed and unnamed.name == L["item %s"]:format(16864), "a piece not named yet: its number for now")
+		C_Item.GetItemNameByID = nameWas
+		local named
+		for _, p in ipairs(A.PieceRows(209)) do if p.itemID == 16864 then named = p end end
+		check(named and named.name == "Belt of Might", "named once the game has it, the sets not made again: " .. tostring(named and named.name))
+		I.LootRowsRaw = function() return nil end
 		_G.debugprofilestop = save.clock
 
 		-- OneForAll's sets come first, and AtlasLoot isn't asked for them
@@ -317,7 +345,7 @@ do
 	_G.UnitClass, _G.UnitFactionGroup, _G.GetItemCount, _G.IsEquippedItem = save.class, save.side, save.count, save.eq
 	C_Item.GetItemCount, C_Item.IsEquippedItem, C_Item.GetItemInfoInstant, C_Item.GetItemNameByID = save.citem, save.ceq, save.inst, save.name
 	_G.UNKNOWN, _G.INVTYPE_HEAD, _G.INVTYPE_CHEST, _G.INVTYPE_WAIST = save.unknown, save.head, save.chest, save.waist
-	_G.debugprofilestop, I.LootSetRows = save.clock, save.setRows
+	_G.debugprofilestop, I.LootSetRows, I.LootRowsRaw = save.clock, save.setRows, save.rawRows
 	I.failed, OA.on = save.failed, save.on
 	OA.Forget(); A.ForgetAtlasSets()
 	if ns.Pipes and ns.Pipes.ClearSteps then ns.Pipes.ClearSteps() end
