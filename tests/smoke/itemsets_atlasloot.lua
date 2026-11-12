@@ -20,7 +20,7 @@ do
 		count = _G.GetItemCount, eq = _G.IsEquippedItem, citem = C_Item and C_Item.GetItemCount, ceq = C_Item and C_Item.IsEquippedItem,
 		inst = C_Item and C_Item.GetItemInfoInstant, name = C_Item and C_Item.GetItemNameByID, unknown = rawget(_G, "UNKNOWN"),
 		head = rawget(_G, "INVTYPE_HEAD"), chest = rawget(_G, "INVTYPE_CHEST"), waist = rawget(_G, "INVTYPE_WAIST"),
-		clock = _G.debugprofilestop, walk = UI.WalkTo, bg = ns.background }
+		clock = _G.debugprofilestop, walk = UI.WalkTo, bg = ns.background, setRows = I.LootSetRows }
 	local ok, err = pcall(function()
 		_G.OneForAll = nil
 		OA.Loaded = function() return type(rawget(_G, "OneForAll")) == "table" end
@@ -34,6 +34,7 @@ do
 		_G.GetItemCount, _G.IsEquippedItem = Count, Worn
 		C_Item.GetItemCount, C_Item.IsEquippedItem = Count, Worn
 		local INFO = { [16866] = { "Plate", "INVTYPE_HEAD", 101, 4, 4 }, [16865] = { "Plate", "INVTYPE_CHEST", 102, 4, 4 },
+			[16707] = { "Leather", "INVTYPE_HEAD", 401, 4, 2 },
 			[16864] = { "Plate", "INVTYPE_WAIST", 103, 4, 4 }, [16813] = { "Cloth", "INVTYPE_HEAD", 201, 4, 1 },
 			[16815] = { "Cloth", "INVTYPE_ROBE", 202, 4, 1 }, [12940] = { "One-Handed Swords", "INVTYPE_WEAPON", 301, 2, 7 } }
 		C_Item.GetItemInfoInstant = function(id)
@@ -43,9 +44,29 @@ do
 		C_Item.GetItemNameByID = function(id) return id == 16864 and "Belt of Might" or nil end
 		-- AtlasLoot's set data: Might (a warrior's), Prophecy (a priest's), Dal'Rend's Arms (anyone's), and a set number the
 		-- game doesn't know here
-		local SETS = { [209] = { 16866, 16865, 16864 }, [210] = { 16813, 16815 }, [41] = { 12940 }, [999] = { 5555 } }
-		local OF = { [16866] = 209, [16865] = 209, [16813] = 210, [16815] = 210, [12940] = 41, [5555] = 999 }
-		local NAME = { [209] = "Battlegear of Might", [210] = "Vestments of Prophecy", [41] = "Dal'Rend's Arms" }
+		local SETS = { [209] = { 16866, 16865, 16864 }, [210] = { 16813, 16815 }, [41] = { 12940 }, [999] = { 5555 }, [184] = { 16707 } }
+		local OF = { [16866] = 209, [16865] = 209, [16813] = 210, [16815] = 210, [12940] = 41, [5555] = 999, [16707] = 184 }
+		local NAME = { [209] = "Battlegear of Might", [210] = "Vestments of Prophecy", [41] = "Dal'Rend's Arms", [184] = "Shadowcraft Armor" }
+		-- (1.4.11) AtlasLoot's set pages: the tier sets, each class in its column (900-908: marked with their class by
+		-- AtlasLoot's data, so its icon is their class's); the dungeon sets laid in the same nine columns, marked with none
+		-- (Shadowcraft, 184, in the Rogue's); a dungeon's own page with one set (Dal'Rend's Arms in the Warlock's place)
+		local COLUMNS = { { 1, "warlock" }, { 3, "priest" }, { 16, "mage" }, { 5, "rogue" }, { 20, "druid" }, { 7, "hunter" },
+			{ 9, "warrior" }, { 22, "shaman" }, { 24, "paladin" } }
+		local SET_ROWS, TIER_CLASS = {}, {}
+		for i, c in ipairs(COLUMNS) do
+			TIER_CLASS[899 + i] = c[2]
+			SET_ROWS[#SET_ROWS + 1] = { id = 899 + i, addon = "C", content = "TierSets", boss = 1, diff = 1, pos = c[1], page = 0 }
+		end
+		for i, c in ipairs(COLUMNS) do
+			SET_ROWS[#SET_ROWS + 1] = { id = c[2] == "rogue" and 184 or (799 + i), addon = "C", content = "DungeonSets", boss = 1, diff = 1, pos = c[1], page = 0 }
+		end
+		SET_ROWS[#SET_ROWS + 1] = { id = 41, addon = "D", content = "UBRS", boss = 9, diff = 1, pos = 1, page = 0 }
+		-- (a Misc Sets page, as AtlasLoot's: unmarked sets, and a Rogue's at the Mage's place: it teaches no column)
+		TIER_CLASS[950] = "rogue"
+		for i, p in ipairs({ 1, 2, 3, 16 }) do
+			SET_ROWS[#SET_ROWS + 1] = { id = p == 16 and 950 or (949 - i), addon = "C", content = "MiscSets", boss = 2, diff = 1, pos = p, page = 0 }
+		end
+		I.LootSetRows = function() return SET_ROWS end
 		local asked, bonusIn = 0, false
 		_G.AtlasLoot = { Data = {
 			ItemSet = {
@@ -56,6 +77,7 @@ do
 				GetSetIcon = function(set, classIcon)
 					if classIcon and set == 209 then return "Interface\\AddOns\\AtlasLootClassic\\Images\\Icons\\classicon_warrior" end
 					if classIcon and set == 210 then return "Interface\\AddOns\\AtlasLootClassic\\Images\\Icons\\classicon_priest" end
+					if classIcon and TIER_CLASS[set] then return "Interface\\AddOns\\AtlasLootClassic\\Images\\Icons\\classicon_" .. TIER_CLASS[set] end
 					return 134400
 				end,
 				GetSetBonusString = function(set)
@@ -79,6 +101,7 @@ do
 			{ name = "Helm of Might", itemID = 16866, detail = "Trash  Molten Core" }, -- (twice in its lists: once a set)
 			{ name = "Dal'Rend's Sacred Charge", itemID = 12940, detail = "Warchief Rend Blackhand  Upper Blackrock Spire" },
 			{ name = "Odd Thing", itemID = 5555, detail = "Nobody  Nowhere" },
+			{ name = "Shadowcraft Cap", itemID = 16707, detail = "Darkmaster Gandling  Scholomance" },
 		}
 		local function Lists()
 			ns.providers, ns.providerOrder = {}, {}
@@ -105,7 +128,7 @@ do
 		local p = ns.providers.itemset
 		check(p ~= nil and ns:ResolveProvider("itemsets") == p and p.follows == "loot", "without OneForAll: @itemset from AtlasLoot, made again with its loot list")
 		local rows = p and ns:GetEntries(p) or {}
-		check(Names(rows) == "Battlegear of Might | Vestments of Prophecy | Dal'Rend's Arms",
+		check(Names(rows) == "Battlegear of Might | Vestments of Prophecy | Dal'Rend's Arms | Shadowcraft Armor",
 			"the sets of its loot's items, as its lists meet them, each once; a set the game doesn't know left out: " .. Names(rows))
 		local by = {}
 		for _, e in ipairs(rows) do by[e.name] = e end
@@ -121,6 +144,23 @@ do
 		check(rend and rend.anyClass == true and rend.classFiles == nil and rend.armor == nil and rend.sub == "Upper Blackrock Spire",
 			"a set anyone may wear (no requirement): any class; a weapon set has no armour: " .. tostring(rend and rend.detail))
 		check(rend and rend.detail == ns.Detail("Upper Blackrock Spire", L["%d of %d pieces"]:format(0, 1), L["any class"]), "(no empty part in its line): " .. tostring(rend and rend.detail))
+		-- (1.4.11, the player's screenshot of "my class sets": every dungeon set said "any class") a set AtlasLoot's data
+		-- marks with no class takes its column's on a page laid out in the class columns; not on a dungeon's own page
+		local shadow = by["Shadowcraft Armor"]
+		check(shadow and shadow.classFile == "ROGUE" and not shadow.anyClass, "a dungeon set: its column's class (the Rogue's): " .. tostring(shadow and shadow.classFile))
+		check(rend and rend.anyClass and rend.classFile == nil, "a set on a dungeon's own page: not taken for a column, any class still")
+		local grid = A.ClassGrid(_G.AtlasLoot.Data.ItemSet)
+		check(grid[184] == "ROGUE" and grid[800] == "WARLOCK" and grid[808] == "PALADIN" and grid[41] == nil, "the columns: learned from the tier sets")
+		check(grid[950] == nil and grid[948] == nil, "the Misc Sets page: no column learned from it, none given on it")
+		table.remove(SET_ROWS, 1) -- (the Warlock's tier set gone: eight columns told apart, the Dungeon Sets page has nine)
+		grid = A.ClassGrid(_G.AtlasLoot.Data.ItemSet)
+		check(grid[184] == nil and grid[800] == nil, "a page with a column no tier set tells: not taken for a grid, nothing guessed")
+		table.insert(SET_ROWS, 1, { id = 900, addon = "C", content = "TierSets", boss = 1, diff = 1, pos = 1, page = 0 })
+		SET_ROWS[#SET_ROWS + 1] = { id = 909, addon = "C", content = "TierSets", boss = 2, diff = 1, pos = 3, page = 0 }
+		TIER_CLASS[909] = "mage" -- (a second tier page with another class in the Priest's column: no column there)
+		grid = A.ClassGrid(_G.AtlasLoot.Data.ItemSet)
+		check(grid[184] == nil and grid[801] == nil, "two classes in one column: no grid either: " .. tostring(grid[184]))
+		SET_ROWS[#SET_ROWS], TIER_CLASS[909] = nil, nil
 
 		-- (1.4.10, the player: Enter "is not opening Atlasloot ... to show the actual itemset") Enter opens AtlasLoot on the
 		-- page that lists the set; Shift+Enter its pieces; a set listed on no page read: its pieces
@@ -173,14 +213,17 @@ do
 		-- searched and asked as OneForAll's are
 		local function Has(list, name) for _, e in ipairs(list) do if e.name == name then return true end end return false end
 		res = UI:Search("@itemset class:mine")
-		check(#res == 2 and Has(res, "Battlegear of Might") and Has(res, "Dal'Rend's Arms"), "@itemset class:mine: a warrior's and anyone's: " .. Names(res))
+		check(#res == 2 and Has(res, "Battlegear of Might") and Has(res, "Dal'Rend's Arms") and not Has(res, "Shadowcraft Armor"),
+			"@itemset class:mine: a warrior's and anyone's, not a rogue's dungeon set: " .. Names(res))
+		res = UI:Search("@itemset class:rogue")
+		check(#res == 2 and Has(res, "Shadowcraft Armor") and Has(res, "Dal'Rend's Arms"), "@itemset class:rogue: " .. Names(res))
 		res = UI:Search("@itemset class:priest")
 		check(#res == 2 and Has(res, "Vestments of Prophecy") and not Has(res, "Battlegear of Might"), "@itemset class:priest: " .. Names(res))
 		res = UI:Search("@itemset golemagg")
 		check(#res == 2, "@itemset golemagg: the sets with a piece of his: " .. Names(res))
 		check(A.Question("my class sets") ~= nil and A.Question("pieces of battlegear of might") ~= nil and A.Question("item sets") ~= nil, "the questions, as with OneForAll")
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(lines:find("  " .. L["Item sets:"] .. " " .. L["%d from AtlasLoot (@itemset)"]:format(3), 1, true), ".integrations says whose they are: " .. lines)
+		check(lines:find("  " .. L["Item sets:"] .. " " .. L["%d from AtlasLoot (@itemset)"]:format(4), 1, true), ".integrations says whose they are: " .. lines)
 
 		-- every loot row is looked at once; the idle warm-up reads them ahead a slice a frame
 		local was = asked
@@ -193,8 +236,8 @@ do
 		A.WarmAtlasSets(list)
 		check(asked == 1, "the warm-up's first slice: one loot row, the rest left for later frames: " .. asked)
 		FlushAll()
-		check(asked == 7, "later frames read the rest (seven items in eight rows): " .. asked)
-		check(#A.AtlasSets() == 3 and asked == 7, "asked then: all there, nothing read again: " .. asked)
+		check(asked == 8, "later frames read the rest (eight items in nine rows): " .. asked)
+		check(#A.AtlasSets() == 4 and asked == 8, "asked then: all there, nothing read again: " .. asked)
 		local hooked = false
 		for _, fn in ipairs(ns.afterWarm.loot or {}) do if fn == A.WarmAtlasSets then hooked = true end end
 		check(hooked, "it runs after the warm-up builds the loot list")
@@ -230,8 +273,8 @@ do
 			H.Show = function(_, b) pointed = b end
 			I._.ForgetSets()
 			check(I.OpenLootSet(209) == false, "a set no page lists: nothing opened")
-			I._.NoteSet(209, "AtlasLootClassic_Collections", "TierSets", 1, 1, 0)
-			I._.NoteSet(209, "AtlasLootClassic_DungeonsAndRaids", "Somewhere", 3, 1, 0) -- (the first page met is kept)
+			I._.NoteSet(209, "AtlasLootClassic_Collections", "TierSets", 1, 1, 9)
+			I._.NoteSet(209, "AtlasLootClassic_DungeonsAndRaids", "Somewhere", 3, 1, 1) -- (the first page met is kept)
 			check(I.OpenLootSet(209) == true, "a set a page lists: opened")
 			FlushAll()
 			check(table.concat(picked, ","):find("module=AtlasLootClassic_Collections,content=TierSets,boss=1", 1, true),
@@ -265,7 +308,7 @@ do
 	_G.UnitClass, _G.UnitFactionGroup, _G.GetItemCount, _G.IsEquippedItem = save.class, save.side, save.count, save.eq
 	C_Item.GetItemCount, C_Item.IsEquippedItem, C_Item.GetItemInfoInstant, C_Item.GetItemNameByID = save.citem, save.ceq, save.inst, save.name
 	_G.UNKNOWN, _G.INVTYPE_HEAD, _G.INVTYPE_CHEST, _G.INVTYPE_WAIST = save.unknown, save.head, save.chest, save.waist
-	_G.debugprofilestop = save.clock
+	_G.debugprofilestop, I.LootSetRows = save.clock, save.setRows
 	I.failed, OA.on = save.failed, save.on
 	OA.Forget(); A.ForgetAtlasSets()
 	if ns.Pipes and ns.Pipes.ClearSteps then ns.Pipes.ClearSteps() end

@@ -168,8 +168,70 @@ function A.AtlasBonuses(setID)
 	return out
 end
 
+-- the class a set's AtlasLoot icon is for ("...\\classicon_warrior": AtlasLoot gives a class's icon for a set its data
+-- marks with one class), or nil
+local function IconClass(IS, setID)
+	local icon = type(IS.GetSetIcon) == "function" and Safe(IS.GetSetIcon, setID, true)
+	local cls = type(icon) == "string" and icon:lower():match("classicon_(%a+)$")
+	cls = cls and cls:upper()
+	return cls and cls ~= "DEATHKNIGHT" and cls or nil
+end
+
+--- The classes of sets AtlasLoot's data marks with none, read from its set pages' columns (1.4.11, the player's
+--- screenshot of "my class sets": every dungeon set said "any class"). AtlasLoot marks a class only on its raid and PvP
+--- sets; its pages lay every class's sets in the same nine columns (Warlock at 1, Priest at 3...). So: each position's
+--- class is learned from pages whose every set its data marks, each class once (the tier, Zul'Gurub, Ahn'Qiraj and PvP
+--- pages: not the Misc Sets page, where a Rogue's set sits among others at the Mage's place); a position two classes
+--- share is no column. A set takes its position's class only on a page whose sets fill exactly those columns, all of
+--- them (the Dungeon Sets pages; not a dungeon's own page of one or two sets). Checked against AtlasLoot's own data
+--- (November 2026): the 18 dungeon sets get the classes its data file's notes give them, and no other set is touched.
+--- { [set id] = class file }, {} when no columns can be told.
+function A.ClassGrid(IS)
+	local rows = I.LootSetRows and I.LootSetRows() or {}
+	local pages, order = {}, {}
+	for _, r in ipairs(rows) do
+		local key = r.addon .. "\t" .. tostring(r.content) .. "\t" .. r.boss .. "\t" .. r.diff
+		local pg = pages[key]
+		if not pg then pg = { rows = {}, at = {}, n = 0 }; pages[key] = pg; order[#order + 1] = pg end
+		pg.rows[#pg.rows + 1] = r
+		if not pg.at[r.pos] then pg.at[r.pos] = true; pg.n = pg.n + 1 end
+	end
+	-- the columns: from the pages that teach them (every set marked, each class once)
+	local column, n = {}, 0
+	for _, pg in ipairs(order) do
+		local classes, seen, teaches = {}, {}, true
+		for i, r in ipairs(pg.rows) do
+			local cls = IconClass(IS, r.id)
+			if not cls or seen[cls] then teaches = false break end
+			seen[cls], classes[i] = true, cls
+		end
+		if teaches then
+			for i, r in ipairs(pg.rows) do
+				local was = column[r.pos]
+				if was == nil then column[r.pos] = classes[i]; n = n + 1
+				elseif was and was ~= classes[i] then column[r.pos] = false; n = n - 1 end
+			end
+		end
+	end
+	local out = {}
+	if n < A.GRID_MIN then return out end
+	for _, pg in ipairs(order) do
+		local grid = pg.n == n
+		for pos in pairs(pg.at) do if not column[pos] then grid = false break end end
+		if grid then
+			for _, r in ipairs(pg.rows) do
+				local cls = column[r.pos]
+				if out[r.id] == nil then out[r.id] = cls elseif out[r.id] ~= cls then out[r.id] = false end
+			end
+		end
+	end
+	for id, cls in pairs(out) do if not cls then out[id] = nil end end
+	return out
+end
+A.GRID_MIN = 8 -- (columns told apart: fewer, and no page is taken for a class grid)
+
 -- one set as OneForAll's are shaped, or nil (no items, or the game doesn't know a set by that number here)
-local function AtlasSet(IS, Req, setID, order)
+local function AtlasSet(IS, Req, setID, order, grid)
 	local items = Safe(IS.GetSetItems, setID)
 	local name = ns.Str(Safe(IS.GetSetName, setID))
 	if type(items) ~= "table" or #items == 0 or not name or name == rawget(_G, "UNKNOWN") then return nil end
@@ -204,12 +266,12 @@ local function AtlasSet(IS, Req, setID, order)
 	-- the classes that may wear it: the one its set icon is for (AtlasLoot's GetSetIcon gives a class's icon for a set of
 	-- one class: its own data's class bits; 1.4.10, seen in game: its requirements table answered nothing on WoW
 	-- Forever, so every set said "any class"), else all of its first piece's, unless that's every class
+	-- (else its column on AtlasLoot's set pages: A.ClassGrid)
 	local classes
 	local first = pieces[1].id
-	local classIcon = type(IS.GetSetIcon) == "function" and Safe(IS.GetSetIcon, setID, true)
-	local cls = type(classIcon) == "string" and classIcon:lower():match("classicon_(%a+)$")
-	if cls and cls:upper() ~= "DEATHKNIGHT" then
-		classes = { [cls:upper()] = true }
+	local cls = IconClass(IS, setID) or (grid and grid[setID])
+	if cls then
+		classes = { [cls] = true }
 	elseif Req and type(Req.ClassCanUseItem) == "function" and Safe(Req.HasRequirements, first) == true then
 		local n, set = 0, {}
 		for _, c in ipairs(A.CLASSES) do
@@ -251,8 +313,9 @@ function A.AtlasSets()
 	end
 	if not x.sets then
 		local out = {}
+		local grid = A.ClassGrid(IS)
 		for _, id in ipairs(x.ids) do
-			local s = AtlasSet(IS, Req, id, #out + 1)
+			local s = AtlasSet(IS, Req, id, #out + 1, grid)
 			if s then out[#out + 1] = s end
 		end
 		x.sets = out

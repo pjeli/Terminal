@@ -54,9 +54,10 @@ end
 -- The index is kept between sessions (db.lootCache), so a /reload doesn't load every loot module
 -- again: rows come from the cache at once and a module is loaded only to open its window. It is
 -- rebuilt when AtlasLoot, a module, the game version or this format changes (CacheKey).
-local CACHE_FORMAT = 5 -- (2: indexed for the window's game version, I.WindowVersion; 3: each place's kind and level;
+local CACHE_FORMAT = 6 -- (2: indexed for the window's game version, I.WindowVersion; 3: each place's kind and level;
 -- 4: Enchanting's spells that make no item, the enchants, kept beside the groups: @enchant, OneForAll/Enchants.lua;
--- 5: where each item set is listed, kept beside them: Enter on @itemset opens it there, OneForAll/Armory.lua)
+-- 5: where each item set is listed, kept beside them: Enter on @itemset opens it there, OneForAll/Armory.lua;
+-- 6: every set page's rows with their positions: the class columns, OneForAll/Armory.lua's A.ClassGrid)
 
 --- One loot row (compact: shared fields come from loot.meta); its name is filled in once the
 --- server has sent it. page: the page the item is on (AtlasLoot shows 100 positions per page).
@@ -267,7 +268,7 @@ local function IndexModule(addon, storage, groups)
 							-- (an Enchanting spell that makes no item is an enchant: noted for @enchant, 1.3.10)
 							if tableKind == "Profession" and type(id) == "number" then I._.NoteEnchant(id, A) end
 							-- (a set page's numbers are item sets: where each is listed, for @itemset's Enter, 1.4.10)
-							if tableKind == "Set" and type(id) == "number" then I._.NoteSet(id, addon, content, boss, diff, math.floor((pos - 1) / 100)) end
+							if tableKind == "Set" and type(id) == "number" then I._.NoteSet(id, addon, content, boss, diff, pos) end
 							id = type(id) == "number" and id > 0 and RowItem(tableKind, id, A) or nil
 							if id then
 								local page = math.floor((pos - 1) / 100)
@@ -328,34 +329,41 @@ function I._.ForgetEnchants() for k in pairs(loot.enchants) do loot.enchants[k] 
 
 -- Where AtlasLoot lists each item set (1.4.10, the player: Enter on a set "is not opening Atlasloot ... to show the
 -- actual itemset"): its set pages ("Set" tables: the Collections module's tier sets, a dungeon's own) hold set numbers,
--- not items. The first page met for a set is kept: { addon, content, boss, diff, page }, saved with the index (`sets`).
-loot.sets = {} -- set id -> place
-function I._.NoteSet(id, addon, content, boss, diff, page)
-	if loot.sets[id] or type(addon) ~= "string" or content == nil or type(boss) ~= "number" then return end
-	loot.sets[id] = { addon = addon, content = content, boss = boss, diff = tonumber(diff) or 1, page = tonumber(page) or 0 }
+-- not items. Every row of them is kept in order ({ id, addon, content, boss, diff, pos }: 1.4.11, their positions are
+-- the class columns, A.ClassGrid), and a set's first one is where Enter opens it ({ ..., page }); saved with the index
+-- (`sets`).
+loot.sets, loot.setRows = {}, {} -- set id -> its first place; every set page row
+function I._.NoteSet(id, addon, content, boss, diff, pos)
+	if type(id) ~= "number" or type(addon) ~= "string" or content == nil or type(boss) ~= "number" then return end
+	pos = tonumber(pos) or 1
+	local row = { id = id, addon = addon, content = content, boss = boss, diff = tonumber(diff) or 1, pos = pos,
+		page = math.floor((pos - 1) / 100) }
+	loot.setRows[#loot.setRows + 1] = row
+	if not loot.sets[id] then loot.sets[id] = row end
 end
---- The set places as one text for the saved index: "id\taddon\tcontent\tboss\tdiff\tpage" a line.
+--- The set pages' rows as one text for the saved index: "id\taddon\tcontent\tboss\tdiff\tpos" a line, in order.
 function I.SetPlacesText()
-	local ids = {}
-	for id in pairs(loot.sets) do ids[#ids + 1] = id end
-	table.sort(ids)
 	local out = {}
-	for _, id in ipairs(ids) do
-		local p = loot.sets[id]
-		out[#out + 1] = table.concat({ id, p.addon, tostring(p.content), p.boss, p.diff, p.page }, "\t")
+	for _, r in ipairs(loot.setRows) do
+		out[#out + 1] = table.concat({ r.id, r.addon, tostring(r.content), r.boss, r.diff, r.pos }, "\t")
 	end
 	return table.concat(out, "\n")
 end
 function I._.ReadSetPlaces(text)
 	if type(text) ~= "string" then return end
 	for line in text:gmatch("[^\n]+") do
-		local id, addon, content, boss, diff, page = line:match("^(%d+)\t([^\t]+)\t([^\t]+)\t(%d+)\t(%d+)\t(%d+)$")
-		if id then I._.NoteSet(tonumber(id), addon, tonumber(content) or content, tonumber(boss), diff, page) end
+		local id, addon, content, boss, diff, pos = line:match("^(%d+)\t([^\t]+)\t([^\t]+)\t(%d+)\t(%d+)\t(%d+)$")
+		if id then I._.NoteSet(tonumber(id), addon, tonumber(content) or content, tonumber(boss), diff, pos) end
 	end
 end
 --- Where AtlasLoot lists this item set, or nil (no set page of it in the modules read).
 function I.LootSetPlace(id) return loot.sets[id] end
-function I._.ForgetSets() for k in pairs(loot.sets) do loot.sets[k] = nil end end -- (tests)
+--- Every set page row read, in order: { { id, addon, content, boss, diff, pos, page } }.
+function I.LootSetRows() return loot.setRows end
+function I._.ForgetSets()
+	for k in pairs(loot.sets) do loot.sets[k] = nil end
+	for i = #loot.setRows, 1, -1 do loot.setRows[i] = nil end
+end -- (tests)
 
 --- Rows from the saved index, without loading any module. False when there's none to use.
 local function FromCache(key)

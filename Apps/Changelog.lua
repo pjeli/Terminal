@@ -14,9 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.4.10", when = "in testing",
+		v = "1.4.11", when = "in testing",
 		items = {
-			"Item sets without OneForAll: with AtlasLoot alone, @itemset lists the sets, their pieces, where each drops and the set bonuses; Enter opens AtlasLoot on the set.",
+			"Item sets without OneForAll: with AtlasLoot alone, @itemset lists the sets, their pieces, where each drops and the set bonuses; Enter opens AtlasLoot on the set, and \"my class sets\" lists your class's.",
 			"Library Books without OneForAll: with Questie (or QuestieDB) alone, @book lists every book, where it lies and how far along you are.",
 			"\"library book rewards\" lists each reward as an item you can hover, under its tier; without OneForAll, Questie's reward quests and what they give.",
 			"Legacy rewards: Enter finds the innkeeper who gives them on a game client in any language.",

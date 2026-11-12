@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.11 (in testing)
+
+- **Dungeon sets name their class** (the player's screenshot of "my class sets" on 1.4.10: every dungeon set said
+  "any class", so the list held every class's): AtlasLoot's data marks a class only on its raid tier sets; the dungeon
+  sets' pieces carry no class. Its set pages lay every class's sets in the same nine columns, so each column's class is
+  learned from the pages whose every set AtlasLoot does mark (tier, Zul'Gurub, Ahn'Qiraj, PvP), and a set takes its
+  column's class only on a page whose sets fill exactly those columns (the Dungeon Sets pages). A dungeon's own page
+  of one or two sets is never read that way, and a column two classes share, or a page with a column nothing tells,
+  gives nothing: "any class" then, as before. Against AtlasLoot's own data: the 18 dungeon sets get the classes its
+  data file's notes give them, and no other set is touched.
+  Every set page row is now kept with its position (AtlasLoot's index is built again once).
+
 ## 1.4.10 (in testing)
 
 - **Enter on AtlasLoot's item sets opens AtlasLoot on them** (the player's screenshot of 1.4.9: Enter listed the
