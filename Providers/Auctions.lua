@@ -54,8 +54,7 @@ local function ShareText(e)
 	local what = (a and a.link or e.name) .. ((a and (a.count or 1) > 1 and a.link) and (" x" .. a.count) or "")
 	return e.plain ~= "" and (what .. " (" .. e.plain .. ")") or what
 end
-local function ToChatBox(e) ns.LinkInChat(ShareText(e)) end
-local CHATBOX = ns.ChatBoxSpec(ShareText)
+local CHATBOX, ToChatBox = ns.ChatBoxPair(ShareText)
 
 local function Tooltip(e, t)
 	local a, now = e.auction, Now()

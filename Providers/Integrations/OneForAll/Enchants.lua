@@ -140,12 +140,7 @@ function EN.SlotsOfName(name)
 	return locs, label
 end
 
-local function SpellName(id)
-	local f = C_Spell and C_Spell.GetSpellName
-	local n = f and Str(Safe(f, id))
-	if not n and _G.GetSpellInfo then n = Str(Safe(_G.GetSpellInfo, id)) end
-	return n
-end
+local SpellName = ns.SpellName
 -- descriptions asked for (id -> true, "in" once its data came: Spells.lua's SP.WatchDescs); the list is made again then
 local asked, watcher = {}, nil
 EN.DESC_WAIT = 1 -- (s after descriptions arrive before @enchant is made again: they come in bursts)

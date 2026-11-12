@@ -116,9 +116,7 @@ end
 local function ItemName(id)
 	local n = Lang("I_" .. id)
 	if n then return n end
-	n = C_Item and C_Item.GetItemNameByID and Safe(C_Item.GetItemNameByID, id)
-	if Str(n) and not ns.Secret(n) then return n end
-	return L["Item #%d"]:format(id)
+	return ns.ItemName(id) or L["Item #%d"]:format(id)
 end
 local function NpcName(id)
 	local n = Lang("N1_" .. id)
@@ -480,7 +478,7 @@ end
 AT.MyToon = MyToon
 function AT.ForgetToon() myKey = nil end -- (tests)
 
-local function MyClass() return select(2, Safe(UnitClass, "player")) end
+local MyClass = ns.ClassToken
 local function MyFaction() return Safe(UnitFactionGroup, "player") end
 
 --- Whether Attune tracks this attunement for that character: every one, a class quest only for its class.

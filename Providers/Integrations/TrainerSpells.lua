@@ -361,7 +361,7 @@ end
 local function SpellName(id)
 	local n = spellNames[id]
 	if n then return n end
-	n = Str(Safe(C_Spell and C_Spell.GetSpellName, id))
+	n = ns.SpellName(id)
 	spellNames[id] = n
 	return n
 end

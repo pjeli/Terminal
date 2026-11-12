@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "1.4.1", when = "in testing",
+		items = {
+			"Tidying under the hood: nothing changes in how Terminal works.",
+		},
+	},
+	{
 		v = "1.4.0", when = "released November 2026",
 		items = {
 			"Quest suggestions only list quests you can actually take (QuestieDB's prerequisites, either-or quests, level caps, breadcrumbs); \"why can't i take <quest>\" says what stops you, and \"what does <quest> unlock\" what comes after it.",
@@ -49,22 +55,6 @@ CL.LOG = {
 			"The addon options panel says that more settings are in Terminal itself: terminal settings or .set.",
 			"\"what layer am i on\" or \"my layer\" (@layer): the layer the creatures you mouse over or target are on.",
 			"Many fixes from a release review: showing items in your bags (in a fight, with Ctrl+Enter, with any bag addon), settings, focus and tabs.",
-		},
-	},
-	{
-		v = "1.1.0", when = "released November 2026",
-		items = {
-			"With OneForAll: @book lists the Library Books, where each is and which you've turned in; \"books i still need\", \"nearest library book\".",
-			"With OneForAll, for hunters: @spell has your pet's abilities (each rank, learned or not; Enter: who teaches it), @npc says which beasts you can tame; \"where to learn bite 4\", \"tameable cats\", \"rare pets\".",
-			"@reputation lists every quartermaster's reward (OneForAll's, and AtlasLoot's faction loot) and whether you can buy it yet (\"argent dawn rewards\", is:canbuy); with OneForAll, @itemset has each set's pieces (\"my class sets\").",
-			"With OneForAll: \"upgrades\" go by its gear value for your talents, and @loot has the gear its planner knows (quest rewards, crafted, reputation), each by its source (\"raid loot\", \"dungeon gear\"), with drop chances.",
-			"With OneForAll: recipes you don't know say if the Merchant's Favor buys them; @transport (boats, zeppelins, the tram, roads); @attune has its dungeon keys when Attune isn't installed; @panel opens its window on any tab.",
-			"Many more plain-word questions: \"who gives <quest>\", \"quests near me\", \"what does hogger drop\", \"how many linen do i have\", \"what level is hogger\", \"where is my hearth\", \"xp per hour\", \"bigger bags\", \"quests for stormwind rep\", \"tailoring quests\".",
-			"A question shows the same rows as its Alt+` line, and Advanced mode has new words for them: sort:list, sort:progress, sort:need, prof:, is:foryou, is:cantake, is:elite, is:rare, repreward:, skill:.",
-			"Quest tooltips say what a quest needs (red when you lack it) and the reputation it gives.",
-			"Inside a group you stepped into, the bar's Group and Sort work too; kinds and categories are in Title Case on English clients.",
-			"Console: grep -A, -B, -C and -H; sed, awk and grep behave as on Linux in more cases.",
-			"Many fixes and lighter typing from a full review; Terminal is on Wago too, for WoWUp and the Wago app.",
 		},
 	},
 }

@@ -574,3 +574,31 @@ do -- (0.47.0 review) one pointing at a time, and a finder can end it; hidden pa
 	root.GetChildren = function() return hidden end
 	check(ns.FindFrame(root, function(f) return f == leaf end, 5) == nil and walked == 0, "under a hidden frame: not walked")
 end
+
+do -- (1.4.1) the shared name helpers: one place for a spell's name, an item's name, your class, squeezed spaces
+	local saveSpell, saveItem, saveClass, saveInfo = _G.C_Spell, _G.C_Item, _G.UnitClass, _G.GetSpellInfo
+	_G.C_Spell = { GetSpellName = function(id) if id == 7 then error("boom") end return id == 5 and "Frostbolt" or (id == 6 and "" or nil) end }
+	_G.GetSpellInfo = function(id) return id == 9 and "Old Spell" or nil end
+	check(ns.SpellName(5) == "Frostbolt", "a spell's name by its id")
+	check(ns.SpellName(6) == nil and ns.SpellName(7) == nil, "an empty name or an erroring call is no name")
+	check(ns.SpellName(9) == "Old Spell", "no C_Spell name: GetSpellInfo's")
+	check(ns.SpellName(0) == nil and ns.SpellName(nil) == nil and ns.SpellName("5") == nil, "0, nil or a string id: no name")
+	_G.C_Spell = nil
+	check(ns.SpellName(9) == "Old Spell" and ns.SpellName(5) == nil, "no C_Spell at all: still no error")
+	_G.C_Item = { GetItemNameByID = function(id) return id == 100 and "Flint" or nil end }
+	check(ns.ItemName(100) == "Flint" and ns.ItemName(101) == nil and ns.ItemName(0) == nil, "an item's name by its id, nil when the client has none")
+	_G.UnitClass = function() return "Mage", "MAGE", 8 end
+	check(ns.ClassToken() == "MAGE", "your class's token")
+	_G.UnitClass = nil
+	check(ns.ClassToken() == nil, "no UnitClass: nil, no error")
+	check(ns.Squeeze("  a   b \t c  ") == "a b c", "runs of spaces made one, none at the ends")
+	local seen
+	local saveLink = ns.LinkInChat
+	ns.LinkInChat = function(t) seen = t end
+	local spec, fallback = ns.ChatBoxPair(function(e) return "[" .. e.name .. "]" end)
+	fallback({ name = "Flint" })
+	check(seen == "[Flint]" and type(spec) == "table" and type(spec.macro) == "function", "ChatBoxPair: the spec and Terminal's own fallback from one text function")
+	check(tostring(spec.macro({ name = "Flint" })):find("[Flint]", 1, true) ~= nil, "the spec's line carries the text")
+	ns.LinkInChat = saveLink
+	_G.C_Spell, _G.C_Item, _G.UnitClass, _G.GetSpellInfo = saveSpell, saveItem, saveClass, saveInfo
+end

@@ -273,9 +273,8 @@ local function ItemCount(id, bank)
 end
 P.ItemCount = ItemCount -- (bags; with `bank`, bank too: Plan.lua)
 local function ItemName(id)
-	local get = C_Item and C_Item.GetItemNameByID
-	local name = get and Safe(get, id)
-	if type(name) == "string" and name ~= "" and not (ns.Secret and ns.Secret(name)) then return name end
+	local name = ns.ItemName(id)
+	if name then return name end
 	local info = C_Item and C_Item.GetItemInfo and Safe(C_Item.GetItemInfo, id)
 	if type(info) == "string" and info ~= "" then return info end
 	if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end

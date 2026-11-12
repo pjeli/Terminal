@@ -613,7 +613,7 @@ local GIVES = { "^who gives (.+)$", "^who starts (.+)$", "^who offers (.+)$", "^
 	"^where do i get the quest (.+)$", "^where do i pick up (.+)$", "^who gives out (.+)$" }
 local TAKES = { "^who takes (.+)$", "^who do i turn in (.+) to$", "^who do i turn (.+) in to$", "^where do i turn in (.+)$",
 	"^where to turn in (.+)$", "^where do i hand in (.+)$", "^who do i give (.+) to$", "^where do i turn (.+) in$" }
-local function Plain(s) return (s:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")) end
+local Plain = ns.Squeeze
 local byName, byNameOf -- (Questie's quests by their name as a question reads it, made once a list)
 local function QuestNamed(said)
 	local p = ns.providers.questie
@@ -774,11 +774,7 @@ ns.InstanceBosses = IB
 local BOSS_WORDS = { boss = true, bosses = true }
 local IB_FILL = { ["in"] = true, of = true, the = true, at = true, ["for"] = true, all = true, list = true, show = true, what = true,
 	which = true, are = true, me = true, my = true }
-local function BossWalk(e)
-	local P = ns.Pipes
-	local line = P and P.Phrase and P.Phrase(e.name, "drops") or (e.name .. " > drops")
-	if ns.UI and ns.UI.WalkTo then ns.UI:WalkTo(line, e) end
-end
+local BossWalk = ns.OneForAllBosses.Walk -- (Bosses.lua's: on to the boss's drops)
 function IB.Question(text)
 	local t = ns.QuestionText(text)
 	if not t then return nil end

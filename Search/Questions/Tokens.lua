@@ -141,7 +141,7 @@ function TK.Named(what)
 end
 
 -- your class as the token data names it ("WARRIOR"), and a class's name in the game's words
-local function MyClass() return Str(UnitClass and select(2, Safe(UnitClass, "player"))) end
+local MyClass = ns.ClassToken
 local function ClassName(c)
 	local names = rawget(_G, "LOCALIZED_CLASS_NAMES_MALE")
 	return type(names) == "table" and Str(names[c]) or (c:sub(1, 1) .. Lower(c:sub(2)))

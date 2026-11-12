@@ -219,12 +219,7 @@ local function QuestName(id)
 	local db = DB()
 	return (db and Str(Safe(db.QueryQuestSingle, id, "name"))) or ("#" .. tostring(id))
 end
-local function SpellName(id)
-	local S = C_Spell
-	local n = S and S.GetSpellName and Str(Safe(S.GetSpellName, id))
-	if not n and _G.GetSpellInfo then n = Str(Safe(_G.GetSpellInfo, id)) end
-	return n or ("#" .. tostring(id))
-end
+local function SpellName(id) return ns.SpellName(id) or ("#" .. tostring(id)) end
 
 --- A reason in plain words.
 function QA.Say(r)
@@ -263,7 +258,7 @@ local WHY = { "^why cant i take (.+)$", "^why cant i get (.+)$", "^why cant i pi
 	"^why isnt (.+) offered$", "^why isnt (.+) available$", "^why is (.+) not offered$", "^why is (.+) not available$",
 	"^why doesnt (.+) show up$", "^why doesnt (.+) show$" }
 local ALLOW = { ["not"] = true } -- ("why is <quest> not offered": the question reads "not" itself)
-local function Plain(s) return (s:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")) end
+local Plain = ns.Squeeze
 
 function QA.Question(text)
 	-- (someone's !t question: what you've done, your log, race and skills aren't theirs, so "can i take X" isn't

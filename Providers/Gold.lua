@@ -129,8 +129,7 @@ local function Lines()
 end
 
 local function PrintAll() ns:Output(Lines()) end
-local function ToChatBox(e) ns.LinkInChat(ShareText(e)) end
-local CHATBOX = ns.ChatBoxSpec(ShareText)
+local CHATBOX, ToChatBox = ns.ChatBoxPair(ShareText)
 
 local function Tooltip(e, t)
 	t:SetText(Label(e), 1, 0.82, 0)

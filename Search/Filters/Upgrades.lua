@@ -204,12 +204,7 @@ function F.TreeOf(word, class)
 	return type(t) == "table" and t[class or ""] or nil
 end
 
-local function MyClass()
-	if not _G.UnitClass then return nil end
-	local ok, _, class = pcall(_G.UnitClass, "player")
-	if not ok or type(class) ~= "string" or Secret(class) then return nil end
-	return class
-end
+local MyClass = ns.ClassToken
 
 ----------------------------------------------------------------------
 -- Your own weights: .weights set str=2 agi=1 sta=0.5, or a Pawn scale string; a role of their own ("custom") beside

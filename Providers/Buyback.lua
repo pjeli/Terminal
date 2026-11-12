@@ -86,8 +86,7 @@ local function BuyBack(e)
 end
 
 local function LinkOf(e) return e.link end
-local CHATBOX = ns.ChatBoxSpec(LinkOf)
-local function ToChat(e) ns.LinkInChat(e.link) end
+local CHATBOX, ToChat = ns.ChatBoxPair(LinkOf)
 
 local function Detail(x)
 	local parts = {}

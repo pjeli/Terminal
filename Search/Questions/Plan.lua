@@ -214,11 +214,7 @@ end
 
 local function View(e, fields) return setmetatable(fields, { __index = e }) end
 
-local function ItemName(id)
-	local get = C_Item and C_Item.GetItemNameByID
-	local n = get and Str(Safe(get, id))
-	return n or L["item %s"]:format(tostring(id))
-end
+local function ItemName(id) return ns.ItemName(id) or L["item %s"]:format(tostring(id)) end
 
 --- The rows of a search, planned: the recipes that still give skill (orange or yellow now), each a view saying how
 --- many times your materials make it, by that (most first; vendor materials only, then none, last); and the footer's

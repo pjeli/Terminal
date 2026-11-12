@@ -157,8 +157,7 @@ local function Show(e)
 	end
 	ns:Output(lines)
 end
-local function ToChatBox(e) ns.LinkInChat(ShareText(e)) end
-local CHATBOX = ns.ChatBoxSpec(ShareText)
+local CHATBOX, ToChatBox = ns.ChatBoxPair(ShareText)
 
 local function Tooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)

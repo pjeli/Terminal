@@ -447,8 +447,7 @@ local function ShareText(e)
 	end
 	return e.name .. ": " .. CA.When(e)
 end
-local function ToChatBox(e) ns.LinkInChat(ShareText(e)) end
-local CHATBOX = ns.ChatBoxSpec(ShareText)
+local CHATBOX, ToChatBox = ns.ChatBoxPair(ShareText)
 
 local function Tooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)

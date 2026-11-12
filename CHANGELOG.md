@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.1 (in testing)
+
+Code clean-up, no change in behaviour: one shared helper each for a spell's name (`ns.SpellName`), an item's name
+(`ns.ItemName`), your class (`ns.ClassToken`), squeezing spaces (`ns.Squeeze`) and the two halves of a "link in chat"
+row (`ns.ChatBoxPair`), replacing the copies that 20 files kept of their own.
+
 ## 1.4.0
 
 Terminal 1.4: quests you can actually take, WoW Forever's Legacy and PvP ranks, enchants, more places to get things,

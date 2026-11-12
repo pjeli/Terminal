@@ -110,6 +110,12 @@ function ns.ChatBoxSpec(textOf)
 		return ok and ns.ChatBoxMacro(t) or nil
 	end }
 end
+--- Both halves of a "link in chat" row from one text function: that spec, and what Terminal runs itself where no
+--- press can carry it (a fight): `local CHATBOX, ToChatBox = ns.ChatBoxPair(ShareText)` for `secondarySecure` and
+--- `secondary`.
+function ns.ChatBoxPair(textOf)
+	return ns.ChatBoxSpec(textOf), function(e) ns.LinkInChat(textOf(e)) end
+end
 
 function ns:Bump(freqKey)
 	if not freqKey or not self.db then return end

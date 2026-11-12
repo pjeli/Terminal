@@ -155,6 +155,7 @@ local function BossWalk(e)
 	local line = P and P.Phrase and P.Phrase(e.name, "drops") or (e.name .. " > drops")
 	if ns.UI and ns.UI.WalkTo then ns.UI:WalkTo(line, e) end
 end
+B.Walk = BossWalk -- (Suggest.lua's bosses of an instance walk the same way)
 
 function B.Answer(q)
 	q = q or {}

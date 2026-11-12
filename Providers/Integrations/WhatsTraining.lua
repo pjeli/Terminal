@@ -94,10 +94,7 @@ WT.SAY = { now = L["learn now"], needsrank = L["needs another rank first"], next
 local WORDS = { now = "now available learnable trainable", needsrank = "requirements needs rank", nextlevel = "next level soon coming",
 	later = "later", pet = "pet", needstalent = "talent", ignored = "ignored hidden", known = "known" }
 
-local function SpellName(id)
-	if type(id) ~= "number" then return nil end
-	return Str(Safe(C_Spell and C_Spell.GetSpellName, id)) or Str((Safe(_G.GetSpellInfo, id)))
-end
+local SpellName = ns.SpellName
 
 ----------------------------------------------------------------------
 -- Rows

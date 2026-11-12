@@ -574,7 +574,7 @@ end
 
 local Has = OA.Has
 
-local function MyClass() local ok, _, f = pcall(UnitClass, "player") return ok and f or nil end
+local MyClass = ns.ClassToken
 
 function A.Answer(q)
 	q = q or {}

@@ -18,7 +18,7 @@ local Safe, Str, Lower = ns.Safe, ns.Str, ns.Lower
 local SEP = ns.DETAIL_SEP
 local ICON = "Interface\\Icons\\INV_Misc_Note_01"
 
-local function SpellName(id) return Str(Safe(C_Spell and C_Spell.GetSpellName, id)) end
+local SpellName = ns.SpellName
 local function SpellIcon(id) return Safe(C_Spell and C_Spell.GetSpellTexture, id) end
 local function Subtext(id)
 	local s = Str(Safe(C_Spell and C_Spell.GetSpellSubtext, id))

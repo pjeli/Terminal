@@ -172,8 +172,7 @@ local function Show(e)
 end
 local function LinkOf(e) return e.link end
 local NeverOpen = ns.Never
-local CHATBOX = ns.ChatBoxSpec(LinkOf) -- (shared by every row: entry functions are never made per row)
-local function ToChat(e) ns.LinkInChat(e.link) end
+local CHATBOX, ToChat = ns.ChatBoxPair(LinkOf) -- (shared by every row: entry functions are never made per row)
 local function Who(who)
 	local me = Me()
 	return (who == me or who == (UnitName and UnitName("player"))) and "you" or who

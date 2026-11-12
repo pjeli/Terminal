@@ -238,16 +238,7 @@ local function GameRewards(faction, level)
 	return next(out) and out or nil
 end
 
-local function ItemName(id)
-	if not id or id == 0 then return nil end
-	local C = rawget(_G, "C_Item")
-	return Str(C and Safe(C.GetItemNameByID, id))
-end
-local function SpellName(id)
-	if not id or id == 0 then return nil end
-	local C = rawget(_G, "C_Spell")
-	return Str(C and Safe(C.GetSpellName, id))
-end
+local ItemName, SpellName = ns.ItemName, ns.SpellName
 local function MountName(id)
 	if not id or id == 0 then return nil end
 	local C = rawget(_G, "C_MountJournal")

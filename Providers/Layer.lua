@@ -97,8 +97,7 @@ local function Tooltip(e, t)
 end
 
 local function Say(e) ns:Output({ ShareText(e) .. (e.detail and e.detail ~= "" and (ns.DETAIL_SEP .. e.detail) or "") }) end
-local function ToChatBox(e) ns.LinkInChat(ShareText(e)) end
-local CHATBOX = ns.ChatBoxSpec(ShareText)
+local CHATBOX, ToChatBox = ns.ChatBoxPair(ShareText)
 
 --- Why there's no row: in a dungeon, or nothing met yet (the list's lead row, shown when it's asked for: a note in the
 --- list itself would be searched by every Simple-mode line, its letters matching "toys").

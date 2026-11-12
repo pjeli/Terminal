@@ -451,6 +451,30 @@ function ns.Now() return (_G.time and _G.time()) or 0 end
 --- This character's GUID: the key its saved records are kept under.
 function ns.PlayerGUID() return ns.Str(ns.Safe(_G.UnitGUID, "player")) end
 
+--- A spell's name by its id, or nil: the game's own (C_Spell.GetSpellName, else GetSpellInfo's first), never an error,
+--- a secret or "". One place for it (1.4.1: six files each had their own).
+function ns.SpellName(id)
+	if type(id) ~= "number" or id == 0 then return nil end
+	local C = rawget(_G, "C_Spell")
+	return ns.Str(ns.Safe(C and C.GetSpellName, id)) or ns.Str((ns.Safe(rawget(_G, "GetSpellInfo"), id)))
+end
+
+--- An item's name by its id while the client has it, or nil. Nothing is asked of the server (a list that must wait for
+--- names uses ns.NameWait).
+function ns.ItemName(id)
+	if type(id) ~= "number" or id == 0 then return nil end
+	local C = rawget(_G, "C_Item")
+	return ns.Str(ns.Safe(C and C.GetItemNameByID, id))
+end
+
+--- Your class's token ("WARRIOR": the same in every language), or nil.
+function ns.ClassToken()
+	return ns.Str((select(2, ns.Safe(rawget(_G, "UnitClass"), "player"))))
+end
+
+--- Runs of spaces made one, none at either end.
+function ns.Squeeze(s) return (s:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")) end
+
 local COPPER_PER_GOLD, COPPER_PER_SILVER = 10000, 100
 local MONEY_ICON = {
 	gold = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t",
