@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.3 (in testing)
+
+- **Legacy rewards on a client in another language:** Innkeeper Wiley was looked up by his English name in QuestieDB's
+  names, which QuestieDB translates on a German, French, Spanish, Russian or Chinese client: he was never found, so
+  Enter on a reward had no waypoint. He's now found by QuestieDB's untranslated name (read once a session) and named
+  in the client's language.
+
 ## 1.4.2 (in testing)
 
 Code clean-up, no change in behaviour:

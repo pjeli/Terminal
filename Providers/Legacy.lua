@@ -428,10 +428,12 @@ ns:RegisterProvider("legacy", {
 -- Rewards (@legacyreward) and PvP ranks (@pvprank)
 ----------------------------------------------------------------------
 
---- Who gives the Legacy rewards: Questie's NPC id (nil: Questie doesn't know him) and name (else the rewards' own).
+--- Who gives the Legacy rewards: Questie's NPC id (nil: Questie doesn't know him) and name (in the client's language
+--- when Questie has it; else the rewards' own, English). Found by his English name whatever the client's language
+--- (1.4.3: a client in another language never found him, so Enter had no waypoint).
 local function ClaimNpc()
 	local I = ns.Integrations
-	local id = I and I.NpcIdNamed and I.NpcIdNamed(Lower(LG.CLAIM.npc))
+	local id = I and I.NpcIdNamedEnglish and I.NpcIdNamedEnglish(LG.CLAIM.npc)
 	local row = id and I.NpcRow and I.NpcRow(id)
 	return id, row and Str(row.name) or LG.CLAIM.npc
 end

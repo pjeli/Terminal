@@ -188,6 +188,32 @@ do
 	printed = {}
 	LG.ToClaimer()
 	check(printed[1] and printed[1]:find("Innkeeper Wiley", 1, true), "Questie doesn't know him: said: " .. tostring(printed[1]))
+	-- (1.4.3) a client in another language: QuestieDB's names are translated, so the names text has no "innkeeper wiley".
+	-- He's found by QuestieDB's untranslated name, read once, and named in the client's language
+	local I, QD = ns.Integrations, ns.QuestieData
+	local wasDB, wasEnglish, wasRow = QD.DB, I.NAMES_ENGLISH, I.NpcRow
+	local raws = 0
+	local db = { RawNPCSingle = function(id, field) raws = raws + 1 return field == "name" and ({ [6790] = "Innkeeper Other", [6791] = "Innkeeper Wiley" })[id] or nil end,
+		NpcIds = function() return { 100, 6790, 6791, 9000 } end }
+	QD.DB = function() return db end
+	I.NpcRow = function(id) return id == 6791 and { name = "Gastwirt Wiley" } or nil end
+	I.NAMES_ENGLISH = true
+	pinned, printed = nil, {}
+	LG.ToClaimer()
+	check(pinned == nil and printed[1] ~= nil and raws == 0, "an English client asks only its names text (nothing read from QuestieDB): " .. raws)
+	I.NAMES_ENGLISH = false
+	pinned, printed, raws = nil, {}, 0
+	LG.ToClaimer()
+	check(pinned and pinned.npcID == 6791 and pinned.name == "Gastwirt Wiley" and raws == 3,
+		"another language: found by his English name in QuestieDB's untranslated data, named in the client's: "
+			.. tostring(pinned and pinned.npcID) .. " / " .. tostring(pinned and pinned.name) .. " / " .. raws)
+	check(LG.ClaimText() == "Gastwirt Wiley, Ratchet" and raws == 3, "asked again: the answer kept, QuestieDB not read again: " .. LG.ClaimText() .. " / " .. raws)
+	db.RawNPCSingle = function() raws = raws + 1 return nil end
+	check(I.NpcIdNamedEnglish("Nobody At All") == nil and I.NpcIdNamedEnglish("Nobody At All") == nil and raws == 7,
+		"someone QuestieDB doesn't have: every NPC read once, then known not to be there: " .. raws)
+	db.RawNPCSingle = nil
+	check(I.NpcIdNamedEnglish("Somebody Else") == nil, "a QuestieDB that can't give untranslated names: nil, no error")
+	QD.DB, I.NAMES_ENGLISH, I.NpcRow = wasDB, wasEnglish, wasRow
 	ns.Integrations.NpcIdNamed = was.npcId
 end
 

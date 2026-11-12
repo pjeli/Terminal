@@ -14,9 +14,10 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.4.2", when = "in testing",
+		v = "1.4.3", when = "in testing",
 		items = {
-			"Tidying under the hood: nothing changes in how Terminal works.",
+			"Legacy rewards: Enter finds the innkeeper who gives them on a game client in any language.",
+			"Tidying under the hood: the largest files split, shared helpers in one place.",
 		},
 	},
 	{

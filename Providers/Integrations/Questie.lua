@@ -240,6 +240,33 @@ function I.NpcIdNamed(lname)
 	return tab and tab < lineEnd and tonumber(blob:sub(tab + 1, lineEnd - 1)) or nil
 end
 
+--- The NPC called `name` in English (as Terminal's own data names someone: the Legacy rewards' innkeeper): its id,
+--- or nil. An English client's names text says. On another, QuestieDB translates names, so its untranslated ones are
+--- read (GetRaw: every NPC once, until he's found; the answer kept for the session) rather than not finding him.
+I.NAMES_ENGLISH = ENGLISH_CLIENT -- (tests: another client's)
+local englishFrom, englishIds = nil, {}
+function I.NpcIdNamedEnglish(name)
+	if type(name) ~= "string" or name == "" then return nil end
+	local id = I.NpcIdNamed(ns.Lower(name))
+	if id or I.NAMES_ENGLISH then return id end
+	local DB = QDB()
+	if not (DB and DB.RawNPCSingle and DB.NpcIds) then return nil end
+	if englishFrom ~= DB then englishFrom, englishIds = DB, {} end
+	local got = englishIds[name]
+	if got ~= nil then return got or nil end
+	local ids = DB.NpcIds() or {}
+	if #ids == 0 then return nil end -- (not in yet: asked again)
+	local started = _G.debugprofilestop and _G.debugprofilestop()
+	got = false
+	for i = 1, #ids do
+		if Safe(DB.RawNPCSingle, ids[i], "name") == name then got = ids[i] break end
+	end
+	englishIds[name] = got
+	ns:Trace(("questie: %s looked for by its English name among %d NPCs: %s%s"):format(name, #ids, got and ("#" .. got) or "not there",
+		started and (" (%.0f ms)"):format(_G.debugprofilestop() - started) or ""))
+	return got or nil
+end
+
 --- Are these words, in this order, whole words of an NPC's or a quest's name (not a title)? "dalaran mage", "stockade
 --- guard", "orgrimmar reveler" are NPCs, not mages in Dalaran: Simple mode then reads no place in them.
 function I.NamedAs(tokens)
