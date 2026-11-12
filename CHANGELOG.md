@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.12 (in testing)
+
+- **`.integrations` lists only what's there** (the player: "If an integration is not found ... just don't list it"):
+  an addon that isn't installed has no line any more; one that is installed but failed to start still says so, with
+  why. With none at all: "none".
+- **All 40 Library Books without OneForAll** (the player's `.integrations` said 32 from QuestieDB): QuestieDB's WoW
+  Forever corrections move every Library quest from the Special sort to your capital, so the eight a mage trainer takes
+  weren't told apart in game (the base data checked in 1.4.7 has the Special sort). The sort is now read from
+  QuestieDB's base data (`Quest.GetRaw`, as NPC titles already were).
+
 ## 1.4.11 (in testing)
 
 - **Dungeon sets name their class** (the player's screenshot of "my class sets" on 1.4.10: every dungeon set said

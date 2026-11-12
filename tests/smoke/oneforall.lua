@@ -169,7 +169,8 @@ do
 		Fresh()
 		check(not ns.providers.book and B.Question("library books") == nil, "without OneForAll: no @book, no question")
 		lines = table.concat(ns.commands.integrations.run(""), "\n")
-		check(lines:find("OneForAll: " .. L["not found"], 1, true), ".integrations: not found")
+		-- (1.4.12, the player: an addon that isn't there isn't listed)
+		check(not lines:find("OneForAll:", 1, true) and not lines:find(L["not found"], 1, true), ".integrations: not listed, nor any other not found: " .. lines)
 	end)
 	_G.OneForAll = save.lib
 	ns.providers, ns.providerOrder = save.providers, save.order

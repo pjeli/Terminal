@@ -3018,7 +3018,6 @@ L["not done yet"] = true
 L["not found"] = true
 L["not found (What's Training or TrainerSpells)"] = true
 L["not found (install Syndicator/Baganator or Bagnon)"] = true
-L["not found; TrainerSpells' %d trainers are @npc"] = true
 L["not in WoW Forever yet"] = true
 L["not indexed (open it once)"] = true
 L["not indexed (open it once, or search @recipe and pick Index my recipes)"] = true

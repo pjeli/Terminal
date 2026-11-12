@@ -120,8 +120,8 @@ end
 -- and no other quest):
 --   * a quest started by a world object (the book lying there) and by an NPC (who takes it),
 --   * and either that NPC's title is "Librarian" (32 of them: Stormwind's and Undercity's), or the quest is of the
---     "Special" sort (QuestSort 284, QuestieDB's zoneOrSort -284) and the item it asks for lies in that object (the
---     other eight, taken by a mage trainer and her Horde counterpart).
+--     "Special" sort (QuestSort 284, QuestieDB's zoneOrSort -284, as its base data has it: Quest.GetRaw) and the item it
+--     asks for lies in that object (the other eight, taken by a mage trainer and her Horde counterpart).
 -- Every quest is looked at once, a slice a frame, after Questie's own indexing; @book is registered when books come
 -- of it (a QuestieDB of another game version has none: no empty @book).
 ----------------------------------------------------------------------
@@ -152,7 +152,10 @@ function B.FromQuest(DB, id)
 	local librarian = false
 	for _, n in ipairs(npcs) do if IsLibrarian(n) then librarian = true break end end
 	if not librarian then
-		if Num(Safe(DB.QueryQuestSingle, id, "zoneOrSort")) ~= B.SPECIAL_SORT or not item then return nil end
+		-- (the sort as QuestieDB's base data has it: its WoW Forever corrections move every Library quest to your
+		-- capital, so the corrected one would lose the eight a mage trainer takes; 1.4.12, seen in game: 32 of 40)
+		local sort = Num(Safe(DB.RawQuestSingle or DB.QueryQuestSingle, id, "zoneOrSort"))
+		if sort ~= B.SPECIAL_SORT or not item then return nil end
 		local drops, inIt = DB.QueryItemSingle and Safe(DB.QueryItemSingle, item, "objectDrops"), false
 		for _, o in ipairs(objs) do if Among(drops, o) then inIt = true break end end
 		if not inIt then return nil end

@@ -42,14 +42,6 @@ local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_LOGIN")
 f:SetScript("OnEvent", function() I.Setup() end)
 
---- What @npc is without Questie: nothing, or TrainerSpells' trainers.
-function I.NoQuestieStatus()
-	local p = ns.providers.npc
-	local TS = ns.TrainerSpells
-	local rows = p and p.trainersOnly and TS and TS.TrainerRows and TS.TrainerRows()
-	return rows and L["not found; TrainerSpells' %d trainers are @npc"]:format(#rows) or L["not found"]
-end
-
 --- Training's line: What's Training or TrainerSpells, whichever @training comes from, with its counts ("What's
 --- Training (1.4). 42 spells to learn, 5 now (@training)"); TrainerSpells' recipes a trainer teaches too when it's there
 --- ("442 profession spells"). An old What's Training: said to update; neither: not found, naming both.
@@ -94,34 +86,44 @@ function I.TomTomStatus()
 	return found .. " " .. L["Waypoints go to: %s (.set waypoints map, tomtom or both)"]:format(where)
 end
 
+-- what a status says of an addon that isn't installed: .integrations leaves its line out (1.4.12, the player: "If an
+-- integration is not found ... just don't list it")
+local NOT_FOUND = { [L["not found"]] = true, [L["not found (What's Training or TrainerSpells)"]] = true,
+	[L["not found (install Syndicator/Baganator or Bagnon)"]] = true }
+
 ns:RegisterCommand("integrations", {
 	desc = L["Show which other addons Terminal found (AtlasLoot, Questie, Attune, What's Training, TrainerSpells, OneForAll)"],
 	run = function()
 		local lines = { L["Integrations:"] }
-		lines[#lines + 1] = "  AtlasLoot: " .. (loot.on
+		-- (an addon that's there but failed to start is said, with why; one that isn't there isn't)
+		local function Add(label, status, failed)
+			failed = failed or ""
+			if status and (not NOT_FOUND[status] or failed ~= "") then lines[#lines + 1] = "  " .. label .. " " .. status .. failed end
+		end
+		Add("AtlasLoot:", loot.on
 			and L["found (%s). %d loot modules, %d indexed, %d items%s%s"]:format(tostring(LoadedCore() or "AtlasLoot"), loot.modules, loot.loaded, #loot.rows, loot.done and "" or (" " .. L["(still loading)"]),
 				(function()
 					local n = I.LootWaiting()
 					return n > 0 and (", " .. L["%d waiting for their names from the server"]:format(n)) or ""
 				end)())
-			or L["not found"]) .. I.FailedText("AtlasLoot")
+			or L["not found"], I.FailedText("AtlasLoot"))
 		local src = QD.Source()
 		local found = src == "QuestieDB" and L["QuestieDB found (without Questie)"] or L["found"]
-		lines[#lines + 1] = "  Questie: " .. (npc.on
+		Add("Questie:", npc.on
 			and (npc.list and L["%s. %d NPCs (@npc), %s quests (@questie)"]:format(found, #npc.list, qdb.list and #qdb.list or L["indexing"])
 				-- (the NPC list freed while unused: nothing is indexing)
 				or (not npc.busy and npc.count and L["%s. %d NPCs (@npc: read again when next searched), %s quests (@questie)"]:format(found,
 					npc.count, qdb.list and #qdb.list or L["indexing"]))
 				or (QuestieReady() and L["%s, indexing NPCs..."]:format(found) or L["found, waiting for Questie to finish loading"]))
-			or I.NoQuestieStatus()) .. I.FailedText("Questie")
-		lines[#lines + 1] = "  Attune: " .. ns.Attune.Status() .. I.FailedText("Attune")
+			or L["not found"], I.FailedText("Questie")) -- (TrainerSpells' trainers as @npc: its own line, Training)
+		Add("Attune:", ns.Attune.Status(), I.FailedText("Attune"))
 		-- (0.57.4, the author's ask: one line, as alts and banks are said: What's Training or TrainerSpells, either one
 		-- (never both expected), the one used named with its counts)
-		lines[#lines + 1] = "  " .. L["Training:"] .. " " .. I.TrainingStatus() .. I.FailedText("What's Training") .. I.FailedText("TrainerSpells")
+		Add(L["Training:"], I.TrainingStatus(), I.FailedText("What's Training") .. I.FailedText("TrainerSpells"))
 		-- (every addon whose options Ace3 holds: @addonoption)
 		local apps = ns.AddonOptions and ns.AddonOptions.Apps() or {}
-		lines[#lines + 1] = "  " .. L["Addon options (Ace3):"] .. " " .. (#apps > 0 and table.concat(apps, ", ") or L["none"])
-		if ns.OneForAll then lines[#lines + 1] = "  OneForAll: " .. ns.OneForAll.Status() .. I.FailedText("OneForAll") end
+		if #apps > 0 then Add(L["Addon options (Ace3):"], table.concat(apps, ", ")) end
+		if ns.OneForAll then Add("OneForAll:", ns.OneForAll.Status(), I.FailedText("OneForAll")) end
 		-- (@enchant: AtlasLoot's and OneForAll's together, so said on a line of its own)
 		local enchants = ns.Enchants and ns.Enchants.Status and ns.Safe(ns.Enchants.Status)
 		if enchants then lines[#lines + 1] = "  " .. L["Enchants:"] .. " " .. enchants end
@@ -131,10 +133,11 @@ ns:RegisterCommand("integrations", {
 		-- (@itemset without OneForAll: AtlasLoot's)
 		local sets = ns.Armory and ns.Armory.SetsStatus and ns.Safe(ns.Armory.SetsStatus)
 		if sets then lines[#lines + 1] = "  " .. L["Item sets:"] .. " " .. sets end
-		if ns.Auctionator then lines[#lines + 1] = "  Auctionator: " .. ns.Auctionator.Status() end
+		if ns.Auctionator then Add("Auctionator:", ns.Auctionator.Status()) end
 		local M = ns.Maps
 		if M and M.TomTom and M.TomTom() then lines[#lines + 1] = "  TomTom: " .. I.TomTomStatus() end
-		if ns.Stored then lines[#lines + 1] = "  " .. L["Alts and banks:"] .. " " .. ns.Stored.Status() end
+		if ns.Stored then Add(L["Alts and banks:"], ns.Stored.Status()) end
+		if #lines == 1 then lines[2] = "  " .. L["none"] end
 		return lines
 	end,
 })

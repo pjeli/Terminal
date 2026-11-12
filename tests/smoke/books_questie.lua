@@ -59,8 +59,16 @@ do
 		local ITEMS = { [7003] = { objectDrops = { 9003 } }, [7005] = { objectDrops = { 1 } }, [3617] = { objectDrops = { 31 } } }
 		local TITLE = { [211] = "Librarian", [212] = "Librarian", [300] = "Mage Trainer" }
 		local asked = 0
+		-- (QuestieDB's WoW Forever corrections, as in game: the Library quests' sort becomes your capital; the base data
+		-- keeps the Special sort, Quest.GetRaw: 1.4.12, seen in game, 32 books of 40 without it)
+		local CORRECTED = { [503] = { zoneOrSort = 1497 }, [505] = { zoneOrSort = 1497 } }
 		local db = {
-			QueryQuestSingle = function(id, f) return QUESTS[id] and QUESTS[id][f] end,
+			QueryQuestSingle = function(id, f)
+				local c = CORRECTED[id]
+				if c and c[f] ~= nil then return c[f] end
+				return QUESTS[id] and QUESTS[id][f]
+			end,
+			RawQuestSingle = function(id, f) return QUESTS[id] and QUESTS[id][f] end,
 			QueryObjectSingle = function(id, f) return OBJECTS[id] and OBJECTS[id][f] end,
 			QueryItemSingle = function(id, f) return ITEMS[id] and ITEMS[id][f] end,
 			QuestIds = function() asked = asked + 1 return { 501, 502, 503, 504, 505, 506, 507, 508, 509 } end,
@@ -168,6 +176,15 @@ do
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
 		check(lines:find("  " .. L["Library Books:"] .. " " .. L["%d from QuestieDB (@book). OneForAll adds notes on each spot and the rewards."]:format(4), 1, true),
 			".integrations says whose they are: " .. lines)
+
+		-- a QuestieDB without base-data reads (older): the corrected sort only, the mage trainer's books not told apart
+		local rawWas = db.RawQuestSingle
+		db.RawQuestSingle = nil
+		Fresh()
+		local names0 = Names(ns:GetEntries(ns.providers.book))
+		check(not names0:find("Magma Notes", 1, true) and names0:find("Tome of Winds", 1, true), "(without GetRaw: the corrected sort, as 1.4.11 read it: " .. names0 .. ")")
+		db.RawQuestSingle = rawWas
+		Fresh()
 
 		-- a client in another language: the title QuestieDB translated, its untranslated one asked
 		english = false

@@ -121,6 +121,8 @@ function QD.DB()
 				-- (a field as the base data has it, untranslated: English. On another client QuestieDB translates names,
 				-- titles and objectives; titles are matched in English, Search/Filters/Npcs.lua)
 				RawNPCSingle = type(L.Npc.GetRaw) == "function" and L.Npc.GetRaw or nil,
+				-- (a quest as the base data has it, before QuestieDB's corrections: the Library Books' sort, Books.lua)
+				RawQuestSingle = type(L.Quest.GetRaw) == "function" and L.Quest.GetRaw or nil,
 				QueryItemSingle = item and item.Get or nil,
 				QueryObjectSingle = type(L.Object) == "table" and L.Object.Get or nil,
 				QuestIds = function() return LibIds(L.Quest) end,
