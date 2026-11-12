@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.4.6", when = "in testing",
+		v = "1.4.7", when = "in testing",
 		items = {
+			"Library Books without OneForAll: with Questie (or QuestieDB) alone, @book lists every book, where it lies and how far along you are.",
 			"Legacy rewards: Enter finds the innkeeper who gives them on a game client in any language.",
 			"A misspelled long word finds its close spellings in under half the time.",
 			"No hitch on a hunter's first \"pet food\" question or a first \"what does <token> give\": both lists are read ahead while the game is idle.",

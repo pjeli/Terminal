@@ -11,6 +11,11 @@ local OA = ns.OneForAll
 --
 -- How far along: OneForAll's own judgement when it gives one (FLT:GetBookState: a turn-in it saw, a book you marked,
 -- one in your bags or bank, the quest flag), else the game's (the quest done, the book in your bags or bank).
+--
+-- Without OneForAll (1.4.7, the player's ask): QuestieDB's own data has the books too, read while it's installed: each
+-- book's quest (its name), the item, and the world object it lies in with its spot. Fewer words than OneForAll's
+-- (no notes on a spot, no sets, no reward tiers); OneForAll's list comes first whenever it's there. See "The books
+-- from QuestieDB" below.
 
 local B = {}
 OA.Books = B
@@ -28,8 +33,9 @@ B.STATES = {
 B.UNSURE = { unknown = L["spot not confirmed"], reported = L["spot reported by players"],
 	["not-in-forever"] = L["not in WoW Forever yet"] }
 
---- Its books, checked: { { name, quest, item, zone, subzone, x, y, set, container, note, status, raw }, ... }, or nil.
-function B.Data()
+--- OneForAll's books, checked: { { name, quest, item, zone, subzone, x, y, set, container, note, status, raw }, ... }, or
+--- nil.
+function B.OFAData()
 	return OA.Part("books", "BOOKS", L["@book (its Library Books) is unavailable."], function(raw, lib)
 		local maps = type(lib.MAP_IDS) == "table" and lib.MAP_IDS or {}
 		local sets = type(lib.SETS) == "table" and lib.SETS or {}
@@ -82,12 +88,13 @@ local function Count(id, bank)
 	return f and Num(Safe(f, id, bank)) or 0
 end
 
---- Where you are with a book: OneForAll's state ("done", "bag", ...), else the game's.
+--- Where you are with a book: OneForAll's state ("done", "bag", ...) for one of its own, else the game's.
 function B.State(b)
-	local lib = OA.Lib()
+	local lib = b.raw and OA.Lib()
 	local s = lib and OA.Call(lib.GetBookState, lib, b.raw)
 	if type(s) == "string" and B.STATES[s] then return s end
 	if QuestDone(b.quest) then return "done" end
+	if not b.item then return "missing" end
 	local bags = Count(b.item)
 	if bags > 0 then return "bag" end
 	if Count(b.item, true) > bags then return "bank" end
@@ -107,6 +114,120 @@ function B.NextReward(done)
 	return nil
 end
 
+----------------------------------------------------------------------
+-- The books from QuestieDB (without OneForAll). No list of them is kept: a book is told by its shape in QuestieDB's
+-- quests (checked against QuestieDB_Forever's data, November 2026: 40 quests, every one of OneForAll's 39 among them
+-- and no other quest):
+--   * a quest started by a world object (the book lying there) and by an NPC (who takes it),
+--   * and either that NPC's title is "Librarian" (32 of them: Stormwind's and Undercity's), or the quest is of the
+--     "Special" sort (QuestSort 284, QuestieDB's zoneOrSort -284) and the item it asks for lies in that object (the
+--     other eight, taken by a mage trainer and her Horde counterpart).
+-- Every quest is looked at once, a slice a frame, after Questie's own indexing; @book is registered when books come
+-- of it (a QuestieDB of another game version has none: no empty @book).
+----------------------------------------------------------------------
+
+local QD = ns.QuestieData
+B.LIBRARIAN = "Librarian" -- (the title in English: QuestieDB's untranslated one is asked on another client)
+B.SPECIAL_SORT = -284
+local qd = { list = nil, building = false }
+
+local function IsLibrarian(id)
+	local t = I.NpcField and (I.NpcField(id, "subNameEn") or I.NpcField(id, "subName"))
+	return t == B.LIBRARIAN
+end
+local function Among(list, v)
+	for _, x in ipairs(type(list) == "table" and list or {}) do if x == v then return true end end
+	return false
+end
+
+--- One of QuestieDB's quests as a book ({ name, quest, item, zone, x, y, ui, container, note, level }), or nil: not one.
+function B.FromQuest(DB, id)
+	local starts = Safe(DB.QueryQuestSingle, id, "startedBy")
+	if type(starts) ~= "table" then return nil end
+	local npcs, objs = starts[1], starts[2]
+	if type(npcs) ~= "table" or #npcs == 0 or type(objs) ~= "table" or #objs == 0 then return nil end
+	local objv = Safe(DB.QueryQuestSingle, id, "objectives")
+	local items = type(objv) == "table" and objv[3]
+	local item = type(items) == "table" and type(items[1]) == "table" and Num(items[1][1]) or nil
+	local librarian = false
+	for _, n in ipairs(npcs) do if IsLibrarian(n) then librarian = true break end end
+	if not librarian then
+		if Num(Safe(DB.QueryQuestSingle, id, "zoneOrSort")) ~= B.SPECIAL_SORT or not item then return nil end
+		local drops, inIt = DB.QueryItemSingle and Safe(DB.QueryItemSingle, item, "objectDrops"), false
+		for _, o in ipairs(objs) do if Among(drops, o) then inIt = true break end end
+		if not inIt then return nil end
+	end
+	local name = ns.Str(Safe(DB.QueryQuestSingle, id, "name"))
+	if not name then return nil end
+	-- where it lies: the object's spots, the one in the object's own zone first (a second zone's is an alternative)
+	local spots, container = {}, nil
+	for _, o in ipairs(objs) do
+		container = container or (I.ObjectName and I.ObjectName(o))
+		local home = Num(Safe(DB.QueryObjectSingle, o, "zoneID"))
+		I._.EachSpot(Safe(DB.QueryObjectSingle, o, "spawns"), function(_, _, _, ui, c, _, area)
+			spots[#spots + 1] = { ui = ui, x = c[1], y = c[2], zone = I.ZoneName(ui), home = area == home }
+		end, true)
+	end
+	table.sort(spots, function(a, b)
+		if a.home ~= b.home then return a.home end
+		if a.ui ~= b.ui then return a.ui < b.ui end
+		if a.x ~= b.x then return a.x < b.x end
+		return a.y < b.y
+	end)
+	local at, note = spots[1], nil
+	-- (another zone's spot: said; two spots a step apart in one zone are one place)
+	for i = 2, #spots do
+		local sp = spots[i]
+		if sp.ui ~= at.ui and sp.zone then note = L["Also found at: %s"]:format(("%s %.1f, %.1f"):format(sp.zone, sp.x, sp.y)) break end
+	end
+	return { name = name, quest = id, item = item, zone = at and at.zone or nil, x = at and at.x or nil, y = at and at.y or nil,
+		ui = at and at.ui or nil, container = container, note = note, level = Num(Safe(DB.QueryQuestSingle, id, "questLevel")) or 0 }
+end
+
+local RegisterBooks -- (below: the list itself)
+--- Reads them, a slice a frame (every quest once: a few thousand). Nothing while Questie's own lists are being indexed.
+function B.BuildQuestie()
+	if qd.list or qd.building then return end
+	local DB = QD and QD.Ready() and QD.DB()
+	if not (DB and DB.QueryQuestSingle and DB.QuestIds and DB.QueryObjectSingle and I.RunSliced and I._.EachSpot) then return end
+	local ids = DB.QuestIds() or {}
+	if #ids == 0 then return end -- (not there yet: asked again)
+	qd.building = true
+	local out = {}
+	I.RunSliced("books: QuestieDB's quests", #ids, function(i)
+		local b = B.FromQuest(DB, ids[i])
+		if b then out[#out + 1] = b end
+	end, function()
+		-- (the order: by the level they're for, then by name, as OneForAll's sets go from 20 to 60)
+		table.sort(out, function(a, b)
+			if a.level ~= b.level then return a.level < b.level end
+			return a.name < b.name
+		end)
+		for i, b in ipairs(out) do b.order = i end
+		qd.list, qd.building = out, false
+		ns:Trace(("books: %d Library Books among QuestieDB's %d quests"):format(#out, #ids))
+		if #out > 0 then
+			RegisterBooks()
+			ns:Changed("book")
+		end
+	end)
+end
+local function BuildWhenQuiet()
+	if qd.list or qd.building then return end
+	if (ns.background or 0) > 0 then return C_Timer.After(B.QUIET_WAIT, BuildWhenQuiet) end -- (Questie's lists first)
+	B.BuildQuestie()
+end
+B.QUIET_WAIT = 2
+function B.ForgetQuestie() qd.list, qd.building = nil, false end -- (tests)
+
+--- The books and whose list they are: OneForAll's when it has one, else QuestieDB's (nil: neither, or not read yet).
+function B.Data()
+	local ofa = OA.Loaded() and B.OFAData() or nil
+	if ofa then return ofa, "OneForAll" end
+	if qd.list and #qd.list > 0 then return qd.list, "QuestieDB" end
+	return nil
+end
+
 local function Tooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
 	local st = B.STATES[e.state]
@@ -115,7 +236,7 @@ local function Tooltip(e, t)
 	if where then t:AddLine(where .. (e.px and ("  " .. ("%.1f, %.1f"):format(e.px, e.py)) or ""), 1, 1, 1, true) end
 	if e.note then t:AddLine(e.note, 0.8, 0.8, 0.8, true) end
 	if e.unsure then t:AddLine(e.unsure, 1, 0.5, 0.3, true) end
-	if e.set then t:AddLine(e.set .. (e.container and (SEP .. e.container) or ""), 0.62, 0.62, 0.62) end
+	if e.set or e.container then t:AddLine(ns.Join(SEP, e.set, e.container), 0.62, 0.62, 0.62) end
 	local p = ns.providers.book
 	local done, all = B.Progress(p and ns:GetEntries(p) or {})
 	t:AddLine(" ")
@@ -127,16 +248,19 @@ local function Tooltip(e, t)
 		t:AddLine(L["Next reward at %d books: %s"]:format(nxt.need, nxt.quest or "") .. (#names > 0 and (" (" .. table.concat(names, ", ") .. ")") or ""),
 			0.8, 0.8, 0.8, true)
 	end
-	t:AddLine(L["Library Books from OneForAll"], 0.5, 0.5, 0.5)
+	t:AddLine(e.source == "QuestieDB" and L["Library Books from QuestieDB"] or L["Library Books from OneForAll"], 0.5, 0.5, 0.5)
 end
 
 -- a book with no spot known: Enter says so, nothing pressed
-local function NoSpot(e) ns:Print(L["OneForAll has no spot for %s yet."]:format(e.name)) end
+local function NoSpot(e)
+	ns:Print((e.source == "QuestieDB" and L["QuestieDB has no spot for %s."] or L["OneForAll has no spot for %s yet."]):format(e.name))
+end
 
---- The rows: one a book, in OneForAll's order (its sets, levels 20 to 60).
+--- The rows: one a book, in its list's order (OneForAll's: its sets, levels 20 to 60; QuestieDB's: by level, by name).
 function B.Rows()
 	local out = {}
-	for _, b in ipairs(B.Data() or {}) do
+	local data, source = B.Data()
+	for _, b in ipairs(data or {}) do
 		local state = B.State(b)
 		local st = B.STATES[state]
 		local zone = b.zone and (b.subzone and (b.zone .. ", " .. b.subzone) or b.zone) or nil
@@ -144,7 +268,7 @@ function B.Rows()
 		local row = {
 			key = b.quest, kind = "book", name = b.name, _lname = Lower(b.name), itemID = b.item, icon = B.ICON,
 			state = state, isDone = st[2], zone = b.zone, subzone = b.subzone, note = b.note, set = b.set, container = b.container,
-			unsure = unsure, order = b.order, tooltip = Tooltip, generic = false, pinName = b.name,
+			unsure = unsure, order = b.order, tooltip = Tooltip, generic = false, pinName = b.name, source = source,
 			detail = st[1] .. (zone and (SEP .. zone) or "") .. (unsure and (SEP .. unsure) or ""),
 			text = Lower(table.concat({ L["library book"], "library book", st[1], b.zone or "", b.subzone or "", b.set or "",
 				b.container or "", st[2] and "done" or "todo" }, " ")),
@@ -161,9 +285,8 @@ function B.Rows()
 	return out
 end
 
-OA.AddSetup(function()
-	if not B.Data() then return end
-	B.Rewards()
+function RegisterBooks()
+	if ns.providers.book then return end
 	ns:RegisterProvider("book", {
 		label = L["Library Book"], color = "ffd8b070", aliases = { "book", "books", "librarybook", "librarybooks", "library" },
 		namesOnly = true, -- (a search that doesn't name it: by the books' names only, Scan.NameMode)
@@ -172,11 +295,30 @@ OA.AddSetup(function()
 		events = { "BAG_UPDATE_DELAYED", "QUEST_TURNED_IN", "BANKFRAME_CLOSED" }, guard = 1,
 		collect = B.Rows,
 	})
-end)
+end
+--- @book: OneForAll's books at once when it has them (its own setup runs this too); else QuestieDB's, read once its data
+--- can be (Setup.lua's "Books", after OneForAll's and Questie's).
+function B.Setup()
+	if ns.providers.book then return end
+	if OA.Loaded() and B.OFAData() then
+		B.Rewards()
+		RegisterBooks()
+		return
+	end
+	if QD and (QD.HasQuestie() or QD.Lib()) then QD.OnReady(BuildWhenQuiet) end
+end
+OA.AddSetup(B.Setup)
+if I._ then I._.SetupBooks = B.Setup end
 OA.AddStatus(function()
-	local d = B.Data()
+	local d = B.OFAData()
 	return d and L["%d Library Books (@book)"]:format(#d) or nil
 end)
+--- .integrations' line when the books are QuestieDB's (OneForAll's are counted on its own line); nil otherwise.
+function B.Status()
+	local d, source = B.Data()
+	if source ~= "QuestieDB" then return nil end
+	return L["%d from QuestieDB (@book). OneForAll adds notes on each spot and the rewards."]:format(#d)
+end
 
 ----------------------------------------------------------------------
 -- "library books", "books i still need", "nearest library book", "library book rewards"
@@ -243,7 +385,10 @@ function B.Answer(q)
 	local progress = L["%d of %d turned in"]:format(done, #all)
 	if q.rewards then
 		local rows = RewardRows(done)
-		if #rows == 0 then return { ns.NoteRow(L["OneForAll lists no rewards for the Library Books"]) }, L["Library Book rewards"] end
+		if #rows == 0 then
+			return { ns.NoteRow(OA.Loaded() and L["OneForAll lists no rewards for the Library Books"]
+				or L["The Library Books' rewards aren't known without OneForAll"]) }, L["Library Book rewards"]
+		end
 		return rows, L["Library Book rewards"] .. SEP .. progress
 	end
 	local rows = {}

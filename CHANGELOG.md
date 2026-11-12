@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.7 (in testing)
+
+- **`@book` without OneForAll** (the player's ask): QuestieDB's own data has WoW Forever's Library Books, read while
+  it's installed, never copied: each book's quest (its name, in the client's language), the item, and the world object
+  it lies in with its spot on the map (a second zone's spot said as "Also found at"). No list of them is kept; a book
+  is told by its shape among QuestieDB's quests: started by a world object and by an NPC, that NPC titled "Librarian",
+  or the quest of the Special sort with the item it asks for lying in that object. Against QuestieDB_Forever's data
+  (November 2026): 40 quests, every one of OneForAll's 39 among them, no other quest.
+- "library books", "books i still need", "nearest library book", `is:todo` / `is:done` and Enter's waypoint work as with
+  OneForAll; how far along you are is the game's own answer (the quest turned in, the book in your bags or bank).
+- OneForAll's list still comes first whenever it's installed: it adds a note on each spot, the sets, the reward tiers
+  and books you marked done. Without it "library book rewards" says so, and `.integrations` has a "Library Books:"
+  line naming QuestieDB. Every quest is looked at once, a slice a frame, after Questie's own indexing.
+
 ## 1.4.6 (in testing)
 
 - **Close spellings, faster:** when nothing matches a word of 8 letters or more, every word of about its length in

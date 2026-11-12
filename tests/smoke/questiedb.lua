@@ -423,8 +423,12 @@ do
 
 	-- Questie installed but still starting up: nothing read yet; at its ready, indexed
 	Fresh()
-	local onReady
-	_G.Questie = { API = { isReady = false, RegisterOnReady = function(fn) onReady = fn end } }
+	-- (every callback kept, as Questie's own RegisterOnReady keeps them: the NPCs' index and, 1.4.7, the Library Books')
+	local onReady, readyFns = nil, {}
+	_G.Questie = { API = { isReady = false, RegisterOnReady = function(fn)
+		readyFns[#readyFns + 1] = fn
+		onReady = function() for _, f in ipairs(readyFns) do f() end end
+	end } }
 	_G.QuestieLoader = { ImportModule = function() return nil end }
 	check(not QD.Ready(), "with Questie: wait until it's ready (its corrections go into the same data)")
 	I.Setup(); FlushAll()

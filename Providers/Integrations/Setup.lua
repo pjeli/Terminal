@@ -23,8 +23,9 @@ I.LOST = {
 	OneForAll = { "OneForAll", L["Its Library Books, hunter pets, reputation rewards, item sets and gear values are unavailable."] },
 }
 function I.Setup()
-	-- (Enchants last: AtlasLoot's or OneForAll's, either set up before it; OneForAll/Enchants.lua)
-	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune", "WhatsTraining", "TrainerSpells", "OneForAll", "Enchants" }) do
+	-- (Enchants last: AtlasLoot's or OneForAll's, either set up before it; OneForAll/Enchants.lua. Books after OneForAll
+	-- and Questie: OneForAll's Library Books, else QuestieDB's; OneForAll/Books.lua)
+	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune", "WhatsTraining", "TrainerSpells", "OneForAll", "Books", "Enchants" }) do
 		local setup = I._["Setup" .. name]
 		local ok, err = true, nil
 		if setup then ok, err = pcall(setup) end
@@ -123,6 +124,9 @@ ns:RegisterCommand("integrations", {
 		-- (@enchant: AtlasLoot's and OneForAll's together, so said on a line of its own)
 		local enchants = ns.Enchants and ns.Enchants.Status and ns.Safe(ns.Enchants.Status)
 		if enchants then lines[#lines + 1] = "  " .. L["Enchants:"] .. " " .. enchants end
+		-- (@book without OneForAll: QuestieDB's)
+		local books = ns.LibraryBooks and ns.LibraryBooks.Status and ns.Safe(ns.LibraryBooks.Status)
+		if books then lines[#lines + 1] = "  " .. L["Library Books:"] .. " " .. books end
 		if ns.Auctionator then lines[#lines + 1] = "  Auctionator: " .. ns.Auctionator.Status() end
 		local M = ns.Maps
 		if M and M.TomTom and M.TomTom() then lines[#lines + 1] = "  TomTom: " .. I.TomTomStatus() end
@@ -178,7 +182,7 @@ I.ADDONS = {
 I.ADDONS[#I.ADDONS + 1] = { name = "Auctionator", missing = function() return not (ns.Auctionator and ns.Auctionator.On()) end,
 	kinds = {}, words = { auctionable = true, undercut = true }, values = { ["is:auctionable"] = true, ["is:undercut"] = true,
 	["sort:ahvalue"] = true, ["sort:ah"] = true, ["sort:ahprice"] = true, ["sort:market"] = true } }
-I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.book end,
+I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", also = "Questie", missing = function() return not ns.providers.book end,
 	kinds = { book = true, books = true, librarybook = true, librarybooks = true, library = true }, words = { library = true } }
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ((ns.HunterPets and ns.HunterPets.on) or (ns.OneForAll and ns.OneForAll.Loaded())) end,
 	kinds = {}, words = { tame = true, tameable = true }, values = { ["is:tameable"] = true, ["is:ability"] = true } }
