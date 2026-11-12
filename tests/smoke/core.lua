@@ -602,3 +602,29 @@ do -- (1.4.1) the shared name helpers: one place for a spell's name, an item's n
 	ns.LinkInChat = saveLink
 	_G.C_Spell, _G.C_Item, _G.UnitClass, _G.GetSpellInfo = saveSpell, saveItem, saveClass, saveInfo
 end
+
+do -- (1.4.2) the four largest files split: each part loads right after the file it came from, and what it reads of that
+	-- file's own was handed over (a name left behind would be a nil global, which Lua never reports)
+	local toc = io.open("Terminal/Terminal.toc"):read("*a"):gsub("\r", "")
+	local function After(first, nexts)
+		local at = toc:find(first .. "\n" .. table.concat(nexts, "\n") .. "\n", 1, true)
+		check(at ~= nil, first .. " is followed by " .. table.concat(nexts, ", ") .. " in the TOC")
+	end
+	After("Providers\\Mail.lua", { "Providers\\MailRows.lua" })
+	After("Search\\Steps\\Chains.lua", { "Search\\Steps\\ChainLearn.lua", "Search\\Steps\\ChainRun.lua" })
+	After("Search\\Questions\\Rewards.lua", { "Search\\Questions\\QuestUpgrades.lua", "Search\\Questions\\QuestFacts.lua" })
+	After("UI\\Bar.lua", { "UI\\BarMenu.lua" })
+	local function Handed(what, t, names)
+		local missing = {}
+		for _, n in ipairs(names) do if type(t) ~= "table" or t[n] == nil then missing[#missing + 1] = n end end
+		check(#missing == 0, what .. " hands over everything its parts read (missing: " .. table.concat(missing, ", ") .. ")")
+	end
+	Handed("Mail.lua", ns.Mail._, { "Boxes", "Dirty", "Store", "NotificationKind" })
+	Handed("Chains.lua", ns.Pipes._, { "Entries", "ItemOf", "ItemName", "Icon", "AtlasCraft", "LootIndex", "OwnRecipes", "StoredByID",
+		"SOURCE_LABEL", "REAGENT_LABEL", "ShowItem", "View", "NearSaid", "AddQuestie", "SimpleOn" })
+	Handed("Rewards.lua", ns.QuestRewards._, { "DB", "QuestIdOf", "QuestsOf", "QUEST", "FILLER", "ForYou" })
+	Handed("Bar.lua", ns.Bar._, { "state", "ById", "SortParts", "Real" })
+	check(type(ns.QuestRewards.ForYouIn) == "function" and type(ns.Mail.SendCancelled) == "function", "what the parts ask of each other by name is there")
+	check(type(ns.Pipes.relations.learn) == "table" and type(ns.Pipes.Run) == "function" and type(ns.Bar.Update) == "function"
+		and type(ns.Mail.OnEvent) == "function" and type(ns.QuestRewards.Chain) == "function", "every part's own is still on its module")
+end

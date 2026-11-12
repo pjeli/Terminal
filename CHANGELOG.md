@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.2 (in testing)
+
+Code clean-up, no change in behaviour:
+- One shared helper each for a spell's name (`ns.SpellName`), an item's name (`ns.ItemName`), your class
+  (`ns.ClassToken`), squeezing spaces (`ns.Squeeze`) and the two halves of a "link in chat" row (`ns.ChatBoxPair`).
+- The four largest files are split where their sections already divided them (pure moves; what a part reads of the
+  file it came from is handed over on the module's `_` table): `Providers/Mail.lua` + `MailRows.lua`;
+  `Search/Steps/Chains.lua` + `ChainLearn.lua` + `ChainRun.lua`; `Search/Questions/Rewards.lua` + `QuestUpgrades.lua` +
+  `QuestFacts.lua`; `UI/Bar.lua` + `BarMenu.lua`.
+
+New files: restart the game, not just `/reload`.
+
 ## 1.4.1 (in testing)
 
 Code clean-up, no change in behaviour: one shared helper each for a spell's name (`ns.SpellName`), an item's name

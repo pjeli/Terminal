@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.4.1", when = "in testing",
+		v = "1.4.2", when = "in testing",
 		items = {
 			"Tidying under the hood: nothing changes in how Terminal works.",
 		},
