@@ -192,9 +192,14 @@ function A.ClassGrid(IS)
 	for _, r in ipairs(rows) do
 		local key = r.addon .. "\t" .. tostring(r.content) .. "\t" .. r.boss .. "\t" .. r.diff
 		local pg = pages[key]
-		if not pg then pg = { rows = {}, at = {}, n = 0 }; pages[key] = pg; order[#order + 1] = pg end
-		pg.rows[#pg.rows + 1] = r
-		if not pg.at[r.pos] then pg.at[r.pos] = true; pg.n = pg.n + 1 end
+		if not pg then pg = { rows = {}, at = {}, n = 0, has = {} }; pages[key] = pg; order[#order + 1] = pg end
+		-- (a row given twice counts once: 1.4.13, a page's rows came three or four times and no page taught a column)
+		local one = r.id .. "@" .. r.pos
+		if not pg.has[one] then
+			pg.has[one] = true
+			pg.rows[#pg.rows + 1] = r
+			if not pg.at[r.pos] then pg.at[r.pos] = true; pg.n = pg.n + 1 end
+		end
 	end
 	-- the columns: from the pages that teach them (every set marked, each class once)
 	local column, n = {}, 0

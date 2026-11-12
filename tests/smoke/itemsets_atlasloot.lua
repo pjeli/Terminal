@@ -151,6 +151,13 @@ do
 		check(rend and rend.anyClass and rend.classFile == nil, "a set on a dungeon's own page: not taken for a column, any class still")
 		local grid = A.ClassGrid(_G.AtlasLoot.Data.ItemSet)
 		check(grid[184] == "ROGUE" and grid[800] == "WARLOCK" and grid[808] == "PALADIN" and grid[41] == nil, "the columns: learned from the tier sets")
+		-- (1.4.13, the release review) each row given three times, as AtlasLoot's difficulties gave them in game: the same
+		local once = {}
+		for i, r in ipairs(SET_ROWS) do once[i] = r end
+		for _, r in ipairs(once) do SET_ROWS[#SET_ROWS + 1] = r; SET_ROWS[#SET_ROWS + 1] = r end
+		grid = A.ClassGrid(_G.AtlasLoot.Data.ItemSet)
+		check(grid[184] == "ROGUE" and grid[808] == "PALADIN", "every row given three times: the columns still learned: " .. tostring(grid[184]))
+		for i = #SET_ROWS, #once + 1, -1 do SET_ROWS[i] = nil end
 		check(grid[950] == nil and grid[948] == nil, "the Misc Sets page: no column learned from it, none given on it")
 		table.remove(SET_ROWS, 1) -- (the Warlock's tier set gone: eight columns told apart, the Dungeon Sets page has nine)
 		grid = A.ClassGrid(_G.AtlasLoot.Data.ItemSet)
@@ -283,7 +290,9 @@ do
 				"the set's button pointed at, its items shown as a click on it shows them")
 			local text = I.SetPlacesText()
 			I._.ForgetSets()
-			I._.ReadSetPlaces(text)
+			I._.ReadSetPlaces(text .. "\n" .. text) -- (1.4.13: an older saved index held each row three or four times)
+			local back = select(2, I.SetPlacesText():gsub("[^\n]+", ""))
+			check(back == 2, "read back, each row once: " .. back)
 			local p = I.LootSetPlace(209)
 			check(p and p.addon == "AtlasLootClassic_Collections" and p.content == "TierSets" and p.boss == 1, "kept with the saved index and read back: " .. text)
 			H.Show = showWas

@@ -3046,6 +3046,14 @@ do -- AtlasLoot and Questie integrations
 	-- (1.4.10) a set page's numbers are item sets: where each is listed is noted, for @itemset's Enter
 	local sp = I.LootSetPlace(77)
 	check(sp and sp.addon == "ALDungeons" and sp.content == "SETS" and sp.boss == 1 and sp.page == 0, "a set page: where set 77 is listed, noted")
+	-- (1.4.13, the release review) a row met again (AtlasLoot gives a page's own table for each difficulty it hasn't got) is
+	-- noted once: repeats made every page show each class twice, and no class column was learned
+	local n77 = 0
+	for _, r in ipairs(I.LootSetRows()) do if r.id == 77 then n77 = n77 + 1 end end
+	I._.NoteSet(77, "ALDungeons", "SETS", 1, 1, 1)
+	local n77b = 0
+	for _, r in ipairs(I.LootSetRows()) do if r.id == 77 then n77b = n77b + 1 end end
+	check(n77 == 1 and n77b == 1, "each set page row noted once, met again or not: " .. n77 .. " / " .. n77b)
 	local classicRows = 0
 	for _, r in ipairs(I.loot.rows) do if r.content == "CLASSIC_DM" then classicRows = classicRows + 1 end end
 	check(classicRows == 0, "only the game version AtlasLoot shows on this client is indexed (no Classic copies)")

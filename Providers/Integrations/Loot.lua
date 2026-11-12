@@ -332,12 +332,18 @@ function I._.ForgetEnchants() for k in pairs(loot.enchants) do loot.enchants[k] 
 -- not items. Every row of them is kept in order ({ id, addon, content, boss, diff, pos }: 1.4.11, their positions are
 -- the class columns, A.ClassGrid), and a set's first one is where Enter opens it ({ ..., page }); saved with the index
 -- (`sets`).
-loot.sets, loot.setRows = {}, {} -- set id -> its first place; every set page row
+loot.sets, loot.setRows, loot.setSeen = {}, {}, {} -- set id -> its first place; every set page row; the rows noted
+-- (each row once: AtlasLoot gives a page's own table again for every difficulty the page hasn't got, so the index's
+-- loop over a module's difficulties met each row three or four times; then every page showed each class twice and no
+-- class column was ever learned, A.ClassGrid: 1.4.13, the release review. Older saved indexes hold the repeats: read
+-- back through here, they go too)
 function I._.NoteSet(id, addon, content, boss, diff, pos)
 	if type(id) ~= "number" or type(addon) ~= "string" or content == nil or type(boss) ~= "number" then return end
-	pos = tonumber(pos) or 1
-	local row = { id = id, addon = addon, content = content, boss = boss, diff = tonumber(diff) or 1, pos = pos,
-		page = math.floor((pos - 1) / 100) }
+	pos, diff = tonumber(pos) or 1, tonumber(diff) or 1
+	local key = table.concat({ id, addon, tostring(content), boss, diff, pos }, "\t")
+	if loot.setSeen[key] then return end
+	loot.setSeen[key] = true
+	local row = { id = id, addon = addon, content = content, boss = boss, diff = diff, pos = pos, page = math.floor((pos - 1) / 100) }
 	loot.setRows[#loot.setRows + 1] = row
 	if not loot.sets[id] then loot.sets[id] = row end
 end
@@ -362,6 +368,7 @@ function I.LootSetPlace(id) return loot.sets[id] end
 function I.LootSetRows() return loot.setRows end
 function I._.ForgetSets()
 	for k in pairs(loot.sets) do loot.sets[k] = nil end
+	for k in pairs(loot.setSeen) do loot.setSeen[k] = nil end
 	for i = #loot.setRows, 1, -1 do loot.setRows[i] = nil end
 end -- (tests)
 

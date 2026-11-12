@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.13 (in testing)
+
+- **Dungeon sets' classes, for real** (the release review): AtlasLoot gives a set page's own table again for every
+  difficulty the page hasn't got, so reading its index met each set row three or four times. Every page then showed
+  each class more than once, no class column was learned, and 1.4.11's dungeon sets still said "any class" in game
+  (its test had given the rows by hand). Each row is now noted once (`I._.NoteSet`), older saved indexes included,
+  and the class columns count a repeated row once.
+
 ## 1.4.12 (in testing)
 
 - **`.integrations` lists only what's there** (the player: "If an integration is not found ... just don't list it"):
