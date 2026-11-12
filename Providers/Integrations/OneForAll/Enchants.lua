@@ -358,7 +358,11 @@ if ns.Integrations and ns.Integrations._ then ns.Integrations._.SetupEnchants = 
 --- .integrations' line about @enchant: how many it lists and whose they are (nil: neither addon has any). Its own line
 --- (1.4.5): OneForAll's line counted only OneForAll's, though @enchant lists AtlasLoot's first and needs neither alone.
 function EN.Status()
-	local data = EN.Data()
+	-- (@enchant's rows when they're made and current: counting them, not making the whole list again with its descriptions
+	-- asked for, each .integrations; 1.4.17, the release review)
+	local p = ns.providers.enchant
+	local rows = p and not p._dirty and p._entries
+	local data = (rows and #rows > 0) and rows or EN.Data() -- (none made yet, or none: worked out)
 	if not data or #data == 0 then return nil end
 	local al = 0
 	for _, o in ipairs(data) do if o.source == "AtlasLoot" then al = al + 1 end end

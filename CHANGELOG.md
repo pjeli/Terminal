@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.17 (in testing)
+
+- **Read-ahead, even after an early search** (the release review): what waits on a list (the pet foods, the loot's
+  tokens and item sets) ran only when the idle warm-up built that list itself; a search in the first seconds after
+  login built it first, and the read-ahead never ran. The warm-up now runs it on a list it finds built, once.
+- **`.integrations` counts `@enchant`'s rows** when they're made and current, instead of making the whole list again
+  (with every description asked of the game) each time it's run.
+
 ## 1.4.16 (in testing)
 
 - **Wording, from the release review**: `.integrations` gives the enchants, the Library Books and the item sets a line

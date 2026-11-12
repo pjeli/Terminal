@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.4.16", when = "in testing",
+		v = "1.4.17", when = "in testing",
 		items = {
 			"Item sets without OneForAll: with AtlasLoot alone, @itemset lists the sets, their pieces, where each drops and the set bonuses; Enter opens AtlasLoot on the set, and \"my class sets\" lists your class's.",
 			"Library Books without OneForAll: with Questie (or QuestieDB) alone, @book lists every book, where it lies and how far along you are.",

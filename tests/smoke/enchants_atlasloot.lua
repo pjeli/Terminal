@@ -39,6 +39,20 @@ do
 		check(EN.Status() == ns.L["%d (@enchant): %d from AtlasLoot, %d more from OneForAll"]:format(4, 3, 1), "its line: both addons' counted: " .. tostring(EN.Status()))
 		local said = table.concat(ns.commands.integrations.run(""), "\n")
 		check(said:find("  " .. ns.L["Enchants:"] .. " " .. EN.Status(), 1, true), ".integrations says it: " .. said)
+		-- (1.4.17) @enchant's rows made and current: counted, the list not made again
+		do
+			local pWas = ns.providers.enchant
+			ns.providers.enchant = { _dirty = false, _entries = { { source = "AtlasLoot" }, { source = "AtlasLoot" }, { source = "OneForAll" } } }
+			local dataWas, made = EN.Data, 0
+			EN.Data = function(...) made = made + 1 return dataWas(...) end
+			local said1 = EN.Status()
+			check(made == 0 and said1 == ns.L["%d (@enchant): %d from AtlasLoot, %d more from OneForAll"]:format(3, 2, 1),
+				"the rows made: counted, nothing made again: " .. made .. " / " .. tostring(said1))
+			ns.providers.enchant._dirty = true
+			EN.Status()
+			check(made == 1, "rows out of date: the list worked out: " .. made)
+			EN.Data, ns.providers.enchant = dataWas, pWas
+		end
 		local ofaWas = EN.OFAData
 		EN.OFAData = function() return nil end
 		check(EN.Status() == ns.L["%d from %s (%s)"]:format(3, "AtlasLoot", "@enchant"), "AtlasLoot's alone (no OneForAll): still said: " .. tostring(EN.Status()))

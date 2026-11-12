@@ -651,3 +651,27 @@ do -- (1.4.4) ns:AfterWarm: what's registered for a list runs once the idle warm
 	W.queue, W.done, W.seen, W.tries, ns.background = was.queue, was.done, was.seen, was.tries, was.bg
 	T.FlushAll()
 end
+
+do -- (1.4.17, the release review) a list a search built before the warm-up came to it: what waits on it still runs, once
+	local W = ns.warm
+	local calls = 0
+	ns:RegisterProvider("warmearly", { label = "WE", aliases = { "warmearly" }, lazy = true,
+		collect = function() return { { name = "Early thing" } } end })
+	ns:AfterWarm("warmearly", function() calls = calls + 1 end)
+	ns:GetEntries(ns.providers.warmearly) -- (a search built it first)
+	local was = { queue = W.queue, done = W.done, seen = W.seen, tries = W.tries, bg = ns.background }
+	W.queue, W.done, ns.background = nil, nil, 0
+	UI:Hide(); T.FlushAll()
+	local steps = 0
+	while steps < 800 and not W.done do ns:PrewarmStep(); steps = steps + 1 end
+	check(calls == 1, "built before the warm-up reached it: what waits on it run all the same, once: " .. calls)
+	W.queue, W.done = nil, nil
+	steps = 0
+	while steps < 800 and not W.done do ns:PrewarmStep(); steps = steps + 1 end
+	check(calls == 1, "and not again on another pass: " .. calls)
+	ns.providers.warmearly, ns.afterWarm.warmearly, W.hooked.warmearly = nil, nil, nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "warmearly" then table.remove(ns.providerOrder, i) end end
+	ns:AliasesChanged()
+	W.queue, W.done, W.seen, W.tries, ns.background = was.queue, was.done, was.seen, was.tries, was.bg
+	T.FlushAll()
+end
