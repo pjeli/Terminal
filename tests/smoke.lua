@@ -3043,6 +3043,9 @@ do -- AtlasLoot and Questie integrations
 	for _, r in ipairs(I.loot.rows) do lootNames[r.itemID] = r end
 	check(lootNames[2840] and lootNames[2840].detail == "Smelting  Mining", "a profession page gives the item its spell makes (Smelt Copper: Copper Bar)")
 	check(not lootNames[2657] and not lootNames[77], "spell and set numbers aren't read as item ids (no Test Glaive I)")
+	-- (1.4.10) a set page's numbers are item sets: where each is listed is noted, for @itemset's Enter
+	local sp = I.LootSetPlace(77)
+	check(sp and sp.addon == "ALDungeons" and sp.content == "SETS" and sp.boss == 1 and sp.page == 0, "a set page: where set 77 is listed, noted")
 	local classicRows = 0
 	for _, r in ipairs(I.loot.rows) do if r.content == "CLASSIC_DM" then classicRows = classicRows + 1 end end
 	check(classicRows == 0, "only the game version AtlasLoot shows on this client is indexed (no Classic copies)")
@@ -3126,6 +3129,8 @@ do -- AtlasLoot and Questie integrations
 		"a new session: rows from the saved index, no module loaded (" .. #I.loot.rows .. " of " .. nRows .. ")")
 	local cb = names(ns:GetEntries(ns.providers.loot))["Cruel Barb"]
 	check(cb and cb.detail == "Edwin VanCleef  The Deadmines" and cb.diff == 1 and cb.page == 0, "cached rows keep boss, instance, difficulty and page")
+	sp = I.LootSetPlace(77)
+	check(sp and sp.addon == "ALDungeons" and sp.content == "SETS" and sp.boss == 1 and sp.diff == 1, "and where each set is listed, kept with them (1.4.10)")
 	-- Enter on one: its module is loaded first, then the window opens on it
 	AtlasLoot.Loader.LoadModule = function(_, a) note("ALLoad", a); AtlasLoot.ItemDB.Storage = storageBefore end
 	mark = #log

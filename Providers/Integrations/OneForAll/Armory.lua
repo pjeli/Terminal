@@ -201,10 +201,16 @@ local function AtlasSet(IS, Req, setID, order)
 	-- where most of it comes from ("Molten Core"): said with the set
 	local sub, most = nil, 0
 	for place, n in pairs(places) do if n > most or (n == most and place < sub) then sub, most = place, n end end
-	-- the classes that may wear it: all of its first piece's, unless that's every class
+	-- the classes that may wear it: the one its set icon is for (AtlasLoot's GetSetIcon gives a class's icon for a set of
+	-- one class: its own data's class bits; 1.4.10, seen in game: its requirements table answered nothing on WoW
+	-- Forever, so every set said "any class"), else all of its first piece's, unless that's every class
 	local classes
 	local first = pieces[1].id
-	if Req and type(Req.ClassCanUseItem) == "function" and Safe(Req.HasRequirements, first) == true then
+	local classIcon = type(IS.GetSetIcon) == "function" and Safe(IS.GetSetIcon, setID, true)
+	local cls = type(classIcon) == "string" and classIcon:lower():match("classicon_(%a+)$")
+	if cls and cls:upper() ~= "DEATHKNIGHT" then
+		classes = { [cls:upper()] = true }
+	elseif Req and type(Req.ClassCanUseItem) == "function" and Safe(Req.HasRequirements, first) == true then
 		local n, set = 0, {}
 		for _, c in ipairs(A.CLASSES) do
 			if Safe(Req.ClassCanUseItem, c, first) == true then set[c] = true; n = n + 1 end
@@ -417,6 +423,16 @@ local function SetPieces(e)
 	local E = ns.Easy
 	Walk(A.PiecesSearch(e.name, E and E.On and E.On()))
 end
+-- Enter on one of AtlasLoot's sets: its window on the set (its page, pointed at, its items shown; 1.4.10, the player);
+-- a set it lists on no page Terminal has read: its pieces, as OneForAll's
+local function OpenSet(e)
+	if not (I.OpenLootSet and I.OpenLootSet(e.setID)) then SetPieces(e) end
+end
+local function Verbs(e)
+	if e.setPiece then return nil, nil end
+	if e.source == "AtlasLoot" and I.LootSetPlace and I.LootSetPlace(e.setID) then return L["show in AtlasLoot"], L["its pieces"] end
+	return L["its pieces"], nil
+end
 
 local function SetTooltip(e, t)
 	t:SetText(e.name, 1, 0.82, 0)
@@ -441,7 +457,8 @@ local function SetTooltip(e, t)
 			t:AddLine(L["(%d) Set: %s"]:format(b.pieces, b.text), on and 0.4 or 0.6, on and 1 or 0.6, on and 0.4 or 0.6, true)
 		end
 	end
-	t:AddLine(L["Enter: its pieces"], 0.62, 0.62, 0.62)
+	t:AddLine(e.activate == OpenSet and I.LootSetPlace and I.LootSetPlace(e.setID) and (L["Enter: show in AtlasLoot"] .. SEP .. L["Shift+Enter: its pieces"])
+		or L["Enter: its pieces"], 0.62, 0.62, 0.62)
 	t:AddLine(e.source == "AtlasLoot" and L["Item sets from AtlasLoot"] or L["Item sets from OneForAll"], 0.5, 0.5, 0.5)
 end
 
@@ -473,8 +490,8 @@ function A.SetRows()
 				key = s.id, kind = "itemset", name = s.name, _lname = Lower(s.name), setID = s.id, icon = Icon(chest.icon, "Interface\\Icons\\INV_Chest_Chain"),
 				group = s.group, sub = s.sub, status = s.status, armor = s.armor, level = s.level, bonuses = s.bonuses, pieces = s.pieces,
 				classFiles = s.classes, anyClass = s.classes == nil, classFile = only or nil, owned = owned, total = #s.pieces,
-				isDone = owned == #s.pieces, order = s.order, tooltip = SetTooltip, activate = SetPieces, secondary = SetPieces, generic = false,
-				source = source,
+				isDone = owned == #s.pieces, order = s.order, tooltip = SetTooltip, generic = false, source = source,
+				activate = source == "AtlasLoot" and OpenSet or SetPieces, secondary = SetPieces,
 				detail = ns.Detail(s.sub, L["%d of %d pieces"]:format(owned, #s.pieces), s.armor, ClassNames(s.classes), STATUS[s.status]),
 				text = Lower(table.concat({ L["item set"], "item set itemset", s.sub or "", s.group or "", s.armor or "", ClassNames(s.classes),
 					owned > 0 and "started" or "", A.PiecesText(s) }, " ")),
@@ -553,6 +570,7 @@ end)
 --- (Setup.lua's "ItemSets", after AtlasLoot's and OneForAll's), made again whenever its loot list is.
 function A.SetupSets()
 	if ns.providers.itemset then return end
+	if ns.Easy and ns.Easy.VERBS then ns.Easy.VERBS.itemset = Verbs end
 	local ofa = OA.Loaded() and A.OFASets()
 	if not (ofa or AtlasApi()) then return end
 	local ev = { "BAG_UPDATE_DELAYED", "PLAYER_EQUIPMENT_CHANGED", "BANKFRAME_CLOSED" }

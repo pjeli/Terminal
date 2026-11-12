@@ -52,14 +52,21 @@ do
 				GetSetIDforItemID = function(id) asked = asked + 1 return OF[id] end,
 				GetSetItems = function(set) return SETS[set] end,
 				GetSetName = function(set) return NAME[set] or UNKNOWN end,
+				-- (a set of one class: its class's icon, as AtlasLoot's own data says; else its first piece's)
+				GetSetIcon = function(set, classIcon)
+					if classIcon and set == 209 then return "Interface\\AddOns\\AtlasLootClassic\\Images\\Icons\\classicon_warrior" end
+					if classIcon and set == 210 then return "Interface\\AddOns\\AtlasLootClassic\\Images\\Icons\\classicon_priest" end
+					return 134400
+				end,
 				GetSetBonusString = function(set)
 					if set == 209 then return "(3) Set: |cffffffffIncreases the block value of your shield by 30.|r\n(5) Set: |cffffffffGain 5 Rage when you parry.|r\n" end
 					if set == 210 and bonusIn then return "(3) Set: |cffffffff-0.1 sec to the casting time of your Flash Heal.|r\n" end
 					return false -- (the game hasn't sent the bonus's text yet)
 				end,
 			},
+			-- (1.4.10, seen in game: its requirements table answers nothing on WoW Forever; the set icon tells instead)
 			Requirements = {
-				HasRequirements = function(id) return OF[id] == 209 or OF[id] == 210 end,
+				HasRequirements = function() return false end,
 				ClassCanUseItem = function(class, id) return (OF[id] == 209 and class == "WARRIOR") or (OF[id] == 210 and class == "PRIEST") end,
 			},
 		} }
@@ -115,6 +122,25 @@ do
 			"a set anyone may wear (no requirement): any class; a weapon set has no armour: " .. tostring(rend and rend.detail))
 		check(rend and rend.detail == ns.Detail("Upper Blackrock Spire", L["%d of %d pieces"]:format(0, 1), L["any class"]), "(no empty part in its line): " .. tostring(rend and rend.detail))
 
+		-- (1.4.10, the player: Enter "is not opening Atlasloot ... to show the actual itemset") Enter opens AtlasLoot on the
+		-- page that lists the set; Shift+Enter its pieces; a set listed on no page read: its pieces
+		local openWas, placeWas, walked, opened = I.OpenLootSet, I.LootSetPlace, nil, nil
+		local PLACES = { [209] = { addon = "AtlasLootClassic_Collections", content = "TierSets", boss = 1, diff = 1, page = 0 } }
+		I.LootSetPlace = function(id) return PLACES[id] end
+		I.OpenLootSet = function(id) if PLACES[id] then opened = id return true end return false end
+		UI.WalkTo = function(_, text) walked = text end
+		might.activate(might)
+		check(opened == 209 and walked == nil, "Enter on a set AtlasLoot lists: its window on it: " .. tostring(opened))
+		might.secondary(might)
+		check(walked ~= nil and walked:lower():find("battlegear of might", 1, true), "Shift+Enter: its pieces: " .. tostring(walked))
+		walked, opened = nil, nil
+		rend.activate(rend)
+		check(opened == nil and walked ~= nil and walked:lower():find("dal'rend's arms", 1, true), "a set on no page read: Enter lists its pieces: " .. tostring(walked))
+		local v1, v2 = ns.Easy.Verbs(might)
+		check(v1 == L["show in AtlasLoot"] and v2 == L["its pieces"], "the footer says so: " .. tostring(v1) .. " / " .. tostring(v2))
+		v1 = ns.Easy.Verbs(rend)
+		check(v1 == L["its pieces"], "and for a set on no page: " .. tostring(v1))
+
 		-- its tooltip; bonuses the game hadn't sent are asked for again when shown
 		local function Tip(e)
 			local tip = { lines = {} }
@@ -128,6 +154,8 @@ do
 		check(all:find(L["Item sets from AtlasLoot"], 1, true) and not all:find("OneForAll", 1, true)
 			and all:find(L["(%d) Set: %s"]:format(3, "Increases the block value of your shield by 30."), 1, true)
 			and all:find("Belt of Might", 1, true), "a set's tooltip: whose list, its bonuses, its pieces (one not in the loot named by the game): " .. all)
+		check(all:find(L["Enter: show in AtlasLoot"], 1, true) ~= nil, "and its tooltip: " .. all)
+		I.OpenLootSet, I.LootSetPlace = openWas, placeWas
 		check(proph and #proph.bonuses == 0 and not Tip(proph):find("Flash Heal", 1, true), "bonuses not sent yet: none said")
 		bonusIn = true
 		check(Tip(proph):find("Flash Heal", 1, true) ~= nil, "shown again once they're in: asked for anew")
@@ -184,6 +212,40 @@ do
 		lines = table.concat(ns.commands.integrations.run(""), "\n")
 		check(not lines:find(L["Item sets:"], 1, true), ".integrations: on OneForAll's line then")
 		_G.OneForAll = nil
+
+		-- (1.4.10) the window on a set: the page listing it, its button pointed at, its items shown as a click on it shows them
+		do
+			local picked, shownWith, pointed = {}, nil, nil
+			local function Picker(what) return { SetSelected = function(_, v) picked[#picked + 1] = what .. "=" .. tostring(v) end } end
+			local setBtn = T.Obj("Button"); setBtn.shown = true; setBtn.SetID = 209; setBtn.ExtraFrameData = { "set209", 0, 16866 }
+			local itemBtn = T.Obj("Button"); itemBtn.shown = true -- (no ItemID: never taken for the set's)
+			local frame = T.Obj("Frame")
+			frame.moduleSelect, frame.subCatSelect, frame.boss, frame.difficulty = Picker("module"), Picker("content"), Picker("boss"), Picker("diff")
+			_G.AtlasLoot.GUI = { frame = frame, ItemFrame = { frame = { ItemButtons = { itemBtn, setBtn } }, Refresh = function() end } }
+			_G.AtlasLoot.db = { GUI = { selected = { "", "", 1, 1, 0 } } }
+			_G.AtlasLoot.ItemDB = { Storage = { AtlasLootClassic_Collections = {} } }
+			_G.AtlasLoot.Button = { ExtraItemFrame_GetFrame = function(_, b, data) shownWith = { b, data } end }
+			local H = ns.Highlight
+			local showWas = H.Show
+			H.Show = function(_, b) pointed = b end
+			I._.ForgetSets()
+			check(I.OpenLootSet(209) == false, "a set no page lists: nothing opened")
+			I._.NoteSet(209, "AtlasLootClassic_Collections", "TierSets", 1, 1, 0)
+			I._.NoteSet(209, "AtlasLootClassic_DungeonsAndRaids", "Somewhere", 3, 1, 0) -- (the first page met is kept)
+			check(I.OpenLootSet(209) == true, "a set a page lists: opened")
+			FlushAll()
+			check(table.concat(picked, ","):find("module=AtlasLootClassic_Collections,content=TierSets,boss=1", 1, true),
+				"its window on the page that lists it: " .. table.concat(picked, ","))
+			check(pointed == setBtn and shownWith and shownWith[1] == setBtn and shownWith[2] == setBtn.ExtraFrameData and setBtn.ExtraFrameShown,
+				"the set's button pointed at, its items shown as a click on it shows them")
+			local text = I.SetPlacesText()
+			I._.ForgetSets()
+			I._.ReadSetPlaces(text)
+			local p = I.LootSetPlace(209)
+			check(p and p.addon == "AtlasLootClassic_Collections" and p.content == "TierSets" and p.boss == 1, "kept with the saved index and read back: " .. text)
+			H.Show = showWas
+			I._.ForgetSets()
+		end
 
 		-- an AtlasLoot with no set data, or none at all: no @itemset
 		_G.AtlasLoot.Data.ItemSet = nil

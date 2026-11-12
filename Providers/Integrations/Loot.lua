@@ -54,8 +54,9 @@ end
 -- The index is kept between sessions (db.lootCache), so a /reload doesn't load every loot module
 -- again: rows come from the cache at once and a module is loaded only to open its window. It is
 -- rebuilt when AtlasLoot, a module, the game version or this format changes (CacheKey).
-local CACHE_FORMAT = 4 -- (2: indexed for the window's game version, I.WindowVersion; 3: each place's kind and level;
--- 4: Enchanting's spells that make no item, the enchants, kept beside the groups: @enchant, OneForAll/Enchants.lua)
+local CACHE_FORMAT = 5 -- (2: indexed for the window's game version, I.WindowVersion; 3: each place's kind and level;
+-- 4: Enchanting's spells that make no item, the enchants, kept beside the groups: @enchant, OneForAll/Enchants.lua;
+-- 5: where each item set is listed, kept beside them: Enter on @itemset opens it there, OneForAll/Armory.lua)
 
 --- One loot row (compact: shared fields come from loot.meta); its name is filled in once the
 --- server has sent it. page: the page the item is on (AtlasLoot shows 100 positions per page).
@@ -265,6 +266,8 @@ local function IndexModule(addon, storage, groups)
 							local pos = type(row) == "table" and tonumber(row[1]) or 1
 							-- (an Enchanting spell that makes no item is an enchant: noted for @enchant, 1.3.10)
 							if tableKind == "Profession" and type(id) == "number" then I._.NoteEnchant(id, A) end
+							-- (a set page's numbers are item sets: where each is listed, for @itemset's Enter, 1.4.10)
+							if tableKind == "Set" and type(id) == "number" then I._.NoteSet(id, addon, content, boss, diff, math.floor((pos - 1) / 100)) end
 							id = type(id) == "number" and id > 0 and RowItem(tableKind, id, A) or nil
 							if id then
 								local page = math.floor((pos - 1) / 100)
@@ -323,6 +326,37 @@ end
 function I.EnchantsText() return table.concat(I.LootEnchants(), " ") end
 function I._.ForgetEnchants() for k in pairs(loot.enchants) do loot.enchants[k] = nil end end -- (tests)
 
+-- Where AtlasLoot lists each item set (1.4.10, the player: Enter on a set "is not opening Atlasloot ... to show the
+-- actual itemset"): its set pages ("Set" tables: the Collections module's tier sets, a dungeon's own) hold set numbers,
+-- not items. The first page met for a set is kept: { addon, content, boss, diff, page }, saved with the index (`sets`).
+loot.sets = {} -- set id -> place
+function I._.NoteSet(id, addon, content, boss, diff, page)
+	if loot.sets[id] or type(addon) ~= "string" or content == nil or type(boss) ~= "number" then return end
+	loot.sets[id] = { addon = addon, content = content, boss = boss, diff = tonumber(diff) or 1, page = tonumber(page) or 0 }
+end
+--- The set places as one text for the saved index: "id\taddon\tcontent\tboss\tdiff\tpage" a line.
+function I.SetPlacesText()
+	local ids = {}
+	for id in pairs(loot.sets) do ids[#ids + 1] = id end
+	table.sort(ids)
+	local out = {}
+	for _, id in ipairs(ids) do
+		local p = loot.sets[id]
+		out[#out + 1] = table.concat({ id, p.addon, tostring(p.content), p.boss, p.diff, p.page }, "\t")
+	end
+	return table.concat(out, "\n")
+end
+function I._.ReadSetPlaces(text)
+	if type(text) ~= "string" then return end
+	for line in text:gmatch("[^\n]+") do
+		local id, addon, content, boss, diff, page = line:match("^(%d+)\t([^\t]+)\t([^\t]+)\t(%d+)\t(%d+)\t(%d+)$")
+		if id then I._.NoteSet(tonumber(id), addon, tonumber(content) or content, tonumber(boss), diff, page) end
+	end
+end
+--- Where AtlasLoot lists this item set, or nil (no set page of it in the modules read).
+function I.LootSetPlace(id) return loot.sets[id] end
+function I._.ForgetSets() for k in pairs(loot.sets) do loot.sets[k] = nil end end -- (tests)
+
 --- Rows from the saved index, without loading any module. False when there's none to use.
 local function FromCache(key)
 	local c = ns.db and ns.db.lootCache
@@ -330,6 +364,7 @@ local function FromCache(key)
 	if type(c.enchants) == "string" then
 		for id in c.enchants:gmatch("%d+") do loot.enchants[tonumber(id)] = true end
 	end
+	I._.ReadSetPlaces(c.sets)
 	for _, g in ipairs(c.groups) do
 		local addon, content, boss, inst, bossName, packed = g[1], g[2], g[3], g[4], g[5], g[6]
 		if type(addon) == "string" and type(packed) == "string" then
@@ -491,7 +526,7 @@ LoadLootModules = function()
 				-- (modules loaded, no item read from them: its item tables changed; said, and no empty index kept)
 				I.Failed("AtlasLoot", L["@loot (its loot tables) is unavailable."], "ItemDB.GetItemTable gave no items")
 			elseif ns.db then
-				ns.db.lootCache = { key = key, groups = groups, enchants = I.EnchantsText() } -- kept for the next session
+				ns.db.lootCache = { key = key, groups = groups, enchants = I.EnchantsText(), sets = I.SetPlacesText() } -- kept for the next session
 			end
 			Dirty()
 			ns:Changed("enchant") -- (AtlasLoot's enchants are in: @enchant made again from them)
@@ -555,11 +590,31 @@ local function OpenLoot(e)
 	H:When(function()
 		local frame = GUI.ItemFrame and GUI.ItemFrame.frame
 		for _, b in ipairs(frame and frame.ItemButtons or {}) do
-			if b.ItemID == e.itemID and b:IsVisible() then return b end
+			-- (an item's button by its item; a set's by its set: a set's button has no ItemID, never matched as nil == nil)
+			local mine = (e.itemID and b.ItemID == e.itemID) or (e.setID and b.SetID == e.setID)
+			if mine and b:IsVisible() then return b end
 		end
-	end, function(b) H:Show(b) end, 30, function()
-		ns:Trace("loot: no button for item " .. tostring(e.itemID) .. " on the page shown")
+	end, function(b)
+		H:Show(b)
+		-- a set: its items shown too, as a click on it does (AtlasLoot's own window: its Set button's OnClickItemList)
+		local Btn = A.Button
+		if e.setID and b.ExtraFrameData and type(Btn) == "table" and type(Btn.ExtraItemFrame_GetFrame) == "function" then
+			b.ExtraFrameShown = true
+			local ok = pcall(Btn.ExtraItemFrame_GetFrame, Btn, b, b.ExtraFrameData)
+			ns:Trace("loot: set " .. tostring(e.setID) .. "'s items " .. (ok and "shown" or "not shown (its item list failed)"))
+		end
+	end, 30, function()
+		ns:Trace("loot: no button for " .. (e.setID and ("set " .. tostring(e.setID)) or ("item " .. tostring(e.itemID))) .. " on the page shown")
 	end)
+end
+
+--- Opens AtlasLoot on the page that lists this item set, pointing at it and showing its items; false when AtlasLoot
+--- lists it on no set page Terminal has read.
+function I.OpenLootSet(id)
+	local p = loot.sets[id]
+	if not p then return false end
+	OpenLoot({ addon = p.addon, content = p.content, boss = p.boss, diff = p.diff, page = p.page, setID = id })
+	return true
 end
 
 -- Shift+Enter: the item's link in the chat box, with where it drops ("[Corpsemaker] dropped by Overlord Ramtusk in

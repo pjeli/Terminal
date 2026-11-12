@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.10 (in testing)
+
+- **Enter on AtlasLoot's item sets opens AtlasLoot on them** (the player's screenshot of 1.4.9: Enter listed the
+  pieces in Terminal, not the set in AtlasLoot): its set pages (the tier sets, a dungeon's own) were skipped when
+  its index was read, since they hold set numbers, not items. Where each set is listed is now noted with the index
+  and saved with it; Enter opens the window there, points at the set and shows its items as a click on it does.
+  Shift+Enter lists its pieces in Terminal; a set listed on no page still lists them on Enter. The footer and the
+  tooltip say which. AtlasLoot's index is built again once.
+- **Class sets said "any class"**: AtlasLoot's requirements table answers nothing on WoW Forever. The class is now read
+  from AtlasLoot's own set icon (it gives a class's icon for a set of one class), so "Battlegear of Valor" says
+  Paladin and `class:` / "my class sets" pick it.
+
 ## 1.4.9 (in testing)
 
 - **`@itemset` without OneForAll** (the player's pick from a survey of unused data): AtlasLoot's public set data
