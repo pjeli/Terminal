@@ -129,6 +129,14 @@ do
 		r = UI.Results()
 		check(r[1] and r[1].name:find("Friend of the Library", 1, true) and (r[1].detail or ""):find("Library Card", 1, true)
 			and r[1].name:find(L["(reached)"], 1, true) == nil, "library book rewards: each tier, its items, not reached yet: " .. Names(r))
+		-- (1.4.8, the player: "I can see the rows but how come I cannot see the reward loot") each reward under its tier
+		-- as an item's own row: the item's tooltip, a row to act on, not a line of names
+		check(#r == 4 and r[2].itemID == 7001 and r[2].name == "Library Card" and r[2].link == "item:7001" and not r[2].noActivate and not r[2].raw,
+			"under a tier, each item it gives as an item's row (named by the list until the game names it): " .. Names(r))
+		check(tostring(r[2].detail):find("Friend of the Library", 1, true) and tostring(r[2].detail):find(L["%d books"]:format(2), 1, true)
+			and tostring(r[2].detail):find("a card", 1, true), "which tier it's of, and OneForAll's words on it: " .. tostring(r[2].detail))
+		check(r[3].raw and r[3].name:find("Keeper of Tomes", 1, true) and r[4].itemID == 7002 and r[4].name == "Scholar's Robe",
+			"the next tier and its item after: " .. Names(r))
 		UI:Hide(); FlushAll()
 		check(B.ToAdvanced(B.Question("nearest library book")) == "@book is:todo sort:distance ", "to Advanced: " .. B.ToAdvanced(B.Question("nearest library book")))
 		-- (review, 1.0.42) the reward tiers: the question itself in Advanced, which lists the same tiers (not every book)

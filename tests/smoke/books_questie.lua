@@ -19,7 +19,7 @@ do
 		failed = I.failed, easy = ns.db.easyMode, bg = ns.background, db = QD.DB, ready = QD.Ready, qlib = QD.Lib, has = QD.HasQuestie,
 		onReady = QD.OnReady, uiOf = QD.UiMapOfArea, field = I.NpcField, objName = I.ObjectName, zoneName = I.ZoneName, spot = I.SpotXY,
 		here = I.Here, flagged = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted, count = _G.GetItemCount,
-		citem = C_Item and C_Item.GetItemCount, loaded = OA.Loaded }
+		citem = C_Item and C_Item.GetItemCount, loaded = OA.Loaded, rewardsOf = ns.QuestRewards.RewardsOf, index = ns.QuestRewards.Index }
 	local said = {}
 	ns.Print = function(_, m) said[#said + 1] = m end
 	local ok, err = pcall(function()
@@ -134,8 +134,37 @@ do
 		I.Here = function() return { cont = 1, x = 264, y = 245 } end
 		r = B.Answer(B.Question("nearest library book"))
 		check(r[1] and r[1].name == "Magma Notes" and r[#r].name == "Folio of Stars", "nearest library book: by how far, one with no spot last: " .. Names(r))
+		-- (1.4.8) the rewards without OneForAll: the Librarians' reward quests (started by a Librarian, at no object), each
+		-- with the items Questie says it gives, as items' own rows
+		local QR = ns.QuestRewards
+		local rewardsOf, indexWas = QR.RewardsOf, QR.Index
+		local indexed = true
+		QR.Index = function() return indexed and {} or nil end
+		QR.RewardsOf = function(q) if indexed and q == 506 then return { { id = 7101, name = "Scholarly Pendant" }, { id = 7102, name = "Erudite's Amulet" } } end end
 		r = B.Answer(B.Question("library book rewards"))
-		check(r[1] and r[1].name == L["The Library Books' rewards aren't known without OneForAll"], "the rewards: said to be OneForAll's: " .. Names(r))
+		check(#r == 3 and r[1].raw and r[1].name == "Friend of the Library: " .. L["level %d"]:format(20)
+			and tostring(r[1].detail) == "Scholarly Pendant, Erudite's Amulet", "the rewards from QuestieDB: a Librarian's reward quest, what it gives: "
+				.. Names(r) .. " / " .. tostring(r[1] and r[1].detail))
+		check(r[2] and r[2].itemID == 7101 and r[2].link == "item:7101" and not r[2].raw and r[3] and r[3].itemID == 7102
+			and tostring(r[2].detail):find("Friend of the Library", 1, true), "each item it gives as an item's row: " .. Names(r))
+		DONE[506] = true
+		r = B.Answer(B.Question("library book rewards"))
+		check(r[1] and r[1].name:find(L["(claimed)"], 1, true), "a reward quest turned in: claimed: " .. tostring(r[1] and r[1].name))
+		DONE[506] = nil
+		indexed = false
+		ns.Filters.loading = false
+		r = B.Answer(B.Question("library book rewards"))
+		check(#r == 1 and r[1].raw and ns.Filters.loading == true, "the items quests reward still being read: the tier alone, asked again once they're in: " .. Names(r))
+		ns.Filters.loading = false
+		indexed = true
+		local q506 = QUESTS[506]
+		QUESTS[506] = nil
+		Fresh()
+		r = B.Answer(B.Question("library book rewards"))
+		check(r[1] and r[1].name == L["The Library Books' rewards aren't known without OneForAll"], "no reward quest in QuestieDB: said: " .. Names(r))
+		QUESTS[506] = q506
+		Fresh()
+		QR.RewardsOf, QR.Index = rewardsOf, indexWas
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")
 		check(lines:find("  " .. L["Library Books:"] .. " " .. L["%d from QuestieDB (@book). OneForAll adds notes on each spot and the rewards."]:format(4), 1, true),
 			".integrations says whose they are: " .. lines)
@@ -203,6 +232,7 @@ do
 	if C_Item then C_Item.GetItemCount = save.citem end
 	ns.db.easyMode = save.easy; UI:EasyChanged()
 	OA.Forget(); B.ForgetQuestie()
+	ns.QuestRewards.RewardsOf, ns.QuestRewards.Index = save.rewardsOf, save.index
 	if I.ForgetHint then I.ForgetHint() end
 	check(ok, "library books from QuestieDB: " .. tostring(err))
 end

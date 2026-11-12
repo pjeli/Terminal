@@ -574,8 +574,10 @@ function P.NotAThing(what)
 	return false
 end
 --- An item's row in a chain's answer (what an NPC drops or sells, what a quest rewards), or nil while its name loads.
-local function NpcItemRow(id, detail, how)
-	local name = ItemName(id)
+--- `named`: its name as the list asking has it, for an item the client hasn't named yet (the game's comes with the
+--- search made again: ItemName asked for it).
+local function NpcItemRow(id, detail, how, named)
+	local name = ItemName(id) or named
 	if not name then return nil end
 	local q = C_Item and C_Item.GetItemQualityByID and Safe(C_Item.GetItemQualityByID, id)
 	return Pressed({ key = id, kind = "reagent", kindLabel = SOURCE_LABEL, freqKey = "reagent:" .. id, name = name, itemID = id,

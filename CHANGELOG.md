@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.8 (in testing)
+
+- **"library book rewards" shows the rewards** (the player: "I can see the rows but how come I cannot see the reward
+  loot"): each tier was one line naming its items, with nothing to hover. Under a tier's line each item it gives is now
+  an item's own row: the item's tooltip, its quality colour, Enter and Shift+Enter as any item.
+- Without OneForAll the rewards come from QuestieDB: the Librarians' reward quests ("Friend of the Library", "Greater
+  Friend of the Library": a quest a Librarian gives that starts at no object), lowest level first, each with the items
+  Questie says it gives, "(claimed)" once turned in. How many books a reward takes isn't in QuestieDB (its level is
+  said); OneForAll's tiers say it. AtlasLoot has none of these items.
+
 ## 1.4.7 (in testing)
 
 - **`@book` without OneForAll** (the player's ask): QuestieDB's own data has WoW Forever's Library Books, read while

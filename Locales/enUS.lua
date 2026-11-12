@@ -316,6 +316,7 @@ L["(a recipe you don't have)"] = true
 L["(a shell command: man %s)"] = true
 L["(as the auction house listed it)"] = true
 L["(as you posted it)"] = true
+L["(claimed)"] = true
 L["(connected realms only)"] = true
 L["(current colours are customised)"] = true
 L["(current)"] = true

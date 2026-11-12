@@ -129,7 +129,7 @@ end
 local QD = ns.QuestieData
 B.LIBRARIAN = "Librarian" -- (the title in English: QuestieDB's untranslated one is asked on another client)
 B.SPECIAL_SORT = -284
-local qd = { list = nil, building = false }
+local qd = { list = nil, rewards = nil, building = false }
 
 local function IsLibrarian(id)
 	local t = I.NpcField and (I.NpcField(id, "subNameEn") or I.NpcField(id, "subName"))
@@ -184,6 +184,20 @@ function B.FromQuest(DB, id)
 		ui = at and at.ui or nil, container = container, note = note, level = Num(Safe(DB.QueryQuestSingle, id, "questLevel")) or 0 }
 end
 
+--- One of QuestieDB's quests as a reward for books turned in ({ quest (its name), questID, level }), or nil: a quest a
+--- Librarian gives that starts at no object ("Friend of the Library", "Greater Friend of the Library").
+function B.RewardQuest(DB, id)
+	local starts = Safe(DB.QueryQuestSingle, id, "startedBy")
+	if type(starts) ~= "table" then return nil end
+	local npcs, objs = starts[1], starts[2]
+	if type(npcs) ~= "table" or #npcs == 0 or (type(objs) == "table" and #objs > 0) then return nil end
+	local librarian = false
+	for _, n in ipairs(npcs) do if IsLibrarian(n) then librarian = true break end end
+	local name = librarian and ns.Str(Safe(DB.QueryQuestSingle, id, "name"))
+	if not name then return nil end
+	return { quest = name, questID = id, level = Num(Safe(DB.QueryQuestSingle, id, "questLevel")) or 0 }
+end
+
 local RegisterBooks -- (below: the list itself)
 --- Reads them, a slice a frame (every quest once: a few thousand). Nothing while Questie's own lists are being indexed.
 function B.BuildQuestie()
@@ -193,18 +207,27 @@ function B.BuildQuestie()
 	local ids = DB.QuestIds() or {}
 	if #ids == 0 then return end -- (not there yet: asked again)
 	qd.building = true
-	local out = {}
+	local out, rewards = {}, {}
 	I.RunSliced("books: QuestieDB's quests", #ids, function(i)
 		local b = B.FromQuest(DB, ids[i])
-		if b then out[#out + 1] = b end
+		if b then
+			out[#out + 1] = b
+		else
+			local r = B.RewardQuest(DB, ids[i])
+			if r then rewards[#rewards + 1] = r end
+		end
 	end, function()
+		table.sort(rewards, function(a, b)
+			if a.level ~= b.level then return a.level < b.level end
+			return a.questID < b.questID
+		end)
 		-- (the order: by the level they're for, then by name, as OneForAll's sets go from 20 to 60)
 		table.sort(out, function(a, b)
 			if a.level ~= b.level then return a.level < b.level end
 			return a.name < b.name
 		end)
 		for i, b in ipairs(out) do b.order = i end
-		qd.list, qd.building = out, false
+		qd.list, qd.rewards, qd.building = out, rewards, false
 		ns:Trace(("books: %d Library Books among QuestieDB's %d quests"):format(#out, #ids))
 		if #out > 0 then
 			RegisterBooks()
@@ -218,7 +241,25 @@ local function BuildWhenQuiet()
 	B.BuildQuestie()
 end
 B.QUIET_WAIT = 2
-function B.ForgetQuestie() qd.list, qd.building = nil, false end -- (tests)
+function B.ForgetQuestie() qd.list, qd.rewards, qd.building = nil, nil, false end -- (tests)
+
+--- The rewards as QuestieDB has them, without OneForAll: the Librarians' reward quests, lowest level first, each with the
+--- items it gives (Questie's questRewards, Rewards.lua's index; none yet while that's being read: asked again). How
+--- many books each takes isn't in QuestieDB: its level stands for it. { { quest, questID, level, items = { { id, name } } } }
+function B.QuestieRewards()
+	local QR = ns.QuestRewards
+	local out = {}
+	for _, r in ipairs(qd.rewards or {}) do
+		local items = {}
+		local list = QR and QR.RewardsOf and QR.RewardsOf(r.questID)
+		if list == nil and QR and QR.Index and not QR.Index() then
+			if ns.Filters then ns.Filters.loading = true end -- (the items quests reward are still being read)
+		end
+		for _, it in ipairs(list or {}) do items[#items + 1] = { id = it.id, name = it.name } end
+		out[#out + 1] = { quest = r.quest, questID = r.questID, level = r.level, items = items }
+	end
+	return out
+end
 
 --- The books and whose list they are: OneForAll's when it has one, else QuestieDB's (nil: neither, or not read yet).
 function B.Data()
@@ -363,18 +404,40 @@ function B.AnyFor(words)
 	return false
 end
 
---- The reward tiers as rows: "Friend of the Library: 10 books (turned in 4)", reached or not.
+--- The rewards as rows: a line a tier ("Friend of the Library: 10 books", reached or not), then each item it gives as
+--- an item's own row: its tooltip the item's, Enter as any item (1.4.8, the player: the rows named the rewards but
+--- showed nothing of them). OneForAll's tiers when it has them (how many books each takes); else QuestieDB's reward
+--- quests and the items Questie says they give.
 local function RewardRows(done)
 	local out = {}
-	for _, t in ipairs(B.Rewards() or {}) do
+	local P = ns.Pipes
+	local function Items(t)
 		local names = {}
 		for _, it in ipairs(t.items) do names[#names + 1] = it.name or L["item %s"]:format(it.id) end
-		local reached = done >= t.need
-		out[#out + 1] = ns.NoteRow((t.quest or t.label or "") .. ": " .. L["%d books"]:format(t.need) .. (reached and ("  " .. L["(reached)"]) or ""),
-			table.concat(names, ", "))
-		out[#out].icon = B.ICON
+		return names
 	end
-	return out
+	local function Add(t, head, said)
+		out[#out + 1] = ns.NoteRow(head, table.concat(Items(t), ", "))
+		out[#out].icon = B.ICON
+		for _, it in ipairs(t.items) do
+			local r = P and P.ItemRow and P.ItemRow(it.id, ns.Detail(said, it.desc), L["Rewards"], it.name)
+			if r then out[#out + 1] = r end
+		end
+	end
+	local tiers = B.Rewards()
+	if tiers then
+		for _, t in ipairs(tiers) do
+			local title = t.quest or t.label or ""
+			local books = L["%d books"]:format(t.need)
+			Add(t, title .. ": " .. books .. (done >= t.need and ("  " .. L["(reached)"]) or ""), ns.Detail(title, books))
+		end
+	elseif not OA.Loaded() then
+		for _, t in ipairs(B.QuestieRewards()) do
+			local level = L["level %d"]:format(t.level)
+			Add(t, t.quest .. ": " .. level .. (QuestDone(t.questID) and ("  " .. L["(claimed)"]) or ""), ns.Detail(t.quest, level))
+		end
+	end
+	return ns.ScoreInOrder(out)
 end
 
 function B.Answer(q)
