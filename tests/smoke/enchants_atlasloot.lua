@@ -35,6 +35,14 @@ do
 		local data = EN.Data()
 		check(data and #data == 4 and data[1].source == "AtlasLoot" and data[4].name == "OFA Only" and data[4].order == 4,
 			"with AtlasLoot's enchants: theirs first, then OneForAll's it doesn't list (1.3.11)")
+		-- (1.4.5) .integrations counts what @enchant lists, and whose: it counted only OneForAll's (1 here, of 4)
+		check(EN.Status() == ns.L["%d (@enchant): %d from AtlasLoot, %d more from OneForAll"]:format(4, 3, 1), "its line: both addons' counted: " .. tostring(EN.Status()))
+		local said = table.concat(ns.commands.integrations.run(""), "\n")
+		check(said:find("  " .. ns.L["Enchants:"] .. " " .. EN.Status(), 1, true), ".integrations says it: " .. said)
+		local ofaWas = EN.OFAData
+		EN.OFAData = function() return nil end
+		check(EN.Status() == ns.L["%d from %s (@enchant)"]:format(3, "AtlasLoot"), "AtlasLoot's alone (no OneForAll): still said: " .. tostring(EN.Status()))
+		EN.OFAData = ofaWas
 		local by = {}
 		for _, o in ipairs(data) do by[o.spell] = o end
 		check(by[13646].req == 170 and by[13646].locs[1] == "INVTYPE_WRIST", "the skill it needs from AtlasLoot, the slot from its name")

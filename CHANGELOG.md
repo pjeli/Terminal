@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.5 (in testing)
+
+- **`.integrations` and `@enchant`:** OneForAll's line counted only OneForAll's enchants, though `@enchant` lists
+  AtlasLoot's first and works with either addon alone. They're now on a line of their own: "Enchants: 312
+  (`@enchant`): 290 from AtlasLoot, 22 more from OneForAll", or one addon's alone.
+
 ## 1.4.4 (in testing)
 
 - **Read ahead, a slice a frame:** the first "what can my pet eat" / "nearest pet food vendor" looked at every Questie

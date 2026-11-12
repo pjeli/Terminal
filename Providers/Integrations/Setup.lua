@@ -120,6 +120,9 @@ ns:RegisterCommand("integrations", {
 		local apps = ns.AddonOptions and ns.AddonOptions.Apps() or {}
 		lines[#lines + 1] = "  " .. L["Addon options (Ace3):"] .. " " .. (#apps > 0 and table.concat(apps, ", ") or L["none"])
 		if ns.OneForAll then lines[#lines + 1] = "  OneForAll: " .. ns.OneForAll.Status() .. I.FailedText("OneForAll") end
+		-- (@enchant: AtlasLoot's and OneForAll's together, so said on a line of its own)
+		local enchants = ns.Enchants and ns.Enchants.Status and ns.Safe(ns.Enchants.Status)
+		if enchants then lines[#lines + 1] = "  " .. L["Enchants:"] .. " " .. enchants end
 		if ns.Auctionator then lines[#lines + 1] = "  Auctionator: " .. ns.Auctionator.Status() end
 		local M = ns.Maps
 		if M and M.TomTom and M.TomTom() then lines[#lines + 1] = "  TomTom: " .. I.TomTomStatus() end

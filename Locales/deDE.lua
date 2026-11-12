@@ -3508,7 +3508,6 @@ L["@legacy: WoW Forever's Legacy challenges of a group (a class, a profession, d
 L["Legacy points: %d"] = "Vermächtnispunkte: %d"
 L["Nothing read from the game for this yet: open the Legacy window once, then ask again."] = "Dazu wurde vom Spiel noch nichts gelesen: öffne einmal das Vermächtnis-Fenster und frag dann noch einmal."
 L["PvP rank"] = "PvP-Rang"
-L["%d enchants (@enchant)"] = "%d Verzauberungen (@enchant)"
 L["@enchant (its enchants) is unavailable."] = "@enchant (seine Verzauberungen) ist nicht verfügbar."
 L["Enchant"] = "Verzauberung"
 L["Enchants from OneForAll"] = "Verzauberungen aus OneForAll"

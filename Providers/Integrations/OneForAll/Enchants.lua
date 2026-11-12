@@ -355,10 +355,17 @@ function EN.Setup()
 	end
 end
 if ns.Integrations and ns.Integrations._ then ns.Integrations._.SetupEnchants = EN.Setup end
-OA.AddStatus(function()
-	local d = EN.OFAData()
-	return d and L["%d enchants (@enchant)"]:format(#d) or nil
-end)
+--- .integrations' line about @enchant: how many it lists and whose they are (nil: neither addon has any). Its own line
+--- (1.4.5): OneForAll's line counted only OneForAll's, though @enchant lists AtlasLoot's first and needs neither alone.
+function EN.Status()
+	local data = EN.Data()
+	if not data or #data == 0 then return nil end
+	local al = 0
+	for _, o in ipairs(data) do if o.source == "AtlasLoot" then al = al + 1 end end
+	if al == 0 then return L["%d from %s (@enchant)"]:format(#data, "OneForAll") end
+	if al == #data then return L["%d from %s (@enchant)"]:format(#data, "AtlasLoot") end
+	return L["%d (@enchant): %d from AtlasLoot, %d more from OneForAll"]:format(#data, al, #data - al)
+end
 
 ----------------------------------------------------------------------
 -- "enchants for my weapon", "enchants for bracers", "agility enchants", "enchants i can make": search questions, each
