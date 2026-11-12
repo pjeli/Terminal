@@ -14,9 +14,10 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.4.3", when = "in testing",
+		v = "1.4.4", when = "in testing",
 		items = {
 			"Legacy rewards: Enter finds the innkeeper who gives them on a game client in any language.",
+			"No hitch on a hunter's first \"pet food\" question or a first \"what does <token> give\": both lists are read ahead while the game is idle.",
 			"Tidying under the hood: the largest files split, shared helpers in one place.",
 		},
 	},

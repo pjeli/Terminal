@@ -628,3 +628,26 @@ do -- (1.4.2) the four largest files split: each part loads right after the file
 	check(type(ns.Pipes.relations.learn) == "table" and type(ns.Pipes.Run) == "function" and type(ns.Bar.Update) == "function"
 		and type(ns.Mail.OnEvent) == "function" and type(ns.QuestRewards.Chain) == "function", "every part's own is still on its module")
 end
+
+do -- (1.4.4) ns:AfterWarm: what's registered for a list runs once the idle warm-up has built it, with its rows
+	local W = ns.warm
+	local got, calls = nil, 0
+	ns:RegisterProvider("warmhook", { label = "WHk", aliases = { "warmhook" }, lazy = true,
+		collect = function() return { { name = "Hooked thing" } } end })
+	ns:AfterWarm("warmhook", function() error("one that fails doesn't stop the others or the warm-up") end)
+	ns:AfterWarm("warmhook", function(list) calls = calls + 1; got = list end)
+	local was = { queue = W.queue, done = W.done, seen = W.seen, tries = W.tries, bg = ns.background }
+	W.queue, W.done, ns.background = nil, nil, 0
+	UI:Hide(); T.FlushAll()
+	local steps = 0
+	while steps < 400 and not ns.providers.warmhook._entries do ns:PrewarmStep(); steps = steps + 1 end
+	check(calls == 1 and got ~= nil and got == ns.providers.warmhook._entries and got[1].name == "Hooked thing",
+		"after the warm-up builds a list, what waits on it is run with its rows, once: " .. calls)
+	while steps < 800 and not W.done do ns:PrewarmStep(); steps = steps + 1 end
+	check(calls == 1, "and not again while the list stays built: " .. calls)
+	ns.providers.warmhook, ns.afterWarm.warmhook = nil, nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "warmhook" then table.remove(ns.providerOrder, i) end end
+	ns:AliasesChanged()
+	W.queue, W.done, W.seen, W.tries, ns.background = was.queue, was.done, was.seen, was.tries, was.bg
+	T.FlushAll()
+end

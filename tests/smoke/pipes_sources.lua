@@ -96,6 +96,40 @@ do
 			and rows[2].detail:find("Warrior", 1, true) and asked[#asked] == "PRIEST",
 			"class tokens: your class's first, each said: " .. Names(rows) .. " / " .. tostring(rows[1] and rows[1].detail))
 
+		-- (1.4.4) the idle warm-up reads the loot list's tokens ahead, a slice a frame (every loot row is looked at: it
+		-- was all read in one go by the first question); asked for before that's done, what's left is read at once
+		do
+			local list = ns:GetEntries(ns.providers.loot)
+			local clockWas, t = _G.debugprofilestop, 0
+			_G.debugprofilestop = function() t = t + 10 return t end -- (every look at the clock: a slice has gone by)
+			local Tok = _G.AtlasLoot.Data.Token
+			local gets, getWas = 0, Tok.GetTokenData
+			Tok.GetTokenData = function(id) gets = gets + 1 return getWas(id) end
+			ns.Tokens.Forget()
+			ns.Tokens.Warm(list)
+			local x = ns.Tokens.index
+			check(x and x.list == list and x.at == 2 and gets == 1, "the warm-up's first slice: one loot row read, the rest left for later frames: "
+				.. tostring(x and x.at) .. " / " .. gets)
+			T.FlushAll()
+			check(ns.Tokens.index == x and x.at == math.huge and #x.ids == 3 and gets == 4, "later frames read the rest (3 tokens among 4 rows): "
+				.. tostring(x.at) .. " / " .. #x.ids .. " / " .. gets)
+			check(ns.Tokens.Index() == x and gets == 4, "asked then: nothing is read again: " .. gets)
+			ns.Tokens.Forget(); gets = 0
+			ns.Tokens.Warm(list)
+			local y = ns.Tokens.Index()
+			check(y ~= x and y.at == math.huge and #y.ids == 3 and gets == 4, "asked before the warm-up is done: what's left is read at once, nothing twice: "
+				.. #y.ids .. " / " .. gets)
+			T.FlushAll()
+			check(gets == 4 and #y.ids == 3 and ns.Tokens.index == y, "the warm-up's later slices then find nothing left to do: " .. gets)
+			ns.Tokens.Warm(list)
+			check(ns.Tokens.index == y and gets == 4, "a list read already isn't read again")
+			local hooked = false
+			for _, fn in ipairs(ns.afterWarm.loot or {}) do if fn == ns.Tokens.Warm then hooked = true end end
+			check(hooked, "it runs after the warm-up builds the loot list")
+			_G.debugprofilestop, Tok.GetTokenData = clockWas, getWas
+			ns.Tokens.Forget()
+		end
+
 		-- OneForAll's reagent sources
 		_G.OneForAll = {
 			REAGENT_SOURCES = {

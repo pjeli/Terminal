@@ -86,32 +86,40 @@ function TK.Holds(token)
 end
 
 -- the loot list's tokens, made once per list: { list, ids (token ids), from (an item -> the tokens giving it), names
--- (lowercase name -> token id), whole (every token's name was in) }
+-- (lowercase name -> token id), whole (every token's name was in), at (the next loot row to look at) }. Every loot row is
+-- looked at, so the idle warm-up reads them ahead, a slice a frame (TK.Warm, 1.4.4); asked for before that's done,
+-- what's left is read at once.
+local DONE = math.huge
+local function Fresh(list)
+	return { list = list, ids = {}, from = {}, names = {}, whole = false, seen = {}, at = Token() and 1 or DONE }
+end
+local function One(x, i)
+	local l = x.list[i]
+	local id = l and l.itemID
+	if type(id) == "number" and not x.seen[id] then
+		x.seen[id] = true
+		local g = TK.Gives(id)
+		if g then
+			x.ids[#x.ids + 1] = id
+			for _, it in ipairs(g) do
+				local f = x.from[it.id]
+				if not f then f = {}; x.from[it.id] = f end
+				f[#f + 1] = { token = id, class = it.class }
+			end
+		end
+	end
+end
 local function Index()
 	local p = ns.providers.loot
 	local list = p and ns:GetEntries(p) or {}
 	local x = TK.index
 	if not (x and x.list == list) then
-		x = { list = list, ids = {}, from = {}, names = {}, whole = false }
+		x = Fresh(list)
 		TK.index = x
-		if Token() then
-			local seen = {}
-			for _, l in ipairs(list) do
-				local id = l.itemID
-				if type(id) == "number" and not seen[id] then
-					seen[id] = true
-					local g = TK.Gives(id)
-					if g then
-						x.ids[#x.ids + 1] = id
-						for _, it in ipairs(g) do
-							local f = x.from[it.id]
-							if not f then f = {}; x.from[it.id] = f end
-							f[#f + 1] = { token = id, class = it.class }
-						end
-					end
-				end
-			end
-		end
+	end
+	if x.at ~= DONE then
+		for i = x.at, #list do One(x, i) end
+		x.at, x.seen = DONE, nil
 	end
 	-- (names: the game's, as they come in; looked at again only while some are missing, once a second at most: an item
 	-- the client never names would have had every keystroke read them all, 1.3.13, review)
@@ -129,6 +137,20 @@ local function Index()
 	return x
 end
 TK.Index = Index
+--- The read-ahead: the loot list's rows a slice a frame (Core's warm-up runs it once the loot list is built).
+function TK.Warm(list)
+	local I = ns.Integrations
+	if type(list) ~= "table" or not Token() or not (I and I.RunSliced) then return end
+	if TK.index and TK.index.list == list then return end -- (asked for already)
+	local x = Fresh(list)
+	TK.index = x
+	I.RunSliced("tokens: among the loot", #list, function(i)
+		if TK.index == x and x.at ~= DONE and i >= x.at then One(x, i); x.at = i + 1 end
+	end, function()
+		if TK.index == x and x.at ~= DONE then x.at, x.seen = DONE, nil end
+	end)
+end
+ns:AfterWarm("loot", TK.Warm)
 
 --- Do these (lowercase) words name a token AtlasLoot knows (exactly, or but for a leading article)? (Chains.lua's
 --- phrases: "what does libram of focus give")

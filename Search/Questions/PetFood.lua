@@ -109,33 +109,57 @@ function PF.Eats(id)
 end
 
 --- Every Questie item with a food type that a vendor sells: { { id, ft, vendors } }, read once a session (nil without
---- QuestieDB).
-function PF.Foods()
-	if foods then return foods end
+--- QuestieDB). Every Questie item is looked at, so a hunter's are read ahead by the idle warm-up, a slice a frame
+--- (PF.Warm, 1.4.4); asked for before that's done, what's left is read at once.
+local build -- the read under way: { db, ids, inst, out, at (the next item), started }
+local function Start()
 	local db = DB()
 	if not db then return nil end
-	local started = debugprofilestop and debugprofilestop()
-	local ids = db.ItemIds and db.ItemIds() or {}
-	local inst = C_Item and C_Item.GetItemInfoInstant or _G.GetItemInfoInstant
-	local out = {}
-	for i = 1, #ids do
-		local id = ids[i]
-		local class
-		if inst then class = select(6, Safe(inst, id)) end
-		if class == nil or PF.FOOD_CLASSES[class] then
-			local ft = Num(Safe(db.QueryItemSingle, id, "foodType"))
-			if ft and ft > 0 then
-				foodType[id] = ft
-				local v = Safe(db.QueryItemSingle, id, "vendors")
-				if type(v) == "table" and #v > 0 then out[#out + 1] = { id = id, ft = ft, vendors = v } end
-			end
+	build = { db = db, ids = db.ItemIds and db.ItemIds() or {}, inst = C_Item and C_Item.GetItemInfoInstant or _G.GetItemInfoInstant,
+		out = {}, at = 1, started = debugprofilestop and debugprofilestop() }
+	return build
+end
+local function One(b, i)
+	local id, db = b.ids[i], b.db
+	local class
+	if b.inst then class = select(6, Safe(b.inst, id)) end
+	if class == nil or PF.FOOD_CLASSES[class] then
+		local ft = Num(Safe(db.QueryItemSingle, id, "foodType"))
+		if ft and ft > 0 then
+			foodType[id] = ft
+			local v = Safe(db.QueryItemSingle, id, "vendors")
+			if type(v) == "table" and #v > 0 then b.out[#b.out + 1] = { id = id, ft = ft, vendors = v } end
 		end
 	end
-	foods = out
-	ns:Trace(("petfood: %d vendor foods read%s"):format(#out, started and (" in %.0f ms"):format(debugprofilestop() - started) or ""))
-	return out
 end
-function PF.Forget() foods, foodType, vendorsOf, dietAt = nil, {}, {}, nil end -- (tests)
+local function Done(b, how)
+	foods, build = b.out, nil
+	ns:Trace(("petfood: %d vendor foods read%s%s"):format(#foods, b.started and (" in %.0f ms"):format(debugprofilestop() - b.started) or "", how or ""))
+	return foods
+end
+function PF.Foods()
+	if foods then return foods end
+	local b = build or Start()
+	if not b then return nil end
+	for i = b.at, #b.ids do One(b, i) end
+	b.at = #b.ids + 1
+	return Done(b)
+end
+--- The read-ahead: a hunter's, a slice a frame (Core's warm-up runs it once Questie's quests are in).
+function PF.Warm()
+	local I = ns.Integrations
+	if foods or build or ns.ClassToken() ~= "HUNTER" or not (I and I.RunSliced) then return end
+	local b = Start()
+	if not b then return end
+	if #b.ids == 0 then build = nil return end -- (QuestieDB's items not in yet: read when asked)
+	I.RunSliced("petfood: vendor foods", #b.ids, function(i)
+		if build == b and i >= b.at then One(b, i); b.at = i + 1 end
+	end, function()
+		if build == b then Done(b, " (read ahead)") end
+	end)
+end
+ns:AfterWarm("questie", PF.Warm)
+function PF.Forget() foods, build, foodType, vendorsOf, dietAt = nil, nil, {}, {}, nil end -- (tests)
 
 --- The vendors (NPC ids) selling food your pet eats: { [npc] = true }; {} with no pet out, nil without QuestieDB.
 function PF.Vendors()

@@ -551,6 +551,15 @@ end)
 local warm = {}
 ns.warm = warm
 
+--- fn(list) runs once the idle warm-up has built that list: for what a first question about it would otherwise read
+--- in one go (the tokens among the loot, a hunter's pet foods), read ahead a slice at a time instead.
+ns.afterWarm = {}
+function ns:AfterWarm(id, fn)
+	local t = self.afterWarm[id] or {}
+	self.afterWarm[id] = t
+	t[#t + 1] = fn
+end
+
 local function Busy(p)
 	if not p.busy then return nil end
 	local ok, msg = pcall(p.busy, p)
@@ -590,6 +599,10 @@ function ns:PrewarmStep()
 			self:GetEntries(p)
 			-- your bags' consumables: their effect text asked for now, so "stamina food" has it at the first search
 			if id == "items" and self.Filters and self.Filters.WarmEffects then pcall(self.Filters.WarmEffects, p._entries) end
+			for _, fn in ipairs(self.afterWarm[id] or {}) do
+				local ok, err = pcall(fn, p._entries)
+				if not ok and self.Trace then self:Trace("prewarm: after " .. id .. ": " .. tostring(err)) end
+			end
 			if Busy(p) then q[#q + 1] = id end -- reading it started its loading (Questie's index): again once in
 			if self.Trace then
 				self:Trace(("prewarm: %s ready, %d entries%s"):format(self:KindName(p) or id, p._entries and #p._entries or 0,

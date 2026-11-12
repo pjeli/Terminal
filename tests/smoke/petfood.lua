@@ -96,6 +96,39 @@ do
 		eats = {}; PF.Forget(); UI.lastScan, UI.lastExtra = nil, nil
 		rows = Q.Answer("what can my pet eat")
 		check(rows[1] and rows[1].name == L["Nothing in your bags your pet eats"], "nothing it eats: said: " .. tostring(rows[1] and rows[1].name))
+
+		-- (1.4.4) a hunter's vendor foods are read ahead by the idle warm-up, a slice a frame (every Questie item is
+		-- looked at: it was all read in one go by the first question); asked before that's done, the rest at once
+		do
+			local clockWas, t = _G.debugprofilestop, 0
+			_G.debugprofilestop = function() t = t + 10 return t end -- (every look at the clock: a slice has gone by)
+			local reads, dbWas = 0, ns.QuestieData.DB
+			ns.QuestieData.DB = function()
+				local db = dbWas()
+				local q = db.QueryItemSingle
+				db.QueryItemSingle = function(id, field) if field == "foodType" then reads = reads + 1 end return q(id, field) end
+				return db
+			end
+			class = "WARRIOR"; PF.Forget(); PF.Warm(); T.FlushAll()
+			check(reads == 0, "not a hunter: nothing is read ahead: " .. reads)
+			class = "HUNTER"; PF.Forget(); PF.Warm()
+			check(reads == 1, "a hunter: the warm-up's first slice reads one item, the rest left for later frames: " .. reads)
+			T.FlushAll()
+			check(reads == 3, "later frames read the rest (three foods; the sword isn't asked about): " .. reads)
+			local list = PF.Foods()
+			check(list and #list == 3 and reads == 3, "asked then: all of them there, nothing read again: " .. tostring(list and #list) .. " / " .. reads)
+			PF.Forget(); reads = 0; PF.Warm()
+			list = PF.Foods()
+			check(list and #list == 3 and reads == 3, "asked before the warm-up is done: what's left is read at once, nothing twice: "
+				.. tostring(list and #list) .. " / " .. reads)
+			T.FlushAll()
+			check(reads == 3 and PF.Foods() == list, "the warm-up's later slices then find nothing left to do: " .. reads)
+			local hooked = false
+			for _, fn in ipairs(ns.afterWarm.questie or {}) do if fn == PF.Warm then hooked = true end end
+			check(hooked, "it runs after the warm-up builds Questie's quests (QuestieDB is in then)")
+			_G.debugprofilestop, ns.QuestieData.DB = clockWas, dbWas
+			PF.Forget()
+		end
 	end)
 	_G.UnitClass, _G.UnitExists, _G.C_PetInfo, ns.QuestieData.DB = was.class, was.exists, was.pet, was.qd
 	_G.PET_DIET_TEMPLATE, C_Item.GetItemInfoInstant = was.tpl, was.inst

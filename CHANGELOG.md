@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.4 (in testing)
+
+- **Read ahead, a slice a frame:** the first "what can my pet eat" / "nearest pet food vendor" looked at every Questie
+  item in one go, and the first "what does <token> give" or "where to get <item>" at every loot row. Both are now read
+  by the idle warm-up a few milliseconds a frame (`PF.Warm` after Questie's quests are in, a hunter's only; `TK.Warm`
+  after the loot list is built; `ns:AfterWarm(list, fn)` is the hook). Asked for before that's done, what's left is
+  read at once, as before.
+
 ## 1.4.3 (in testing)
 
 - **Legacy rewards on a client in another language:** Innkeeper Wiley was looked up by his English name in QuestieDB's
