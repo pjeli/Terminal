@@ -129,7 +129,7 @@ end
 local QD = ns.QuestieData
 B.LIBRARIAN = "Librarian" -- (the title in English: QuestieDB's untranslated one is asked on another client)
 B.SPECIAL_SORT = -284
-local qd = { list = nil, rewards = nil, building = false }
+local qd = { list = nil, rewards = nil, building = false, waiting = false }
 
 local function IsLibrarian(id)
 	local t = I.NpcField and (I.NpcField(id, "subNameEn") or I.NpcField(id, "subName"))
@@ -203,12 +203,13 @@ end
 
 local RegisterBooks -- (below: the list itself)
 --- Reads them, a slice a frame (every quest once: a few thousand). Nothing while Questie's own lists are being indexed.
+--- Returns false when QuestieDB can't be read yet (asked again: BuildWhenQuiet).
 function B.BuildQuestie()
-	if qd.list or qd.building then return end
+	if qd.list or qd.building then return true end
 	local DB = QD and QD.Ready() and QD.DB()
-	if not (DB and DB.QueryQuestSingle and DB.QuestIds and DB.QueryObjectSingle and I.RunSliced and I._.EachSpot) then return end
+	if not (DB and DB.QueryQuestSingle and DB.QuestIds and DB.QueryObjectSingle and I.RunSliced and I._.EachSpot) then return false end
 	local ids = DB.QuestIds() or {}
-	if #ids == 0 then return end -- (not there yet: asked again)
+	if #ids == 0 then return false end
 	qd.building = true
 	local out, rewards = {}, {}
 	I.RunSliced("books: QuestieDB's quests", #ids, function(i)
@@ -238,13 +239,23 @@ function B.BuildQuestie()
 		end
 	end)
 end
+-- (and again while QuestieDB's quests can't be read yet, up to B.TRIES times: it gave up for the session at the first
+-- try before, 1.4.15, the release review)
+local tries = 0
 local function BuildWhenQuiet()
-	if qd.list or qd.building then return end
+	if qd.list or qd.building then qd.waiting = false return end
+	qd.waiting = true
 	if (ns.background or 0) > 0 then return C_Timer.After(B.QUIET_WAIT, BuildWhenQuiet) end -- (Questie's lists first)
-	B.BuildQuestie()
+	if B.BuildQuestie() then qd.waiting = false return end
+	tries = tries + 1
+	if tries < B.TRIES then return C_Timer.After(B.QUIET_WAIT, BuildWhenQuiet) end
+	qd.waiting = false
+	ns:Trace("books: QuestieDB's quests couldn't be read: no Library Books from it this session")
 end
-B.QUIET_WAIT = 2
-function B.ForgetQuestie() qd.list, qd.rewards, qd.building = nil, nil, false end -- (tests)
+B.QUIET_WAIT, B.TRIES = 2, 30
+--- Are QuestieDB's books still being read (or waited for)? Reaching for @book then isn't told to install anything.
+function B.Pending() return qd.building or qd.waiting end
+function B.ForgetQuestie() qd.list, qd.rewards, qd.building, qd.waiting, tries = nil, nil, false, false, 0 end -- (tests)
 
 --- The rewards as QuestieDB has them, without OneForAll: the Librarians' reward quests, lowest level first, each with the
 --- items it gives (Questie's questRewards, Rewards.lua's index; none yet while that's being read: asked again). How

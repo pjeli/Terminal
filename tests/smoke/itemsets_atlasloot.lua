@@ -332,7 +332,7 @@ do
 		Fresh()
 		check(not ns.providers.itemset and A.Sets() == nil, "an AtlasLoot with no set data: no @itemset")
 		local miss = I.MissingFor and I.MissingFor("@itemset")
-		check(miss and miss.name == "OneForAll" and miss.also == "AtlasLoot", "reaching for @itemset then: OneForAll or AtlasLoot named")
+		check(miss and (miss.label or miss.name) == "OneForAll" and miss.also == "AtlasLoot", "reaching for @itemset then: OneForAll or AtlasLoot named")
 		_G.AtlasLoot = nil
 		Fresh()
 		check(not ns.providers.itemset, "no AtlasLoot: none either")
@@ -352,4 +352,17 @@ do
 	if I.ForgetHint then I.ForgetHint() end
 	UI.lastScan, UI.lastExtra = nil, nil
 	check(ok, "item sets from AtlasLoot: " .. tostring(err))
+end
+
+do -- (1.4.15, the release review) each part of OneForAll has an install hint of its own: "> pieces" with no item sets
+	-- names OneForAll or AtlasLoot (one name for several parts kept only the last one, the boats': OneForAll alone)
+	local I = T.ns.Integrations
+	local P = T.ns.Pipes
+	local def = P and P.relations and P.relations.pieces and P.relations.pieces[1]
+	T.check(def and def.addon == "OneForAllSets", "the pieces link asks for the item sets' entry: " .. tostring(def and def.addon))
+	local seen = {}
+	for _, a in ipairs(I.ADDONS) do
+		T.check(not seen[a.name], "an install hint's name used once: " .. tostring(a.name))
+		seen[a.name] = true
+	end
 end

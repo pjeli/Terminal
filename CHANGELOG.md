@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.15 (in testing)
+
+- **`@book` from QuestieDB, never given up on too soon** (the release review): when QuestieDB's quests couldn't be
+  read yet at the moment Terminal looked, `@book` was gone for the session. It's asked again every 2 s (up to a
+  minute), and meanwhile reaching for `@book` isn't told to install OneForAll.
+- **The right addon named**: OneForAll's parts shared one name in the install hints, so only the last (boats and
+  zeppelins) counted, and `> pieces` with no item sets said "Install OneForAll" instead of "OneForAll or AtlasLoot".
+  Each part has a name of its own now.
+
 ## 1.4.14 (in testing)
 
 - **AtlasLoot's item sets worked out once per index** (the release review): they were keyed on the `@loot` list, a new

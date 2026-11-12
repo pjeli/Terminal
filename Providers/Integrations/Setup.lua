@@ -189,13 +189,19 @@ I.ADDONS = {
 I.ADDONS[#I.ADDONS + 1] = { name = "Auctionator", missing = function() return not (ns.Auctionator and ns.Auctionator.On()) end,
 	kinds = {}, words = { auctionable = true, undercut = true }, values = { ["is:auctionable"] = true, ["is:undercut"] = true,
 	["sort:ahvalue"] = true, ["sort:ah"] = true, ["sort:ahprice"] = true, ["sort:market"] = true } }
-I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", also = "Questie", missing = function() return not ns.providers.book end,
+-- (OneForAll's parts each a name of their own, the label saying OneForAll: one name for several kept only the last, and
+-- a chain asking for one was answered for another: 1.4.15, the release review. @book and @itemset have a second
+-- source; @book's QuestieDB books are read a while after login: not missing meanwhile)
+I.ADDONS[#I.ADDONS + 1] = { name = "OneForAllBooks", label = "OneForAll", also = "Questie", missing = function()
+		local B = ns.LibraryBooks
+		return not ns.providers.book and not (B and B.Pending and B.Pending())
+	end,
 	kinds = { book = true, books = true, librarybook = true, librarybooks = true, library = true }, words = { library = true } }
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ((ns.HunterPets and ns.HunterPets.on) or (ns.OneForAll and ns.OneForAll.Loaded())) end,
 	kinds = {}, words = { tame = true, tameable = true }, values = { ["is:tameable"] = true, ["is:ability"] = true } }
-I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", also = "AtlasLoot", missing = function() return not ns.providers.itemset end,
+I.ADDONS[#I.ADDONS + 1] = { name = "OneForAllSets", label = "OneForAll", also = "AtlasLoot", missing = function() return not ns.providers.itemset end,
 	kinds = { itemset = true, itemsets = true, tierset = true, tiersets = true, setpiece = true, setpieces = true } }
-I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.transport end,
+I.ADDONS[#I.ADDONS + 1] = { name = "OneForAllTransport", label = "OneForAll", missing = function() return not ns.providers.transport end,
 	kinds = { transport = true, transports = true, boat = true, boats = true, ship = true, ships = true,
 		zeppelin = true, zeppelins = true, tram = true }, words = { zeppelin = true } }
 local BY_NAME = {}

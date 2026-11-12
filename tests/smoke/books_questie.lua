@@ -212,6 +212,22 @@ do
 		ready = true
 		waiting(); FlushAll()
 		check(asked == 1 and ns.providers.book ~= nil, "ready: read then")
+		-- (1.4.15, the release review) QuestieDB's quests not there yet: asked again, not given up for the session; reaching
+		-- for @book meanwhile isn't told to install anything
+		ns.providers.book = nil
+		for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "book" then table.remove(ns.providerOrder, i) end end
+		B.ForgetQuestie(); OA.on = nil
+		local idsWas, none = db.QuestIds, true
+		db.QuestIds = function() asked = asked + 1 if none then return {} end return idsWas() end
+		asked = 0
+		I._.SetupBooks()
+		check(not ns.providers.book and B.Pending() and asked == 1, "no quests yet: waiting, asked again later")
+		if I.ForgetHint then I.ForgetHint() end
+		check(I.MissingFor("@book") == nil, "reaching for @book meanwhile: no install hint")
+		none = false
+		FlushAll()
+		check(ns.providers.book ~= nil and not B.Pending() and asked >= 2, "the quests in: read then, @book there: " .. asked)
+		db.QuestIds = idsWas
 
 		-- OneForAll's list comes first, and QuestieDB isn't read for it
 		_G.OneForAll = { BOOKS = { { name = "Its Own Tome", questId = 1, itemId = 2 } } }
@@ -230,7 +246,7 @@ do
 		lines = table.concat(ns.commands.integrations.run(""), "\n")
 		check(not lines:find(L["Library Books:"], 1, true), "and .integrations says nothing of them")
 		local miss = I.MissingFor and I.MissingFor("@book")
-		check(miss and miss.name == "OneForAll" and miss.also == "Questie", "reaching for @book then: OneForAll or Questie named")
+		check(miss and (miss.label or miss.name) == "OneForAll" and miss.also == "Questie", "reaching for @book then: OneForAll or Questie named")
 		QD.Lib = function() return nil end
 		asked = 0
 		Fresh()

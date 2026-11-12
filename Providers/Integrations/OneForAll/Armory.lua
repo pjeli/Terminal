@@ -689,7 +689,7 @@ function A.SetupSets()
 		ns:RegisterRelation("pieces", {
 			aliases = { "piece", "setpieces" },
 			desc = L["an item set's pieces, where each comes from (OneForAll)"],
-			available = function() return ns.providers.itemset ~= nil end, addon = "OneForAll",
+			available = function() return ns.providers.itemset ~= nil end, addon = "OneForAllSets",
 			seedKinds = { "itemset" },
 			applies = function(e) return e.kind == "itemset" and not e.setPiece and e.setID ~= nil end,
 			run = function(rows)
