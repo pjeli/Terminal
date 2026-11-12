@@ -24,8 +24,9 @@ I.LOST = {
 }
 function I.Setup()
 	-- (Enchants last: AtlasLoot's or OneForAll's, either set up before it; OneForAll/Enchants.lua. Books after OneForAll
-	-- and Questie: OneForAll's Library Books, else QuestieDB's; OneForAll/Books.lua)
-	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune", "WhatsTraining", "TrainerSpells", "OneForAll", "Books", "Enchants" }) do
+	-- and Questie: OneForAll's Library Books, else QuestieDB's; OneForAll/Books.lua. ItemSets after AtlasLoot and
+	-- OneForAll: OneForAll's item sets, else AtlasLoot's; OneForAll/Armory.lua)
+	for _, name in ipairs({ "AtlasLoot", "Questie", "Attune", "WhatsTraining", "TrainerSpells", "OneForAll", "Books", "ItemSets", "Enchants" }) do
 		local setup = I._["Setup" .. name]
 		local ok, err = true, nil
 		if setup then ok, err = pcall(setup) end
@@ -127,6 +128,9 @@ ns:RegisterCommand("integrations", {
 		-- (@book without OneForAll: QuestieDB's)
 		local books = ns.LibraryBooks and ns.LibraryBooks.Status and ns.Safe(ns.LibraryBooks.Status)
 		if books then lines[#lines + 1] = "  " .. L["Library Books:"] .. " " .. books end
+		-- (@itemset without OneForAll: AtlasLoot's)
+		local sets = ns.Armory and ns.Armory.SetsStatus and ns.Safe(ns.Armory.SetsStatus)
+		if sets then lines[#lines + 1] = "  " .. L["Item sets:"] .. " " .. sets end
 		if ns.Auctionator then lines[#lines + 1] = "  Auctionator: " .. ns.Auctionator.Status() end
 		local M = ns.Maps
 		if M and M.TomTom and M.TomTom() then lines[#lines + 1] = "  TomTom: " .. I.TomTomStatus() end
@@ -186,7 +190,7 @@ I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", also = "Questie", missing = func
 	kinds = { book = true, books = true, librarybook = true, librarybooks = true, library = true }, words = { library = true } }
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ((ns.HunterPets and ns.HunterPets.on) or (ns.OneForAll and ns.OneForAll.Loaded())) end,
 	kinds = {}, words = { tame = true, tameable = true }, values = { ["is:tameable"] = true, ["is:ability"] = true } }
-I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.itemset end,
+I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", also = "AtlasLoot", missing = function() return not ns.providers.itemset end,
 	kinds = { itemset = true, itemsets = true, tierset = true, tiersets = true, setpiece = true, setpieces = true } }
 I.ADDONS[#I.ADDONS + 1] = { name = "OneForAll", missing = function() return not ns.providers.transport end,
 	kinds = { transport = true, transports = true, boat = true, boats = true, ship = true, ships = true,

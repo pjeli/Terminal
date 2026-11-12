@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.9 (in testing)
+
+- **`@itemset` without OneForAll** (the player's pick from a survey of unused data): AtlasLoot's public set data
+  (`AtlasLoot.Data.ItemSet`, `Data.Requirements`), read while it's installed, never copied. AtlasLoot gives no list of
+  its sets, so they're the sets of the items in its loot list (every loot row looked at once, read ahead by the idle
+  warm-up). A set's name is the game's own; its pieces' slots the game's words; where a piece comes from is its loot
+  rows' boss and place; whose it is, the classes AtlasLoot lets wear its first piece; its bonuses AtlasLoot's lines
+  read back (asked for again when the game hadn't sent their texts).
+- "my class sets", "pieces of <set>", `<set> > pieces`, `class:`, the pieces you have and Enter work as with OneForAll.
+  OneForAll's list still comes first when it's installed (its groups, levels, "not in WoW Forever yet", sources of
+  pieces no boss drops); `.integrations` has an "Item sets:" line naming AtlasLoot otherwise.
+
 ## 1.4.8 (in testing)
 
 - **"library book rewards" shows the rewards** (the player: "I can see the rows but how come I cannot see the reward
