@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.2 (in testing)
+
+**Library Book rewards without OneForAll: the right tiers**
+- "library book rewards" from QuestieDB listed every quest an NPC titled "Librarian" gives: Brother Paxton's and Donyal
+  Tovald's quests too ("Rascally Rodents", "Mining Consultant", "Stormwind Library", "Shelf Picked"...), their own
+  rewards shown as the books'. Now only the Library's reward quests, of the same Special sort as the books: Friend of the
+  Library and the two Greater Friend of the Library, with the seven items they give.
+- Each tier says how many books it takes (10, 20, 25), as OneForAll's do, read from QuestieDB's WoW Forever text for it;
+  "(reached)" once you have turned in that many, and "next reward at 10" in the books' footer and tooltip again.
+
 ## 1.5.1 (in testing)
 
 **Auction house prices from TradeSkillMaster**

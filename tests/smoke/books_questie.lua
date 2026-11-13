@@ -44,7 +44,12 @@ do
 			[508] = { name = "Folio of Stars", startedBy = { { 211 }, { 9008 } }, objectives = { [3] = { { 7008 } } }, questLevel = 20 },
 			[504] = { name = "Morganth", startedBy = { { 313 }, { 31 } }, objectives = { [3] = { { 3617 } } }, questLevel = 30, zoneOrSort = 44 },
 			[505] = { name = "A Special Errand", startedBy = { { 300 }, { 9005 } }, objectives = { [3] = { { 7005 } } }, questLevel = 60, zoneOrSort = -284 },
-			[506] = { name = "Friend of the Library", startedBy = { { 211, 212 } }, questLevel = 20, zoneOrSort = -284 },
+			[506] = { name = "Friend of the Library", startedBy = { { 211, 212 } }, questLevel = 20, zoneOrSort = -284,
+				objectivesText = { "You will need to hand in 10 books to complete this quest, however you can hand 1 in at any time." } },
+			-- (1.5.2) a second tier, its count unsaid: its level; another Librarian's quest of another sort: no tier
+			[511] = { name = "Greater Friend of the Library", startedBy = { { 211 } }, questLevel = 35, zoneOrSort = -284 },
+			[510] = { name = "Rascally Rodents", startedBy = { { 213 } }, questLevel = 2, zoneOrSort = 12,
+				objectivesText = { "Retrieve 8 Stolen Books from kobolds in Northshire Valley." } },
 			[507] = { name = "Children's Week", startedBy = { { 14451 } }, questLevel = 60, zoneOrSort = -284 },
 			[509] = { name = "The Ancient Leaf", startedBy = { nil, { 9009 } }, questLevel = 60 },
 		}
@@ -57,11 +62,11 @@ do
 			[31] = { name = "Old Lion Statue", zoneID = 44, spawns = { [44] = { { 79.4, 46.8 } } } },
 		}
 		local ITEMS = { [7003] = { objectDrops = { 9003 } }, [7005] = { objectDrops = { 1 } }, [3617] = { objectDrops = { 31 } } }
-		local TITLE = { [211] = "Librarian", [212] = "Librarian", [300] = "Mage Trainer" }
+		local TITLE = { [211] = "Librarian", [212] = "Librarian", [213] = "Librarian", [300] = "Mage Trainer" }
 		local asked = 0
 		-- (QuestieDB's WoW Forever corrections, as in game: the Library quests' sort becomes your capital; the base data
 		-- keeps the Special sort, Quest.GetRaw: 1.4.12, seen in game, 32 books of 40 without it)
-		local CORRECTED = { [503] = { zoneOrSort = 1497 }, [505] = { zoneOrSort = 1497 } }
+		local CORRECTED = { [503] = { zoneOrSort = 1497 }, [505] = { zoneOrSort = 1497 }, [506] = { zoneOrSort = 1497 } }
 		local db = {
 			QueryQuestSingle = function(id, f)
 				local c = CORRECTED[id]
@@ -71,7 +76,7 @@ do
 			RawQuestSingle = function(id, f) return QUESTS[id] and QUESTS[id][f] end,
 			QueryObjectSingle = function(id, f) return OBJECTS[id] and OBJECTS[id][f] end,
 			QueryItemSingle = function(id, f) return ITEMS[id] and ITEMS[id][f] end,
-			QuestIds = function() asked = asked + 1 return { 501, 502, 503, 504, 505, 506, 507, 508, 509 } end,
+			QuestIds = function() asked = asked + 1 return { 501, 502, 503, 504, 505, 506, 507, 508, 509, 510, 511 } end,
 		}
 		local ready = true
 		QD.DB = function() return ready and db or nil end
@@ -143,7 +148,7 @@ do
 		I.Here = function() return { cont = 1, x = 264, y = 245 } end
 		r = B.Answer(B.Question("nearest library book"))
 		check(r[1] and r[1].name == "Magma Notes" and r[#r].name == "Folio of Stars", "nearest library book: by how far, one with no spot last: " .. Names(r))
-		-- (1.4.8) the rewards without OneForAll: the Librarians' reward quests (started by a Librarian, at no object), each
+		-- (1.4.8) the rewards without OneForAll: the Librarians' reward quests (started by a Librarian, at no object, the Special sort: 1.5.2), each
 		-- with the items Questie says it gives, as items' own rows
 		local QR = ns.QuestRewards
 		local rewardsOf, indexWas = QR.RewardsOf, QR.Index
@@ -151,9 +156,13 @@ do
 		QR.Index = function() return indexed and {} or nil end
 		QR.RewardsOf = function(q) if indexed and q == 506 then return { { id = 7101, name = "Scholarly Pendant" }, { id = 7102, name = "Erudite's Amulet" } } end end
 		r = B.Answer(B.Question("library book rewards"))
-		check(#r == 3 and r[1].raw and r[1].name == "Friend of the Library: " .. L["Lv %d"]:format(20)
-			and tostring(r[1].detail) == "Scholarly Pendant, Erudite's Amulet", "the rewards from QuestieDB: a Librarian's reward quest, what it gives: "
-				.. Names(r) .. " / " .. tostring(r[1] and r[1].detail))
+		check(#r == 4 and r[1].raw and r[1].name == "Friend of the Library: " .. L["%d books"]:format(10)
+			and tostring(r[1].detail) == "Scholarly Pendant, Erudite's Amulet", "the rewards from QuestieDB: a Librarian's reward quest, the books it takes "
+				.. "(its correction's text), what it gives: " .. Names(r) .. " / " .. tostring(r[1] and r[1].detail))
+		check(r[4] and r[4].raw and r[4].name == "Greater Friend of the Library: " .. L["Lv %d"]:format(35) and not Names(r):find("Rascally", 1, true),
+			"its count unsaid: its level; another Librarian's quest (not the Special sort): no tier: " .. Names(r))
+		local _, nt = B.Answer(B.Question("books i still need"))
+		check(tostring(nt):find(L["next reward at %d"]:format(10), 1, true), "the next tier's count in the footer, as OneForAll's: " .. tostring(nt))
 		check(r[2] and r[2].itemID == 7101 and r[2].link == "item:7101" and not r[2].raw and r[3] and r[3].itemID == 7102
 			and tostring(r[2].detail):find("Friend of the Library", 1, true), "each item it gives as an item's row: " .. Names(r))
 		DONE[506] = true
@@ -163,15 +172,15 @@ do
 		indexed = false
 		ns.Filters.loading = false
 		r = B.Answer(B.Question("library book rewards"))
-		check(#r == 1 and r[1].raw and ns.Filters.loading == true, "the items quests reward still being read: the tier alone, asked again once they're in: " .. Names(r))
+		check(#r == 2 and r[1].raw and ns.Filters.loading == true, "the items quests reward still being read: the tiers alone, asked again once they're in: " .. Names(r))
 		ns.Filters.loading = false
 		indexed = true
-		local q506 = QUESTS[506]
-		QUESTS[506] = nil
+		local q506, q511 = QUESTS[506], QUESTS[511]
+		QUESTS[506], QUESTS[511] = nil, nil
 		Fresh()
 		r = B.Answer(B.Question("library book rewards"))
 		check(r[1] and r[1].name == L["QuestieDB lists no rewards for the Library Books"], "no reward quest in QuestieDB: said: " .. Names(r))
-		QUESTS[506] = q506
+		QUESTS[506], QUESTS[511] = q506, q511
 		Fresh()
 		QR.RewardsOf, QR.Index = rewardsOf, indexWas
 		local lines = table.concat(ns.commands.integrations.run(""), "\n")

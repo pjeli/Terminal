@@ -14,8 +14,8 @@ local OA = ns.OneForAll
 --
 -- Without OneForAll (1.4.7, the player's ask): QuestieDB's own data has the books too, read while it's installed: each
 -- book's quest (its name), the item, and the world object it lies in with its spot. Fewer words than OneForAll's
--- (no notes on a spot, no sets, no reward tiers); OneForAll's list comes first whenever it's there. See "The books
--- from QuestieDB" below.
+-- (no notes on a spot, no sets; its reward tiers are the Librarians' three reward quests); OneForAll's list comes first
+-- whenever it's there. See "The books from QuestieDB" below.
 
 local B = {}
 OA.Books = B
@@ -109,9 +109,12 @@ function B.Progress(rows)
 	return done, #rows
 end
 
---- The next reward tier and how many books it takes; nil when every tier is reached (or none known).
+--- The next reward tier and how many books it takes; nil when every tier is reached (or none known). OneForAll's tiers,
+--- else QuestieDB's whose count is known (1.5.2).
 function B.NextReward(done)
-	for _, t in ipairs(B.Rewards() or {}) do if done < t.need then return t end end
+	for _, t in ipairs(B.Rewards() or (not OA.Loaded() and B.QuestieRewards(true)) or {}) do
+		if t.need and done < t.need then return t end
+	end
 	return nil
 end
 
@@ -189,17 +192,26 @@ function B.FromQuest(DB, id)
 end
 
 --- One of QuestieDB's quests as a reward for books turned in ({ quest (its name), questID, level }), or nil: a quest a
---- Librarian gives that starts at no object ("Friend of the Library", "Greater Friend of the Library").
+--- Librarian gives that starts at no object and is of the Special sort, as the books are ("Friend of the Library", the two
+--- "Greater Friend of the Library": three in QuestieDB_Forever, November 2026). (1.5.2, seen in game: without the sort,
+--- every quest a Librarian-titled NPC gives came too: Brother Paxton's "Rascally Rodents", Donyal Tovald's "Stormwind
+--- Library", "Shelf Picked"..., their rewards listed as the books'.)
 function B.RewardQuest(DB, id)
 	local starts = Safe(DB.QueryQuestSingle, id, "startedBy")
 	if type(starts) ~= "table" then return nil end
 	local npcs, objs = starts[1], starts[2]
 	if type(npcs) ~= "table" or #npcs == 0 or (type(objs) == "table" and #objs > 0) then return nil end
+	-- (the base data's sort, as the books': the Forever corrections may move a Library quest to your capital)
+	if Num(Safe(DB.RawQuestSingle or DB.QueryQuestSingle, id, "zoneOrSort")) ~= B.SPECIAL_SORT then return nil end
 	local librarian = false
 	for _, n in ipairs(npcs) do if IsLibrarian(n) then librarian = true break end end
 	local name = librarian and ns.Str(Safe(DB.QueryQuestSingle, id, "name"))
 	if not name then return nil end
-	return { quest = name, questID = id, level = Num(Safe(DB.QueryQuestSingle, id, "questLevel")) or 0 }
+	-- how many books it takes: its WoW Forever correction says so ("You will need to hand in 10 books..."; English only:
+	-- else its level stands for it)
+	local text = Safe(DB.QueryQuestSingle, id, "objectivesText")
+	local need = type(text) == "table" and Num(tonumber((ns.Str(text[1]) or ""):match("(%d+) books?") or "")) or nil
+	return { quest = name, questID = id, level = Num(Safe(DB.QueryQuestSingle, id, "questLevel")) or 0, need = need }
 end
 
 local RegisterBooks -- (below: the list itself)
@@ -259,19 +271,20 @@ function B.Pending() return qd.building or qd.waiting end
 function B.ForgetQuestie() qd.list, qd.rewards, qd.building, qd.waiting, tries = nil, nil, false, false, 0 end -- (tests)
 
 --- The rewards as QuestieDB has them, without OneForAll: the Librarians' reward quests, lowest level first, each with the
---- items it gives (Questie's questRewards, Rewards.lua's index; none yet while that's being read: asked again). How
---- many books each takes isn't in QuestieDB: its level stands for it. { { quest, questID, level, items = { { id, name } } } }
-function B.QuestieRewards()
+--- items it gives (Questie's questRewards, Rewards.lua's index; none yet while that's being read: asked again, unless
+--- `quiet`: a tooltip's or a footer's). How many books each takes: its correction's text, else nil (its level then).
+--- { { quest, questID, level, need, items = { { id, name } } } }
+function B.QuestieRewards(quiet)
 	local QR = ns.QuestRewards
 	local out = {}
 	for _, r in ipairs(qd.rewards or {}) do
 		local items = {}
 		local list = QR and QR.RewardsOf and QR.RewardsOf(r.questID)
-		if list == nil and QR and QR.Index and not QR.Index() then
+		if list == nil and not quiet and QR and QR.Index and not QR.Index() then
 			if ns.Filters then ns.Filters.loading = true end -- (the items quests reward are still being read)
 		end
 		for _, it in ipairs(list or {}) do items[#items + 1] = { id = it.id, name = it.name } end
-		out[#out + 1] = { quest = r.quest, questID = r.questID, level = r.level, items = items }
+		out[#out + 1] = { quest = r.quest, questID = r.questID, level = r.level, need = r.need, items = items }
 	end
 	return out
 end
@@ -447,8 +460,10 @@ local function RewardRows(done)
 		end
 	elseif not OA.Loaded() then
 		for _, t in ipairs(B.QuestieRewards()) do
-			local level = L["Lv %d"]:format(t.level)
-			Add(t, t.quest .. ": " .. level .. (QuestDone(t.questID) and ("  " .. L["(claimed)"]) or ""), ns.Detail(t.quest, level))
+			-- (the books it takes, as OneForAll's say, when its text tells; else the level it's for)
+			local takes = t.need and L["%d books"]:format(t.need) or L["Lv %d"]:format(t.level)
+			local mark = QuestDone(t.questID) and L["(claimed)"] or (t.need and done >= t.need and L["(reached)"]) or nil
+			Add(t, t.quest .. ": " .. takes .. (mark and ("  " .. mark) or ""), ns.Detail(t.quest, takes))
 		end
 	end
 	return ns.ScoreInOrder(out)
