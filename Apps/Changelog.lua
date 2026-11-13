@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "1.5.1", when = "in testing",
+		items = {
+			"TradeSkillMaster's auction house prices: with TSM installed, its prices come first and Auctionator's fill in the items TSM has none for; either one alone does it all (\"what should i auction\", \"am i undercut\", sort:ahvalue).",
+		},
+	},
+	{
 		v = "1.5.0", when = "released November 2026",
 		items = {
 			"Item sets without OneForAll: with AtlasLoot alone, @itemset lists the sets, their pieces, where each drops and the set bonuses; Enter opens AtlasLoot on the set, and \"my class sets\" lists your class's, dungeon sets included.",
@@ -45,20 +51,6 @@ CL.LOG = {
 			"When someone asks Terminal (!t) in a chat it doesn't answer in yet, it says plainly what to type to turn it on (.ask group on).",
 			"Fixed: with .zen on, your target's highlight on the party and raid frames no longer shows through the faded interface; with Shift+` bound to Terminal, opening it on a kept search no longer types a ~.",
 			"Many fixes from three reviews: friends' places and dots, OpenMap players' places in a big guild, suggestions typed with their note, the footer and .zen.",
-		},
-	},
-	{
-		v = "1.2.0", when = "released November 2026",
-		items = {
-			"With TomTom (or an arrow addon taking its waypoints): Enter (\"show via TomTom\") and Shift+Enter send their waypoints to TomTom's arrow; .set waypoints map, tomtom or both, or Options.",
-			"Terminal's own settings are searchable: \"terminal settings\" (or .set) lists each with its value, \"bigger font\" or \"cursor\" finds one; Enter changes it, Shift+Enter puts its default back.",
-			"Right-click a loot row and pick Find sources: the search goes on to where to get it (who drops, sells or makes it); Shift+Left goes back.",
-			"Fixed: after Terminal showed an item in the game's own bags, food and drink in them could fail to work until a /reload; the game now opens your bags itself.",
-			"With .zen off, a click outside Terminal leaves it open but out of focus: your keys go to the game until you click it or press its key again.",
-			"Keep your session (on by default, .set keepSession): Terminal opens again on the search you left, with its results, and your tabs, after a /reload too; the empty prompt's tips mention Ctrl+T for another tab.",
-			"The addon options panel says that more settings are in Terminal itself: terminal settings or .set.",
-			"\"what layer am i on\" or \"my layer\" (@layer): the layer the creatures you mouse over or target are on.",
-			"Many fixes from a release review: showing items in your bags (in a fight, with Ctrl+Enter, with any bag addon), settings, focus and tabs.",
 		},
 	},
 }

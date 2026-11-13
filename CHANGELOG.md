@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.1 (in testing)
+
+**Auction house prices from TradeSkillMaster**
+- With TradeSkillMaster installed, every auction house price comes from it first: its AuctionDB's minimum buyout, else
+  its market value (the prices the TSM desktop app syncs), read through its public API (`TSM_API`) while it's
+  installed, never copied. An item TSM has no price for takes Auctionator's, as before; either addon alone gives
+  everything: `sort:ahvalue`, `| sum ahvalue`, `is:auctionable`, "what should i auction", "ah value of my mats", "ah
+  upgrades", `@auction`'s price now and `is:undercut`, "what should i do"'s "Post on the auction house".
+- Whose prices are shown is said: an auction's tooltip ("each, from TSM"), the footer of "ah upgrades" and "am i
+  undercut" when none is ("prices from TSM and Auctionator"). "seen 3 days ago" is Auctionator's to say: a TSM price
+  has no age.
+- No prices yet says where they come from: Auctionator's from scanning the auction house with it, TSM's from its
+  desktop app.
+- `.integrations` gives TradeSkillMaster a line of its own, first; Auctionator's says it fills in when TSM is there.
+  The install hint names both: "Install TradeSkillMaster or Auctionator for this."
+
 ## 1.5.0
 
 Terminal 1.5: Library Books and item sets without OneForAll (from Questie and AtlasLoot), a tidier `.integrations`, the

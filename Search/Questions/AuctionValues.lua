@@ -1,11 +1,16 @@
 local ns = select(2, ...)
 local L = ns.L
 
--- Auctionator.
+-- Auction house prices: TradeSkillMaster first, Auctionator where it has none (1.5.1, the player's ask).
 --
--- Read through its public API only (Auctionator.API.v1, for other addons), at run time, while it's installed: the
--- price its last scan of the auction house saw, and when it changes. Nothing of Auctionator's is copied into Terminal
--- (its licence: all rights reserved), and its files aren't read.
+-- Each read through its public API only, at run time, while it's installed; nothing of either is copied into Terminal
+-- (both licences: all rights reserved), and their files aren't read.
+--   TradeSkillMaster   TSM_API.GetCustomPriceValue: its AuctionDB's minimum buyout, else its market value (what the
+--                      TSM desktop app last synced); no age, no word when it changes (kept AN.KEEP seconds)
+--   Auctionator        Auctionator.API.v1: the price its last scan of the auction house saw, how many days ago, and
+--                      when its data changes (RegisterForDBUpdate)
+-- Asked per item: an item TSM has no price for is asked of Auctionator. Which one answered is kept with the price
+-- (AN.SourceOf), and the texts name the addons whose prices are shown (AN.Said).
 --
 --   AH price, AH value   an item's auction house price each (ahprice), and times how many you have (ahvalue): Pipes'
 --                        fields ("| sum ahvalue", "| avg ahprice"), sort:ahvalue (the bar's Sort: AH value)
@@ -24,13 +29,14 @@ local Num = ns.Num
 local SEP = ns.DETAIL_SEP
 local Money = ns.Money
 
---- Is Auctionator loaded?
-function AN.Loaded()
+local function Loaded(name)
 	local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or _G.IsAddOnLoaded
 	if not isLoaded then return false end
-	local ok, yes = pcall(isLoaded, AN.ADDON)
+	local ok, yes = pcall(isLoaded, name)
 	return ok and yes == true
 end
+--- Is Auctionator loaded?
+function AN.Loaded() return Loaded(AN.ADDON) end
 
 --- Its API for other addons (Auctionator.API.v1), or nil (not loaded, or not the API expected).
 function AN.Api()
@@ -40,18 +46,34 @@ function AN.Api()
 	return api
 end
 
-function AN.On() return AN.Api() ~= nil end
+--- Auctionator's API is there.
+function AN.AtrOn() return AN.Api() ~= nil end
+
+-- TradeSkillMaster: its price sources asked in turn (AuctionDB's: the TSM desktop app's data, synced by its helper)
+local TSM = { ADDON = "TradeSkillMaster", NAME = "TSM", KEYS = { "DBMinBuyout", "DBMarket" } }
+AN.TSM = TSM
+function TSM.Loaded() return Loaded(TSM.ADDON) end
+--- Its API for other addons (TSM_API), or nil.
+function TSM.Api()
+	local t = rawget(_G, "TSM_API")
+	if type(t) ~= "table" or type(t.GetCustomPriceValue) ~= "function" or type(t.ToItemString) ~= "function" then return nil end
+	return t
+end
+function TSM.On() return TSM.Api() ~= nil end
+
+--- Auction house prices from either.
+function AN.On() return TSM.On() or AN.AtrOn() end
 
 ----------------------------------------------------------------------
 -- Prices: asked once per item until Auctionator's data changes (RegisterForDBUpdate)
 ----------------------------------------------------------------------
 
-local prices, ages, askedAt = {}, {}, nil
-AN.KEEP = 300 -- (seconds a price is kept without word from Auctionator: a build without RegisterForDBUpdate still catches up)
-function AN.Forget() prices, ages, askedAt = {}, {}, nil end
+local prices, ages, by, used, askedAt = {}, {}, {}, {}, nil
+AN.KEEP = 300 -- (seconds a price is kept without word from Auctionator, TSM never saying: both catch up)
+function AN.Forget() prices, ages, by, used, askedAt = {}, {}, {}, {}, nil end
 local function Fresh()
 	local now = (type(GetTime) == "function" and GetTime()) or 0
-	if askedAt and now - askedAt > AN.KEEP then prices, ages = {}, {} ; askedAt = nil end
+	if askedAt and now - askedAt > AN.KEEP then prices, ages, by, used = {}, {}, {}, {} ; askedAt = nil end
 	askedAt = askedAt or now
 end
 
@@ -76,24 +98,85 @@ local function Ask(fnLink, fnID, id, link)
 	return got
 end
 
---- The auction house's price for one (copper), as Auctionator last saw it, or nil (never seen, or no Auctionator).
+--- TSM's price for one (copper), or nil: the link's own item (a copy with a random suffix is its own), else the id's.
+local function AskTSM(id, link)
+	local t = TSM.Api()
+	if not t then return nil end
+	local item
+	link = ItemLink(link)
+	if link then
+		local ok, v = pcall(t.ToItemString, link)
+		if ok and type(v) == "string" then item = v end
+	end
+	if not item and type(id) == "number" then item = "i:" .. ("%.0f"):format(id) end
+	if not item then return nil end
+	for _, source in ipairs(TSM.KEYS) do
+		local ok, v = pcall(t.GetCustomPriceValue, source, item)
+		v = ok and Num(v) or nil
+		if v and v > 0 then return math.floor(v + 0.5) end
+	end
+	return nil
+end
+
+--- The auction house's price for one (copper): TSM's, else as Auctionator last saw it; nil (never seen, or neither).
 function AN.Price(id, link)
 	local key = ItemLink(link) or id
 	if key == nil then return nil end
 	Fresh()
 	local got = prices[key]
 	if got == nil then
-		got = Ask("GetAuctionPriceByItemLink", "GetAuctionPriceByItemID", id, link)
-		if got and got <= 0 then got = nil end
-		prices[key] = got or false
+		local from
+		got = AskTSM(id, link)
+		if got then from = "tsm"
+		else
+			got = Ask("GetAuctionPriceByItemLink", "GetAuctionPriceByItemID", id, link)
+			if got and got <= 0 then got = nil end
+			from = got and "atr" or nil
+		end
+		prices[key], by[key] = got or false, from or false
+		if from then used[from] = true end
 	end
 	return got or nil
 end
 
---- How many days ago Auctionator saw it on the auction house (0: today), or nil.
+AN.NAMES = { tsm = TSM.NAME, atr = "Auctionator" }
+--- Which addon gave its price: "TSM", "Auctionator", or nil (none).
+function AN.SourceOf(id, link)
+	local key = ItemLink(link) or id
+	if key == nil or not AN.Price(id, link) then return nil end
+	return AN.NAMES[by[key]]
+end
+
+--- Whose prices are shown: the addons that gave one since they were last asked again ("TSM and Auctionator"), else
+--- those there are.
+function AN.Said()
+	local tsm, atr = used.tsm, used.atr
+	if not (tsm or atr) then tsm, atr = TSM.On(), AN.AtrOn() end
+	if tsm and atr then return L["%s and %s"]:format(TSM.NAME, "Auctionator") end
+	return tsm and TSM.NAME or "Auctionator"
+end
+
+--- No prices at all: whose, and what to do (`yours`: for your items). Auctionator's come from scanning the auction house
+--- with it; TSM's from its desktop app.
+function AN.NoPrices(yours)
+	local tsm, atr = TSM.On(), AN.AtrOn()
+	if tsm and atr then
+		return yours and L["TSM and Auctionator have no prices for your items yet: scan the auction house with Auctionator"]
+			or L["TSM and Auctionator have no prices yet: scan the auction house with Auctionator"]
+	elseif tsm then
+		return yours and L["TSM has no prices for your items yet: they come from the TSM desktop app"]
+			or L["TSM has no prices yet: they come from the TSM desktop app"]
+	end
+	return yours and L["Auctionator has no prices for your items yet: scan the auction house with it"]
+		or L["Auctionator has no prices yet: scan the auction house with it"]
+end
+
+--- How many days ago Auctionator saw it on the auction house (0: today), or nil (TSM's price: it doesn't say).
 function AN.Age(id, link)
 	local key = ItemLink(link) or id
 	if key == nil then return nil end
+	if by[key] == nil then AN.Price(id, link) end
+	if by[key] ~= "atr" then return nil end
 	local got = ages[key]
 	if got == nil then
 		got = Ask("GetAuctionAgeByItemLink", "GetAuctionAgeByItemID", id, link)
@@ -272,7 +355,7 @@ do
 		if AS then AS.ahvalue, AS.ahprice = AS.value, AS.value end -- (what has an item: yours, loot, recipes' crafts)
 		for i, h in ipairs(F.HELP or {}) do
 			if h[1] == "sort:name" then
-				table.insert(F.HELP, i + 1, { "is:auctionable", L["Auctionator: bag items worth more on the auction house than at a vendor; sort:ahvalue, | sum ahvalue; @auction is:undercut"] })
+				table.insert(F.HELP, i + 1, { "is:auctionable", L["TSM or Auctionator: bag items worth more on the auction house than at a vendor; sort:ahvalue, | sum ahvalue; @auction is:undercut"] })
 				break
 			end
 		end
@@ -407,7 +490,7 @@ function Q.Answer(q)
 	if #found == 0 then
 		local _, _, priced = AN.ToPost(true)
 		return { ns.NoteRow(priced and L["Nothing there sells for more on the auction house than at a vendor"]
-			or L["Auctionator has no prices for your items yet: scan the auction house with it"]) }, note
+			or AN.NoPrices(true)) }, note
 	end
 	local out, total = {}, 0
 	for _, x in ipairs(found) do
@@ -450,7 +533,7 @@ end
 function Q.None()
 	local _, _, priced = AN.ToPost(true)
 	return { ns.NoteRow(priced and L["Nothing there sells for more on the auction house than at a vendor"]
-		or L["Auctionator has no prices for your items yet: scan the auction house with it"]) }
+		or AN.NoPrices(true)) }
 end
 
 --- As Advanced syntax: your bags' @item, your bank's @bank, else @stored (your alts and banks).
@@ -494,7 +577,7 @@ function AN.ValueQuestion(text)
 		elseif not VALUE_FILL[w] then return nil end
 	end
 	-- ("ah value of my mats", "mats ah value", "what are my mats worth on the ah"; "what are my mats worth" too: the
-	-- auction house's, with Auctionator)
+	-- auction house's, with TSM or Auctionator)
 	if not (list and worth) then return nil end
 	if not ah and not t:find("worth", 1, true) then return nil end
 	return { line = list .. " | sum ahvalue " }
@@ -502,9 +585,9 @@ end
 
 ----------------------------------------------------------------------
 -- The cheapest upgrades on the auction house: "ah upgrades", "cheapest upgrades on the ah", "upgrades on the auction
--- house": bind-on-equip items from AtlasLoot that are clear upgrades for you, at Auctionator's last-scanned price, the
--- most gain per gold first ("+12 for 3g 40s"). Only what showed in its last scan; each row says when it was seen when
--- that's days ago.
+-- house": bind-on-equip items from AtlasLoot that are clear upgrades for you, at TSM's or Auctionator's price, the
+-- most gain per gold first ("+12 for 3g 40s"). Only what they have a price for; a row priced by Auctionator says when it
+-- was seen when that's days ago.
 ----------------------------------------------------------------------
 local AHU = {}
 AN.Upgrades = AHU
@@ -519,7 +602,7 @@ AHU.ASK = 40 -- (items asked of the server per answer)
 AHU.MAX = 50 -- (rows listed at most)
 AHU.SELLABLE_BIND = { [0] = true, [2] = true, [3] = true } -- (none, on equip, on use)
 
---- "ah upgrades", "cheapest upgrades on the ah": true (with Auctionator).
+--- "ah upgrades", "cheapest upgrades on the ah": true (with TSM or Auctionator).
 function AHU.Question(text)
 	if not AN.On() then return nil end
 	local t = ns.QuestionText(text)
@@ -534,7 +617,8 @@ function AHU.Question(text)
 end
 
 local equipKept -- { rows = AtlasLoot's rows, list = their equipment, one row per item }
---- The upgrades the auction house has (AtlasLoot's bind-on-equip items Auctionator saw), the most gain per gold first.
+--- The upgrades the auction house has (AtlasLoot's bind-on-equip items TSM or Auctionator has a price for), the most
+--- gain per gold first.
 function AHU.Answer()
 	local note = L["Upgrades on the auction house, the most gain per gold first"]
 	local F = ns.Filters
@@ -616,11 +700,11 @@ function AHU.Answer()
 	ns.ScoreInOrder(out)
 	if #out == 0 then
 		local say = (asked > 0 and L["None yet: the items' details are still coming in"])
-			or (not priced and L["Auctionator has no prices yet: scan the auction house with it"])
+			or (not priced and AN.NoPrices(false))
 			or L["Nothing on the auction house is an upgrade for you"]
 		return { ns.NoteRow(say) }, note
 	end
-	return out, note .. SEP .. L["at Auctionator's last-scanned prices"]
+	return out, note .. SEP .. L["prices from %s"]:format(AN.Said())
 end
 
 ----------------------------------------------------------------------
@@ -637,24 +721,39 @@ function AN.Setup()
 	if not ok then ns:Trace("auctionator: RegisterForDBUpdate: " .. tostring(err)) end
 end
 
---- .integrations' line.
+local function Version(name)
+	local I = ns.Integrations
+	return tostring(I and I._ and I._.AddOnVersion and I._.AddOnVersion(name) or "?")
+end
+--- .integrations' line for Auctionator.
 function AN.Status()
 	if not AN.Loaded() then return L["not found"] end
-	local ver = ns.Integrations and ns.Integrations._ and ns.Integrations._.AddOnVersion and ns.Integrations._.AddOnVersion(AN.ADDON)
-	if not AN.On() then return L["found (%s), but not its API for other addons: update Auctionator"]:format(tostring(ver or "?")) end
-	return L["found (%s). Auction house prices on items (sort:ahvalue, | sum ahvalue, is:auctionable) and @auction (is:undercut)"]:format(tostring(ver or "?"))
+	local ver = Version(AN.ADDON)
+	if not AN.AtrOn() then return L["found (%s), but not its API for other addons: update %s"]:format(ver, "Auctionator") end
+	if TSM.On() then return L["found (%s). Auction house prices for the items TSM has none for"]:format(ver) end
+	return L["found (%s). Auction house prices on items (sort:ahvalue, | sum ahvalue, is:auctionable) and @auction (is:undercut)"]:format(ver)
+end
+--- .integrations' line for TradeSkillMaster.
+function TSM.Status()
+	if not TSM.Loaded() then return L["not found"] end
+	local ver = Version(TSM.ADDON)
+	if not TSM.On() then return L["found (%s), but not its API for other addons: update %s"]:format(ver, TSM.ADDON) end
+	return L["found (%s). Auction house prices on items (sort:ahvalue, | sum ahvalue, is:auctionable) and @auction (is:undercut)"]:format(ver)
+		.. " " .. L["(its AuctionDB: the TSM desktop app's prices)"]
 end
 
 do
 	local f = CreateFrame("Frame")
 	f:RegisterEvent("PLAYER_LOGIN")
-	-- (leaving the auction house: Auctionator may have scanned it; its prices asked again)
+	-- (leaving the auction house: Auctionator may have scanned it; prices asked again, TSM's too)
 	f:RegisterEvent("AUCTION_HOUSE_CLOSED")
 	f:SetScript("OnEvent", function(_, event)
 		if event == "AUCTION_HOUSE_CLOSED" then
 			if AN.On() then AN.Forget(); ns:Changed("auctions") end
 			return
 		end
+		-- (TSM's prices: anything asked before it was ready is asked again)
+		AN.Forget()
 		local ok, err = pcall(AN.Setup)
 		if not ok then ns:Trace("auctionator: " .. tostring(err)) end
 	end)

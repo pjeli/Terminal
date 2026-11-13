@@ -81,7 +81,7 @@ Scan.ANSWERS = {
 	Asks("Armory", { over = { "Auctions" }, custom = "a faction's rewards by standing, sets started first, a set's pieces" }),
 	-- "favor recipes i don't know", "nearest boat", "zeppelin to orgrimmar", "zone exits": OneForAll's world (World.lua)
 	Asks("OneForAllWorld", { custom = "a boat or zeppelin by where it goes, roads of your map, Merchant's Favor recipes" }),
-	-- "what should i auction": your bag items worth more on the auction house, with Auctionator (AuctionValues.lua;
+	-- "what should i auction": your bag items worth more on the auction house, with TSM or Auctionator (AuctionValues.lua;
 	-- was before the auctions' question: "what can i sell on the ah" isn't about what you've posted)
 	Asks("AuctionatorQ", { over = { "Auctions" }, custom = "bags and bank together, your alts', everywhere: one row per item" }),
 	Asks("AhUpgradesQ", { custom = "gain per gold over one row per item" }), -- ("ah upgrades": AuctionValues.lua)

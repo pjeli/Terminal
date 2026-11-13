@@ -80,7 +80,7 @@ do
 	local r = UI.Results()
 	check(r[2] and r[2].detail:find("+4 for", 1, true) and r[3] and r[3].detail:find(L["seen %d days ago"]:format(4), 1, true),
 		"each says its gain and price, and when it was seen: " .. tostring(r[2] and r[2].detail) .. " / " .. tostring(r[3] and r[3].detail))
-	check(tostring(UI.status:GetText()):find(L["at Auctionator's last-scanned prices"], 1, true), "the footer says whose prices")
+	check(tostring(UI.status:GetText()):find(L["prices from %s"]:format("Auctionator"), 1, true), "the footer says whose prices")
 	check(F.GainOf(r[2]) ~= nil, "its tooltip compares it (the gain kept)")
 	check(r[2] and r[2].kind == "loot" and r[2].activate ~= nil and r[2].link ~= nil, "a view of the loot row: its Enter and link kept (review)")
 	UI:Hide(); FlushAll()

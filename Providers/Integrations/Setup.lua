@@ -134,7 +134,11 @@ ns:RegisterCommand("integrations", {
 		-- (@itemset: OneForAll's, else AtlasLoot's)
 		local sets = ns.Armory and ns.Armory.SetsStatus and ns.Safe(ns.Armory.SetsStatus)
 		if sets then lines[#lines + 1] = "  " .. L["Item sets:"] .. " " .. sets end
-		if ns.Auctionator then Add("Auctionator:", ns.Auctionator.Status()) end
+		-- (auction house prices: TradeSkillMaster's first, Auctionator's where it has none)
+		if ns.Auctionator then
+			Add("TradeSkillMaster:", ns.Auctionator.TSM.Status())
+			Add("Auctionator:", ns.Auctionator.Status())
+		end
 		local M = ns.Maps
 		if M and M.TomTom and M.TomTom() then lines[#lines + 1] = "  TomTom: " .. I.TomTomStatus() end
 		if ns.Stored then Add(L["Alts and banks:"], ns.Stored.Status()) end
@@ -187,7 +191,8 @@ I.ADDONS = {
 		keys = { on = true, who = true },
 		values = { ["in:bank"] = true, ["in:guild"] = true } },
 }
-I.ADDONS[#I.ADDONS + 1] = { name = "Auctionator", missing = function() return not (ns.Auctionator and ns.Auctionator.On()) end,
+-- (auction house prices: either one; TradeSkillMaster asked first)
+I.ADDONS[#I.ADDONS + 1] = { name = "TradeSkillMaster", also = "Auctionator", missing = function() return not (ns.Auctionator and ns.Auctionator.On()) end,
 	kinds = {}, words = { auctionable = true, undercut = true }, values = { ["is:auctionable"] = true, ["is:undercut"] = true,
 	["sort:ahvalue"] = true, ["sort:ah"] = true, ["sort:ahprice"] = true, ["sort:market"] = true } }
 -- (OneForAll's parts each a name of their own, the label saying OneForAll: one name for several kept only the last, and

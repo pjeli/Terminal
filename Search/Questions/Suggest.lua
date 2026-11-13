@@ -18,7 +18,7 @@ local L = ns.L
 --   Turn in quests          quests in your log ready to turn in            quests to turn in
 --   Quests here / Move on   quests at your level in your zone (Questie)    quests here / where should i quest
 --   Run a dungeon           the dungeon that fits your level best          <dungeon> upgrades
---   Post on the AH          bag items worth more there (Auctionator)       what should i auction
+--   Post on the AH          bag items worth more there (TSM, Auctionator)  what should i auction
 --   Level <profession>      a crafting profession under its cap            <profession> plan
 
 local SG = {}
@@ -306,7 +306,7 @@ CHECKS[#CHECKS + 1] = function(build)
 	end
 end
 
--- bag items worth posting on the auction house (Auctionator's prices): what they'd bring together
+-- bag items worth posting on the auction house (TSM's or Auctionator's prices): what they'd bring together
 CHECKS[#CHECKS + 1] = function(build)
 	local AN = ns.Auctionator
 	if not (AN and AN.On and AN.On()) then return end
@@ -1012,7 +1012,7 @@ end
 
 ----------------------------------------------------------------------
 -- "what are my bags worth", "bag value", "what's my stuff worth": what your bags sell to a vendor for, summed (with
--- Auctionator, AuctionValues.lua's AhValueQ answers first, with the auction house's worth). The search runs the line.
+-- TSM or Auctionator, AuctionValues.lua's AhValueQ answers first, with the auction house's worth). The search runs the line.
 ----------------------------------------------------------------------
 
 local BW = {}

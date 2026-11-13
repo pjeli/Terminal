@@ -68,7 +68,7 @@ local function Tooltip(e, t)
 	if e.market then
 		t:AddDoubleLine(e.undercut and L["Auction house now (undercut)"] or L["Auction house now"], Money(e.market), 1, 1, 1,
 			1, e.undercut and 0.5 or 1, e.undercut and 0.25 or 1)
-		t:AddLine(L["(Auctionator's last scan, each)"], 0.6, 0.6, 0.6)
+		t:AddLine(L["(each, from %s)"]:format(e.marketBy or "?"), 0.6, 0.6, 0.6)
 	end
 	local left = a.ends and (a.ends - now)
 	if left then
@@ -118,7 +118,8 @@ local function SoldRow(key, i, s, mine, who, now)
 	}
 end
 
---- The auction house's price for one now (Auctionator's last scan), and whether yours is above it: undercut.
+--- The auction house's price for one now (TSM's or Auctionator's), whether yours is above it (undercut), and whose
+--- price it is.
 local function Market(a, id, link, over)
 	local AN = ns.Auctionator
 	if over or not (AN and AN.On and AN.On()) then return nil end
@@ -130,8 +131,9 @@ local function Market(a, id, link, over)
 	local each = a.each or (a.price and a.price / math.max(1, a.count or 1))
 	-- (the cheapest one up is another of yours: not undercut by yourself)
 	local own = id and AU.ownMin and AU.ownMin[id]
-	if own and own < (each or 0) and market >= own then return market, false end
-	return market, each ~= nil and market < each
+	local from = AN.SourceOf and AN.SourceOf(id, l)
+	if own and own < (each or 0) and market >= own then return market, false, from end
+	return market, each ~= nil and market < each, from
 end
 
 --- Your characters' cheapest price each for every item they have up now (Market: your own cheaper auction isn't an
@@ -160,7 +162,7 @@ local function UpRow(key, id, a, mine, who, now)
 	for _, b in ipairs(bits) do d[#d + 1] = b end
 	local over = a.ends and a.ends <= now or false
 	local itemID, link, q, icon = MA.ItemFacts(a.id, a.link, a.name)
-	local market, undercut = Market(a, itemID, link, over)
+	local market, undercut, marketBy = Market(a, itemID, link, over)
 	if market then
 		d[#d + 1] = undercut and ("|cffff8040" .. L["undercut: AH %s"]:format(Money(market, true)) .. "|r")
 			or ("|cff8a8a8a" .. L["AH %s"]:format(Money(market, true)) .. "|r")
@@ -169,7 +171,7 @@ local function UpRow(key, id, a, mine, who, now)
 	local name = NameOf(a) .. (((a.count or 1) > 1) and (" x" .. a.count) or "")
 	return {
 		key = "up:" .. key .. ":" .. id, name = name, auction = a, auctionID = id, ahKind = over and "over" or "up",
-		market = market, undercut = undercut or nil, itemID = itemID, quality = q, each = a.each or (a.price and a.price / math.max(1, a.count or 1)),
+		market = market, marketBy = marketBy, undercut = undercut or nil, itemID = itemID, quality = q, each = a.each or (a.price and a.price / math.max(1, a.count or 1)),
 		boxKey = key, who = who, mine = mine or nil, ends = a.ends,
 		color = over and GREY or ns.QualityHex(q), icon = icon or ICON, link = link or a.link,
 		detail = ns.Detail(unpack(d)), plain = plain,
@@ -273,13 +275,13 @@ function AU.Question(text)
 		if MAIL[w] then return nil end
 		if SUBJECT[w] then subject = true; weak = weak and WEAK[w] == true
 		elseif CUE[w] and (CUE[w] ~= "undercut" or (ns.Auctionator and ns.Auctionator.On())) then
-			-- (undercut: Auctionator's prices say so; without it, a word of the search)
+			-- (undercut: TSM's or Auctionator's prices say so; without either, a word of the search)
 			cues[CUE[w]] = true; selling = selling or (w ~= "up" and CUE[w] ~= "undercut")
 		elseif ASK[w] then asked = true
 		else rest[#rest + 1] = w end
 	end
 	-- "what am i selling": selling with asking words is about your auctions too ("what's up" isn't: 0.49.2, review);
-	-- "am i undercut", "undercut auctions" (Auctionator's prices)
+	-- "am i undercut", "undercut auctions" (TSM's or Auctionator's prices)
 	if not subject and not (cues.up and selling and asked and #rest == 0) and not (cues.undercut and #rest == 0) then return nil end
 	if subject and weak and not asked and not next(cues) then return nil end
 	-- other words: asked, and with what auctions do (sold, selling, listed) or "auctions" itself, as the mail's
@@ -307,6 +309,6 @@ end
 function AU.None(q)
 	local p = ns.providers.auctions
 	if #(p and ns:GetEntries(p) or {}) == 0 then return { NoteRow(AU.NONE) } end
-	if q.undercut then return { NoteRow(L["None of your auctions is undercut, as Auctionator last saw the auction house"]) } end
+	if q.undercut then return { NoteRow(L["None of your auctions is undercut (prices from %s)"]:format(ns.Auctionator.Said())) } end
 	return { NoteRow(L["No auction has that"]) }
 end
