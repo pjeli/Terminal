@@ -446,6 +446,7 @@ L["@training is unavailable."] = true
 L["@training isn't kept up to date as you train."] = true
 L["@training: learnable (now) nextlevel later needsrank needstalent pet weapon ignored quest"] = true
 L["@transport (its boats, zeppelins and the tram) is unavailable."] = true
+L["A /thank to a player outside your group whose buff lands on you, each at most once in 10 minutes, never in combat or a boss fight. With OneForAll's own \"Thank players who buff you\" on, Terminal leaves it to OneForAll."] = true
 L["A Battle.net friend (the game hides the name)"] = true
 L["A breadcrumb to %s, which you've taken"] = true
 L["A console over everything Terminal knows: lists as directories, rows as files, ls, cd, cat, grep, pipes; up to four panes (` steps out, .console comes back; .console reset starts again)"] = true
@@ -1990,6 +1991,7 @@ L["Terminal: type the name of anything (an item, a quest, a spell, a mount, a pl
 L["Tetris"] = true
 L["Text"] = true
 L["Text colour"] = true
+L["Thank players who buff you"] = true
 L["Thank you to %s, and %s for supporting and believing in me to continue working on this."] = true
 L["Thank you to the people who kept Terminal going"] = true
 L["That step is off to the side of Attune's chart: drag the chart sideways to see it."] = true

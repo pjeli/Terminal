@@ -725,6 +725,7 @@ local SET_DESC = {
 	zenDim = L["How dark .zen makes the screen behind Terminal."],
 	autoScan = L["Read your professions quietly after login."],
 	mailWarn = L["Say at login when mail with something in it runs out soon."],
+	thankBuffs = L["A /thank to a player outside your group whose buff lands on you, each at most once in 10 minutes, never in combat or a boss fight. With OneForAll's own \"Thank players who buff you\" on, Terminal leaves it to OneForAll."],
 	fzfGlow = L["The glow round the prompt while fuzzy finding (Tab+`)."],
 	fzfColor = L["The fuzzy finding glow's colour."],
 	waypoints = L["Where Enter's waypoints go: TomTom's arrow, the map pin, or both."],
@@ -745,6 +746,7 @@ local SET_WORDS = {
 	animations = "animation animations motion effects open close", cursor = "cursor caret",
 	blinkRate = "blink speed cursor", zenDim = "zen dimming dim dark screen",
 	autoScan = "professions index login scan", mailWarn = "mail expire expiring warning login",
+	thankBuffs = "thank thanks buff buffs buffed emote auto automatic social",
 	fzfGlow = "fuzzy glow fzf", fzfColor = "fuzzy glow fzf colour color", waypoints = "waypoints waypoint tomtom map pin arrow",
 }
 O.SET_NAME, O.SET_DESC, O.SET_WORDS = SET_NAME, SET_DESC, SET_WORDS -- (tests: every setting has a description and words)

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.4 (in testing)
+
+**Thank players who buff you**
+- A new setting (`.set thankBuffs on`, or in "terminal settings"), off unless you turn it on: when a player outside your
+  group buffs you, Terminal does a /thank to them, as OneForAll's "Thank players who buff you" does. Each player at most
+  once in 10 minutes (three blessings: one thank).
+- Never while the game restricts addons (combat, a boss fight, a keystone dungeon, a PvP match): those buffs aren't
+  thanked later either. A buff from someone the game names no unit for (out of sight) isn't thanked.
+- With OneForAll installed and its own option on (for the profile this character uses), Terminal leaves it to OneForAll:
+  one thank, not two.
+
 ## 1.5.3 (in testing)
 
 **DungeonJournal**

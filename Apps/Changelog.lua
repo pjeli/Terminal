@@ -14,11 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.5.3", when = "in testing",
+		v = "1.5.4", when = "in testing",
 		items = {
 			"TradeSkillMaster's auction house prices: with TSM installed, its prices come first and Auctionator's fill in the items TSM has none for; either one alone does it all (\"what should i auction\", \"am i undercut\", sort:ahvalue).",
 			"\"library book rewards\" without OneForAll: only the Library's three reward tiers (Friend of the Library, and the two Greater Friend ones), with how many books each takes; other librarians' quests (\"Rascally Rodents\", \"Stormwind Library\", \"Shelf Picked\"...) and their rewards were listed by mistake.",
 			"DungeonJournal: right-click an item, a quest or a dungeon for \"Show in Dungeon Journal\"; \"my favourites\" (@favourite) lists the items you starred in it, and is:favourite finds them in any list.",
+			"New setting \"Thank players who buff you\" (off unless turned on): a /thank to a player outside your group who buffs you; with OneForAll's own option on, Terminal leaves it to OneForAll.",
 		},
 	},
 	{

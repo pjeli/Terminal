@@ -44,6 +44,7 @@ T.DEFAULTS = {
 	zenDim = 0.55, -- .zen: how dark the screen behind the terminal gets
 	autoScan = true, -- index professions quietly after login
 	mailWarn = true, -- say at login when mail with something in it runs out soon (Mail.lua)
+	thankBuffs = false, -- a /thank to a player outside your group who buffs you (Core/Thanks.lua; 1.5.4, the player)
 	syntax = true, -- colour what's typed: @kinds, filters, .commands, /slash commands
 	suggest = true, -- a faint "try: ..." example in the empty prompt (off: it stays empty)
 	slashKey = false, -- the / key opens Terminal on a slash command (SlashKey.lua; off unless turned on)
@@ -107,7 +108,7 @@ for id, path in pairs(T.LOCALE_FONTS[ns.LOCALE] or {}) do T.FONTS[id] = path end
 T.SETTINGS_SEARCH = "terminal settings" -- (.set alone opens this: every setting a row, UI/Options.lua)
 T.ORDER = { "promptText", "prompt", "accent", "match", "text", "dim", "bg", "promptBg", "border", "bgAlpha",
 	"frame", "font", "fontSize", "width", "rows", "scale", "hints", "animations", "cursor", "blinkRate", "zenDim", "autoScan", "syntax", "suggest",
-	"slashKey", "keepSession", "fzfGlow", "fzfColor", "mailWarn", "waypoints" }
+	"slashKey", "keepSession", "fzfGlow", "fzfColor", "mailWarn", "thankBuffs", "waypoints" }
 -- waypoints: TomTom's arrow (or an addon taking TomTom's calls), the game's map pin, or both; without TomTom, the map's
 T.WAYPOINT_ORDER = { "tomtom", "map", "both" }
 T.WAYPOINT_LABELS = { tomtom = "TomTom", map = L["Map pin"], both = L["Map pin and TomTom"] }
@@ -190,6 +191,7 @@ T.FIELDS = {
 	zenDim = { kind = "number", label = L["Zen dimming"], min = 0, max = 0.9, step = 0.05 },
 	autoScan = { kind = "bool", label = L["Index professions at login"] },
 	mailWarn = { kind = "bool", label = L["Warn at login: mail about to expire"] },
+	thankBuffs = { kind = "bool", label = L["Thank players who buff you"] },
 	fzfGlow = { kind = "choice", label = L["Fuzzy mode glow"], choices = T.FZF_GLOW_ORDER },
 	fzfColor = { kind = "color", label = L["Fuzzy glow"], optional = true }, -- (accent/default: the selection colour)
 	waypoints = { kind = "choice", label = L["Waypoints go to"], choices = T.WAYPOINT_ORDER },
