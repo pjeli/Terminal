@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.5.3 (in testing)
+
+**DungeonJournal**
+- With DungeonJournal installed, a row's right-click menu has "Show in Dungeon Journal" whenever it lists the thing: an
+  item (a boss's loot or a quest's reward) opens on its page with the item pointed at, a quest on its quest page, a
+  dungeon (`@dungeon`) on the dungeon's own page, by the instance's ID on any client language; Scarlet Monastery and
+  Stratholme open on their first wing.
+- `@favourite` (also `@favorite`, `@fav`): the items you starred in the journal, this character's, with the boss or quest
+  each comes from and its dungeon. Enter opens the journal on it, Shift+Enter links it. "my favourites" and "dungeon
+  journal favourites" ask for them; `is:favourite` (which already found favourite mounts, pets and toys) finds them in
+  any list of items too.
+- Read while it's installed, through the namespace it keeps as a global (it has no API documented for other addons):
+  every part checked, every call guarded. A version without what Terminal reads is said in chat once, and
+  `.integrations` gives it a "DungeonJournal:" line.
+
 ## 1.5.2 (in testing)
 
 **Library Book rewards without OneForAll: the right tiers**

@@ -141,6 +141,7 @@ ns:RegisterCommand("integrations", {
 		end
 		local M = ns.Maps
 		if M and M.TomTom and M.TomTom() then lines[#lines + 1] = "  TomTom: " .. I.TomTomStatus() end
+		if ns.DungeonJournal then Add("DungeonJournal:", ns.DungeonJournal.Status()) end
 		if ns.Stored then Add(L["Alts and banks:"], ns.Stored.Status()) end
 		if #lines == 1 then lines[2] = "  " .. L["none"] end
 		return lines
@@ -191,6 +192,9 @@ I.ADDONS = {
 		keys = { on = true, who = true },
 		values = { ["in:bank"] = true, ["in:guild"] = true } },
 }
+-- (@favourite: the items starred in DungeonJournal, 1.5.3)
+I.ADDONS[#I.ADDONS + 1] = { name = "ForeverDungeonJournal", label = "DungeonJournal", missing = function() return not ns.providers.favourite end,
+	kinds = { favourite = true, favourites = true, favorite = true, favorites = true, fav = true, favs = true } }
 -- (auction house prices: either one; TradeSkillMaster asked first)
 I.ADDONS[#I.ADDONS + 1] = { name = "TradeSkillMaster", also = "Auctionator", missing = function() return not (ns.Auctionator and ns.Auctionator.On()) end,
 	kinds = {}, words = { auctionable = true, undercut = true }, values = { ["is:auctionable"] = true, ["is:undercut"] = true,

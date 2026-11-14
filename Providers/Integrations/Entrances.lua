@@ -168,8 +168,8 @@ function I.BuildEntrances()
 	for _, inst in ipairs(I.INSTANCES) do
 		local lo, hi = Levels(inst[4])
 		local doors = Doors(inst)
-		for _, d in ipairs(doors) do list[#list + 1] = { inst[2], d[1], d[2], d[3], inst[3], lo, hi, inst[7] } end
-		if #doors == 0 then list[#list + 1] = { inst[2], nil, nil, nil, inst[3], lo, hi, inst[7] } end
+		for _, d in ipairs(doors) do list[#list + 1] = { inst[2], d[1], d[2], d[3], inst[3], lo, hi, inst[7], inst[1] } end
+		if #doors == 0 then list[#list + 1] = { inst[2], nil, nil, nil, inst[3], lo, hi, inst[7], inst[1] } end
 	end
 	return list
 end
@@ -219,6 +219,7 @@ function I.EntranceRows(raids)
 			detail = table.concat(parts, ns.DETAIL_SEP), zone = zone, level = hi, minLevel = lo,
 			text = (raids and "raid entrance " or "dungeon instance entrance ") .. (note and (note .. " ") or "") .. (zone or ""),
 			ui = ui, mapID = ui, px = px, py = py, wcont = cont, wx = x, wy = y,
+			instanceID = d[9], -- (the game's map ID of the instance: DungeonJournal's page for it, 1.5.3)
 			pinName = L["%s entrance"]:format(name), what = raids and L["raid"] or L["dungeon"],
 			secure = ns.Maps.SECURE, isOpen = ns.Maps.IsOpenFor, after = EntranceAfter, activate = PinObject,
 			secondary = PinObject,

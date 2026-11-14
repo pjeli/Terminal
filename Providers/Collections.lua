@@ -376,15 +376,20 @@ end
 -- In plain words: "mounts", "my pets", "toys", "favorite mounts", "raptor mounts", "how many pets do i have"
 ----------------------------------------------------------------------
 
--- is:favorite: a mount, pet or toy you marked in the journal
+-- is:favorite: a mount, pet or toy you marked in the journal; an item you starred in DungeonJournal (1.5.3,
+-- Providers/Integrations/DungeonJournal.lua: DJ.FavouriteRow)
 do
 	local F = ns.Filters
 	local IS = F and F._ and F._.IS
 	if IS then
-		IS.favorite = function(e) return (e.kind == "mounts" or e.kind == "pets" or e.kind == "toys") and e.fav == true end
+		IS.favorite = function(e)
+			if e.kind == "mounts" or e.kind == "pets" or e.kind == "toys" then return e.fav == true end
+			local DJ = ns.DungeonJournal
+			return DJ ~= nil and DJ.FavouriteRow(e)
+		end
 		IS.fav, IS.favourite = IS.favorite, IS.favorite
 		local A = F.APPLIES and F.APPLIES.is
-		local kinds = { "mounts", "pets", "toys" }
+		local kinds = { "mounts", "pets", "toys", "loot", "items", "gear" }
 		if A then A.favorite, A.fav, A.favourite = kinds, kinds, kinds end
 		local V = F.VALUES and F.VALUES.is
 		if V then

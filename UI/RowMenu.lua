@@ -139,6 +139,15 @@ do
 					UI:WalkTo(walk, e) -- (the search before kept: Shift+Left goes back to it)
 				end }
 			end
+			-- (1.5.3) DungeonJournal's page for it: an item it lists, a quest, a dungeon
+			local DJ = ns.DungeonJournal
+			local page = DJ and not self.histSearch and DJ.Target(e)
+			if page then
+				items[#items + 1] = { label = L["Show in Dungeon Journal"], run = function()
+					UI:Hide()
+					DJ.Open(page)
+				end }
+			end
 		end
 		-- a quest to drop among others: all of them together, after Terminal's confirmation names them (QuestDrop.lua)
 		local QD = ns.QuestDrop

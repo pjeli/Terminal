@@ -76,8 +76,15 @@ do
 	local wasPool, wasDb = E.ExamplePool, ns.db.easyMode
 	ns.db.easyMode = true
 	rawset(L, "try:", "versuch:")
-	UI:Open(""); T.FlushAll()
-	local ex = E.Example()
+	-- (the examples take turns with tips: opened again until a "try:" one is up, whatever ran before: 1.5.3, a new
+	-- test file before this one moved the turn onto a tip)
+	local ex
+	for _ = 1, 20 do
+		UI:Open(""); T.FlushAll()
+		ex = E.Example()
+		if type(ex) == "string" and ex:sub(1, 4) == "try:" then break end
+		UI:Hide(); T.FlushAll()
+	end
 	if type(ex) == "string" and ex:sub(1, 4) == "try:" then
 		check(UI.ghost:IsShown() and (UI.ghost:GetText() or ""):sub(1, 8) == "versuch:", "the example's \"try:\" in the client's language: "
 			.. tostring(UI.ghost:GetText()))
