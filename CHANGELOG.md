@@ -1,110 +1,54 @@
 # Changelog
 
-## 1.5.10 (in testing)
+## 1.6.0
 
-**For add-on authors: `prewarm`**
-- docs/PROVIDERS.md describes a list's `prewarm` (1.5.5): slow reading started through
-  `Terminal.Integrations.RunSliced` before the warm-up builds the list; only work started that way is waited for.
+Terminal 1.6: auction house prices from TradeSkillMaster, DungeonJournal's pages and favourites, a setting to thank
+players who buff you, the Library's reward tiers with their book counts, no freeze after login, and the fixes of a
+release review.
 
-## 1.5.9 (in testing)
-
-**DungeonJournal: review fixes**
-- A part of it missing in another version is said as every integration says it ("DungeonJournal: its data isn't what
-  Terminal expects (a new version?). Show in Dungeon Journal is unavailable."), once, and on its `.integrations` line,
-  instead of naming its functions.
-- `@favourite` rows have a colour of their own (they were close to `@currency`'s gold); `is:`'s help names
-  `is:favourite` for items and loot.
-
-## 1.5.8 (in testing)
-
-**Thank players who buff you: review fixes**
-- With OneForAll, its option is read as it is now: turned on or off in its options during a session, Terminal knew only
-  after a /reload (two thanks, or none).
-- Only a buff just cast that lasts over a minute is thanked: after a loading screen or a /reload the game reports every
-  buff again, and a mage who buffed you 20 minutes ago was thanked again; a stranger's heal over time was too.
-- Nothing is looked at in combat; an aura list the game keeps secret can't cause an error; the game's own emote call
-  is used, and an emote it refuses isn't counted as a thank.
-
-## 1.5.7 (in testing)
-
-**Library reward tiers on other client languages**
-- "library book rewards" says how many books each tier takes on a German, French, Spanish, Russian or Chinese client
-  too: QuestieDB gives the quest's text in your language there, which the English-only reading missed (it showed the
-  tier's level, and "next reward at" was left out).
-
-## 1.5.6 (in testing)
-
-**TradeSkillMaster prices: review fixes**
-- `@auction`'s undercut compares your price with TSM's minimum buyout only. Its market value (a 14-day average, used
-  when no minimum buyout was synced) said "undercut" when nobody was.
-- A copy with a random suffix ("of the Bear") TSM has no price of its own for isn't given the plain item's price, as
-  with Auctionator's.
-- Prices are asked again 10 s after logging in: TSM loads after Terminal and reads its data in its own login, so an
-  item asked meanwhile stayed unpriced for five minutes.
-- "prices from ..." on an answer names the addons whose prices its rows show, not every one asked this session.
-
-## 1.5.5 (in testing)
-
-**No freeze from the recipes to learn**
-- About half a minute after logging in, the warm-up built the list of recipes you haven't learned (`@recipe
-  is:unknown`) in one go: with 584 of them, the game froze for 0.2 s. It asked Questie four things about each recipe's
-  item every time the list was built.
-- Now what Questie says of each recipe item is kept for the session (its data doesn't change), and the warm-up reads it
-  ahead a few milliseconds a frame, as it already did for Questie's NPCs and quests; the list is built after that,
-  quickly. A list built again (a skill-up, a recipe learned) doesn't ask Questie again.
-- A list can now give the warm-up a read-ahead of its own (`prewarm` beside `collect`).
-
-## 1.5.4 (in testing)
-
-**Thank players who buff you**
-- A new setting (`.set thankBuffs on`, or in "terminal settings"), off unless you turn it on: when a player outside your
-  group buffs you, Terminal does a /thank to them, as OneForAll's "Thank players who buff you" does. Each player at most
-  once in 10 minutes (three blessings: one thank).
-- Never while the game restricts addons (combat, a boss fight, a keystone dungeon, a PvP match): those buffs aren't
-  thanked later either. A buff from someone the game names no unit for (out of sight) isn't thanked.
-- With OneForAll installed and its own option on (for the profile this character uses), Terminal leaves it to OneForAll:
-  one thank, not two.
-
-## 1.5.3 (in testing)
+**TradeSkillMaster prices**
+- With TradeSkillMaster installed, its prices come first and Auctionator's fill in the items TSM has none for; either
+  one alone gives every auction house feature ("what should i auction", "am i undercut", `sort:ahvalue`,
+  `| sum ahvalue`, `is:auctionable`). Read through TSM's public `TSM_API`: its AuctionDB's minimum buyout, else its
+  market value. TSM's prices come from its desktop app.
+- `@auction`'s undercut compares your price with what's up now: TSM's minimum buyout (never its 14-day market value)
+  or Auctionator's last scan. Each price says whose it is, and "prices from ..." names the addons behind the rows
+  shown.
+- A copy with a random suffix ("of the Bear") gets a price only from a source that has that copy's own.
+- Prices are asked again 10 s after logging in: TSM reads its data after Terminal has loaded.
+- The install hints and `.integrations` name both addons, TSM first.
 
 **DungeonJournal**
-- With DungeonJournal installed, a row's right-click menu has "Show in Dungeon Journal" whenever it lists the thing: an
-  item (a boss's loot or a quest's reward) opens on its page with the item pointed at, a quest on its quest page, a
-  dungeon (`@dungeon`) on the dungeon's own page, by the instance's ID on any client language; Scarlet Monastery and
-  Stratholme open on their first wing.
-- `@favourite` (also `@favorite`, `@fav`): the items you starred in the journal, this character's, with the boss or quest
-  each comes from and its dungeon. Enter opens the journal on it, Shift+Enter links it. "my favourites" and "dungeon
-  journal favourites" ask for them; `is:favourite` (which already found favourite mounts, pets and toys) finds them in
-  any list of items too.
-- Read while it's installed, through the namespace it keeps as a global (it has no API documented for other addons):
-  every part checked, every call guarded. A version without what Terminal reads is said in chat once, and
-  `.integrations` gives it a "DungeonJournal:" line.
+- With DungeonJournal installed, a row's right-click menu has "Show in Dungeon Journal" whenever it lists the thing:
+  an item (a boss's loot or a quest's reward) opens on its page with the item pointed at, a quest on its quest page, a
+  dungeon (`@dungeon`) on its own page, on any client language.
+- `@favourite` (also `@favorite`, `@fav`): the items you starred in the journal, with the boss or quest each comes
+  from. "my favourites" and "dungeon journal favourites" ask for them; `is:favourite` finds them among items, loot
+  and gear too.
+- Read through the namespace it keeps as a global, every part checked: a version without one says so once, as every
+  integration does, and on its `.integrations` line.
 
-## 1.5.2 (in testing)
+**Thank players who buff you**
+- A new setting (`.set thankBuffs on`, or in "terminal settings"), off unless you turn it on: a /thank to a player
+  outside your group whose buff (one lasting over a minute) lands on you, each player at most once in 10 minutes.
+- Never while the game restricts addons (combat, a boss fight, a keystone dungeon, a PvP match), and never for buffs
+  the game reports again after a loading screen or a `/reload`.
+- With OneForAll's own "Thank players who buff you" on, Terminal leaves it to OneForAll, as that option is set now.
 
-**Library Book rewards without OneForAll: the right tiers**
-- "library book rewards" from QuestieDB listed every quest an NPC titled "Librarian" gives: Brother Paxton's and Donyal
-  Tovald's quests too ("Rascally Rodents", "Mining Consultant", "Stormwind Library", "Shelf Picked"...), their own
-  rewards shown as the books'. Now only the Library's reward quests, of the same Special sort as the books: Friend of the
-  Library and the two Greater Friend of the Library, with the seven items they give.
-- Each tier says how many books it takes (10, 20, 25), as OneForAll's do, read from QuestieDB's WoW Forever text for it;
-  "(reached)" once you have turned in that many, and "next reward at 10" in the books' footer and tooltip again.
+**Library Books**
+- "library book rewards" without OneForAll lists only the Library's three reward tiers, each with how many books it
+  takes (on every client language); other librarians' quests were listed by mistake.
 
-## 1.5.1 (in testing)
+**Other changes**
+- No short freeze half a minute after logging in: the list of recipes you haven't learned was built in one frame
+  (0.2 s with 584 recipes). What Questie says of each recipe's item is now kept for the session and read ahead a few
+  milliseconds a frame.
+- `is:`'s help names `is:favourite`; `@favourite` has a colour of its own.
+- For add-on authors: a list's `prewarm` (docs/PROVIDERS.md) reads ahead of its first build through
+  `Terminal.Integrations.RunSliced`.
+- 20 new texts translated (German, French, Spanish, Russian, Chinese).
 
-**Auction house prices from TradeSkillMaster**
-- With TradeSkillMaster installed, every auction house price comes from it first: its AuctionDB's minimum buyout, else
-  its market value (the prices the TSM desktop app syncs), read through its public API (`TSM_API`) while it's
-  installed, never copied. An item TSM has no price for takes Auctionator's, as before; either addon alone gives
-  everything: `sort:ahvalue`, `| sum ahvalue`, `is:auctionable`, "what should i auction", "ah value of my mats", "ah
-  upgrades", `@auction`'s price now and `is:undercut`, "what should i do"'s "Post on the auction house".
-- Whose prices are shown is said: an auction's tooltip ("each, from TSM"), the footer of "ah upgrades" and "am i
-  undercut" when none is ("prices from TSM and Auctionator"). "seen 3 days ago" is Auctionator's to say: a TSM price
-  has no age.
-- No prices yet says where they come from: Auctionator's from scanning the auction house with it, TSM's from its
-  desktop app.
-- `.integrations` gives TradeSkillMaster a line of its own, first; Auctionator's says it fills in when TSM is there.
-  The install hint names both: "Install TradeSkillMaster or Auctionator for this."
+New files: restart the game, not just `/reload`.
 
 ## 1.5.0
 
