@@ -615,7 +615,7 @@ ns:RegisterProvider("missing", {
 	-- (a skill gained, a recipe learned: what you can learn now changes)
 	events = { "SKILL_LINES_CHANGED", "NEW_RECIPE_LEARNED", "LEARNED_SPELL_IN_SKILL_LINE" }, -- (Forever's names)
 	guard = 1,
-	prewarm = function() return MR.Prefill() end, -- (Questie's answers read ahead, a slice a frame: 1.5.5)
+	prewarm = MR.Prefill, -- (Questie's answers read ahead, a slice a frame: 1.5.5)
 	collect = function()
 		CHATBOX = CHATBOX or ns.ChatBoxSpec(function(e) return SpellLink(e) or e.name end)
 		return MR.Rows()

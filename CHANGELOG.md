@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.10 (in testing)
+
+**For add-on authors: `prewarm`**
+- docs/PROVIDERS.md describes a list's `prewarm` (1.5.5): slow reading started through
+  `Terminal.Integrations.RunSliced` before the warm-up builds the list; only work started that way is waited for.
+
 ## 1.5.9 (in testing)
 
 **DungeonJournal: review fixes**

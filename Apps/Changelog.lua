@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.5.9", when = "in testing",
+		v = "1.5.10", when = "in testing",
 		items = {
 			"TradeSkillMaster's auction house prices: with TSM installed, its prices come first and Auctionator's fill in the items TSM has none for; either one alone does it all (\"what should i auction\", \"am i undercut\", sort:ahvalue).",
 			"\"library book rewards\" without OneForAll: only the Library's three reward tiers (Friend of the Library, and the two Greater Friend ones), with how many books each takes; other librarians' quests (\"Rascally Rodents\", \"Stormwind Library\", \"Shelf Picked\"...) and their rewards were listed by mistake.",

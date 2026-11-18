@@ -62,6 +62,7 @@ That's a working list. Everything else below is optional.
 | `lazy` | `true`: searched only once something is typed (not on an empty prompt). |
 | `refreshOnOpen` | `true`: made again each time Terminal opens; a number: only when older than that many seconds. For lists that change with no event telling (time left, distances). |
 | `noCombat` | `true`: Enter does nothing in combat (opening windows isn't allowed then). |
+| `prewarm(p)` | Slow reading done ahead of the list's first build, while Terminal's idle warm-up runs after login: start it with `Terminal.Integrations.RunSliced(what, n, each, done)` (calls `each(i)` for 1 to `n`, a few milliseconds a frame, then `done()`) and return `true`; the warm-up waits for it and builds the list after, so `collect` is quick. Called once a session; return `false` (nothing to read yet) and the list is built as usual. Only work started through `RunSliced` is waited for. |
 | `simpleCategory` | Where its rows go in Simple mode: an existing category's id (`"items"`, `"quests"`, `"spells"`, `"crafting"`, `"npcs"`, `"places"`, `"loot"`, `"recent"`, `"people"`, `"group"`, `"collections"`, `"character"`, `"calendar"`, `"windows"`, `"settings"`, `"commands"`, `"emotes"`; the older `"game"`, `"bags"`... still work) or `{ id, label, icon }` for a new one. Without it, Simple mode doesn't show the list's rows (Advanced mode does). |
 | `verbs` | What Enter and Shift+Enter do, in a word or two: `{ "show in chat", "say in party" }`, or `function(row) return enter, shift end`. The footer and the right-click menu say them. |
 
