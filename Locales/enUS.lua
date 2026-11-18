@@ -328,7 +328,6 @@ L["(find settings by name: Settings)"] = true
 L["(find settings with @cvar)"] = true
 L["(freed when idle)"] = true
 L["(item level %s)"] = true
-L["(its AuctionDB: the TSM desktop app's prices)"] = true
 L["(level %s)"] = true
 L["(missing)"] = true
 L["(narrowed from the previous search)"] = true
@@ -2707,6 +2706,7 @@ L["found (%s). %d favourites (@favourite); right-click a row: Show in Dungeon Jo
 L["found (%s). %d loot modules, %d indexed, %d items%s%s"] = true
 L["found (%s). Auction house prices for the items TSM has none for"] = true
 L["found (%s). Auction house prices on items (sort:ahvalue, | sum ahvalue, is:auctionable) and @auction (is:undercut)"] = true
+L["found (%s). Auction house prices on items (sort:ahvalue, | sum ahvalue, is:auctionable) and @auction (is:undercut), from its AuctionDB (the TSM desktop app's prices)"] = true
 L["found in"] = true
 L["found in %s categories: pick one"] = true
 L["found in %s category: pick one"] = true

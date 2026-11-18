@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.6 (in testing)
+
+**TradeSkillMaster prices: review fixes**
+- `@auction`'s undercut compares your price with TSM's minimum buyout only. Its market value (a 14-day average, used
+  when no minimum buyout was synced) said "undercut" when nobody was.
+- A copy with a random suffix ("of the Bear") TSM has no price of its own for isn't given the plain item's price, as
+  with Auctionator's.
+- Prices are asked again 10 s after logging in: TSM loads after Terminal and reads its data in its own login, so an
+  item asked meanwhile stayed unpriced for five minutes.
+- "prices from ..." on an answer names the addons whose prices its rows show, not every one asked this session.
+
 ## 1.5.5 (in testing)
 
 **No freeze from the recipes to learn**

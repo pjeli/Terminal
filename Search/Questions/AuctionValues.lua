@@ -6,7 +6,10 @@ local L = ns.L
 -- Each read through its public API only, at run time, while it's installed; nothing of either is copied into Terminal
 -- (both licences: all rights reserved), and their files aren't read.
 --   TradeSkillMaster   TSM_API.GetCustomPriceValue: its AuctionDB's minimum buyout, else its market value (what the
---                      TSM desktop app last synced); no age, no word when it changes (kept AN.KEEP seconds)
+--                      TSM desktop app last synced); no age, no word when it changes (kept AN.KEEP seconds). What's up
+--                      now (@auction's undercut) is its minimum buyout only: its market value is a 14-day average
+--                      (1.5.6, review). A copy with a random suffix TSM has no price of its own for isn't given the
+--                      plain item's (TSM falls back to it; Auctionator's isn't taken either: Ask)
 --   Auctionator        Auctionator.API.v1: the price its last scan of the auction house saw, how many days ago, and
 --                      when its data changes (RegisterForDBUpdate)
 -- Asked per item: an item TSM has no price for is asked of Auctionator. Which one answered is kept with the price
@@ -50,7 +53,7 @@ end
 function AN.AtrOn() return AN.Api() ~= nil end
 
 -- TradeSkillMaster: its price sources asked in turn (AuctionDB's: the TSM desktop app's data, synced by its helper)
-local TSM = { ADDON = "TradeSkillMaster", NAME = "TSM", KEYS = { "DBMinBuyout", "DBMarket" } }
+local TSM = { ADDON = "TradeSkillMaster", NAME = "TSM", KEYS = { "DBMinBuyout", "DBMarket" }, NOW = { "DBMinBuyout" } }
 AN.TSM = TSM
 function TSM.Loaded() return Loaded(TSM.ADDON) end
 --- Its API for other addons (TSM_API), or nil.
@@ -65,11 +68,12 @@ function TSM.On() return TSM.Api() ~= nil end
 function AN.On() return TSM.On() or AN.AtrOn() end
 
 ----------------------------------------------------------------------
--- Prices: asked once per item until Auctionator's data changes (RegisterForDBUpdate)
+-- Prices: asked once per item until Auctionator's data changes (RegisterForDBUpdate), or AN.KEEP seconds have passed
 ----------------------------------------------------------------------
 
 local prices, ages, by, used, askedAt = {}, {}, {}, {}, nil
 AN.KEEP = 300 -- (seconds a price is kept without word from Auctionator, TSM never saying: both catch up)
+AN.TSM_SETTLE = 10 -- (seconds after login the prices are asked again: TSM has read its data by then)
 function AN.Forget() prices, ages, by, used, askedAt = {}, {}, {}, {}, nil end
 local function Fresh()
 	local now = (type(GetTime) == "function" and GetTime()) or 0
@@ -78,6 +82,12 @@ local function Fresh()
 end
 
 local function ItemLink(link) return type(link) == "string" and link:find("|Hitem:", 1, true) and link or nil end
+-- a link's random suffix ("of the Bear": its suffix id), or nil
+local function Suffixed(link)
+	local s = link and link:match("|Hitem:%-?%d+:[^:|]*:[^:|]*:[^:|]*:[^:|]*:[^:|]*:(%-?%d+)")
+	if s == "0" or s == "" then return nil end
+	return s
+end
 
 local function Ask(fnLink, fnID, id, link)
 	local api = AN.Api()
@@ -89,8 +99,7 @@ local function Ask(fnLink, fnID, id, link)
 		if ok then got = Num(v) end
 	end
 	-- (a copy with a random suffix, "of the Bear", Auctionator hasn't seen: not the plain item's price, another copy's)
-	local suffixed = link and link:match("|Hitem:%-?%d+:[^:|]*:[^:|]*:[^:|]*:[^:|]*:[^:|]*:(%-?%d+)")
-	if suffixed == "0" or suffixed == "" then suffixed = nil end
+	local suffixed = Suffixed(link)
 	if got == nil and not suffixed and type(id) == "number" and type(api[fnID]) == "function" then
 		local ok, v = pcall(api[fnID], AN.CALLER, id)
 		if ok then got = Num(v) end
@@ -98,8 +107,9 @@ local function Ask(fnLink, fnID, id, link)
 	return got
 end
 
---- TSM's price for one (copper), or nil: the link's own item (a copy with a random suffix is its own), else the id's.
-local function AskTSM(id, link)
+--- TSM's price for one (copper), or nil: the link's own item, else the id's; `keys`: its sources asked in turn. A copy
+--- with a random suffix is its own: TSM answers the plain item's price for one it has none of, which isn't taken.
+local function AskTSM(id, link, keys)
 	local t = TSM.Api()
 	if not t then return nil end
 	local item
@@ -108,25 +118,35 @@ local function AskTSM(id, link)
 		local ok, v = pcall(t.ToItemString, link)
 		if ok and type(v) == "string" then item = v end
 	end
-	if not item and type(id) == "number" then item = "i:" .. ("%.0f"):format(id) end
+	if type(id) ~= "number" then id = link and tonumber(link:match("|Hitem:(%d+)")) end
+	local plain = type(id) == "number" and ("i:" .. ("%.0f"):format(id)) or nil
+	item = item or plain
 	if not item then return nil end
-	for _, source in ipairs(TSM.KEYS) do
-		local ok, v = pcall(t.GetCustomPriceValue, source, item)
+	local own = item ~= plain and Suffixed(link) ~= nil -- (its own copy: the plain item's price isn't its)
+	local function Value(source, what)
+		local ok, v = pcall(t.GetCustomPriceValue, source, what)
 		v = ok and Num(v) or nil
-		if v and v > 0 then return math.floor(v + 0.5) end
+		return v and v > 0 and v or nil
+	end
+	for _, source in ipairs(keys or TSM.KEYS) do
+		local v = Value(source, item)
+		if v and own and plain and Value(source, plain) == v then v = nil end
+		if v then return math.floor(v + 0.5) end
 	end
 	return nil
 end
 
 --- The auction house's price for one (copper): TSM's, else as Auctionator last saw it; nil (never seen, or neither).
-function AN.Price(id, link)
+--- `now`: what's up now (@auction's undercut): TSM's minimum buyout only, not its 14-day market value.
+function AN.Price(id, link, now)
 	local key = ItemLink(link) or id
 	if key == nil then return nil end
+	if now then key = "now:" .. tostring(key) end
 	Fresh()
 	local got = prices[key]
 	if got == nil then
 		local from
-		got = AskTSM(id, link)
+		got = AskTSM(id, link, now and TSM.NOW or TSM.KEYS)
 		if got then from = "tsm"
 		else
 			got = Ask("GetAuctionPriceByItemLink", "GetAuctionPriceByItemID", id, link)
@@ -140,17 +160,25 @@ function AN.Price(id, link)
 end
 
 AN.NAMES = { tsm = TSM.NAME, atr = "Auctionator" }
---- Which addon gave its price: "TSM", "Auctionator", or nil (none).
-function AN.SourceOf(id, link)
+--- Which addon gave its price: "TSM", "Auctionator", or nil (none). (`now` as AN.Price's)
+function AN.SourceOf(id, link, now)
 	local key = ItemLink(link) or id
-	if key == nil or not AN.Price(id, link) then return nil end
+	if key == nil or not AN.Price(id, link, now) then return nil end
+	if now then key = "now:" .. tostring(key) end
 	return AN.NAMES[by[key]]
 end
 
---- Whose prices are shown: the addons that gave one since they were last asked again ("TSM and Auctionator"), else
---- those there are.
-function AN.Said()
+--- Whose prices are shown ("TSM and Auctionator"): `items` ({ { id, link }... }), those whose prices they are; else the
+--- addons that gave one since they were last asked again; else those there are.
+function AN.Said(items)
 	local tsm, atr = used.tsm, used.atr
+	if type(items) == "table" then
+		tsm, atr = false, false
+		for _, x in ipairs(items) do
+			local from = AN.SourceOf(x[1], x[2])
+			if from == TSM.NAME then tsm = true elseif from then atr = true end
+		end
+	end
 	if not (tsm or atr) then tsm, atr = TSM.On(), AN.AtrOn() end
 	if tsm and atr then return L["%s and %s"]:format(TSM.NAME, "Auctionator") end
 	return tsm and TSM.NAME or "Auctionator"
@@ -704,7 +732,12 @@ function AHU.Answer()
 			or L["Nothing on the auction house is an upgrade for you"]
 		return { ns.NoteRow(say) }, note
 	end
-	return out, note .. SEP .. L["prices from %s"]:format(AN.Said())
+	local shown = {} -- (the addons whose prices these are, not every one asked this session: review)
+	for i, x in ipairs(found) do
+		if i > AHU.MAX then break end
+		shown[#shown + 1] = { ItemID(x.e) } -- (as its price was asked: AN.Price(id))
+	end
+	return out, note .. SEP .. L["prices from %s"]:format(AN.Said(shown))
 end
 
 ----------------------------------------------------------------------
@@ -723,7 +756,7 @@ end
 
 local function Version(name)
 	local I = ns.Integrations
-	return tostring(I and I._ and I._.AddOnVersion and I._.AddOnVersion(name) or "?")
+	return I and I._ and I._.AddOnVersion and I._.AddOnVersion(name) or "?"
 end
 --- .integrations' line for Auctionator.
 function AN.Status()
@@ -738,8 +771,7 @@ function TSM.Status()
 	if not TSM.Loaded() then return L["not found"] end
 	local ver = Version(TSM.ADDON)
 	if not TSM.On() then return L["found (%s), but not its API for other addons: update %s"]:format(ver, TSM.ADDON) end
-	return L["found (%s). Auction house prices on items (sort:ahvalue, | sum ahvalue, is:auctionable) and @auction (is:undercut)"]:format(ver)
-		.. " " .. L["(its AuctionDB: the TSM desktop app's prices)"]
+	return L["found (%s). Auction house prices on items (sort:ahvalue, | sum ahvalue, is:auctionable) and @auction (is:undercut), from its AuctionDB (the TSM desktop app's prices)"]:format(ver)
 end
 
 do
@@ -747,13 +779,16 @@ do
 	f:RegisterEvent("PLAYER_LOGIN")
 	-- (leaving the auction house: Auctionator may have scanned it; prices asked again, TSM's too)
 	f:RegisterEvent("AUCTION_HOUSE_CLOSED")
+	AN.frame = f -- (tests)
 	f:SetScript("OnEvent", function(_, event)
 		if event == "AUCTION_HOUSE_CLOSED" then
 			if AN.On() then AN.Forget(); ns:Changed("auctions") end
 			return
 		end
-		-- (TSM's prices: anything asked before it was ready is asked again)
+		-- (TSM's prices: anything asked before it was ready is asked again; and once more a little later: TSM loads
+		-- after Terminal and reads its AuctionDB in its own login, an item asked meanwhile was kept as unpriced, review)
 		AN.Forget()
+		if C_Timer and C_Timer.After then C_Timer.After(AN.TSM_SETTLE, function() AN.Forget(); ns:Changed("auctions") end) end
 		local ok, err = pcall(AN.Setup)
 		if not ok then ns:Trace("auctionator: " .. tostring(err)) end
 	end)

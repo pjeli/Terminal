@@ -35,8 +35,10 @@ local tsm = {
 		assert(type(source) == "string", "customPriceStr")
 		if type(item) ~= "string" or not item:match("^[ip]:%d+") then error("Invalid 'itemString' argument") end
 		tsmAsked = tsmAsked + 1
-		if source == "DBMinBuyout" then return MIN[item] end
-		if source == "DBMarket" then return MARKET[item] end
+		-- (as its AuctionDB does: a copy with a suffix it has nothing of its own for answers the plain item's)
+		local base = item:match("^(i:%d+)")
+		if source == "DBMinBuyout" then return MIN[item] or MIN[base] end
+		if source == "DBMarket" then return MARKET[item] or MARKET[base] end
 		return nil, "Invalid price source"
 	end,
 }
@@ -58,12 +60,27 @@ check(tsmAsked == 0, "asked once an item: " .. tsmAsked)
 check(AN.Age(2589) == nil, "TSM says no age")
 check(AN.Said() == "TSM", "whose prices: " .. AN.Said())
 check(AN.NoPrices(true) == L["TSM has no prices for your items yet: they come from the TSM desktop app"], "no prices: where TSM's come from")
-check(TSM.Status():find("found", 1, true) and TSM.Status():find(L["(its AuctionDB: the TSM desktop app's prices)"], 1, true),
-	".integrations: " .. TSM.Status())
+check(TSM.Status() == L["found (%s). Auction house prices on items (sort:ahvalue, | sum ahvalue, is:auctionable) and @auction (is:undercut), from its AuctionDB (the TSM desktop app's prices)"]
+	:format(I._.AddOnVersion("TradeSkillMaster")), ".integrations: one text: " .. TSM.Status())
 check(AN.Status() == L["not found"], "Auctionator's line: not found (hidden)")
 -- a copy with a random suffix: its own item string, never the plain item's price
 AN.Forget()
-check(AN.Price(2589, Link(2589, "-55")) == nil, "a suffixed copy TSM hasn't seen: no price")
+check(AN.Price(2589, Link(2589, "-55")) == nil, "a suffixed copy TSM hasn't seen: no price (not the plain item's, which TSM answers)")
+MIN["i:2589::-56"] = 95
+check(AN.Price(2589, Link(2589, "-56")) == 95 and AN.SourceOf(2589, Link(2589, "-56")) == "TSM", "one it has a price of its own for: that")
+MIN["i:2589::-56"] = nil
+-- (1.5.6, review) what's up now (@auction's undercut): its minimum buyout only, not its 14-day market value
+check(AN.Price(4306, nil, true) == nil and AN.Price(4306) == 310 and AN.Price(2589, nil, true) == 40,
+	"now: the minimum buyout only (4306 has a market value alone)")
+-- (1.5.6, review) TSM reads its data in its own login, after Terminal's: the prices are asked again a little later
+AN.Forget()
+AN.frame:GetScript("OnEvent")(AN.frame, "PLAYER_LOGIN")
+check(AN.Price(5000) == nil, "asked before TSM had it: no price")
+MIN["i:5000"] = 70
+check(AN.Price(5000) == nil, "(kept a while)")
+FlushAll()
+check(AN.Price(5000) == 70, "asked again once TSM is settled: " .. tostring(AN.Price(5000)))
+MIN["i:5000"] = nil
 -- (TSM erroring: not ready yet) no error out of Terminal, no price
 AN.Forget(); tsmBroken = true
 check(AN.Price(2589) == nil, "TSM erroring: no price, no error")
@@ -91,6 +108,7 @@ check(AN.Said() == "TSM", "only TSM's shown so far")
 check(AN.Price(6948) == 75 and AN.SourceOf(6948) == "Auctionator", "one TSM has no price for: Auctionator's")
 check(AN.Age(6948) == 3, "and its age, Auctionator's")
 check(AN.Said() == L["%s and %s"]:format("TSM", "Auctionator"), "both shown: both named: " .. AN.Said())
+check(AN.Said({ { 2589 } }) == "TSM" and AN.Said({ { 6948 } }) == "Auctionator", "(review) the rows shown: only their addons named")
 check(AN.NoPrices(false) == L["TSM and Auctionator have no prices yet: scan the auction house with Auctionator"], "no prices: both named")
 check(AN.Status() == L["found (%s). Auction house prices for the items TSM has none for"]:format(tostring(I._.AddOnVersion("Auctionator") or "?")),
 	"Auctionator's line says it's the fallback: " .. AN.Status())
@@ -104,14 +122,16 @@ do
 	local posted = { ["Player-1"] = {
 		[1] = { name = "Wool Cloth", link = Link(2592), count = 10, price = 2000, each = 200, ends = now + 3600, t = now },
 		[2] = { name = "Rune Thread", link = Link(6948), count = 1, price = 50, each = 50, ends = now + 3600, t = now },
+		[3] = { name = "Market Thing", link = Link(4306), count = 1, price = 400, each = 400, ends = now + 3600, t = now },
 	} }
 	ns.Mail.Store = function(k) if k == "auctionsPosted" then return posted end return save.store(k) end
 	ns.PlayerGUID = function() return "Player-1" end
 	ns.providers.auctions._dirty = true
-	local wool, thread
+	local wool, thread, thing
 	for _, e in ipairs(ns:GetEntries(ns.providers.auctions)) do
-		if e.name:find("Wool") then wool = e elseif e.name:find("Rune Thread") then thread = e end
+		if e.name:find("Wool") then wool = e elseif e.name:find("Rune Thread") then thread = e elseif e.name:find("Market Thing") then thing = e end
 	end
+	check(thing and not thing.undercut and thing.market == nil, "(1.5.6, review) TSM's market value alone (310 under your 400): not an undercut")
 	check(wool and wool.market == 150 and wool.undercut and wool.marketBy == "TSM", "TSM's 150 under your 200: undercut, by TSM's price")
 	check(thread and thread.market == 75 and thread.marketBy == "Auctionator" and not thread.undercut,
 		"one TSM hasn't priced: Auctionator's (75, not under your 50)")

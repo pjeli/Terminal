@@ -118,20 +118,20 @@ local function SoldRow(key, i, s, mine, who, now)
 	}
 end
 
---- The auction house's price for one now (TSM's or Auctionator's), whether yours is above it (undercut), and whose
---- price it is.
+--- The auction house's price for one now (TSM's minimum buyout or Auctionator's last scan: never TSM's 14-day market
+--- value, 1.5.6 review), whether yours is above it (undercut), and whose price it is.
 local function Market(a, id, link, over)
 	local AN = ns.Auctionator
 	if over or not (AN and AN.On and AN.On()) then return nil end
 	local l = link or a.link
 	-- (a commodity on your Auctions tab may come without a link: its item id, ReadOwned's)
 	id = id or (type(l) == "string" and tonumber(l:match("|Hitem:(%d+)"))) or ns.Num(a.id)
-	local market = AN.Price(id, l)
+	local market = AN.Price(id, l, true)
 	if not market then return nil end
 	local each = a.each or (a.price and a.price / math.max(1, a.count or 1))
 	-- (the cheapest one up is another of yours: not undercut by yourself)
 	local own = id and AU.ownMin and AU.ownMin[id]
-	local from = AN.SourceOf and AN.SourceOf(id, l)
+	local from = AN.SourceOf and AN.SourceOf(id, l, true)
 	if own and own < (each or 0) and market >= own then return market, false, from end
 	return market, each ~= nil and market < each, from
 end
