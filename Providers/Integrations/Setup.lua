@@ -192,8 +192,8 @@ I.ADDONS = {
 		keys = { on = true, who = true },
 		values = { ["in:bank"] = true, ["in:guild"] = true } },
 }
--- (@favourite: the items starred in DungeonJournal, 1.5.3)
-I.ADDONS[#I.ADDONS + 1] = { name = "ForeverDungeonJournal", label = "DungeonJournal", missing = function() return not ns.providers.favourite end,
+-- (@favorite: the items starred in DungeonJournal, 1.5.3)
+I.ADDONS[#I.ADDONS + 1] = { name = "ForeverDungeonJournal", label = "DungeonJournal", missing = function() return not ns.providers.favorite end,
 	kinds = { favourite = true, favourites = true, favorite = true, favorites = true, fav = true, favs = true } }
 -- (auction house prices: either one; TradeSkillMaster asked first)
 I.ADDONS[#I.ADDONS + 1] = { name = "TradeSkillMaster", also = "Auctionator", missing = function() return not (ns.Auctionator and ns.Auctionator.On()) end,

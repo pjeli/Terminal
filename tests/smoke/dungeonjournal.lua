@@ -13,13 +13,13 @@ local function Names(rows)
 	return table.concat(t, " | ")
 end
 local function Unregister()
-	ns.providers.favourite = nil
-	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "favourite" then table.remove(ns.providerOrder, i) end end
+	ns.providers.favorite = nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "favorite" then table.remove(ns.providerOrder, i) end end
 	ns:AliasesChanged()
 end
 
 check(DJ and not DJ.On() and DJ.Target({ kind = "loot", itemID = 2840 }) == nil, "without it: off, no page for a row")
-check(not ns.providers.favourite and Q.Question("my favourites") == nil, "without it: no @favourite, no question")
+check(not ns.providers.favorite and Q.Question("my favourites") == nil, "without it: no @favourite, no question")
 check(I.AddonMissing("ForeverDungeonJournal"), "@favourite's addon: missing")
 
 local save = { addons = _G.C_AddOns, lib = rawget(_G, "ForeverDungeonJournal_NS"), frame = rawget(_G, "ForeverDungeonJournalFrame"),
@@ -72,7 +72,7 @@ local ok, err = pcall(function()
 	check(t and t.dungeon == "Sunken Temple" and t.quest == 1446, "Questie's quest rows too (qid)")
 	t = DJ.Target({ kind = "dungeon", name = "Temple of Atal'Hakkar", instanceID = 109 })
 	check(t and t.dungeon == "Sunken Temple" and not t.quest, "a dungeon's entrance: its page")
-	check(DJ.Target({ kind = "favourite", itemID = 2840 }) == nil, "its own favourites: Enter does it already")
+	check(DJ.Target({ kind = "favorite", itemID = 2840 }) == nil, "its own favourites: Enter does it already")
 
 	-- opening: shown first, the page asked again a moment after (it picks its own as it's shown)
 	calls = {}
@@ -91,8 +91,10 @@ local ok, err = pcall(function()
 
 	-- @favourite
 	DJ.Setup()
-	local p = ns.providers.favourite
-	check(p and ns:ResolveProvider("favorites") == p and ns:ResolveProvider("fav") == p, "@favourite (and its spellings) while it's there")
+	local p = ns.providers.favorite
+	check(p and ns:ResolveProvider("favorites") == p and ns:ResolveProvider("fav") == p and ns:ResolveProvider("favourite") == p
+		and ns:ResolveProvider("favourites") == p, "@favorite (and its spellings, the UK ones too) while it's there")
+	check(ns:KindName(p) == "@favorite" and p.label == L["Favorite"], "(1.6.0, the player's ask) US spelling first: named @favorite: " .. tostring(ns:KindName(p)))
 	local rows = p and ns:GetEntries(p) or {}
 	check(Names(rows) == "Copper Bar | Library Robe | Gone Cloak", "this character's favourites, by its dungeons' order: " .. Names(rows))
 	local bar, cloak = rows[1], rows[3]
@@ -149,17 +151,18 @@ local ok, err = pcall(function()
 	-- "my favourites": the list, in either mode; "favorite mounts" stays the collections'
 	check(Q.Question("my favourites") and Q.Question("dungeon journal favorites") and Q.Question("show my favs"), "the question, its spellings")
 	check(Q.Question("favorite mounts") == nil and Q.Question("favourite food") == nil, "other favourites: not it")
-	check(ns.QuestionToAdvanced("my favourites") == "@favourite ", "to Advanced: @favourite: " .. tostring(ns.QuestionToAdvanced("my favourites")))
+	check(ns.QuestionToAdvanced("my favourites") == "@favorite " and ns.QuestionToAdvanced("my favorites") == "@favorite ",
+		"to Advanced: @favorite, either spelling asked: " .. tostring(ns.QuestionToAdvanced("my favourites")))
 	ns.db.easyMode = true; UI:EasyChanged()
 	UI:Open("my favourites"); FlushAll()
 	local got = {}
-	for _, e in ipairs(UI.Results()) do if e.kind == "favourite" then got[#got + 1] = e.name end end
+	for _, e in ipairs(UI.Results()) do if e.kind == "favorite" then got[#got + 1] = e.name end end
 	check(#got == 2, "Simple mode: \"my favourites\" lists them: " .. table.concat(got, ", "))
 	UI:Hide(); FlushAll()
 
 	-- .integrations
 	local lines = table.concat(ns:FindCommand("integrations").run("") or {}, " / ")
-	check(lines:find("DungeonJournal:", 1, true) and lines:find(L["found (%s). %d favourites (@favourite); right-click a row: Show in Dungeon Journal"]:format(
+	check(lines:find("DungeonJournal:", 1, true) and lines:find(L["found (%s). %d favorites (@favorite); right-click a row: Show in Dungeon Journal"]:format(
 		tostring(I._.AddOnVersion("ForeverDungeonJournal") or "?"), 2), 1, true), ".integrations: its line: " .. lines)
 	check(not I.AddonMissing("ForeverDungeonJournal"), "not missing while there")
 
@@ -191,4 +194,4 @@ for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "djprobe" then tab
 ns:AliasesChanged()
 UI:HideRowMenu(); UI:Hide(); FlushAll()
 check(ok, "dungeonjournal: " .. tostring(err))
-check(not DJ.On() and not ns.providers.favourite, "(gone again)")
+check(not DJ.On() and not ns.providers.favorite, "(gone again)")

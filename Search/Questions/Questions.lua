@@ -191,9 +191,9 @@ Scan.ANSWERS = {
 	-- "library books", "books i still need", "nearest library book": the Library Books, OneForAll's else QuestieDB's
 	-- (Providers/Integrations/OneForAll/Books.lua)
 	Asks("LibraryBooks", { custom = "the reward tiers, and the nearest spot of each book" }),
-	-- "my favourites", "dungeon journal favourites": the items starred in DungeonJournal (@favourite,
+	-- "my favorites", "dungeon journal favorites": the items starred in DungeonJournal (@favorite,
 	-- Providers/Integrations/DungeonJournal.lua)
-	Asks("DungeonJournalFavourites", { examples = { "my favourites", "dungeon journal favourites" } }),
+	Asks("DungeonJournalFavourites", { examples = { "my favorites", "dungeon journal favorites" } }),
 	-- "enchants for my weapon", "enchants for bracers", "agility enchants", "enchants i can make": OneForAll's enchants
 	-- (@enchant, Providers/Integrations/OneForAll/Enchants.lua)
 	Asks("Enchants", { examples = { "enchants for my weapon", "enchants for bracers", "agility enchants", "enchants i can make" } }),

@@ -2,7 +2,7 @@
 
 ## 1.6.0
 
-Terminal 1.6: auction house prices from TradeSkillMaster, DungeonJournal's pages and favourites, a setting to thank
+Terminal 1.6: auction house prices from TradeSkillMaster, DungeonJournal's pages and favorites, a setting to thank
 players who buff you, the Library's reward tiers with their book counts, no freeze after login, and the fixes of a
 release review.
 
@@ -22,9 +22,9 @@ release review.
 - With DungeonJournal installed, a row's right-click menu has "Show in Dungeon Journal" whenever it lists the thing:
   an item (a boss's loot or a quest's reward) opens on its page with the item pointed at, a quest on its quest page, a
   dungeon (`@dungeon`) on its own page, on any client language.
-- `@favourite` (also `@favorite`, `@fav`): the items you starred in the journal, with the boss or quest each comes
-  from. "my favourites" and "dungeon journal favourites" ask for them; `is:favourite` finds them among items, loot
-  and gear too.
+- `@favorite` (also `@favourite`, `@favs`, `@fav`): the items you starred in the journal, with the boss or quest each
+  comes from. "my favorites" and "dungeon journal favorites" (or "favourites") ask for them; `is:favorite` finds them
+  among items, loot and gear too.
 - Read through the namespace it keeps as a global, every part checked: a version without one says so once, as every
   integration does, and on its `.integrations` line.
 
@@ -43,7 +43,7 @@ release review.
 - No short freeze half a minute after logging in: the list of recipes you haven't learned was built in one frame
   (0.2 s with 584 recipes). What Questie says of each recipe's item is now kept for the session and read ahead a few
   milliseconds a frame.
-- `is:`'s help names `is:favourite`; `@favourite` has a colour of its own.
+- `is:`'s help names `is:favorite`; `@favorite` has a colour of its own.
 - For add-on authors: a list's `prewarm` (docs/PROVIDERS.md) reads ahead of its first build through
   `Terminal.Integrations.RunSliced`.
 - 20 new texts translated (German, French, Spanish, Russian, Chinese).

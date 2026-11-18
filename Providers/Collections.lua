@@ -387,7 +387,7 @@ do
 			local DJ = ns.DungeonJournal
 			return DJ ~= nil and DJ.FavouriteRow(e)
 		end
-		IS.fav, IS.favourite = IS.favorite, IS.favorite
+		IS.fav, IS.favourite = IS.favorite, IS.favorite -- (US spelling first: the one help shows)
 		local A = F.APPLIES and F.APPLIES.is
 		local kinds = { "mounts", "pets", "toys", "loot", "items", "gear" }
 		if A then A.favorite, A.fav, A.favourite = kinds, kinds, kinds end

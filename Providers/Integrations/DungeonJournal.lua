@@ -6,8 +6,9 @@ local I = ns.Integrations
 -- read while it's installed (1.5.3, the player's ask):
 --   * "Show in Dungeon Journal" in a row's right-click menu: an item it lists (a boss's loot, a quest's reward) opens on
 --     its page with the item pointed at, a quest on its quest page, a dungeon (@dungeon) on its own page;
---   * @favourite: the items you starred in it (right-click in its loot lists), this character's, each with where it
---     comes from; Enter opens it there. "my favourites" asks for them; is:favourite finds them among other items too.
+--   * @favorite (also @favourite: US spelling first, 1.6.0, the player's ask): the items you starred in it (right-click
+--     in its loot lists), this character's, each with where it comes from; Enter opens it there. "my favorites" asks for
+--     them; is:favorite finds them among other items too.
 -- It has no API documented for other addons: its whole namespace is a global table (ForeverDungeonJournal_NS), read and
 -- called here as OneForAll's is, every field checked, every call in a pcall. What isn't in the shape expected is said
 -- once in chat and on its .integrations line (I.Failed, as every integration's) and the rest goes on without it.
@@ -102,7 +103,7 @@ DJ.ItemSource = ItemSource
 --- Where a row opens it: { item = id } (its boss's or quest's page), { dungeon, quest }, { dungeon }; nil when it
 --- lists none of it (or isn't there). Its own favourites' rows open it on Enter already.
 function DJ.Target(e)
-	if type(e) ~= "table" or e.kind == "favourite" or not DJ.On() then return nil end
+	if type(e) ~= "table" or e.kind == "favorite" or not DJ.On() then return nil end
 	if e.kind == "dungeon" or e.kind == "raid" then
 		local d = DJ.Dungeon(rawget(e, "instanceID") or e.instanceID, e.name)
 		return d and { dungeon = d } or nil
@@ -152,7 +153,7 @@ function DJ.Open(t)
 end
 
 ----------------------------------------------------------------------
--- @favourite: the items you starred in it (this character's)
+-- @favorite: the items you starred in it (this character's)
 ----------------------------------------------------------------------
 
 local function Favourites()
@@ -207,7 +208,7 @@ function DJ.FavouriteRows()
 				key = id, name = name, itemID = id, link = "item:" .. ("%.0f"):format(id), icon = icon or 134400,
 				color = q and ns.QualityHex and ns.QualityHex(q) or nil,
 				detail = ns.Join(SEP, from, d and DungeonText(d)), djDungeon = d, slot = Str(f.slot),
-				text = Lower(table.concat({ L["favourite"], "favourite favorite", Str(f.slot) or "", from or "", d or "" }, " ")),
+				text = Lower(table.concat({ L["favorite"], "favorite favourite", Str(f.slot) or "", from or "", d or "" }, " ")),
 				order = rank[d or ""] or 999,
 				activate = OpenFav, secondary = FavToChat, secondarySecure = FAV_CHATBOX,
 			}
@@ -222,9 +223,9 @@ function DJ.FavouriteRows()
 end
 
 local function Register()
-	if ns.providers.favourite then return end
-	ns:RegisterProvider("favourite", {
-		label = L["Favourite"], color = "ffff73ab", aliases = { "favourite", "favourites", "favorite", "favorites", "fav", "favs" },
+	if ns.providers.favorite then return end
+	ns:RegisterProvider("favorite", {
+		label = L["Favorite"], color = "ffff73ab", aliases = { "favorite", "favorites", "favourite", "favourites", "fav", "favs" },
 		lazy = true, refreshOnOpen = true, -- (starred in its window: no event says so)
 		simpleCategory = "loot",
 		verbs = { L["show in Dungeon Journal"], L["link in chat"] },
@@ -232,15 +233,15 @@ local function Register()
 	})
 end
 
---- At login (its saved favourites are read by then): @favourite while it's there.
+--- At login (its saved favourites are read by then): @favorite while it's there.
 function DJ.Setup()
 	if DJ.On() then Register() end
 end
 
---- is:favourite's answer for a row that isn't a mount, pet or toy (Providers/Collections.lua asks): one of @favourite's,
+--- is:favorite's answer for a row that isn't a mount, pet or toy (Providers/Collections.lua asks): one of @favorite's,
 --- or an item starred there.
 function DJ.FavouriteRow(e)
-	if e.kind == "favourite" then return true end
+	if e.kind == "favorite" then return true end
 	local id = Num(e.itemID)
 	return id ~= nil and DJ.IsFavourite(id)
 end
@@ -252,11 +253,11 @@ function DJ.Status()
 	if not DJ.On() then return L["found (%s), but not its API for other addons: update %s"]:format(ver, DJ.NAME) end
 	local n = 0
 	for _ in pairs(Favourites() or {}) do n = n + 1 end
-	return L["found (%s). %d favourites (@favourite); right-click a row: Show in Dungeon Journal"]:format(ver, n)
+	return L["found (%s). %d favorites (@favorite); right-click a row: Show in Dungeon Journal"]:format(ver, n)
 end
 
 ----------------------------------------------------------------------
--- "my favourites", "dungeon journal favourites", "favourite items"
+-- "my favorites", "dungeon journal favorites", "favorite items" (and the UK spellings)
 ----------------------------------------------------------------------
 
 local Q = {}
@@ -268,7 +269,7 @@ for w in ("my me show list the all what are is which whats what's dungeon journa
 --- { } when the line asks for the items starred in it, else nil (and nil without it: "favorite mounts" is the
 --- collections' question).
 function Q.Question(text)
-	if not ns.providers.favourite then return nil end
+	if not ns.providers.favorite then return nil end
 	local t = ns.QuestionText and ns.QuestionText(text)
 	if not t then return nil end
 	local fav = false
@@ -277,9 +278,9 @@ function Q.Question(text)
 	end
 	return fav and {} or nil
 end
-function Q.Line() return "@favourite " end
-function Q.Footer() return L["Your Dungeon Journal favourites"] end
-function Q.None() return { ns.NoteRow(L["No favourites yet: right-click an item in the Dungeon Journal to star it"]) } end
+function Q.Line() return "@favorite " end
+function Q.Footer() return L["Your Dungeon Journal favorites"] end
+function Q.None() return { ns.NoteRow(L["No favorites yet: right-click an item in the Dungeon Journal to star it"]) } end
 
 do
 	local f = CreateFrame("Frame")

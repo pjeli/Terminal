@@ -17,7 +17,7 @@ CL.LOG = {
 		v = "1.6.0", when = "released November 2026",
 		items = {
 			"TradeSkillMaster's auction house prices: with TSM installed, its prices come first and Auctionator's fill in the rest; either one alone does it all (\"what should i auction\", \"am i undercut\", sort:ahvalue).",
-			"DungeonJournal: right-click an item, a quest or a dungeon for \"Show in Dungeon Journal\"; \"my favourites\" (@favourite) lists the items you starred in it, and is:favourite finds them in any list of items.",
+			"DungeonJournal: right-click an item, a quest or a dungeon for \"Show in Dungeon Journal\"; \"my favorites\" (@favorite) lists the items you starred in it, and is:favorite finds them in any list of items.",
 			"New setting \"Thank players who buff you\" (off unless turned on): a /thank to a player outside your group who buffs you; with OneForAll's own option on, Terminal leaves it to OneForAll.",
 			"\"library book rewards\" without OneForAll: just the Library's three reward tiers, each with how many books it takes.",
 			"No more short freeze half a minute after logging in: the recipes you haven't learned are read a little at a time.",
