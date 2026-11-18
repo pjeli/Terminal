@@ -652,6 +652,32 @@ do -- (1.4.4) ns:AfterWarm: what's registered for a list runs once the idle warm
 	T.FlushAll()
 end
 
+do -- (1.5.5, the player's trace: the recipes to learn took 200 ms in one frame) a list's `prewarm`: the warm-up starts
+	-- its read-ahead, waits while it runs (ns.background), and builds the list after it
+	local W = ns.warm
+	local started, built = 0, 0
+	ns:RegisterProvider("warmahead", { label = "WA", aliases = { "warmahead" }, lazy = true,
+		prewarm = function() started = started + 1; ns.background = (ns.background or 0) + 1; return true end,
+		collect = function() built = built + 1 return { { name = "Ahead thing" } } end })
+	local was = { queue = W.queue, done = W.done, seen = W.seen, tries = W.tries, bg = ns.background }
+	W.queue, W.done, ns.background = nil, nil, 0
+	UI:Hide(); T.FlushAll()
+	local steps = 0
+	while steps < 400 and started == 0 do ns:PrewarmStep(); steps = steps + 1 end
+	check(started == 1 and built == 0, "its read-ahead started; the list isn't built in that step: " .. started .. ", " .. built)
+	for _ = 1, 5 do ns:PrewarmStep() end
+	check(built == 0, "nor while the read-ahead runs: " .. built)
+	ns.background = 0 -- (it's done)
+	while steps < 800 and not ns.providers.warmahead._entries do ns:PrewarmStep(); steps = steps + 1 end
+	check(built == 1 and started == 1 and ns.providers.warmahead._entries and ns.providers.warmahead._entries[1].name == "Ahead thing",
+		"built after it, the read-ahead run once: " .. started .. ", " .. built)
+	ns.providers.warmahead, W.prepared.warmahead = nil, nil
+	for i = #ns.providerOrder, 1, -1 do if ns.providerOrder[i] == "warmahead" then table.remove(ns.providerOrder, i) end end
+	ns:AliasesChanged()
+	W.queue, W.done, W.seen, W.tries, ns.background = was.queue, was.done, was.seen, was.tries, was.bg
+	T.FlushAll()
+end
+
 do -- (1.4.17, the release review) a list a search built before the warm-up came to it: what waits on it still runs, once
 	local W = ns.warm
 	local calls = 0

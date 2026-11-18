@@ -355,6 +355,52 @@ do
 	Pp.ClearSteps(); Pp.ClearCrafts()
 end
 
+io.write("[recipes to learn: Questie's answers kept, read ahead (1.5.5)]\n")
+do
+	-- (1.5.5, the player's trace: 584 recipes to learn built in 200 ms, one frame) what Questie says of a recipe item is
+	-- asked once a session, and the warm-up reads it ahead a slice a frame
+	local QD = ns.QuestieData
+	local was = { db = QD.DB, field = I.ItemField, row = I.NpcRow, npcField = I.NpcField, store = P.Store,
+		profs = P.PlayerProfessions, AL = _G.AtlasLoot, known = _G.IsPlayerSpell }
+	local db = {}
+	QD.DB = function() return db end
+	local asked = 0
+	I.ItemField = function(id, f) asked = asked + 1 if id == 92700 and f == "vendors" then return { 503 } end return nil end
+	I.NpcRow = function(id) return id == 503 and { kind = "npc", key = 503, name = "Plans Seller" } or nil end
+	I.NpcField = function(_, f) if f == "friendlyToFaction" then return "AH" end end
+	P.Store = function() return { [164] = { name = "Blacksmithing", skillLine = 164, list = {},
+		unknown = { { id = 96645, name = "Thorium Belt", icon = 2, item = 92406 } } } } end
+	P.PlayerProfessions = function() return { { name = "Blacksmithing", rank = 60, skillLine = 164 } } end
+	_G.AtlasLoot = { Data = { Profession = { GetProfessionData = function() return nil end },
+		Recipe = { GetRecipeForSpell = function(s) return s == 96645 and 92700 or nil end, GetRecipeData = function() return nil end } } }
+	_G.IsPlayerSpell = function() return false end
+	local p = ns.providers.missing
+	local function Belt()
+		p._dirty = true
+		for _, e in ipairs(ns:GetEntries(p)) do if e.name == "Thorium Belt" then return e end end
+	end
+	local belt = Belt()
+	check(belt and belt.sources.vendors[1] == 503 and asked == 4, "Questie asked of its plans: four lookups, " .. asked)
+	belt = Belt()
+	check(belt and belt.sources.vendors[1] == 503 and asked == 4, "built again: not asked again, " .. asked)
+	-- another database (Questie loaded later): asked again, here by the warm-up's read-ahead
+	db, asked = {}, 0
+	check(MR.Prefill() == true, "the read-ahead starts")
+	T.FlushAll()
+	check(asked == 4 and (ns.background or 0) == 0, "it read the plans, and is done: " .. asked)
+	belt = Belt()
+	check(belt and belt.sources.vendors[1] == 503 and asked == 4, "the list built after it asks nothing: " .. asked)
+	-- no database: nothing kept (Questie may be ready next time), no read-ahead
+	QD.DB = function() return nil end
+	asked = 0
+	check(MR.Prefill() == false, "no Questie database: no read-ahead")
+	Belt(); Belt()
+	check(asked == 8, "...and nothing kept: asked at each build, " .. asked)
+	QD.DB, I.ItemField, I.NpcRow, I.NpcField = was.db, was.field, was.row, was.npcField
+	P.Store, P.PlayerProfessions, _G.AtlasLoot, _G.IsPlayerSpell = was.store, was.profs, was.AL, was.known
+	p._dirty = true
+end
+
 io.write("[item names the client hasn't loaded (0.49.2 review)]\n")
 do
 	local was = { names = C_Item.GetItemNameByID, req = C_Item.RequestLoadItemDataByID, upd = UI.UpdateTooltip, info = C_Item.GetItemInfo,

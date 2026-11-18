@@ -604,6 +604,17 @@ function ns:PrewarmStep()
 				if warm.tries[id] < 300 then q[#q + 1] = id end
 				return true
 			end
+			-- (a list that reads ahead of its build, a few milliseconds a frame: its `prewarm` starts that and says true;
+			-- the warm-up waits for it (ns.background, above) and builds the list after, quickly. 1.5.5: the recipes to
+			-- learn took 200 ms in one frame)
+			if p.prewarm then
+				warm.prepared = warm.prepared or {}
+				if not warm.prepared[id] then
+					warm.prepared[id] = true
+					local ok, started = pcall(p.prewarm, p)
+					if ok and started then q[#q + 1] = id return true end
+				end
+			end
 			local t0 = debugprofilestop and debugprofilestop()
 			self:GetEntries(p)
 			-- your bags' consumables: their effect text asked for now, so "stamina food" has it at the first search

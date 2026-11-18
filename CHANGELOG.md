@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.5 (in testing)
+
+**No freeze from the recipes to learn**
+- About half a minute after logging in, the warm-up built the list of recipes you haven't learned (`@recipe
+  is:unknown`) in one go: with 584 of them, the game froze for 0.2 s. It asked Questie four things about each recipe's
+  item every time the list was built.
+- Now what Questie says of each recipe item is kept for the session (its data doesn't change), and the warm-up reads it
+  ahead a few milliseconds a frame, as it already did for Questie's NPCs and quests; the list is built after that,
+  quickly. A list built again (a skill-up, a recipe learned) doesn't ask Questie again.
+- A list can now give the warm-up a read-ahead of its own (`prewarm` beside `collect`).
+
 ## 1.5.4 (in testing)
 
 **Thank players who buff you**

@@ -170,27 +170,47 @@ end
 
 local Coins = ns.Money -- (Util.lua)
 
+-- What Questie says of a recipe item: { vendors (those who'd sell to you), drops, quests, objects }, or nil (no
+-- Questie). Four of its lookups per item, ~0.3 ms for one recipe: 200 ms in one frame for 584 recipes at the warm-up
+-- (1.5.5, the player's trace). Its data and your faction don't change in a session, so each item's is kept, for the
+-- database and lookup it came from (a Questie that came later, or the tests' own), and the warm-up fills them a few
+-- milliseconds a frame (MR.Prefill) before the list is built.
+local itemSources, sourcesFrom = {}, {}
+function MR.ItemSources(rid)
+	local I = ns.Integrations
+	if not (I and I.ItemField) then return nil end
+	local QD = ns.QuestieData
+	local db = QD and QD.DB and QD.DB() or false
+	if sourcesFrom.db ~= db or sourcesFrom.field ~= I.ItemField or sourcesFrom.row ~= I.NpcRow then
+		itemSources, sourcesFrom = {}, { db = db, field = I.ItemField, row = I.NpcRow }
+	end
+	local got = itemSources[rid]
+	if got then return got end
+	local function List(field) local l = I.ItemField(rid, field) return type(l) == "table" and l or {} end
+	got = { vendors = List("vendors"), drops = List("npcDrops"), quests = List("questRewards"), objects = List("objectDrops") }
+	-- (sellers: only those who'd sell to you, as the learn chain lists them: Pipes.Friendly)
+	local P = ns.Pipes
+	if P and P.Friendly and I.NpcRow then
+		local mine = {}
+		for _, v in ipairs(got.vendors) do
+			local row = type(v) == "number" and I.NpcRow(v)
+			if row and P.Friendly(row) then mine[#mine + 1] = v end
+		end
+		got.vendors = mine
+	end
+	-- (kept only from a database: without one every lookup said nothing, and Questie may be ready next time)
+	if db then itemSources[rid] = got end
+	return got
+end
+
 -- how a recipe is learned, as far as the data says: { trainer = record or true, rid, vendors = {ids}, limited,
 -- drops = {ids}, bosses = {loot rows}, quests = {ids}, objects = {ids} }
 local function Sources(id, name, data, rid)
 	local s = { rid = rid }
 	s.trainerSeen = MR.TrainerFor(name, id)
 	if rid then
-		local I = ns.Integrations
-		if I and I.ItemField then
-			local function List(field) local l = I.ItemField(rid, field) return type(l) == "table" and l or {} end
-			s.vendors, s.drops, s.quests, s.objects = List("vendors"), List("npcDrops"), List("questRewards"), List("objectDrops")
-			-- (sellers: only those who'd sell to you, as the learn chain lists them: Pipes.Friendly)
-			local P = ns.Pipes
-			if P and P.Friendly and I.NpcRow then
-				local mine = {}
-				for _, v in ipairs(s.vendors) do
-					local row = type(v) == "number" and I.NpcRow(v)
-					if row and P.Friendly(row) then mine[#mine + 1] = v end
-				end
-				s.vendors = mine
-			end
-		end
+		local got = MR.ItemSources(rid)
+		if got then s.vendors, s.drops, s.quests, s.objects = got.vendors, got.drops, got.quests, got.objects end
 		local P = ns.Pipes
 		s.bosses = P and P.LootRowsOf and P.LootRowsOf(rid) or {}
 		for _, v in ipairs(s.vendors or {}) do if MR.Limited(rid, v) then s.limited = true break end end
@@ -199,6 +219,37 @@ local function Sources(id, name, data, rid)
 	end
 	if s.trainerSeen then s.trainer = true end
 	return s
+end
+
+--- The warm-up's read-ahead (the provider's `prewarm`): what Questie says of each recipe item your professions' windows
+--- and the trainers list, a few milliseconds a frame (I.RunSliced), so the list's build is quick. True if it started.
+function MR.Prefill()
+	local I = ns.Integrations
+	local QD = ns.QuestieData
+	local Rc = AtlasData()
+	if not (I and I.RunSliced and QD and QD.DB and QD.DB() and Rc and Rc.GetRecipeForSpell) then return false end
+	local rids, seen = {}, {}
+	local function Add(id)
+		local rid = Safe(Rc.GetRecipeForSpell, id)
+		if type(rid) == "number" and not seen[rid] then seen[rid] = true; rids[#rids + 1] = rid end
+	end
+	local P = ns.Professions
+	for _, pd in pairs(P and P.Store and P.Store() or {}) do
+		for _, u in ipairs(type(pd.unknown) == "table" and pd.unknown or {}) do
+			if type(u) == "table" and u.id then Add(u.id) end
+		end
+	end
+	local TS = ns.TrainerSpells
+	if TS and TS.Unknown then
+		for _, pr in ipairs(P and P.PlayerProfessions and P.PlayerProfessions() or {}) do
+			if MR.CRAFTING[pr.skillLine or 0] then
+				for _, u in ipairs(TS.Unknown(pr)) do Add(u.id) end
+			end
+		end
+	end
+	if #rids == 0 then return false end
+	I.RunSliced("recipes to learn: their recipe items read", #rids, function(i) MR.ItemSources(rids[i]) end, function() end)
+	return true
 end
 
 -- the words for how: "Trainer 1s 50c", "Vendor (limited supply)", "Drop", "Quest reward", "Found"
@@ -564,6 +615,7 @@ ns:RegisterProvider("missing", {
 	-- (a skill gained, a recipe learned: what you can learn now changes)
 	events = { "SKILL_LINES_CHANGED", "NEW_RECIPE_LEARNED", "LEARNED_SPELL_IN_SKILL_LINE" }, -- (Forever's names)
 	guard = 1,
+	prewarm = function() return MR.Prefill() end, -- (Questie's answers read ahead, a slice a frame: 1.5.5)
 	collect = function()
 		CHATBOX = CHATBOX or ns.ChatBoxSpec(function(e) return SpellLink(e) or e.name end)
 		return MR.Rows()
