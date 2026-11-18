@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.8 (in testing)
+
+**Thank players who buff you: review fixes**
+- With OneForAll, its option is read as it is now: turned on or off in its options during a session, Terminal knew only
+  after a /reload (two thanks, or none).
+- Only a buff just cast that lasts over a minute is thanked: after a loading screen or a /reload the game reports every
+  buff again, and a mage who buffed you 20 minutes ago was thanked again; a stranger's heal over time was too.
+- Nothing is looked at in combat; an aura list the game keeps secret can't cause an error; the game's own emote call
+  is used, and an emote it refuses isn't counted as a thank.
+
 ## 1.5.7 (in testing)
 
 **Library reward tiers on other client languages**
