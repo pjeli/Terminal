@@ -179,4 +179,8 @@ tree, tree nodes, entries, definitions); the PvP rank as the character window's 
   is read from the columns those pages lay the classes in (Providers/Integrations/OneForAll/Armory.lua's A.ClassGrid).
   The Library Books without OneForAll (1.4.7) are QuestieDB's own quests and objects, picked out by their shape (a
   quest a Librarian or the Special sort's object starts), read in the game; QuestieDB's base data (`Quest.GetRaw`)
-  gives the sort its WoW Forever corrections change.
+  gives the sort its WoW Forever corrections change. Their reward tiers (1.5.2) are the quests a Librarian gives that
+  start at no object and are of the Special sort; how many books each takes is the number in its objectives text (its
+  WoW Forever correction in English, QuestieDB's translation on another client language: 1.5.7), else its level.
+  Auction house prices come from TradeSkillMaster's `TSM_API` (1.5.1) and Auctionator's `Auctionator.API.v1`, and
+  DungeonJournal's sources and favourites from its namespace global (1.5.3), all read in the game while installed.

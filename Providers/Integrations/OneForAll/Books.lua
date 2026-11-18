@@ -207,10 +207,12 @@ function B.RewardQuest(DB, id)
 	for _, n in ipairs(npcs) do if IsLibrarian(n) then librarian = true break end end
 	local name = librarian and ns.Str(Safe(DB.QueryQuestSingle, id, "name"))
 	if not name then return nil end
-	-- how many books it takes: its WoW Forever correction says so ("You will need to hand in 10 books..."; English only:
-	-- else its level stands for it)
+	-- how many books it takes: its WoW Forever correction says so ("You will need to hand in 10 books..."); on another
+	-- client language QuestieDB gives its translation instead, so the first number in it ("Ihr müsst 10 Bücher...": the
+	-- only one in each of them; 1.5.7, review). No number: its level stands for it
 	local text = Safe(DB.QueryQuestSingle, id, "objectivesText")
-	local need = type(text) == "table" and Num(tonumber((ns.Str(text[1]) or ""):match("(%d+) books?") or "")) or nil
+	local s = type(text) == "table" and ns.Str(text[1]) or ""
+	local need = Num(tonumber(s:match("(%d+) books?") or s:match("(%d+)") or ""))
 	return { quest = name, questID = id, level = Num(Safe(DB.QueryQuestSingle, id, "questLevel")) or 0, need = need }
 end
 

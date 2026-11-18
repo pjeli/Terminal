@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.7 (in testing)
+
+**Library reward tiers on other client languages**
+- "library book rewards" says how many books each tier takes on a German, French, Spanish, Russian or Chinese client
+  too: QuestieDB gives the quest's text in your language there, which the English-only reading missed (it showed the
+  tier's level, and "next reward at" was left out).
+
 ## 1.5.6 (in testing)
 
 **TradeSkillMaster prices: review fixes**

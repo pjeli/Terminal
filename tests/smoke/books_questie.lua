@@ -280,3 +280,30 @@ do
 	if I.ForgetHint then I.ForgetHint() end
 	check(ok, "library books from QuestieDB: " .. tostring(err))
 end
+
+do -- (1.5.7, review) a reward tier's book count on another client language: QuestieDB's translation, its first number
+	local B = ns.OneForAll and ns.OneForAll.Books
+	local I = ns.Integrations
+	if B and B.RewardQuest then
+		local was = I.NpcField
+		I.NpcField = function(id, f) if id == 211 and (f == "subNameEn" or f == "subName") then return B.LIBRARIAN end end
+		local TEXT = {
+			[1] = "You will need to hand in 10 books to complete this quest, however you can hand 1 in at any time.",
+			[2] = "Ihr müsst 20 Bücher abgeben, um diese Quest abzuschließen. Ihr könnt jederzeit 1 abgeben.",
+			[3] = "Vous devrez rendre 25 livres pour terminer cette quête.",
+			[4] = "Bring them to the Librarian.",
+		}
+		local DB = { QueryQuestSingle = function(id, f)
+			if f == "startedBy" then return { { 211 } } end
+			if f == "zoneOrSort" then return B.SPECIAL_SORT end
+			if f == "name" then return "Tier " .. id end
+			if f == "questLevel" then return 20 + id end
+			if f == "objectivesText" then return { TEXT[id] } end
+		end }
+		local n = {}
+		for id = 1, 4 do local r = B.RewardQuest(DB, id) n[id] = r and r.need or false end
+		check(n[1] == 10 and n[2] == 20 and n[3] == 25 and n[4] == false,
+			"the count: English, German, French; none said: its level stands for it: " .. table.concat({ tostring(n[1]), tostring(n[2]), tostring(n[3]), tostring(n[4]) }, ","))
+		I.NpcField = was
+	end
+end
