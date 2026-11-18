@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.9 (in testing)
+
+**DungeonJournal: review fixes**
+- A part of it missing in another version is said as every integration says it ("DungeonJournal: its data isn't what
+  Terminal expects (a new version?). Show in Dungeon Journal is unavailable."), once, and on its `.integrations` line,
+  instead of naming its functions.
+- `@favourite` rows have a colour of their own (they were close to `@currency`'s gold); `is:`'s help names
+  `is:favourite` for items and loot.
+
 ## 1.5.8 (in testing)
 
 **Thank players who buff you: review fixes**

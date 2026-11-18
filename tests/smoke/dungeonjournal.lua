@@ -166,14 +166,21 @@ local ok, err = pcall(function()
 	-- a version without what Terminal reads: off, said so; nothing opened, no error
 	_G.ForeverDungeonJournal_NS = { DB = N.DB }
 	check(not DJ.On() and DJ.Target({ kind = "loot", itemID = 2840 }) == nil and not DJ.IsFavourite(2840), "its dungeons' order gone: off")
-	check(DJ.Status() == L["found (%s), but not in the shape Terminal reads: update %s"]:format(tostring(I._.AddOnVersion("ForeverDungeonJournal") or "?"),
-		"DungeonJournal"), ".integrations says so: " .. DJ.Status())
+	check(DJ.Status() == L["found (%s), but not its API for other addons: update %s"]:format(I._.AddOnVersion("ForeverDungeonJournal"),
+		"DungeonJournal"), ".integrations says so, as other integrations do: " .. DJ.Status())
 	_G.ForeverDungeonJournal_NS = setmetatable({ OpenBossPage = false }, { __index = N })
 	N.OpenBossPage = nil
 	local printed = {}
 	local pr = ns.Print
 	ns.Print = function(_, m) printed[#printed + 1] = m end
-	check(not DJ.Open({ dungeon = "Sunken Temple" }) and printed[1] and printed[1]:find("OpenBossPage", 1, true), "an opener gone: said, not opened: " .. tostring(printed[1]))
+	I.failed.DungeonJournal = nil
+	check(not DJ.Open({ dungeon = "Sunken Temple" }) and printed[1] and printed[1]:find(L["Show in Dungeon Journal is unavailable."], 1, true)
+		and not printed[1]:find("OpenBossPage", 1, true), "an opener gone: said as other integrations say it (no function names), not opened: " .. tostring(printed[1]))
+	DJ.Open({ dungeon = "Sunken Temple" })
+	check(#printed == 1, "said once")
+	local integ = table.concat(ns:FindCommand("integrations").run("") or {}, " / ")
+	check(integ:find("DungeonJournal:", 1, true) and integ:find(L["Not as expected:"], 1, true), "(review) and on its .integrations line: " .. integ)
+	I.failed.DungeonJournal = nil
 	ns.Print = pr
 end)
 _G.C_AddOns, _G.ForeverDungeonJournal_NS, _G.ForeverDungeonJournalFrame, _G.ForeverDungeonJournalCharacterDB = save.addons, save.lib, save.frame, save.cdb

@@ -786,7 +786,6 @@ L["Dungeon"] = true
 L["Dungeon lockouts"] = true
 L["Dungeon quests"] = true
 L["DungeonJournal has no page for %s."] = true
-L["DungeonJournal: %s isn't there in this version; Terminal goes on without it."] = true
 L["Dungeons for level %d"] = true
 L["Durability"] = true
 L["Durability %s%%"] = true
@@ -1846,6 +1845,7 @@ L["Shoulder"] = true
 L["Show"] = true
 L["Show Terminal's memory use, entries per kind, and the last search time"] = true
 L["Show in Dungeon Journal"] = true
+L["Show in Dungeon Journal is unavailable."] = true
 L["Show or change a setting: .set accent ff79c6 (.set alone: every setting as rows; .set list: in chat)"] = true
 L["Show which other addons Terminal found, and what each gives"] = true
 L["Show which professions are indexed"] = true
@@ -2697,7 +2697,6 @@ L["forget them all"] = true
 L["forget what was recorded"] = true
 L["forget your own weights"] = true
 L["found"] = true
-L["found (%s), but not in the shape Terminal reads: update %s"] = true
 L["found (%s), but not its API for other addons: update %s"] = true
 L["found (%s), without the API Terminal reads: update What's Training"] = true
 L["found (%s)."] = true
@@ -3230,7 +3229,7 @@ L["quest/NPC level, or the level an item needs (also lvl:<30, lvl:40-, lvl:20+)"
 L["quests"] = true
 L["quests in your log"] = true
 L["quests to drop: grey (the quest log shows it grey) or leftbehind (in a zone you've outlevelled), not complete; >>> drop drops every quest listed, Terminal asks first"] = true
-L["quests: done todo complete (ready = complete) grey leftbehind drop; achievements: done todo; items: usable equippable quest soulbound boe enchanted unenchanted; recipes: craftable skillup (orange or yellow) orange yellow green grey; mounts, pets, toys: favorite"] = true
+L["quests: done todo complete (ready = complete) grey leftbehind drop; achievements: done todo; items: usable equippable quest soulbound boe enchanted unenchanted; recipes: craftable skillup (orange or yellow) orange yellow green grey; mounts, pets, toys: favorite; items, loot: favourite (starred in DungeonJournal)"] = true
 L["quick keybind mode"] = true
 L["raid"] = true
 L["range hidden"] = true

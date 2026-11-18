@@ -141,7 +141,7 @@ ns:RegisterCommand("integrations", {
 		end
 		local M = ns.Maps
 		if M and M.TomTom and M.TomTom() then lines[#lines + 1] = "  TomTom: " .. I.TomTomStatus() end
-		if ns.DungeonJournal then Add("DungeonJournal:", ns.DungeonJournal.Status()) end
+		if ns.DungeonJournal then Add("DungeonJournal:", ns.DungeonJournal.Status(), I.FailedText(ns.DungeonJournal.NAME)) end
 		if ns.Stored then Add(L["Alts and banks:"], ns.Stored.Status()) end
 		if #lines == 1 then lines[2] = "  " .. L["none"] end
 		return lines

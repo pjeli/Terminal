@@ -386,3 +386,12 @@ What can't be moved without losing something the player sees stays an own answer
   (BOSS_LEVELS or its GetBossLevel) and type (BOSS_TYPES). LevelOf ("what level is vancleef") asks OneForAll's bosses by
   part of a name when nothing else has the name, and says a Questie NPC's type and "Summoned" when OneForAll knows it.
 - Tests: tests/smoke/petfood.lua, tests/smoke/oneforall_bosses.lua.
+
+### DungeonJournal's favourites
+
+- DungeonJournalFavourites, a search question (Providers/Integrations/DungeonJournal.lua, 1.5.3): "my favourites",
+  "dungeon journal favourites", "favourite items" are `@favourite` (the items starred in DungeonJournal, this
+  character's, from its saved favourites), only while it's installed: "favorite mounts" stays the collections' question.
+  Its footer names the journal; none starred: a note says how to star one. `is:favourite` finds them in @loot, @item and
+  @gear too (Providers/Collections.lua's is:favorite).
+- Tests: tests/smoke/dungeonjournal.lua.

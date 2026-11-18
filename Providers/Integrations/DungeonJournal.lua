@@ -10,7 +10,8 @@ local I = ns.Integrations
 --     comes from; Enter opens it there. "my favourites" asks for them; is:favourite finds them among other items too.
 -- It has no API documented for other addons: its whole namespace is a global table (ForeverDungeonJournal_NS), read and
 -- called here as OneForAll's is, every field checked, every call in a pcall. What isn't in the shape expected is said
--- once in chat (.integrations says it too) and the rest goes on without it. Nothing of its data is copied.
+-- once in chat and on its .integrations line (I.Failed, as every integration's) and the rest goes on without it.
+-- Nothing of its data is copied.
 
 local DJ = {}
 ns.DungeonJournal = DJ
@@ -41,13 +42,8 @@ local function Call(fn, ...)
 	return nil
 end
 
--- (said once a session: what of it isn't there any more)
-local said = {}
-local function Lost(what)
-	if said[what] then return end
-	said[what] = true
-	ns:Print(L["DungeonJournal: %s isn't there in this version; Terminal goes on without it."]:format(what))
-end
+-- (what of it isn't there any more: said once, in chat and on its .integrations line; `what`: its function)
+local function Lost(what) I.Failed(DJ.NAME, L["Show in Dungeon Journal is unavailable."], what .. " missing") end
 
 ----------------------------------------------------------------------
 -- Which of its pages a row is
@@ -212,14 +208,13 @@ function DJ.FavouriteRows()
 				color = q and ns.QualityHex and ns.QualityHex(q) or nil,
 				detail = ns.Join(SEP, from, d and DungeonText(d)), djDungeon = d, slot = Str(f.slot),
 				text = Lower(table.concat({ L["favourite"], "favourite favorite", Str(f.slot) or "", from or "", d or "" }, " ")),
-				order = (rank[d or ""] or 999) * 10000 + #out, added = Num(f.added),
+				order = rank[d or ""] or 999,
 				activate = OpenFav, secondary = FavToChat, secondarySecure = FAV_CHATBOX,
 			}
 		end
 	end
 	table.sort(out, function(a, b)
-		local ra, rb = math.floor(a.order / 10000), math.floor(b.order / 10000)
-		if ra ~= rb then return ra < rb end
+		if a.order ~= b.order then return a.order < b.order end -- (its dungeons' order, then by name)
 		return a.name < b.name
 	end)
 	for i, e in ipairs(out) do e.order = i end
@@ -229,7 +224,7 @@ end
 local function Register()
 	if ns.providers.favourite then return end
 	ns:RegisterProvider("favourite", {
-		label = L["Favourite"], color = "fff5d76e", aliases = { "favourite", "favourites", "favorite", "favorites", "fav", "favs" },
+		label = L["Favourite"], color = "ffff73ab", aliases = { "favourite", "favourites", "favorite", "favorites", "fav", "favs" },
 		lazy = true, refreshOnOpen = true, -- (starred in its window: no event says so)
 		simpleCategory = "loot",
 		verbs = { L["show in Dungeon Journal"], L["link in chat"] },
@@ -253,9 +248,8 @@ end
 --- .integrations' line.
 function DJ.Status()
 	if not Loaded() then return L["not found"] end
-	local I0 = ns.Integrations
-	local ver = tostring(I0 and I0._ and I0._.AddOnVersion and I0._.AddOnVersion(DJ.ADDON) or "?")
-	if not DJ.On() then return L["found (%s), but not in the shape Terminal reads: update %s"]:format(ver, DJ.NAME) end
+	local ver = I._ and I._.AddOnVersion and I._.AddOnVersion(DJ.ADDON) or "?"
+	if not DJ.On() then return L["found (%s), but not its API for other addons: update %s"]:format(ver, DJ.NAME) end
 	local n = 0
 	for _ in pairs(Favourites() or {}) do n = n + 1 end
 	return L["found (%s). %d favourites (@favourite); right-click a row: Show in Dungeon Journal"]:format(ver, n)
