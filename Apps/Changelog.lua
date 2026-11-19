@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.6.19", when = "in testing",
+		v = "1.6.20", when = "in testing",
 		items = {
 			"A new look: icons drawn like the bags', framed in their item's quality colour; the Forever theme's names parchment-white, the letters you typed gold; each row's kind quieter, on one line after a dot of its colour, and left out when you asked for one kind; the classic frame with the game's stone grain and a shade.",
 			"Recipes: a recipe you don't know and its \"where to learn\" now say the same, the Merchant's Favor and its vendor, a trainer (TrainerSpells' too) and the recipe item; a Favor recipe no longer says \"Trainer\".",

@@ -92,6 +92,11 @@ end
 --- Who starts a quest: an NPC id, or a word for what else does ("an object", "an item"). Of several NPCs, one of yours
 --- (Pipes.Friendly, as is:foryou counts a quest yours when any giver is), the nearest of those: until 1.6.8 the first
 --- listed, maybe the other side's, whose distance and map pin the quest's row then gave (the mismatch hunt).
+local function GiverRow(nid) return I.NpcRow and I.NpcRow(nid) or nil end
+local function GiverDistance(nid, here)
+	if type(nid) ~= "number" then return false end
+	return here and I.NpcDistance and I.NpcDistance(nid, here) or nil
+end
 local function QuestGiver(id)
 	local DB = QDB()
 	local by = DB and Safe(DB.QueryQuestSingle, id, "startedBy")
@@ -99,19 +104,7 @@ local function QuestGiver(id)
 	if type(by[1]) == "table" and by[1][1] then
 		local pick = by[1][1]
 		if by[1][2] then
-			local P = ns.Pipes
-			local here = I.Here and I.Here() or nil
-			local bestMine, bestD
-			pick = nil
-			for _, nid in ipairs(by[1]) do
-				local row = type(nid) == "number" and I.NpcRow and I.NpcRow(nid)
-				local mine = not (P and P.Friendly and row) or P.Friendly(row) == true
-				local d = here and I.NpcDistance and I.NpcDistance(nid, here) or nil
-				local better = pick == nil or (mine and not bestMine)
-					or (mine == bestMine and d ~= nil and (bestD == nil or d < bestD))
-				if type(nid) == "number" and better then pick, bestMine, bestD = nid, mine, d end
-			end
-			pick = pick or by[1][1]
+			pick = I.PickFriendly(by[1], GiverRow, GiverDistance, I.Here and I.Here() or nil) or by[1][1]
 		end
 		local name = Safe(DB.QueryNPCSingle, pick, "name")
 		return pick, type(name) == "string" and name or nil

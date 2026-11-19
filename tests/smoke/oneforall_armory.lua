@@ -361,21 +361,23 @@ do
 		-- (1.6.9, the mismatch hunt) a reward's vendor on the map: one who'll sell to you, the nearest of those; not the first
 		-- OneForAll lists (Hasana, in the Horde's Tirisfal, for an Alliance player anywhere)
 		do
-			local hereWas, rowWas, fieldWas = I.Here, I.NpcRow, I.NpcField
+			local hereWas, rowWas, fieldWas, spotWas = I.Here, I.NpcRow, I.NpcField, I.UnitSpot
 			_G.OneForAll = { ARMORY_REPUTATION = { { id = 529, n = "Argent Dawn", st = 1,
 				v = { { 10856, "Argent Quartermaster Hasana", 1420, 83.3, 68.1, "Tirisfal Glades" },
 					{ 10858, "Far Quartermaster", 1423, 10, 10, "Eastern Plaguelands" },
 					{ 10857, "Argent Quartermaster Lightspark", 1423, 75.8, 54.1, "Eastern Plaguelands" } },
 				i = { { 13724, "Enriched Manna Biscuit", nil, 1, 133989, 4, "other", {} } } } } }
 			I.SpotXY = function(ui, c) return (ui == 1420 and 1 or 2), c[1] * 10, c[2] * 10 end
-			I.Here = function() return { cont = 2, x = 750, y = 540 } end
+			-- (your own spot: the rows are kept for everyone; a !t asker's, I.Here's while answering, far away: not read)
+			I.UnitSpot = function(unit) return unit == "player" and { cont = 2, x = 750, y = 540 } or nil end
+			I.Here = function() return { cont = 2, x = 100, y = 100 } end
 			I.NpcRow = function(id) return { kind = "npc", key = id, npcID = id, name = "NPC " .. id } end
 			I.NpcField = function(id, f) if f == "friendlyToFaction" then return id == 10856 and "H" or "AH" end end
 			if ns.Pipes.ForgetFriendly then ns.Pipes.ForgetFriendly() end
 			Fresh()
 			local r = A.RewardRows()[1]
 			check(r and r.pinName == "Argent Quartermaster Lightspark", "its vendor on the map: one of yours, the nearest: " .. tostring(r and r.pinName))
-			I.Here, I.NpcRow, I.NpcField = hereWas, rowWas, fieldWas
+			I.Here, I.NpcRow, I.NpcField, I.UnitSpot = hereWas, rowWas, fieldWas, spotWas
 			if ns.Pipes.ForgetFriendly then ns.Pipes.ForgetFriendly() end
 		end
 		_G.OneForAll = nil

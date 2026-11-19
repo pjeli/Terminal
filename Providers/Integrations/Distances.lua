@@ -16,6 +16,26 @@ function I.Here()
 	return I.UnitSpot("player")
 end
 
+--- Of several NPCs (or their spots), the one to send you to: one of your side (Pipes.Friendly, as the chains' sources
+--- judge), the nearest of those; else the nearest at all. rowOf(x, ctx): x's QuestieDB NPC row (nil: counted yours);
+--- distOf(x, ctx): how far, nil when unknown, false when x isn't one to pick. (One rule for a quest's giver and a
+--- reputation reward's vendor: two copies of this loop until the release review.)
+function I.PickFriendly(list, rowOf, distOf, ctx)
+	local P = ns.Pipes
+	local pick, bestMine, bestD
+	for _, x in ipairs(list or {}) do
+		local d = distOf(x, ctx)
+		if d ~= false then
+			local row = rowOf(x, ctx)
+			local mine = not (P and P.Friendly and row) or P.Friendly(row) == true
+			if pick == nil or (mine and not bestMine) or (mine == bestMine and d ~= nil and (bestD == nil or d < bestD)) then
+				pick, bestMine, bestD = x, mine, d
+			end
+		end
+	end
+	return pick
+end
+
 --- Where a unit is (player, party1, raid3), as I.Here; nil inside, or when the game won't say.
 function I.UnitSpot(unit)
 	local M = C_Map

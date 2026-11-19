@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.20 (in testing)
+
+**A reward's vendor: from where you are**
+- A reputation reward's vendor on the map is picked from where you stand, read once for all the rewards: the rows,
+  kept until your standing changes, could have been made while answering a `!t` asker, from where they stood.
+- A quest's giver and a reward's vendor are picked by one rule (one of your side, the nearest of those).
+
 ## 1.6.19 (in testing)
 
 **Recipe colours: the row and the filters agree**

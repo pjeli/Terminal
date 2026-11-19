@@ -462,10 +462,23 @@ local function Stamp(rows, kind)
 	return rows
 end
 
+-- (a reward's vendor: I.PickFriendly over its vendors' spots, how far from you)
+local function VendorRow(x) return x.npcID and I.NpcRow and I.NpcRow(x.npcID) or nil end
+local function VendorDistance(x, here)
+	if not x.ui then return false end
+	if not (here and I.SpotXY) then return nil end
+	local c, wx, wy = I.SpotXY(x.ui, { x.x, x.y })
+	if c and c == here.cont and wx then return ((wx - here.x) ^ 2 + (wy - here.y) ^ 2) ^ 0.5 end
+	return nil
+end
+
 --- The reward rows: each faction's rewards (your faction's and both sides'), by faction then standing.
 function A.RewardRows()
 	local out = {}
 	local side = MySide()
+	-- (where you are, read once: the rows are kept until your standing changes, so never a !t asker's spot, I.Here's
+	-- while answering one; release review)
+	local here = I.UnitSpot and I.UnitSpot("player") or nil
 	for fi, f in ipairs(A.Factions() or {}) do
 		if not (f.side and side and f.side ~= side) then
 			local mine = A.Standing(f.id)
@@ -476,22 +489,7 @@ function A.RewardRows()
 				-- (its vendor on the map: one who'll sell to you, the nearest of those where you are when the rows are made;
 				-- until 1.6.9 the first OneForAll lists, Hasana in Tirisfal for the Argent Dawn wherever you stood, while
 				-- "<item> > sources" lists the sellers nearest first: the mismatch hunt)
-				local spot, bestMine, bestD
-				local P, here = ns.Pipes, I.Here and I.Here() or nil
-				for _, x in ipairs(#it.vendors > 0 and it.vendors or f.vendors) do
-					if x.ui then
-						local nrow = x.npcID and I.NpcRow and I.NpcRow(x.npcID)
-						local mine = not (P and P.Friendly and nrow) or P.Friendly(nrow) == true
-						local d
-						if here and I.SpotXY then
-							local c, wx, wy = I.SpotXY(x.ui, { x.x, x.y })
-							if c and c == here.cont and wx then d = ((wx - here.x) ^ 2 + (wy - here.y) ^ 2) ^ 0.5 end
-						end
-						if spot == nil or (mine and not bestMine) or (mine == bestMine and d and (not bestD or d < bestD)) then
-							spot, bestMine, bestD = x, mine, d
-						end
-					end
-				end
+				local spot = I.PickFriendly(#it.vendors > 0 and it.vendors or f.vendors, VendorRow, VendorDistance, here)
 				local row = {
 					key = f.id .. ":" .. it.id, kind = "reputation", repReward = true, namesOnly = true, name = name, _lname = Lower(name), itemID = it.id, icon = Icon(it.icon),
 					quality = it.quality, slot = it.slot, faction = f.name, factionID = f.id, reaction = it.need, mine = mine, canBuy = can,
