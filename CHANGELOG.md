@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.13 (in testing)
+
+**A new look: the selected row in two lines**
+- The selected row shows its name, and under it its whole detail, the row wide (on one line a long detail was cut to
+  its column). The rows under it move down a line; a row saying how far, or with no detail, stays one line.
+
 ## 1.6.12 (in testing)
 
 **A new look: the kind column**
