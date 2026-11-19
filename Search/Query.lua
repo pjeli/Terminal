@@ -520,8 +520,11 @@ function Scan.ActionAndPlace(self, q)
 			end
 			q.tokens = rest
 			if not placed then q.tokenSrc = nil end
-			local f = I.PlaceFilter(place)
-			Scan.AddFilter(q, f, "hard", "@" .. place.key, nil, "in:" .. tostring(place.key):gsub(" ", "_"))
+			-- (the same test the in: Alt+` writes for it makes: an NPC there by its zone's name too, Npcs.lua's KEYS.in; until
+			-- 1.6.9 Simple mode took where NPCs stand alone, so its Advanced line could list more: the mismatch hunt)
+			local inWord = "in:" .. (tostring(place.key):gsub(" ", "_"))
+			local f = (ns.Filters and ns.Filters.Parse and ns.Filters.Parse(inWord)) or I.PlaceFilter(place)
+			Scan.AddFilter(q, f, "hard", "@" .. place.key, nil, inWord)
 			local c = ns.Phrase.Note(q.reading, placed, "place", { spec = "in:" .. tostring(place.key):gsub(" ", "_") })
 			if c and f then q.src = q.src or {}; q.src[f] = c end
 			self.place = place

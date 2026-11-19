@@ -473,8 +473,25 @@ function A.RewardRows()
 				local name = it.name or L["item %s"]:format(it.id)
 				local can = mine ~= nil and mine >= it.need
 				local v = it.vendors[1] or f.vendors[1]
-				local spot
-				for _, x in ipairs(#it.vendors > 0 and it.vendors or f.vendors) do if x.ui then spot = x break end end
+				-- (its vendor on the map: one who'll sell to you, the nearest of those where you are when the rows are made;
+				-- until 1.6.9 the first OneForAll lists, Hasana in Tirisfal for the Argent Dawn wherever you stood, while
+				-- "<item> > sources" lists the sellers nearest first: the mismatch hunt)
+				local spot, bestMine, bestD
+				local P, here = ns.Pipes, I.Here and I.Here() or nil
+				for _, x in ipairs(#it.vendors > 0 and it.vendors or f.vendors) do
+					if x.ui then
+						local nrow = x.npcID and I.NpcRow and I.NpcRow(x.npcID)
+						local mine = not (P and P.Friendly and nrow) or P.Friendly(nrow) == true
+						local d
+						if here and I.SpotXY then
+							local c, wx, wy = I.SpotXY(x.ui, { x.x, x.y })
+							if c and c == here.cont and wx then d = ((wx - here.x) ^ 2 + (wy - here.y) ^ 2) ^ 0.5 end
+						end
+						if spot == nil or (mine and not bestMine) or (mine == bestMine and d and (not bestD or d < bestD)) then
+							spot, bestMine, bestD = x, mine, d
+						end
+					end
+				end
 				local row = {
 					key = f.id .. ":" .. it.id, kind = "reputation", repReward = true, namesOnly = true, name = name, _lname = Lower(name), itemID = it.id, icon = Icon(it.icon),
 					quality = it.quality, slot = it.slot, faction = f.name, factionID = f.id, reaction = it.need, mine = mine, canBuy = can,

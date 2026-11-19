@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.9 (in testing)
+
+**Close calls made to agree**
+- A drop chance from OneForAll is no longer put on AtlasLoot's trash row by the item alone (on a client in another
+  language, a boss's chance landed there and hid AtlasLoot's own rate in the tooltip).
+- A reputation reward's vendor on the map (Enter) is one who'll sell to you, the nearest, as "<item> > sources" lists
+  them; it was the first OneForAll lists (the Argent Dawn's Hasana in Tirisfal, wherever you stood).
+- A place in Simple mode ("vendor barrens") takes NPCs there by their zone's name too, as its Alt+` line `in:barrens`
+  does: the two could list different NPCs.
+
 ## 1.6.8 (in testing)
 
 **Smaller answers made to agree**

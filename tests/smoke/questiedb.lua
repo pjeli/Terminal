@@ -778,6 +778,22 @@ do
 		check(sw:find("q:rare", 1, true) and not sw:find("@npc", 1, true) and not sw:find("is:rare", 1, true) and rr:find("is:rare", 1, true),
 			"rare swords ratchet: the quality; rare in ratchet: the rank: " .. sw .. " / " .. rr)
 	end
+	-- (1.6.9, the mismatch hunt) Simple mode's place test is the one its Alt+` line's in: makes: an NPC there by its zone's
+	-- name counts too, not only by where it stands (here, where it stands told nothing: the zone's name still finds them)
+	do
+		local pfWas = I.PlaceFilter
+		I.PlaceFilter = function() return function() return false end end
+		ns.db.easyMode = true
+		local names = {}
+		for _, e in ipairs(UI:Search("vendor barrens")) do names[#names + 1] = tostring(e.name) end
+		ns.db.easyMode = false
+		local adv = {}
+		for _, e in ipairs(UI:Search("@npc in:barrens is:vendor")) do adv[#adv + 1] = tostring(e.name) end
+		I.PlaceFilter = pfWas
+		table.sort(names); table.sort(adv)
+		check(#names > 0 and table.concat(names, ",") == table.concat(adv, ","),
+			"vendor barrens (Simple) lists what its Alt+` line does: " .. table.concat(names, ",") .. " / " .. table.concat(adv, ","))
+	end
 	local conv = ns.Easy.ToAdvanced("vendor ratchet")
 	-- (0.55.4: what the search does, printed: a place's vendors are every vendor there, as Simple mode lists them; review,
 	-- 0.48.6. Easy.lua's own converter said faction:friendly, which the search never asked for)

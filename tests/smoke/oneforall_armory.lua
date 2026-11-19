@@ -358,6 +358,26 @@ do
 		-- (no AtlasLoot set data here: nothing to fall back on; with it, AtlasLoot's: tests/smoke/itemsets_atlasloot.lua)
 		check(not ns.providers.itemset and A.Sets() == nil and A.Question("argent dawn rewards") ~= nil, "sets changed, no AtlasLoot sets here: no @itemset, the rewards still")
 		check(Said(L["OneForAll's item sets are unavailable; @itemset uses AtlasLoot's when it's installed."]), "said in chat, naming the fallback (1.4.16): " .. tostring(said[1]))
+		-- (1.6.9, the mismatch hunt) a reward's vendor on the map: one who'll sell to you, the nearest of those; not the first
+		-- OneForAll lists (Hasana, in the Horde's Tirisfal, for an Alliance player anywhere)
+		do
+			local hereWas, rowWas, fieldWas = I.Here, I.NpcRow, I.NpcField
+			_G.OneForAll = { ARMORY_REPUTATION = { { id = 529, n = "Argent Dawn", st = 1,
+				v = { { 10856, "Argent Quartermaster Hasana", 1420, 83.3, 68.1, "Tirisfal Glades" },
+					{ 10858, "Far Quartermaster", 1423, 10, 10, "Eastern Plaguelands" },
+					{ 10857, "Argent Quartermaster Lightspark", 1423, 75.8, 54.1, "Eastern Plaguelands" } },
+				i = { { 13724, "Enriched Manna Biscuit", nil, 1, 133989, 4, "other", {} } } } } }
+			I.SpotXY = function(ui, c) return (ui == 1420 and 1 or 2), c[1] * 10, c[2] * 10 end
+			I.Here = function() return { cont = 2, x = 750, y = 540 } end
+			I.NpcRow = function(id) return { kind = "npc", key = id, npcID = id, name = "NPC " .. id } end
+			I.NpcField = function(id, f) if f == "friendlyToFaction" then return id == 10856 and "H" or "AH" end end
+			if ns.Pipes.ForgetFriendly then ns.Pipes.ForgetFriendly() end
+			Fresh()
+			local r = A.RewardRows()[1]
+			check(r and r.pinName == "Argent Quartermaster Lightspark", "its vendor on the map: one of yours, the nearest: " .. tostring(r and r.pinName))
+			I.Here, I.NpcRow, I.NpcField = hereWas, rowWas, fieldWas
+			if ns.Pipes.ForgetFriendly then ns.Pipes.ForgetFriendly() end
+		end
 		_G.OneForAll = nil
 		Fresh()
 		check(not ns.providers.itemset and A.Sets() == nil and A.Question("argent dawn rewards") == nil, "without OneForAll or AtlasLoot's sets: none, no question")

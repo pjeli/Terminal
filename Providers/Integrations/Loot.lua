@@ -702,6 +702,24 @@ function I.LootTipMore(e, t)
 	end
 end
 
+--- OneForAll's drop chance for a loot row ("Boss  Instance", its item), or nil. `byDetail`: what each detail's boss was
+--- found as, kept across one list's rows. By the boss's name; not found (AtlasLoot's names in another language), by the
+--- item alone when OneForAll lists it once (W.ItemChance), but never for AtlasLoot's trash: a boss's number on the trash
+--- row hid AtlasLoot's own rate in its tooltip (1.6.9, the mismatch hunt).
+function I.LootChance(d, id, byDetail)
+	local W = ns.OneForAllWorld
+	if not (W and W.BossChances and type(d) == "string") then return nil end
+	byDetail = byDetail or {}
+	local at = byDetail[d]
+	if at == nil then
+		local boss, inst = I.LootSplit(d) -- (the one reading of "Boss  Instance")
+		at = boss and W.BossChances(inst, boss) or false
+		if not at and boss and ns.Lower(boss):find("trash", 1, true) then at = "trash" end
+		byDetail[d] = at
+	end
+	return (type(at) == "table" and at[id]) or (at == false and W.ItemChance and W.ItemChance(id)) or nil
+end
+
 local function SetupAtlasLoot()
 	if loot.on or not AtlasLootPresent() then return end
 	loot.on = true
@@ -730,14 +748,7 @@ local function SetupAtlasLoot()
 				end
 				local d = chances and rawget(r, "detail")
 				if type(d) == "string" and not d:find(ns.DETAIL_SEP, 1, true) then -- (said already: not again)
-					local at = byDetail[d]
-					if at == nil then
-						local boss, inst = I.LootSplit(d) -- (the one reading of "Boss  Instance")
-						at = boss and W.BossChances(inst, boss) or false
-						byDetail[d] = at
-					end
-					-- (the boss not found by name: by the item alone, when OneForAll lists it once; W.ItemChance)
-					local pct = (at and at[r.itemID]) or (not at and W.ItemChance and W.ItemChance(r.itemID)) or nil
+					local pct = I.LootChance(d, r.itemID, byDetail)
 					if pct then r.detail = d .. ns.DETAIL_SEP .. W.ChanceText(pct) end
 				end
 				if rawget(r, "name") then out[#out + 1] = r end

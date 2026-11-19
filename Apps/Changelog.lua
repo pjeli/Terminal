@@ -14,9 +14,14 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.6.8", when = "in testing",
+		v = "1.6.9", when = "in testing",
 		items = {
-			"Fixed: a recipe bought with the Merchant's Favor (OneForAll) no longer says \"Trainer\", and \"where to learn\" it shows the Favor's vendor instead of trainers.",
+			"Recipes: a recipe you don't know and its \"where to learn\" now say the same, the Merchant's Favor and its vendor, a trainer (TrainerSpells' too) and the recipe item; a Favor recipe no longer says \"Trainer\".",
+			"Quests: \"can i take\", is:cantake, \"quests near me\", the zones' counts and \"quest upgrades\" judge a quest by the same rules (side, level, skill, standing, prerequisites, OneForAll's too).",
+			"!t answers ignore your own Filter and Sort picks, and \"my level\" is the asker's.",
+			"\"<faction> > rewards\" lists AtlasLoot's rewards too; factions not in WoW Forever yet have none listed.",
+			"\"train the next rank\" skips Fishing, Cooking and First Aid at 150 and sends you to a trainer who can teach the rank (\"nearest expert tailoring trainer\").",
+			"Smaller fixes: is:upgrade over @loot, is:skillup at your skill now, \"skinner\" finds trainers of your side, a quest's giver of your side, pet food vendors, drop chances on trash rows, reward vendors, places in Simple mode.",
 		},
 	},
 	{

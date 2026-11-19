@@ -97,6 +97,11 @@ do
 		check(boss == "Aku'mai" and inst == "Blackfathom Deeps", "sent to chat: where, without the chance: " .. tostring(inst))
 		-- (1.0.84, review) an item's chance without its boss's name: OneForAll lists it once
 		check(W.ItemChance and W.ItemChance(6910) == 0.28 and W.ItemChance(123456) == nil, "an item's chance by the item alone")
+		-- (1.6.9) a loot row's chance, as @loot's collect asks it (I.LootChance; the rows below need AtlasLoot's list, which
+		-- this harness hasn't): by its boss, by the item alone in another language, never on a trash row
+		check(I.LootChance("Aku'mai  Blackfathom Deeps", 6909) == 20 and I.LootChance("Aku'mai  Tiefschwarze Grotte", 6910) == 0.28
+			and I.LootChance("Trash Mobs  Tiefschwarze Grotte", 6910) == nil and I.LootChance("Trash Mobs  Blackfathom Deeps", 6910) == nil,
+			"a loot row's chance: its boss's; in another language by the item; a trash row none (the mismatch hunt)")
 		local lp = ns.providers.loot
 		if lp then
 			lootRow = setmetatable({ key = "test:bfd:6909", itemID = 6909, name = "Strike of the Hydra", detail = "Aku'mai  Blackfathom Deeps" },
