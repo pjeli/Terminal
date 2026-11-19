@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.14 (in testing)
+
+**A new look: the frame's depth**
+- The classic frame (the Forever, Horde and Alliance themes) has the game's stone grain under its colour, faint, and a
+  shade darkening toward the bottom; it was one flat colour. The flat frame stays flat.
+
 ## 1.6.13 (in testing)
 
 **A new look: the selected row in two lines**

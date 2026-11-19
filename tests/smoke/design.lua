@@ -130,3 +130,22 @@ do
 	ns.db.easyMode = easy; UI:EasyChanged()
 	UI.lastScan, UI.lastExtra = nil, nil
 end
+
+-- 1.6.14: the classic frame's depth: the stone grain in a lighter shade of the background, a shade toward the bottom
+io.write("[design: the classic frame's depth]\n")
+do
+	local was = CopyTable(Theme.Get()) -- (put back whole: a colour set makes the theme "custom")
+	UI:Open(""); FlushAll()
+	Theme.Set("frame", "classic")
+	check(UI.grain and UI.grain.shown == true and UI.grain.lastPoint, "the classic frame: its grain shows")
+	local bg = { Theme.RGB(Theme.Darken(Theme.Get().bg, UI.GRAIN_LIGHTEN)) }
+	local c = UI.grainColor
+	check(c and math.abs(c[1] - bg[1]) < 0.01 and math.abs(c[3] - bg[3]) < 0.01 and c[4] < 0.5, "in a lighter shade of the background, faint")
+	Theme.Set("bg", "102030")
+	check(math.abs(UI.grainColor[3] - math.min(1, 0x30 * UI.GRAIN_LIGHTEN / 255)) < 0.01, "a new background: the grain follows it")
+	Theme.Set("frame", "flat")
+	check(UI.grain.shown == false and UI.shade.shown == false, "the flat frame stays flat")
+	UI:Hide(); FlushAll()
+	ns.db.theme = was
+	Theme.Changed()
+end

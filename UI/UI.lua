@@ -110,6 +110,17 @@ do
 			edgeFile = "Interface\\Buttons\\WHITE8X8",
 			edgeSize = 1,
 		})
+		-- (1.6.14) the classic frame's depth: the game's stone grain tiled under the colour, a shade toward the bottom
+		-- (ApplyFrameStyle: shown with the classic frame only)
+		local grain = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
+		grain:SetTexture(UI.GRAIN_TEXTURE, "REPEAT", "REPEAT")
+		if grain.SetHorizTile then grain:SetHorizTile(true); grain:SetVertTile(true) end
+		grain:Hide()
+		UI.grain = grain
+		local shade = frame:CreateTexture(nil, "BACKGROUND", nil, 2)
+		shade:SetColorTexture(1, 1, 1, 1)
+		shade:Hide()
+		UI.shade = shade
 		frame:SetMovable(true)
 		if frame.SetClipsChildren then frame:SetClipsChildren(true) end -- rows are cut off as it shrinks
 		frame:EnableMouse(true)
@@ -617,6 +628,31 @@ function UI:SetFooterExtra(text)
 	self:FitHeight()
 end
 
+--- (1.6.14) The classic frame's depth: the stone grain in a lighter shade of the background (the colour still rules:
+--- it's faint), and a shade darkening toward the bottom. The flat frame stays flat.
+UI.GRAIN_TEXTURE = "Interface\\FrameGeneral\\UI-Background-Rock" -- (one of the game's own backgrounds, tiled)
+UI.GRAIN_LIGHTEN, UI.GRAIN_ALPHA, UI.SHADE_ALPHA = 1.5, 0.35, 0.3
+function UI.ApplyDepth(t, classic)
+	local grain, shade = UI.grain, UI.shade
+	if not (grain and shade) then return end
+	grain:SetShown(classic)
+	shade:SetShown(classic)
+	if not classic then return end
+	for _, tex in ipairs({ grain, shade }) do
+		tex:ClearAllPoints()
+		tex:SetPoint("TOPLEFT", frame, "TOPLEFT", 4, -4)
+		tex:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -4, 4)
+	end
+	local gr, gg, gb = Theme.RGB(Theme.Darken(t.bg, UI.GRAIN_LIGHTEN))
+	local a = UI.GRAIN_ALPHA * (t.bgAlpha or 1)
+	grain:SetVertexColor(gr, gg, gb, a)
+	UI.grainColor = { gr, gg, gb, a } -- (tests)
+	-- (bottom dark, top clear; an older client's SetGradient took other arguments: then no shade)
+	local ok = CreateColor and shade.SetGradient
+		and pcall(shade.SetGradient, shade, "VERTICAL", CreateColor(0, 0, 0, UI.SHADE_ALPHA * (t.bgAlpha or 1)), CreateColor(0, 0, 0, 0))
+	if not ok then shade:Hide() end
+end
+
 --- The frame's border and colours, the divider, the prompt's background, the fuzzy-finding glow.
 local function ApplyFrameStyle(t)
 	-- the frame: the game's own tooltip border (tinted, e.g. bronze) or a thin flat line
@@ -636,6 +672,7 @@ local function ApplyFrameStyle(t)
 	end
 	local r, g, b = Theme.RGB(t.bg)
 	frame:SetBackdropColor(r, g, b, t.bgAlpha)
+	UI.ApplyDepth(t, classic)
 	r, g, b = Theme.RGB(t.border)
 	frame:SetBackdropBorderColor(r, g, b, 1)
 	divider:SetColorTexture(r, g, b, 1)
