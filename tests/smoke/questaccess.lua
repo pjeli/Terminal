@@ -218,7 +218,10 @@ do
 	local done = {}
 	Q.IsQuestFlaggedCompleted = function(id) return done[id] == true end
 	Q.GetLogIndexForQuestID = function() return nil end
-	_G.C_Reputation = { GetFactionDataByID = function(fid) if fid == 72 then return { name = "Stormwind", currentStanding = 3500 } end end }
+	_G.C_Reputation = { GetFactionDataByID = function(fid)
+		if fid == 72 then return { name = "Stormwind", currentStanding = 3500 } end
+		if fid == 47 then return { name = "Ironforge", currentStanding = 9500 } end
+	end }
 	local Z, SP = 12, { [12] = { { 40, 60 } } }
 	_G.LibQuestieDB = {
 		Quest = Entity({
@@ -229,6 +232,13 @@ do
 			[204] = { name = "Deep Errand", questLevel = 11, zoneOrSort = Z, startedBy = { { 240 } } },
 			[205] = { name = "The Lead In", questLevel = 11, zoneOrSort = Z, startedBy = { { 240 } } },
 			[206] = { name = "Two Givers", questLevel = 11, zoneOrSort = Z, startedBy = { { 250, 240 } } }, -- (the Horde's listed first)
+			-- (release review) a three-step OneForAll chain: only its last step unlocks the quest
+			[207] = { name = "Step One", questLevel = 11, zoneOrSort = Z, startedBy = { { 240 } } },
+			[208] = { name = "Step Two", questLevel = 11, zoneOrSort = Z, startedBy = { { 240 } } },
+			[209] = { name = "The Final Step", questLevel = 11, zoneOrSort = Z, startedBy = { { 240 } } },
+			-- (release review) quests needing the Ironforge standing you have: one above your level
+			[210] = { name = "A Veteran's Honor", questLevel = 11, zoneOrSort = Z, requiredLevel = 20, requiredMinRep = { 47, 9000 }, startedBy = { { 240 } } },
+			[211] = { name = "B Simple Honor", questLevel = 11, zoneOrSort = Z, requiredMinRep = { 47, 9000 }, startedBy = { { 240 } } },
 		}),
 		Npc = Entity({ [240] = { name = "Marshal Dughan", friendlyToFaction = "A", spawns = SP, npcFlags = 2 },
 			[250] = { name = "Grunt Logash", friendlyToFaction = "H", spawns = SP, npcFlags = 2 } }),
@@ -237,7 +247,7 @@ do
 		Enum = { byExpansion = { Classic = { npcFlags = { QUEST_GIVER = 2, VENDOR = 4, TRAINER = 16 } } } },
 	}
 	-- (OneForAll: Deep Errand needs The Lead In, which QuestieDB doesn't say)
-	_G.OneForAll = { QUEST_PREREQ_CHAINS = { [204] = { { id = 205 }, { id = 204 } } } }
+	_G.OneForAll = { QUEST_PREREQ_CHAINS = { [204] = { { id = 205 }, { id = 204 } }, [209] = { { id = 207 }, { id = 208 }, { id = 209 } } } }
 	local K = ns.OneForAll and ns.OneForAll.Attunements
 	local ok, err = pcall(function()
 		Fresh()
@@ -252,10 +262,10 @@ do
 		local fits = ns.Zones.QuestFitter(11)
 		local took = {}
 		for _, e in ipairs(list) do if fits(e) then took[#took + 1] = e end end
-		check(Keys(took) == "203,205,206", "[can take] quests for your level (quests near me, the zones' counts): " .. Keys(took))
+		check(Keys(took) == "203,205,206,207,208,211", "[can take] quests for your level (quests near me, the zones' counts): " .. Keys(took))
 		ns.db.easyMode = false
 		UI.lastScan = nil
-		check(Keys(UI:Search("@questie is:cantake")) == "203,205,206", "[can take] is:cantake: " .. Keys(UI:Search("@questie is:cantake")))
+		check(Keys(UI:Search("@questie is:cantake")) == "203,205,206,207,208,211", "[can take] is:cantake: " .. Keys(UI:Search("@questie is:cantake")))
 		-- (1.6.8, the mismatch hunt) its giver for distance, Shift+Enter and the map: one of yours, not the first listed
 		if ns.Pipes.ForgetFriendly then ns.Pipes.ForgetFriendly() end
 		check(I.QuestGiver(206) == 240, "[giver] two givers, the other side's listed first: yours: " .. tostring(I.QuestGiver(206)))
@@ -269,6 +279,13 @@ do
 		local un = {}
 		for _, u in ipairs(QA.Unlocks(205)) do un[#un + 1] = u.id end
 		check(table.concat(un, ",") == "204", "[can take] the lead in > unlocks: Deep Errand: " .. table.concat(un, ","))
+		local function UnlockIds(id) local t = {} for _, u in ipairs(QA.Unlocks(id)) do t[#t + 1] = u.id end return table.concat(t, ",") end
+		check(UnlockIds(207) == "" and UnlockIds(208) == "209",
+			"[unlocks] a three-step chain: step one unlocks not the last quest, step two does: " .. UnlockIds(207) .. " / " .. UnlockIds(208))
+		-- quests needing a standing you have: those you can take first, by the one rule (not above your level)
+		local rows = ns.QuestNeeds.Answer({ what = "rep", fids = { [47] = true }, need = 1 })
+		check(rows[1] and rawget(rows[1], "key") == nil and rows[1].key == 211 and rows[2] and rows[2].key == 210,
+			"[standing] the one you can take first, the one above your level after: " .. tostring(rows[1] and rows[1].key))
 		done[205] = true
 		QA.Forget()
 		check(QA.CanTake(204) and QR.CanTakeAll(204), "[can take] its prerequisite done: yes")
@@ -281,4 +298,5 @@ do
 	_G.Questie, _G.QuestieLoader, _G.LibQuestieDB = save.Q, save.L, save.Lib
 	_G.UnitRace, _G.UnitClass, _G.UnitLevel, _G.UnitFactionGroup, _G.C_Reputation = save.race, save.class, save.level, save.fac, save.rep
 	Q.IsQuestFlaggedCompleted, Q.GetLogIndexForQuestID = save.done, save.log
+	if ns.Pipes.ForgetFriendly then ns.Pipes.ForgetFriendly() end -- (the stubbed side not kept for later files: review)
 end

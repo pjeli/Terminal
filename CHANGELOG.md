@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.22 (in testing)
+
+**Quests: what a step unlocks, quests a standing opens**
+- "What does <quest> unlock" names only the quest a step really leads to: with OneForAll's chains, every earlier step
+  was said to unlock the dungeon quest at the end.
+- "Quests that need honored with <faction>" lists the ones you can take first by the same rule as "can i take" (level
+  and the steps before it too, 1.6.3): one above your level sorted as one you could take.
+
 ## 1.6.21 (in testing)
 
 **Clients in other languages: trash rows and factions to come**

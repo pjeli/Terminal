@@ -353,8 +353,12 @@ function QA.Reverse()
 	for _, e in ipairs(list) do
 		local id = rawget(e, "key")
 		if type(id) == "number" then
+			-- (OneForAll's prerequisites too, 1.6.3: its chain first to last, so only its last step unlocks this one; every
+			-- step was said to, release review: step 1 of three "unlocked" the dungeon quest itself)
 			local ofa = ns.OneForAll and ns.OneForAll.Attunements
-			for _, x in ipairs(ofa and ofa.Before and ofa.Before(id) or {}) do -- (OneForAll's prerequisites too: 1.6.3)
+			local before = ofa and ofa.Before and ofa.Before(id)
+			local x = type(before) == "table" and before[#before]
+			if type(x) == "number" then
 				local t = rev[x]
 				if not t then t = {}; rev[x] = t end
 				if t[#t] ~= id then t[#t + 1] = id end

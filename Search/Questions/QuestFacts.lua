@@ -584,7 +584,9 @@ function QN.Answer(q)
 		-- (a standing needed only: daily, repeatable and a profession are searches, QN.Line)
 		local ok = r and q.what == "rep" and r.rep and q.fids[r.rep[1]] and QR.StandingOfValue(r.rep[2]) >= q.need
 		if ok and not (done and Safe(done, id) and not r.daily and not r.repeatable) and QR.ForYou(id) then
-			found[#found + 1] = { e = e, id = id, can = QR.MeetsRequires(id, memo), lv = tonumber(e.level) or 0 }
+			-- (can you take it: the one rule, QR.CanTakeAll, as is:cantake judges it; release review: the requirements alone,
+			-- so a quest above your level, or with a step before it to do, sorted as one you can take)
+			found[#found + 1] = { e = e, id = id, can = QR.CanTakeAll(id, nil, memo), lv = tonumber(e.level) or 0 }
 		end
 	end
 	table.sort(found, function(a, b)
