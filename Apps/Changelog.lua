@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.6.1", when = "in testing",
+		v = "1.6.2", when = "in testing",
 		items = {
 			"Fixed: a recipe bought with the Merchant's Favor (OneForAll) no longer says \"Trainer\", and \"where to learn\" it shows the Favor's vendor instead of trainers.",
 		},

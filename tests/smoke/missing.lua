@@ -213,7 +213,8 @@ do
 	local hostile = MR.Answer(Q("blacksmithing recipes i'm missing"))
 	local tb
 	for _, e in ipairs(hostile) do if e.name == "Thorium Belt" then tb = e end end
-	check(tb and not tb.detail:find("Vendor", 1, true), "its only seller won't sell to you: no vendor said: " .. tostring(tb and tb.detail))
+	check(tb and tb.detail:find(ns.L["Vendor (the other faction only)"], 1, true)
+		and #tb.sources.vendors == 0, "its only seller won't sell to you: said so, as its learn chain says it (1.6.2): " .. tostring(tb and tb.detail))
 	I.NpcField = function(id, f) if f == "friendlyToFaction" then return "AH" end end
 	I.Here = function() return { cont = 1, x = 0, y = 0 } end
 	I.NpcDistance = function(id) return id == 503 and 250 or nil end

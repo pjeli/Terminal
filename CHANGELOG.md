@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.6.2 (in testing)
+
+**How a recipe is learned: one answer**
+- A recipe you don't know (`@recipe is:unknown`) and its "where to learn" are now made from one record, so they say
+  the same: the Merchant's Favor and its vendor, a trainer (one whose window listed it, TrainerSpells' list, or a craft
+  AtlasLoot knows with no recipe item and no Favor), and the recipe item with where to get it.
+- Fixed: a Favor recipe that also has a recipe item ("Enchant Gloves - Holy Power": 240 Favor, and its formula) left
+  the Favor out of "where to learn"; a recipe only TrainerSpells lists said "Trainer" on its row and nothing in "where to
+  learn"; a recipe whose only sellers serve the other faction now says "Vendor (the other faction only)" on its row, as
+  "where to learn" does.
+
 ## 1.6.1 (in testing)
 
 **Merchant's Favor recipes: one answer**

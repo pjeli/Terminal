@@ -169,6 +169,38 @@ do
 			check(got[2] and got[2].name == "Nina Surefire" and tostring(got[2].detail):find(L["Sells it"], 1, true), "and its vendor's row: " .. all)
 			check(not all:find(L["Taught by a %s trainer"]:format("Alchemy"), 1, true) and not all:find(L["Taught by a trainer"], 1, true),
 				"no trainers guessed for it: " .. all)
+			-- (1.6.2, review: one record for the row and its learn chain, MR.Learn) a Favor recipe that also has a recipe item
+			-- ("Enchant Gloves - Holy Power": 240 Favor, and AtlasLoot's formula): the chain says the Favor too
+			local learn = ns.Pipes.relations.learn[1].run
+			_G.AtlasLoot.Data.Recipe = { GetRecipeForSpell = function(sp) return sp == 3171 and 93171 or nil end,
+				GetRecipeData = function() return nil end }
+			pm._dirty = true
+			local by3 = {}
+			for _, e in ipairs(ns:GetEntries(pm)) do by3[e.name] = e end
+			local f2 = by3["Lesser Mageblood Elixir"]
+			got = learn({ f2 })
+			names = {}
+			for _, r in ipairs(got) do names[#names + 1] = tostring(r.name) .. "=" .. tostring(r.key) end
+			all = table.concat(names, " | ")
+			check(f2 and f2.sources.favor and f2.sources.rid == 93171 and got[1] and got[1].name == L["Bought with %d Merchant's Favor"]:format(45)
+				and all:find("recipe:93171", 1, true), "a Favor recipe with a recipe item: the chain says the Favor and the item, as its row: " .. all)
+			-- one only TrainerSpells lists (no AtlasLoot craft, no window seen): the row's trainer, and the chain's
+			local TS = ns.TrainerSpells
+			local taughtWas = TS.Taught
+			TS.Taught = function(id) if id == 3172 then return { cost = 150, rank = 60, from = "TrainerSpells" } end end
+			_G.AtlasLoot.Data.Profession = { GetProfessionData = function() return nil end }
+			pm._dirty = true
+			local by4 = {}
+			for _, e in ipairs(ns:GetEntries(pm)) do by4[e.name] = e end
+			local w2 = by4["Elixir of Wisdom"]
+			got = learn({ w2 })
+			names = {}
+			for _, r in ipairs(got) do names[#names + 1] = tostring(r.name) .. " / " .. tostring(r.detail) end
+			all = table.concat(names, " | ")
+			check(w2 and w2.sources.trainer and got[1] and got[1].name == L["Taught by a %s trainer"]:format("Alchemy")
+				and tostring(got[1].detail):find(L["costs %s"]:format(ns.Money(150)), 1, true),
+				"only TrainerSpells lists it: the row says a trainer, and so does the chain, with its cost: " .. all)
+			TS.Taught = taughtWas
 			_G.AtlasLoot, I.NpcIdNamedEnglish, I.NpcRow = alWas, idWas, rowWas
 			pm._dirty = true
 		end

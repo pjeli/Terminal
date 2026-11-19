@@ -188,15 +188,16 @@ function MR.ItemSources(rid)
 	if got then return got end
 	local function List(field) local l = I.ItemField(rid, field) return type(l) == "table" and l or {} end
 	got = { vendors = List("vendors"), drops = List("npcDrops"), quests = List("questRewards"), objects = List("objectDrops") }
-	-- (sellers: only those who'd sell to you, as the learn chain lists them: Pipes.Friendly)
+	-- (sellers: only those who'd sell to you, as the learn chain lists them: Pipes.Friendly; the other side's counted,
+	-- `theirs`: the chain names them "to the other faction only", and so does the row, 1.6.2)
 	local P = ns.Pipes
 	if P and P.Friendly and I.NpcRow then
-		local mine = {}
+		local mine, theirs = {}, 0
 		for _, v in ipairs(got.vendors) do
 			local row = type(v) == "number" and I.NpcRow(v)
-			if row and P.Friendly(row) then mine[#mine + 1] = v end
+			if row and P.Friendly(row) then mine[#mine + 1] = v elseif row then theirs = theirs + 1 end
 		end
-		got.vendors = mine
+		got.vendors, got.theirs = mine, theirs
 	end
 	-- (kept only from a database: without one every lookup said nothing, and Questie may be ready next time)
 	if db then itemSources[rid] = got end
@@ -212,7 +213,7 @@ local function Sources(id, name, data, rid, favor)
 	s.trainerSeen = MR.TrainerFor(name, id)
 	if rid then
 		local got = MR.ItemSources(rid)
-		if got then s.vendors, s.drops, s.quests, s.objects = got.vendors, got.drops, got.quests, got.objects end
+		if got then s.vendors, s.drops, s.quests, s.objects, s.theirs = got.vendors, got.drops, got.quests, got.objects, got.theirs end
 		local P = ns.Pipes
 		s.bosses = P and P.LootRowsOf and P.LootRowsOf(rid) or {}
 		for _, v in ipairs(s.vendors or {}) do if MR.Limited(rid, v) then s.limited = true break end end
@@ -258,7 +259,8 @@ end
 local function HowText(s)
 	local parts = {}
 	if s.trainer then parts[#parts + 1] = (s.trainerSeen and s.trainerSeen.cost) and L["Trainer %s"]:format(Coins(s.trainerSeen.cost)) or L["Trainer"] end
-	if s.vendors and #s.vendors > 0 then parts[#parts + 1] = s.limited and L["Vendor (limited supply)"] or L["Vendor"] end
+	if s.vendors and #s.vendors > 0 then parts[#parts + 1] = s.limited and L["Vendor (limited supply)"] or L["Vendor"]
+	elseif (s.theirs or 0) > 0 then parts[#parts + 1] = L["Vendor (the other faction only)"] end
 	if (s.drops and #s.drops > 0) or (s.bosses and #s.bosses > 0) then parts[#parts + 1] = L["Drop"] end
 	if s.quests and #s.quests > 0 then parts[#parts + 1] = L["Quest reward"] end
 	if s.objects and #s.objects > 0 then parts[#parts + 1] = L["Found"] end
@@ -419,24 +421,44 @@ function MR.AnySeen(s)
 	return false
 end
 
-local function Row(u, pd, pr, Rc, Pr)
-	local id = u.id
-	local data = Pr and Pr.GetProfessionData and Safe(Pr.GetProfessionData, id)
+--- How a recipe is learned and the skill it needs, one record for its row here and its learn chain (`> learn`,
+--- Search/Steps/ChainLearn.lua): the two read their own data until 1.6.2 and said different things (a Favor recipe with a
+--- recipe item: the chain left out the Favor; one only TrainerSpells lists: the row said its trainer, the chain nothing).
+--- `spell`: the recipe's spell; `name`: its name; `profName`, `profLine`: its profession (the game's name, its skill
+--- line). Returns the sources ({ trainer, trainerSeen, rid, vendors, theirs, drops, bosses, quests, objects, limited,
+--- favor }), the skill it needs (or nil) and AtlasLoot's craft data (or nil).
+function MR.Learn(spell, name, profName, profLine)
+	local Rc, Pr = AtlasData()
+	local data = Pr and Pr.GetProfessionData and Safe(Pr.GetProfessionData, spell)
 	data = type(data) == "table" and data or nil
-	local rid = Rc and Rc.GetRecipeForSpell and Safe(Rc.GetRecipeForSpell, id)
+	local rid = Rc and Rc.GetRecipeForSpell and Safe(Rc.GetRecipeForSpell, spell)
 	rid = type(rid) == "number" and rid or nil
-	-- (bought with the Merchant's Favor, OneForAll says: Providers/Integrations/OneForAll/World.lua)
-	local favor = MR.FavorOf and MR.FavorOf(u.name, pr.name) or nil
-	local s = Sources(id, u.name, data, rid, favor)
+	-- (bought with the Merchant's Favor, OneForAll says: Providers/Integrations/OneForAll/World.lua; its profession names
+	-- are English: the game's name, else the English one of its skill line)
+	local favor
+	if MR.FavorOf then
+		favor = type(profName) == "string" and MR.FavorOf(name, profName) or nil
+		local P = ns.Pipes
+		local en = not favor and P and P.ProfOfLine and P.ProfOfLine(profLine)
+		if en then favor = MR.FavorOf(name, en[3]) end
+	end
+	local s = Sources(spell, name, data, rid, favor)
 	s.favor = favor
 	local need = data and Num(data[3])
 	if not need and rid then
 		local d = Rc.GetRecipeData and Safe(Rc.GetRecipeData, rid)
 		need = type(d) == "table" and Num(d[2]) or nil
 	end
-	if not need and s.trainerSeen then need = s.trainerSeen.rank end
-	if not need and s.favor then need = s.favor.skill end
+	if not need and s.trainerSeen then need = Num(s.trainerSeen.rank) end
+	if not need and s.favor then need = Num(s.favor.skill) end
 	if need and need <= 0 then need = nil end
+	return s, need, data
+end
+
+local function Row(u, pd, pr)
+	local id = u.id
+	local s, need = MR.Learn(id, u.name, pr.name, pr.skillLine)
+	local rid = s.rid
 	local can = need ~= nil and (pr.rank or 0) >= need
 	local how = HowText(s)
 	local lhow = Lower(ns.Plain(how))
@@ -469,7 +491,6 @@ function MR.Rows()
 	local known = {}
 	local rp = ns.providers.recipes
 	for _, r in ipairs(rp and ns:GetEntries(rp) or {}) do if r.recipeID then known[r.recipeID] = true end end
-	local Rc, Pr = AtlasData()
 	local out, seen, listed = {}, {}, {}
 	for _, pd in pairs(store) do
 		local pr = (pd.skillLine and byLine[pd.skillLine]) or (pd.name and byName[Lower(pd.name)]) or (pd.parent and byName[Lower(pd.parent)])
@@ -478,7 +499,7 @@ function MR.Rows()
 			for _, u in ipairs(pd.unknown) do
 				if type(u) == "table" and u.id and type(u.name) == "string" and not seen[u.id] and not KnownNow(u.id, known) then
 					seen[u.id] = true
-					out[#out + 1] = Row(u, pd, pr, Rc, Pr)
+					out[#out + 1] = Row(u, pd, pr)
 				end
 			end
 		end
@@ -492,7 +513,7 @@ function MR.Rows()
 				for _, u in ipairs(TS.Unknown(pr)) do
 					if not seen[u.id] and not KnownNow(u.id, known) then
 						seen[u.id] = true
-						local e = Row(u, pr, pr, Rc, Pr)
+						local e = Row(u, pr, pr)
 						e.fromTrainerSpells = true
 						out[#out + 1] = e
 					end

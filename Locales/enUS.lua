@@ -2162,6 +2162,7 @@ L["Valley of Strength, Orgrimmar"] = true
 L["Value"] = true
 L["Vendor"] = true
 L["Vendor (limited supply)"] = true
+L["Vendor (the other faction only)"] = true
 L["Vendors"] = true
 L["Vendors of your pet's food"] = true
 L["Vendors selling an upgrade for you"] = true

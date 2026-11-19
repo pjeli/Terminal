@@ -200,41 +200,39 @@ ns:RegisterRelation("learn", {
 			local spell, made, rid = P.LearnOf(e)
 			local data = Pr and Pr.GetProfessionData and Safe(Pr.GetProfessionData, spell)
 			data = type(data) == "table" and data or nil
-			local prof = data and P.AL_PROFS[data[2]] or nil
-			local need = data and tonumber(data[3]) or nil
+			local prof = (data and P.AL_PROFS[data[2]]) or P.ProfOfLine(e.profLine) or nil
 			made = made or (data and data[1]) or nil
 			-- you know it already: said first
 			local own = (e.kind == "recipes" and e) or (made and OwnRecipes()[made]) or nil
 			if own then out[#out + 1] = View(own, L["You know it"] .. (own.detail and (ns.DETAIL_SEP .. own.detail) or "")) end
-			rid = rid or (Rc and Rc.GetRecipeForSpell and Safe(Rc.GetRecipeForSpell, spell)) or nil
-			if type(rid) == "number" then
-				AddRecipeItem(out, rid, prof, need, stored)
-			else
-				-- AtlasLoot knows the craft but no recipe item for it, or a trainer's window listed it: a trainer
-				-- teaches it (what it costs, when a trainer's window showed it: MissingRecipes.lua)
-				local MR = ns.MissingRecipes
-				local sname = (e.kind == "recipes" or e.kind == "missing") and e.name
-					or (C_Spell and C_Spell.GetSpellName and Safe(C_Spell.GetSpellName, spell)) or e.name
-				local seen = MR and MR.TrainerFor(sname)
-				-- (the Merchant's Favor buys it, OneForAll says: its vendor, and no trainer guessed from AtlasLoot having no
-				-- recipe item for it; 1.6.1, the player's report: as @recipe is:unknown's row says)
-				local profFor = prof or P.ProfOfLine(e.profLine)
-				local favor = MR and MR.FavorOf and ((e.profName and MR.FavorOf(sname, e.profName))
-					or (profFor and MR.FavorOf(sname, profFor[3])))
-				if favor then AddFavor(out, spell, favor, profFor) end
-				if (data and not favor) or seen then
-					prof = prof or P.ProfOfLine(e.profLine) or (seen and P.ProfOfName(seen.skill)) or nil
-					need = need or (seen and seen.rank) or nil
-					local pname = prof and ProfName(prof) or nil
-					local why = (seen and seen.cost) and (L["costs %s"]:format(ns.Money(seen.cost))
-						.. (seen.who and (" " .. L["(seen at %s)"]:format(seen.who)) or "")) or L["No recipe item teaches it (AtlasLoot)"]
-					out[#out + 1] = { key = "trainer:" .. spell, kind = "source", kindLabel = SOURCE_LABEL, noActivate = true,
-						name = pname and L["Taught by a %s trainer"]:format(pname) or L["Taught by a trainer"],
-						icon = "Interface\\Icons\\INV_Misc_Book_11",
-						detail = why .. (pname and need and (ns.DETAIL_SEP .. L["learn at %s %s"]:format(pname, need)) or "") }
-					if prof then AddTrainers(out, prof, need) end
-				end
+			-- how it's learned: the record its @recipe is:unknown row is made from (MR.Learn, 1.6.2): the Merchant's Favor
+			-- (OneForAll), a trainer (a trainer's window, TrainerSpells, or AtlasLoot knowing the craft with no recipe item
+			-- and no Favor for it), its recipe item; each said here as the row says it
+			local MR = ns.MissingRecipes
+			local sname = (e.kind == "recipes" or e.kind == "missing") and e.name
+				or (C_Spell and C_Spell.GetSpellName and Safe(C_Spell.GetSpellName, spell)) or e.name
+			local s, need
+			if MR and MR.Learn then
+				s, need = MR.Learn(spell, sname, e.profName or (prof and ProfName(prof)), e.profLine or (prof and prof[2]))
 			end
+			s = s or {}
+			need = need or (data and tonumber(data[3])) or nil
+			rid = rid or s.rid or (Rc and Rc.GetRecipeForSpell and Safe(Rc.GetRecipeForSpell, spell)) or nil
+			if s.favor then AddFavor(out, spell, s.favor, prof) end
+			if s.trainer then
+				local seen = s.trainerSeen
+				prof = prof or (seen and P.ProfOfName(seen.skill)) or nil
+				local pname = prof and ProfName(prof) or nil
+				local why = (seen and seen.cost) and (L["costs %s"]:format(ns.Money(seen.cost))
+					.. ((seen.who and (" " .. L["(seen at %s)"]:format(seen.who))) or (seen.from and (" (" .. seen.from .. ")")) or ""))
+					or (type(rid) ~= "number" and L["No recipe item teaches it (AtlasLoot)"]) or nil
+				out[#out + 1] = { key = "trainer:" .. spell, kind = "source", kindLabel = SOURCE_LABEL, noActivate = true,
+					name = pname and L["Taught by a %s trainer"]:format(pname) or L["Taught by a trainer"],
+					icon = "Interface\\Icons\\INV_Misc_Book_11",
+					detail = ns.Join(ns.DETAIL_SEP, why, pname and need and L["learn at %s %s"]:format(pname, need)) }
+				if prof then AddTrainers(out, prof, need) end
+			end
+			if type(rid) == "number" then AddRecipeItem(out, rid, prof, need, stored) end
 		end
 		return out
 	end,
