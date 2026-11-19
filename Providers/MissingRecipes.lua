@@ -204,8 +204,10 @@ function MR.ItemSources(rid)
 end
 
 -- how a recipe is learned, as far as the data says: { trainer = record or true, rid, vendors = {ids}, limited,
--- drops = {ids}, bosses = {loot rows}, quests = {ids}, objects = {ids} }
-local function Sources(id, name, data, rid)
+-- drops = {ids}, bosses = {loot rows}, quests = {ids}, objects = {ids} }. `favor`: OneForAll says the Merchant's Favor
+-- buys it: then a craft AtlasLoot knows with no recipe item isn't taken for a trainer's (1.6.1, the player's report:
+-- the row said "Trainer" and its learn chain listed cooking trainers for Mrrggl Smrrthle, a Favor recipe)
+local function Sources(id, name, data, rid, favor)
 	local s = { rid = rid }
 	s.trainerSeen = MR.TrainerFor(name, id)
 	if rid then
@@ -214,7 +216,7 @@ local function Sources(id, name, data, rid)
 		local P = ns.Pipes
 		s.bosses = P and P.LootRowsOf and P.LootRowsOf(rid) or {}
 		for _, v in ipairs(s.vendors or {}) do if MR.Limited(rid, v) then s.limited = true break end end
-	elseif data or s.trainerSeen then
+	elseif (data and not favor) or s.trainerSeen then
 		s.trainer = true -- (AtlasLoot knows the craft, no recipe item teaches it; or a trainer's window listed it)
 	end
 	if s.trainerSeen then s.trainer = true end
@@ -423,9 +425,10 @@ local function Row(u, pd, pr, Rc, Pr)
 	data = type(data) == "table" and data or nil
 	local rid = Rc and Rc.GetRecipeForSpell and Safe(Rc.GetRecipeForSpell, id)
 	rid = type(rid) == "number" and rid or nil
-	local s = Sources(id, u.name, data, rid)
 	-- (bought with the Merchant's Favor, OneForAll says: Providers/Integrations/OneForAll/World.lua)
-	s.favor = MR.FavorOf and MR.FavorOf(u.name, pr.name) or nil
+	local favor = MR.FavorOf and MR.FavorOf(u.name, pr.name) or nil
+	local s = Sources(id, u.name, data, rid, favor)
+	s.favor = favor
 	local need = data and Num(data[3])
 	if not need and rid then
 		local d = Rc.GetRecipeData and Safe(Rc.GetRecipeData, rid)

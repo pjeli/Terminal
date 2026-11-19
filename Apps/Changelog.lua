@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "1.6.1", when = "in testing",
+		items = {
+			"Fixed: a recipe bought with the Merchant's Favor (OneForAll) no longer says \"Trainer\", and \"where to learn\" it shows the Favor's vendor instead of trainers.",
+		},
+	},
+	{
 		v = "1.6.0", when = "released November 2026",
 		items = {
 			"TradeSkillMaster's auction house prices: with TSM installed, its prices come first and Auctionator's fill in the rest; either one alone does it all (\"what should i auction\", \"am i undercut\", sort:ahvalue).",
@@ -43,18 +49,6 @@ CL.LOG = {
 			"Hunters: \"what can my pet eat\", \"nearest pet food vendor\". Loot rows' tooltips say the boss's level and type (and its drop rate from AtlasLoot); \"summoned bosses in blackrock spire\". Currency tooltips add your alts' amounts (Syndicator).",
 			"Fixed: on WoW Forever, Enter on an achievement or a Legacy challenge opens the Legacy window's Challenges by the achievement button, without leaving the Legacy window tainted.",
 			"Many fixes from three reviews: enchants from both addons together and in every language, the Legacy points kept up to date, \"feed pet\" finds the spell again.",
-		},
-	},
-	{
-		v = "1.3.0", when = "released November 2026",
-		items = {
-			"Terminal: Share: friends can share where they are (.share settings location on; off by default; .share <group> location on or off for one group, which wins): each is a class-coloured dot on your world map and a row in your searches, \"where are my friends\"; Enter or a click puts a waypoint on them.",
-			"Terminal: Share: guild members and friends who share where they are with OpenMap show too, dots and rows alike (.share settings openmap on; off by default).",
-			"The empty prompt's suggestions know your professions (the nearest anvil or forge for blacksmiths and miners, your trainer when it's time to train) and suggest Terminal's own settings you haven't tried (.zen, .ask guild on, .share settings openmap on...).",
-			"A footer too long for its line (\"recipes i can learn now\") wraps onto more lines, the terminal growing downwards, instead of being cut off.",
-			"When someone asks Terminal (!t) in a chat it doesn't answer in yet, it says plainly what to type to turn it on (.ask group on).",
-			"Fixed: with .zen on, your target's highlight on the party and raid frames no longer shows through the faded interface; with Shift+` bound to Terminal, opening it on a kept search no longer types a ~.",
-			"Many fixes from three reviews: friends' places and dots, OpenMap players' places in a big guild, suggestions typed with their note, the footer and .zen.",
 		},
 	},
 }

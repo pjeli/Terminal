@@ -142,6 +142,37 @@ do
 		local res = UI:Search("@recipe is:unknown favor")
 		check(#res == 1 and res[1].name == "Lesser Mageblood Elixir", "@recipe is:unknown favor: " .. Names(res))
 
+		-- (1.6.1, the player's report: Mrrggl Smrrthle) a Favor recipe AtlasLoot knows as a craft with no recipe item: not
+		-- a trainer's on its row, and its learn chain gives the Favor's vendor, no trainers
+		do
+			local alWas, idWas, rowWas = rawget(_G, "AtlasLoot"), I.NpcIdNamedEnglish, I.NpcRow
+			local D0 = alWas and alWas.Data or {}
+			_G.AtlasLoot = setmetatable({ Data = setmetatable({
+				Profession = { GetProfessionData = function(s) if s == 3171 or s == 3172 then return { 3825, 4, 75 } end end },
+				Recipe = { GetRecipeForSpell = function() return nil end },
+			}, { __index = D0 }) }, { __index = alWas or {} })
+			I.NpcIdNamedEnglish = function(n) return n == "Nina Surefire" and 90001 or nil end
+			I.NpcRow = function(id) if id == 90001 then return { kind = "npc", key = 90001, npcID = 90001, name = "Nina Surefire" } end return rowWas and rowWas(id) end
+			pm._dirty = true
+			local by2 = {}
+			for _, e in ipairs(ns:GetEntries(pm)) do by2[e.name] = e end
+			local fav, wis = by2["Lesser Mageblood Elixir"], by2["Elixir of Wisdom"]
+			check(fav and not fav.sources.trainer and not tostring(fav.detail):find(L["Trainer"], 1, true)
+				and tostring(fav.detail):find(L["%d Merchant's Favor"]:format(45), 1, true), "a Favor recipe with no recipe item: not called a trainer's: " .. tostring(fav and fav.detail))
+			check(wis and wis.sources.trainer, "one the Favor doesn't buy, no recipe item: still a trainer's")
+			local got = ns.Pipes.relations.learn[1].run({ fav })
+			local names = {}
+			for _, r in ipairs(got) do names[#names + 1] = tostring(r.name) end
+			local all = table.concat(names, " | ")
+			check(got[1] and got[1].name == L["Bought with %d Merchant's Favor"]:format(45)
+				and tostring(got[1].detail):find(L["Sold by %s"]:format("Nina Surefire"), 1, true), "where to learn it: the Merchant's Favor first: " .. all)
+			check(got[2] and got[2].name == "Nina Surefire" and tostring(got[2].detail):find(L["Sells it"], 1, true), "and its vendor's row: " .. all)
+			check(not all:find(L["Taught by a %s trainer"]:format("Alchemy"), 1, true) and not all:find(L["Taught by a trainer"], 1, true),
+				"no trainers guessed for it: " .. all)
+			_G.AtlasLoot, I.NpcIdNamedEnglish, I.NpcRow = alWas, idWas, rowWas
+			pm._dirty = true
+		end
+
 		-- @transport
 		local pt = ns.providers.transport
 		check(pt and ns:ResolveProvider("boats") == pt and ns:ResolveProvider("zeppelin") == pt, "@transport, @boats, @zeppelin")

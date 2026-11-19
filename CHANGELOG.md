@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.1 (in testing)
+
+**Merchant's Favor recipes: one answer**
+- A recipe OneForAll says the Merchant's Favor buys, which AtlasLoot knows as a craft with no recipe item (Mrrggl
+  Smrrthle), said "Trainer" beside its Favor cost on `@recipe is:unknown`'s row, and "where to learn" it listed the
+  nearest trainers of its profession. Now the row says only the Favor, and "where to learn" it says "Bought with 30
+  Merchant's Favor", its vendor and where, then the vendor's own row (its distance; Enter shows it on the map) when
+  Questie knows them. A trainer whose window listed it still counts.
+
 ## 1.6.0
 
 Terminal 1.6: auction house prices from TradeSkillMaster, DungeonJournal's pages and favorites, a setting to thank

@@ -167,6 +167,26 @@ local function AddRecipeItem(out, rid, prof, need, stored)
 	if stored[rid] then out[#out + 1] = View(stored[rid], L["Your alts hold the recipe"] .. ns.DETAIL_SEP .. tostring(stored[rid].detail or "")) end
 end
 
+-- bought with the Merchant's Favor (OneForAll: MR.FavorOf): what it costs, your faction's vendor, and that vendor's
+-- Questie row when Questie knows the name (its distance, Enter: the map)
+local function AddFavor(out, spell, f, prof)
+	local where = f.vendor and (L["Sold by %s"]:format(f.vendor)
+		.. (f.zone and (ns.DETAIL_SEP .. (f.place and (f.place .. ", ") or "") .. f.zone) or "")) or nil
+	local skill = prof and f.skill and L["learn at %s %s"]:format(ProfName(prof), f.skill) or nil
+	out[#out + 1] = { key = "favor:" .. spell, kind = "source", kindLabel = SOURCE_LABEL, noActivate = true,
+		name = f.cost and L["Bought with %d Merchant's Favor"]:format(f.cost) or L["Bought with the Merchant's Favor"],
+		icon = "Interface\\Icons\\INV_Misc_Coin_17", detail = ns.Join(ns.DETAIL_SEP, where, skill) or "" }
+	local I = ns.Integrations
+	local id = f.vendor and I and I.NpcIdNamedEnglish and I.NpcIdNamedEnglish(f.vendor)
+	local row = id and I.NpcRow and I.NpcRow(id)
+	if row then
+		local here = I.Here and I.Here() or nil
+		local d = here and I.NpcDistance and I.NpcDistance(id, here) or nil
+		local rest = L["Sells it"] .. (f.cost and (ns.DETAIL_SEP .. L["%d Merchant's Favor"]:format(f.cost)) or "")
+		out[#out + 1] = NearSaid(View(row, rest, nil, L["sold by"]), d, rest)
+	end
+end
+
 ns:RegisterRelation("learn", {
 	aliases = { "learned", "taught", "teach", "teaches", "trainer", "trainers", "recipesource" },
 	desc = L["where to learn the recipe: its recipe item, or a trainer"],
@@ -196,7 +216,13 @@ ns:RegisterRelation("learn", {
 				local sname = (e.kind == "recipes" or e.kind == "missing") and e.name
 					or (C_Spell and C_Spell.GetSpellName and Safe(C_Spell.GetSpellName, spell)) or e.name
 				local seen = MR and MR.TrainerFor(sname)
-				if data or seen then
+				-- (the Merchant's Favor buys it, OneForAll says: its vendor, and no trainer guessed from AtlasLoot having no
+				-- recipe item for it; 1.6.1, the player's report: as @recipe is:unknown's row says)
+				local profFor = prof or P.ProfOfLine(e.profLine)
+				local favor = MR and MR.FavorOf and ((e.profName and MR.FavorOf(sname, e.profName))
+					or (profFor and MR.FavorOf(sname, profFor[3])))
+				if favor then AddFavor(out, spell, favor, profFor) end
+				if (data and not favor) or seen then
 					prof = prof or P.ProfOfLine(e.profLine) or (seen and P.ProfOfName(seen.skill)) or nil
 					need = need or (seen and seen.rank) or nil
 					local pname = prof and ProfName(prof) or nil
