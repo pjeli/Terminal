@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.6.3 (in testing)
+
+**Can you take a quest: one answer everywhere**
+- "can i take <quest>", `is:cantake` and `sort:cantake`, the quests for your level ("quests near me", "where should i
+  quest", the zones' counts) and "quest upgrades" now judge a quest by the same rules: your race, class and side (a
+  quest only the other faction's NPCs give isn't yours), its level, what it needs (a profession's skill, a standing)
+  and what QuestieDB says stands in the way. Each used part of these before: `is:cantake` ranked a level 40 quest
+  "can take" at 10, "quests near me" listed quests only the other faction gives, "quest upgrades" listed quests that
+  need a standing you don't have.
+- `sort:cantake`'s detail says the level a quest needs, as "can i take" does.
+- OneForAll's quest prerequisites that QuestieDB lacks (which "> chain" already showed) now count for "can i take",
+  `is:cantake` and "what does <quest> unlock" too.
+
 ## 1.6.2 (in testing)
 
 **How a recipe is learned: one answer**

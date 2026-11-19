@@ -200,3 +200,81 @@ do
 	_G.UnitRace, _G.UnitClass, _G.UnitLevel, _G.IsPlayerSpell, _G.C_Reputation = save.race, save.class, save.level, save.spell, save.rep
 	Q.IsQuestFlaggedCompleted, Q.GetLogIndexForQuestID = save.done, save.log
 end
+
+io.write("[quest access: one rule for every place that asks (1.6.3)]\n")
+do
+	-- (1.6.3, the mismatch hunt) "can i take", is:cantake / sort:cantake, the quests for your level (Z.QuestFitter) and
+	-- quest upgrades each judged with part of the rules: one QR.CanTakeAll now. And OneForAll's prerequisites, which only
+	-- "> chain" read, count for "can i take" and "> unlocks" too.
+	local Q = C_QuestLog
+	local save = { Q = _G.Questie, L = _G.QuestieLoader, Lib = _G.LibQuestieDB, race = _G.UnitRace, class = _G.UnitClass,
+		level = _G.UnitLevel, fac = _G.UnitFactionGroup, rep = _G.C_Reputation, done = Q.IsQuestFlaggedCompleted,
+		log = Q.GetLogIndexForQuestID, easy = ns.db.easyMode, OA = rawget(_G, "OneForAll") }
+	_G.Questie, _G.QuestieLoader = nil, nil
+	_G.UnitRace = function() return "Human", "Human", 1 end
+	_G.UnitClass = function() return "Warrior", "WARRIOR", 1 end
+	_G.UnitLevel = function() return 11 end
+	_G.UnitFactionGroup = function() return "Alliance", "Alliance" end
+	local done = {}
+	Q.IsQuestFlaggedCompleted = function(id) return done[id] == true end
+	Q.GetLogIndexForQuestID = function() return nil end
+	_G.C_Reputation = { GetFactionDataByID = function(fid) if fid == 72 then return { name = "Stormwind", currentStanding = 3500 } end end }
+	local Z, SP = 12, { [12] = { { 40, 60 } } }
+	_G.LibQuestieDB = {
+		Quest = Entity({
+			[200] = { name = "Grunt's Errand", questLevel = 11, zoneOrSort = Z, startedBy = { { 250 } } }, -- (only a Horde NPC gives it)
+			[201] = { name = "Veteran's Task", questLevel = 11, zoneOrSort = Z, requiredLevel = 20, startedBy = { { 240 } } },
+			[202] = { name = "Honored Errand", questLevel = 11, zoneOrSort = Z, requiredMinRep = { 72, 9000 }, startedBy = { { 240 } } },
+			[203] = { name = "Plain Errand", questLevel = 11, zoneOrSort = Z, startedBy = { { 240 } } },
+			[204] = { name = "Deep Errand", questLevel = 11, zoneOrSort = Z, startedBy = { { 240 } } },
+			[205] = { name = "The Lead In", questLevel = 11, zoneOrSort = Z, startedBy = { { 240 } } },
+		}),
+		Npc = Entity({ [240] = { name = "Marshal Dughan", friendlyToFaction = "A", spawns = SP, npcFlags = 2 },
+			[250] = { name = "Grunt Logash", friendlyToFaction = "H", spawns = SP, npcFlags = 2 } }),
+		Item = Entity({}),
+		flavor = { name = "Forever", rules = "Classic" },
+		Enum = { byExpansion = { Classic = { npcFlags = { QUEST_GIVER = 2, VENDOR = 4, TRAINER = 16 } } } },
+	}
+	-- (OneForAll: Deep Errand needs The Lead In, which QuestieDB doesn't say)
+	_G.OneForAll = { QUEST_PREREQ_CHAINS = { [204] = { { id = 205 }, { id = 204 } } } }
+	local K = ns.OneForAll and ns.OneForAll.Attunements
+	local ok, err = pcall(function()
+		Fresh()
+		if K then K.Forget() end
+		I.Setup(); FlushAll()
+		local list = ns:GetEntries(ns.providers.questie)
+		local function Keys(rows) local t = {} for _, e in ipairs(rows) do t[#t + 1] = rawget(e, "key") end table.sort(t) return table.concat(t, ",") end
+		-- one rule
+		check(not QR.CanTakeAll(200) and not QR.CanTakeAll(201) and not QR.CanTakeAll(202) and QR.CanTakeAll(203) and not QR.CanTakeAll(204)
+			and QR.CanTakeAll(205), "[can take] the other side's giver, level 20, Honored, OneForAll's prerequisite: no; the plain one: yes")
+		-- every place agrees
+		local fits = ns.Zones.QuestFitter(11)
+		local took = {}
+		for _, e in ipairs(list) do if fits(e) then took[#took + 1] = e end end
+		check(Keys(took) == "203,205", "[can take] quests for your level (quests near me, the zones' counts): " .. Keys(took))
+		ns.db.easyMode = false
+		UI.lastScan = nil
+		check(Keys(UI:Search("@questie is:cantake")) == "203,205", "[can take] is:cantake: " .. Keys(UI:Search("@questie is:cantake")))
+		local vet
+		for _, e in ipairs(list) do if rawget(e, "key") == 201 then vet = e end end
+		check(tostring(ns.FIELD_DETAIL.cantake(vet)):find(ns.L["Requires level %d"]:format(20), 1, true),
+			"[can take] sort:cantake's detail says the level, as can i take does: " .. tostring(ns.FIELD_DETAIL.cantake(vet)))
+		-- OneForAll's prerequisite: said, and counted going forward
+		check(not QA.CanTake(204) and QA.Reasons(204)[1] and QA.Say(QA.Reasons(204)[1]):find("The Lead In", 1, true),
+			"[can take] OneForAll's prerequisite: why not, named: " .. tostring(QA.Reasons(204)[1] and QA.Say(QA.Reasons(204)[1])))
+		local un = {}
+		for _, u in ipairs(QA.Unlocks(205)) do un[#un + 1] = u.id end
+		check(table.concat(un, ",") == "204", "[can take] the lead in > unlocks: Deep Errand: " .. table.concat(un, ","))
+		done[205] = true
+		QA.Forget()
+		check(QA.CanTake(204) and QR.CanTakeAll(204), "[can take] its prerequisite done: yes")
+	end)
+	check(ok, "[can take] ran: " .. tostring(err))
+	ns.db.easyMode = save.easy
+	_G.OneForAll = save.OA
+	if K then K.Forget() end
+	Fresh()
+	_G.Questie, _G.QuestieLoader, _G.LibQuestieDB = save.Q, save.L, save.Lib
+	_G.UnitRace, _G.UnitClass, _G.UnitLevel, _G.UnitFactionGroup, _G.C_Reputation = save.race, save.class, save.level, save.fac, save.rep
+	Q.IsQuestFlaggedCompleted, Q.GetLogIndexForQuestID = save.done, save.log
+end

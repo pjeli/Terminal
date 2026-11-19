@@ -73,6 +73,10 @@ function QA.Fields(id)
 		parent = IdOne(db, id, "parentQuest"), crumbFor = IdOne(db, id, "breadcrumbForQuestId"),
 		spell = IdOne(db, id, "requiredSpell"), maxRep = Pair(Safe(db.QueryQuestSingle, id, "requiredMaxRep")),
 	}
+	-- (OneForAll's prerequisites QuestieDB lacks, each needed: "> chain" used them alone until 1.6.3)
+	local ofa = ns.OneForAll and ns.OneForAll.Attunements
+	local before = ofa and ofa.Before and ofa.Before(id)
+	if type(before) == "table" and #before > 0 then r.ofa = before end
 	if next(r) == nil then r = false end -- (most quests: one false kept, not a table)
 	if fieldsCount > 20000 then fieldsOf, fieldsCount = {}, 0 end
 	fieldsOf[id], fieldsCount = r, fieldsCount + 1
@@ -167,6 +171,9 @@ local function Check(id, level, m, out)
 			end
 			if missing and Block("pre", { math.abs(p) }) then return false end
 		end
+	end
+	for _, p in ipairs(r.ofa or {}) do
+		if not Done(p, m) and Block("pre", { p }) then return false end
 	end
 	for _, x in ipairs(r.excl or {}) do
 		if Done(x, m) then if Block("excl", { x }) then return false end break end
@@ -346,6 +353,12 @@ function QA.Reverse()
 	for _, e in ipairs(list) do
 		local id = rawget(e, "key")
 		if type(id) == "number" then
+			local ofa = ns.OneForAll and ns.OneForAll.Attunements
+			for _, x in ipairs(ofa and ofa.Before and ofa.Before(id) or {}) do -- (OneForAll's prerequisites too: 1.6.3)
+				local t = rev[x]
+				if not t then t = {}; rev[x] = t end
+				if t[#t] ~= id then t[#t + 1] = id end
+			end
 			for _, f in ipairs(PRE_FIELDS) do
 				local v = Safe(db.QueryQuestSingle, id, f)
 				if type(v) == "table" then

@@ -52,7 +52,7 @@ function QR.UpgradeAnswer()
 	local I = ns.Integrations
 	local cached = C_Item and C_Item.IsItemDataCachedByID
 	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
-	local asked, found = 0, {}
+	local asked, found, memo = 0, {}, {}
 	for qid, items in pairs(QR.byQuest.map) do
 		local ok = not (done and Safe(done, qid))
 		if ok and me then
@@ -61,8 +61,9 @@ function QR.UpgradeAnswer()
 			if need and need > me then ok = false
 			elseif lvl and lvl > 0 and (lvl < me - QR.NEAR_BELOW or lvl > me + QR.NEAR_ABOVE) then ok = false end
 		end
-		if ok then ok = ForYou(db, qid) end
-		if ok then ok = QR.CanTakeNow(qid, me) end -- (no reward of a quest you can't pick up: QuestAccess.lua)
+		-- (no reward of a quest you can't pick up: every rule "can i take" uses, QR.CanTakeAll: 1.6.3, a standing or skill
+		-- it needs too)
+		if ok then ok = QR.CanTakeAll(qid, me, memo) end
 		if ok then
 			-- (its rewards the game hasn't sent: asked for, a few, and the answer read again once they're in)
 			for _, it in ipairs(items) do

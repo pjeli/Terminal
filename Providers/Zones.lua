@@ -290,6 +290,8 @@ function Z.QuestFitter(level)
 		if type(lv) ~= "number" or lv < level - 2 or lv > level + 3 then return false end
 		local id = rawget(q, "key")
 		if done and Safe(done, id) then return false end
+		-- (every rule "can i take" uses, QR.CanTakeAll: 1.6.3; the side by its givers too, its level)
+		if type(id) == "number" and QR and QR.CanTakeAll then return QR.CanTakeAll(id, level, memo) end
 		if DB and DB.QueryQuestSingle then
 			if not (Allows(Safe(DB.QueryQuestSingle, id, "requiredRaces"), raceBit)
 				and Allows(Safe(DB.QueryQuestSingle, id, "requiredClasses"), classBit)) then return false end

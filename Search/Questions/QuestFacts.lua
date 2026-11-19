@@ -7,7 +7,7 @@ local L = ns.L
 -- this (1.4.2: one file until then).
 
 local QR = ns.QuestRewards
-local Safe, Lower, Str = ns.Safe, ns.Lower, ns.Str
+local Safe, Lower, Str, Num = ns.Safe, ns.Lower, ns.Str, ns.Num
 local Fk = ns.Filters and ns.Filters._
 local DB, QuestsOf, QuestIdOf = QR._.DB, QR._.QuestsOf, QR._.QuestIdOf
 
@@ -448,6 +448,25 @@ function QR.MeetsRequires(id, memo)
 	end
 	return true
 end
+--- The level a quest's taking is judged at: a !t asker's (Core/Ask.lua), else yours.
+function QR.Level()
+	if ns.Asker and ns.Asker.level then return ns.Asker.level end
+	local l = Num(Safe(UnitLevel, "player"))
+	return l and l > 0 and l or nil
+end
+--- Can you take it, by every rule: for your race, class and side (QR.ForYou), at your level (its requiredLevel), what it
+--- needs (QR.MeetsRequires: a skill, a standing) and what QuestieDB (and OneForAll) say stand in the way (QR.CanTakeNow).
+--- One answer for "can i take <quest>", is:cantake, sort:cantake, "quests near me" and the zones' counts, and "quest
+--- upgrades": each had its own subset of these until 1.6.3 (the mismatch hunt). `level`: the level judged at
+--- (QR.Level()), `memo` as MeetsRequires'.
+function QR.CanTakeAll(id, level, memo)
+	if type(id) ~= "number" or not QR.ForYou(id) then return false end
+	level = level or QR.Level()
+	local db = DB()
+	local need = db and Num(Safe(db.QueryQuestSingle, id, "requiredLevel"))
+	if need and level and need > level then return false end
+	return QR.MeetsRequires(id, memo) and QR.CanTakeNow(id, level, memo)
+end
 --- What it needs, said: "Needs Tailoring 150 (have 75)", "Needs Honored with Stormwind (Friendly)", "Daily"; { lines },
 --- and { [line] = false } for each need you don't meet (the tooltip's red).
 function QR.RequiresSaid(id)
@@ -602,7 +621,7 @@ if Fk and Fk.IS then
 	-- is:foryou: a quest your race, class and side may take; is:cantake: and whose needs you meet, nothing in QuestieDB
 	-- stopping you (prerequisites, an exclusive quest done, a level cap...: QR.CanTakeNow)
 	Fk.IS.foryou = function(e) local id = QuestIdOf(e) return id ~= nil and QR.ForYou(id) end
-	Fk.IS.cantake = function(e) local id = QuestIdOf(e) return id ~= nil and QR.ForYou(id) and QR.MeetsRequires(id) and QR.CanTakeNow(id) end
+	Fk.IS.cantake = function(e) local id = QuestIdOf(e) return id ~= nil and QR.CanTakeAll(id) end
 	-- is:itemstart: a quest an item starts (Questie's startedBy, its items; "quests that start from an item")
 	Fk.IS.itemstart = function(e)
 		local db, id = DB(), QuestIdOf(e)
@@ -629,13 +648,17 @@ do
 		A.FIELDS.cantake = { label = ns.Lower(L["Can take"]), num = function(e)
 			local id = QuestIdOf(e)
 			if not id then return nil end
-			return (QR.ForYou(id) and QR.MeetsRequires(id) and QR.CanTakeNow(id)) and 0 or 1
+			return QR.CanTakeAll(id) and 0 or 1
 		end }
 	end
 	if B and B.SORTS then B.SORTS[#B.SORTS + 1] = { id = "cantake", label = L["Can take"], field = "cantake", asc = true, tie = "level" } end
 	ns.FIELD_DETAIL.cantake = function(e)
 		local id = QuestIdOf(e)
 		local said = id and QR.RequiresSaid(id)
+		-- (its level, as "can i take" says it: 1.6.3)
+		local db, level = DB(), QR.Level()
+		local need = id and db and Num(Safe(db.QueryQuestSingle, id, "requiredLevel"))
+		if need and level and need > level then said = said or {}; table.insert(said, 1, L["Requires level %d"]:format(need)) end
 		-- (and the first thing QuestieDB says stops you: "Needs <quest> first")
 		local QA = ns.QuestAccess
 		local why = id and QA and QA.Reasons and QA.Reasons(id)[1]
