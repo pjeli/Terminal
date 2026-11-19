@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.6.17 (in testing)
+
+**The kind column: release review**
+- The column is hidden only when you asked for one kind: an `@kind` typed, a question's answer, a chain's step, a
+  category you picked. A category Simple mode chose by itself, an action word's lists, the .command and /slash lists
+  and the pick lists keep it: in Simple mode it came and went as you typed.
+- Its width is the widest kind's whole name (it was measured against the column's own room: 80, or 1 while hidden,
+  so names were cut), the chains' and IDs' own labels counted too, and again when an add-on registers a list later.
+- It no longer keeps the last list it judged (a list freed after ten minutes unused stayed in memory), and it looks
+  at a list's first 200 rows at most.
+
 ## 1.6.16 (in testing)
 
 **A new look: the kind column, again**

@@ -110,7 +110,7 @@ do
 			edgeFile = "Interface\\Buttons\\WHITE8X8",
 			edgeSize = 1,
 		})
-		-- (1.6.14) the classic frame's depth: the game's stone grain tiled under the colour, a shade toward the bottom
+		-- (1.6.14) the classic frame's depth: the game's stone grain tiled over the colour, faint, a shade toward the bottom
 		-- (ApplyFrameStyle: shown with the classic frame only)
 		local grain = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
 		grain:SetTexture(UI.GRAIN_TEXTURE, "REPEAT", "REPEAT")
@@ -628,7 +628,7 @@ function UI:SetFooterExtra(text)
 	self:FitHeight()
 end
 
---- (1.6.14) The classic frame's depth: the stone grain in a lighter shade of the background (the colour still rules:
+--- (1.6.14) The classic frame's depth: the stone grain, faint, over the background in a lighter shade of it (the colour still rules:
 --- it's faint), and a shade darkening toward the bottom. The flat frame stays flat.
 UI.GRAIN_TEXTURE = "Interface\\FrameGeneral\\UI-Background-Rock" -- (one of the game's own backgrounds, tiled)
 UI.GRAIN_LIGHTEN, UI.GRAIN_ALPHA, UI.SHADE_ALPHA = 1.5, 0.35, 0.3

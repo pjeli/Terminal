@@ -198,6 +198,7 @@ end
 
 function ns:RegisterProvider(id, def)
 	def.id = id
+	if ns.UI then ns.UI.kindsMeasured = nil end -- (its label in the kinds' column: measured again, UI/List.lua)
 	def.label = ns.TitleCase(def.label or id)
 	def.aliases = def.aliases or {}
 	def._dirty = true

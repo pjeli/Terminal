@@ -158,3 +158,48 @@ do
 	UI.lastScan, UI.lastExtra = nil, nil
 	UI:ApplyTheme()
 end
+
+-- 1.6.17 (release review): the column hidden only for one kind you asked for; measured at its whole width
+io.write("[design: the kind column's rule, its width measured whole]\n")
+do
+	local was = { results = UI.results, mode = UI.mode, whyQ = UI.whyQ, answerNote = UI.answerNote, pipeTrail = UI.pipeTrail,
+		category = UI.category, categoryAuto = UI.categoryAuto }
+	local function List(n) local t = {} for i = 1, n do t[i] = { kindLabel = "|cff9d7bffNPC|r" } end return t end
+	local function Set(f) UI.results, UI.mode, UI.whyQ, UI.answerNote, UI.pipeTrail, UI.category, UI.categoryAuto =
+		List(3), "search", nil, nil, nil, nil, nil; for k, v in pairs(f) do UI[k] = v end end
+	Set({ whyQ = { typedKinds = true } })
+	check(UI:OneKindAsked() == true, "@npc typed, every row an NPC: hidden")
+	Set({ whyQ = { kinds = { npc = true } }, category = "people", categoryAuto = true })
+	check(UI:OneKindAsked() == false, "Simple mode's one matching category, chosen by itself: shown (it came and went as you typed)")
+	Set({ whyQ = { kinds = { npc = true } }, category = "people" })
+	check(UI:OneKindAsked() == true, "a category you picked: hidden")
+	Set({ whyQ = { kinds = { items = true } } })
+	check(UI:OneKindAsked() == false, "an action word's lists (kinds not typed): shown")
+	Set({ whyQ = { typedKinds = true }, mode = "cmd" })
+	check(UI:OneKindAsked() == false, ".commands after an @kind search: shown (no search said what they are)")
+	Set({ answerNote = "x" }); UI.results[1].syntaxRow = true
+	check(UI:OneKindAsked() == false, "a pick list: shown")
+	Set({ whyQ = { typedKinds = true } }); UI.results[3].kindLabel = "|cff9d7bffSpell|r"
+	check(UI:OneKindAsked() == false, "two kinds in the list: shown")
+	Set({})
+	UI:OneKindAsked()
+	UI.results, UI.mode, UI.whyQ, UI.answerNote, UI.pipeTrail, UI.category, UI.categoryAuto = was.results, was.mode, was.whyQ,
+		was.answerNote, was.pipeTrail, was.category, was.categoryAuto
+	-- measured at its whole width, however narrow its probe (a hidden column's is 1 px)
+	UI:Open(""); FlushAll()
+	local probe = UI.rows[1].kind
+	probe.GetStringWidth = function(self) return math.min(#(self.text or "") * 7, self.w or 0) end
+	probe.GetUnboundedStringWidth = function(self) return #(self.text or "") * 7 end
+	probe.w = 1
+	UI.MeasureKinds()
+	check(UI.KIND_W >= 15 * 7, "a 1 px probe: the widest name measured whole: " .. tostring(UI.KIND_W))
+	probe.GetStringWidth, probe.GetUnboundedStringWidth = nil, nil
+	UI.kindsMeasured = true
+	ns:RegisterProvider("designprobe", { label = "A Very Long Kind Name", aliases = { "designprobe" }, collect = function() return {} end })
+	check(not UI.kindsMeasured, "a provider registered later: the column measured again")
+	ns.providers.designprobe = nil
+	for i, id in ipairs(ns.providerOrder) do if id == "designprobe" then table.remove(ns.providerOrder, i) break end end
+	ns:AliasesChanged()
+	UI:Hide(); FlushAll()
+	UI:ApplyTheme()
+end

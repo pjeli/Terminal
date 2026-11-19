@@ -693,27 +693,34 @@ UI.FitDetail = FitDetail -- (tests)
 
 -- (1.6.16) The kind's column: as wide as the widest kind's name in this font (UI.KIND_MIN to UI.KIND_MAX), on one line,
 -- its dot in a gap of its own before it (1.6.12 placed the dot by a wrapped name's whole width: it landed in the
--- details). Hidden when the search asked for one kind ("@item", a question's answer, a chain's step, a category) and
--- every row is of it: the footer says what they are, the names and details take its room. A plain search keeps it,
--- so it never comes and goes as you type.
+-- details). Hidden when you asked for one kind (an "@item" typed, a question's answer, a chain's step, a category you
+-- picked) and every row is of it: the footer says what they are, the names and details take its room. A plain search
+-- keeps it, and so does a category Simple mode chose by itself, or an action word's lists: it never comes and goes as
+-- you type (release review: Simple mode's one matching category hid it, the next letter showed it again).
 UI.KIND_W, UI.KIND_GAP, UI.KIND_MIN, UI.KIND_MAX = 80, 14, 60, 130
+-- (labels rows make of their own, measured with the providers': a chain's steps, the IDs' rows, the bosses)
+UI.KIND_LABELS = { L["Source"], L["Reagent"], L["Bosses"], L["Spell ID"], L["Item ID"], L["Quest ID"], L["NPC ID"] }
 
---- The column's width: the widest kind's name, as drawn in the rows' small font.
+--- The column's width: the widest kind's name, as drawn in the rows' small font (its whole width, not the room the
+--- probe has: release review, a column of 80 measured "Recipe to Learn" as 80, a hidden one as 1).
 function UI.MeasureKinds()
 	local probe = rows[1] and rows[1].kind
 	if not probe then return end
 	local was, widest = probe:GetText(), 0
-	for id, p in pairs(ns.providers or {}) do
-		local label = type(p) == "table" and (p.label or id)
-		if type(label) == "string" and label ~= "" then
-			probe:SetText(ns.TitleCase and ns.TitleCase(label) or label)
-			local w = probe:GetStringWidth()
-			if type(w) == "number" and w > widest then widest = w end
-		end
+	local function Measure(label)
+		if type(label) ~= "string" or label == "" then return end
+		probe:SetText(label)
+		local w = Unbounded(probe)
+		if w > widest then widest = w end
 	end
+	for id, p in pairs(ns.providers or {}) do
+		if type(p) == "table" then Measure(p.label or id) end
+	end
+	for _, label in ipairs(UI.KIND_LABELS) do Measure(label) end
 	probe:SetText(was or "")
 	UI.KIND_W = math.max(UI.KIND_MIN, math.min(UI.KIND_MAX, math.ceil(widest) + 2))
-	probe:SetWidth(UI.KIND_W)
+	UI.kindsMeasured = true -- (a provider registered later: measured again, ns:RegisterProvider)
+	probe:SetWidth(LY.kindShown == false and 1 or UI.KIND_W)
 end
 
 --- Every row's kind column shown (or not), and the name, the detail and the distance placed beside it.
@@ -744,25 +751,32 @@ function UI.LayoutKinds(shown)
 	end
 end
 
---- Is the list one kind asked for (the column hidden)? Read once per list.
-local oneKind = {}
+--- Is the list one kind you asked for (the column hidden)? Judged once per list, from its first rows: a search keeps
+--- Score's MAX_RESULTS, and a list of one kind typed is its kind's rows (the loot list's thousands aren't walked).
+UI.ONE_KIND_LOOK = 200
+local oneKind = {} -- (the list last judged by its length and ends, never the list: idleDrop frees lists)
 function UI:OneKindAsked()
-	local q, list = self.whyQ, UI.results
-	local asked = self.answerNote or self.pipeTrail or self.category
-		or (type(q) == "table" and (q.answer or (type(q.kinds) == "table" and next(q.kinds) ~= nil)))
-	if not asked or #list == 0 then return false end
-	if oneKind.list == list and oneKind.n == #list and oneKind.first == list[1] and oneKind.last == list[#list] then
-		return oneKind.is
+	if self.mode ~= "search" then return false end -- (.commands and /slash lists: no search said what they are)
+	local list = UI.results
+	local n = #list
+	if n == 0 or list[1].syntaxRow then return false end -- (the "@" and "key:" pick lists)
+	local q = self.whyQ
+	local asked = self.answerNote or self.pipeTrail or (self.category and not self.categoryAuto)
+		or (type(q) == "table" and (q.answer or q.typedKinds))
+	if not asked then
+		oneKind.n, oneKind.first, oneKind.last = nil, nil, nil
+		return false
 	end
+	if oneKind.n == n and oneKind.first == list[1] and oneKind.last == list[n] then return oneKind.is end
 	local first, is = nil, true
-	for i = 1, #list do
+	for i = 1, math.min(n, UI.ONE_KIND_LOOK) do
 		local k = list[i].kindLabel
 		if type(k) == "string" and k ~= "" then
 			if first == nil then first = k elseif k ~= first then is = false break end
 		end
 	end
 	is = is and first ~= nil
-	oneKind.list, oneKind.n, oneKind.first, oneKind.last, oneKind.is = list, #list, list[1], list[#list], is
+	oneKind.n, oneKind.first, oneKind.last, oneKind.is = n, list[1], list[n], is
 	return is
 end
 
@@ -906,7 +920,8 @@ function UI:Render()
 	local animated = self:Animated() and not (self.snapNext and not self.opening)
 	local now, entering = GetTime(), 0
 	local kinds = not self:OneKindAsked()
-	if kinds ~= (LY.kindShown ~= false) then UI.LayoutKinds(kinds) end
+	if not UI.kindsMeasured then UI.MeasureKinds(); UI.LayoutKinds(kinds)
+	elseif kinds ~= (LY.kindShown ~= false) then UI.LayoutKinds(kinds) end
 	for i = 1, MAX_ROWS do
 		local r = rows[i]
 		local idx = UI.offset + i
