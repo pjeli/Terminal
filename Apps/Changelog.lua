@@ -14,9 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.6.14", when = "in testing",
+		v = "1.6.15", when = "in testing",
 		items = {
-			"A new look: icons drawn like the bags', framed in their item's quality colour; the Forever theme's names parchment-white, the letters you typed gold; each row's kind quieter, after a dot of its colour; the selected row in two lines, its whole detail under its name; the classic frame with the game's stone grain and a shade.",
+			"A new look: icons drawn like the bags', framed in their item's quality colour; the Forever theme's names parchment-white, the letters you typed gold; each row's kind quieter, after a dot of its colour; the classic frame with the game's stone grain and a shade.",
 			"Recipes: a recipe you don't know and its \"where to learn\" now say the same, the Merchant's Favor and its vendor, a trainer (TrainerSpells' too) and the recipe item; a Favor recipe no longer says \"Trainer\".",
 			"Quests: \"can i take\", is:cantake, \"quests near me\", the zones' counts and \"quest upgrades\" judge a quest by the same rules (side, level, skill, standing, prerequisites, OneForAll's too).",
 			"!t answers ignore your own Filter and Sort picks, and \"my level\" is the asker's.",

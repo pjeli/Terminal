@@ -418,14 +418,12 @@ local function NavTick()
 			nav.wRow, nav.wText, nav.wRoom, nav.wDetail = r, text, room, w
 		end
 	end
-	local key = r.distShown and -1 or (r.expanded and -2 - w) or w
+	local key = r.distShown and -1 or w
 	if key ~= nav.w or nav.placedRow ~= r then
 		nav.w, nav.placedRow = key, r
 		navArrow:ClearAllPoints()
 		if r.distShown then
 			navArrow:SetPoint("RIGHT", r.dist, "LEFT", -1, 0)
-		elseif r.expanded then
-			navArrow:SetPoint("LEFT", r.detail, "LEFT", w + 4, 0) -- (the detail starts at the left: after its text)
 		else
 			navArrow:SetPoint("RIGHT", r.detail, "RIGHT", -(w + 4), 0)
 		end
@@ -755,47 +753,8 @@ local function SetIcon(r, e)
 end
 UI.SetIcon = SetIcon -- (tests)
 
--- (1.6.13) The selected row in two lines: its name, and under it its whole detail (on one line a detail is cut to its
--- column). Not a row saying how far (its distance has a column of its own), nor a note, nor one with no detail. Only
--- the selected row grows: the rows under it move down, the terminal is a line taller.
-function UI.ExpandsRow(r, e)
-	if not e or e.noActivate or r.distShown then return false end
-	local d = r.detail:GetText()
-	return type(d) == "string" and d ~= ""
-end
-
-local function SetExpanded(r, on)
-	on = on and true or false
-	if (r.expanded or false) == on then return end
-	r.expanded = on
-	local label, detail, kind = r.label, r.detail, r.kind
-	label:ClearAllPoints(); detail:ClearAllPoints(); kind:ClearAllPoints()
-	if on then
-		-- (the name and the kind on the first line, the detail the whole row wide under them; each line's middle half
-		-- a row from its edge)
-		local x, half = LY.ROW_H + 8, LY.ROW_H / 2
-		kind:SetPoint("RIGHT", r, "TOPRIGHT", -8, -half)
-		label:SetPoint("LEFT", r, "TOPLEFT", x, -half)
-		label:SetPoint("RIGHT", kind, "LEFT", -8, 0)
-		detail:SetPoint("LEFT", r, "BOTTOMLEFT", x, half)
-		detail:SetPoint("RIGHT", r, "BOTTOMRIGHT", -8, half)
-		detail:SetJustifyH("LEFT")
-		r.detailW = "two"
-	else
-		kind:SetPoint("RIGHT", -8, 0)
-		detail:SetPoint("RIGHT", kind, "LEFT", -8, 0)
-		detail:SetJustifyH("RIGHT")
-		r.detailW = nil
-		SetDetailW(r, LY.DETAIL_W)
-		r.fitName = nil -- (FitDetail measures again)
-	end
-	r.kindKey = nil -- (the kind's dot placed again)
-end
-UI.SetExpanded = SetExpanded
-
-local function FillRow(self, r, e, light, selected)
+local function FillRow(self, r, e, light)
 	r:Show()
-	if r.expanded then SetExpanded(r, false) end -- (filled as one line; the selected row grows at the end)
 	if e.raw then
 		r.label:SetText(Theme.FixColors(e.name))
 	else
@@ -851,7 +810,6 @@ local function FillRow(self, r, e, light, selected)
 		end
 		FitDetail(r)
 	end
-	if selected and UI.ExpandsRow(r, e) then SetExpanded(r, true) end
 end
 
 function UI:Render()
@@ -868,10 +826,9 @@ function UI:Render()
 		local r = rows[i]
 		local idx = UI.offset + i
 		local e = (i <= LY.ROWS) and UI.results[idx] or nil
-		if not e and r.expanded then SetExpanded(r, false) end
 		if e then
 			entering = EnterRow(r, animated, now, entering)
-			FillRow(self, r, e, light, idx == UI.sel)
+			FillRow(self, r, e, light)
 		elseif r:IsShown() and not r.leaving then
 			-- no result for this row any more: it fades as the list shrinks over it
 			if animated and i <= LY.ROWS then
@@ -884,29 +841,15 @@ function UI:Render()
 			r:Hide()
 		end
 	end
-	self.drawnSel = UI.sel -- (the row drawn in two lines: SelectionChanged)
-	self:PlaceRows()
 	self:FitHeight()
 	ShowSelection(self)
 end
 
 --- The selection moved to another row that's already on screen: only what shows the selection is
---- redrawn (the band, the footer, the ghost text, the tooltip, the click catcher), not every row: only the row it
---- left and the one it's on (1.6.13: the selected row is drawn in two lines, the one before back in one).
+--- redrawn (the band, the footer, the ghost text, the tooltip, the click catcher), not every row.
 function UI:SelectionChanged()
 	local frame = UI.frame
 	if not frame or not frame:IsShown() then return end
-	if self.drawnSel ~= UI.sel then
-		local light = Theme.IsLight()
-		for _, idx in ipairs({ self.drawnSel or 0, UI.sel }) do
-			local i = idx - UI.offset
-			local r, e = rows[i], UI.results[idx]
-			if r and e and i <= LY.ROWS and r:IsShown() and not r.leaving then FillRow(self, r, e, light, idx == UI.sel) end
-		end
-		self.drawnSel = UI.sel
-		self:PlaceRows()
-		self:FitHeight()
-	end
 	ShowSelection(self)
 end
 
@@ -939,34 +882,14 @@ function UI:LayoutHeader()
 	promptBg:ClearAllPoints()
 	promptBg:SetPoint("TOPLEFT", pin, -pin)
 	promptBg:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -pin, -(HeaderH() - 4))
-	self:PlaceRows()
+	for i = 1, MAX_ROWS do
+		local row = rows[i]
+		row.baseY = -hh - (i - 1) * LY.ROW_H
+		if not row.slide then PlaceRow(row, 0) end
+	end
 	hit:ClearAllPoints()
 	hit:SetPoint("TOPLEFT", edit, "TOPLEFT", 0, 0)
 	hit:SetPoint("BOTTOMRIGHT", edit, "BOTTOMRIGHT", 0, -extra)
-end
-
---- The rows one under another under the header: the selected row in two lines takes LY.EXTRA more.
-function UI:PlaceRows()
-	if not UI.frame then return end
-	local y = -HeaderH()
-	for i = 1, MAX_ROWS do
-		local row = rows[i]
-		local h = LY.ROW_H + (row.expanded and LY.EXTRA or 0)
-		if row.rowH ~= h then row.rowH = h; row:SetHeight(h) end
-		if row.baseY ~= y then
-			row.baseY = y
-			if not row.slide then PlaceRow(row, 0) end
-		end
-		y = y - h
-	end
-end
-
---- How much taller than one line each the rows shown are (the selected row in two lines).
-local function RowsExtra(n)
-	for i = 1, n do
-		if rows[i].expanded then return LY.EXTRA end
-	end
-	return 0
 end
 
 --- The terminal is as tall as its results: header, one row per result shown, footer. It
@@ -992,7 +915,7 @@ function UI:FitHeight(text) -- (text: the prompt's text about to be set, on open
 	-- (the prompt's own background stops HeaderH - 4 down, inset by the border: the bare frame ends below it,
 	-- or the background covered the bottom border)
 	if bare then h = HeaderH() - 4 + (Theme.Get().frame == "classic" and 4 or 1)
-	else h = HeaderH() + n * LY.ROW_H + RowsExtra(n) + (self.footerH or FOOTER_H) end
+	else h = HeaderH() + n * LY.ROW_H + (self.footerH or FOOTER_H) end
 	self.heightTo = h
 	local cur = frame:GetHeight()
 	if self.snapNext or not self:Animated() or type(cur) ~= "number" or cur <= 0 then
@@ -1012,9 +935,7 @@ function UI:PlaceSelection()
 		selBar:Hide(); selEdge:Hide()
 		return
 	end
-	self.selTo = -HeaderH() - (i - 1) * LY.ROW_H -- (the rows above it are one line each)
-	self.selH = LY.ROW_H + (rows[i] and rows[i].expanded and LY.EXTRA or 0)
-	if selBar.h ~= self.selH then selBar.h = self.selH; selBar:SetHeight(self.selH) end -- (its height at once, gliding or not)
+	self.selTo = -HeaderH() - (i - 1) * LY.ROW_H
 	if not (self:Animated() and self.selY and selBar:IsShown()) then
 		self.selY = self.selTo
 		self:SetSelectionY(self.selY)
@@ -1032,8 +953,7 @@ function UI:SetSelectionY(y)
 	selBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, y)
 	-- (every frame of a glide: only the bar moves; its height when the theme's rows change, the edge anchored to it
 	-- once.)
-	local h = self.selH or LY.ROW_H
-	if selBar.h ~= h then selBar.h = h; selBar:SetHeight(h) end
+	if selBar.h ~= LY.ROW_H then selBar.h = LY.ROW_H; selBar:SetHeight(LY.ROW_H) end
 	if not selEdge.anchored then
 		selEdge.anchored = true
 		selEdge:ClearAllPoints()

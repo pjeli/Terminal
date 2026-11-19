@@ -93,44 +93,6 @@ do
 	UI.lastScan, UI.lastExtra = nil, nil
 end
 
--- 1.6.13: the selected row in two lines: its name, its whole detail under it; the rows under it move down
-io.write("[design: the selected row in two lines]\n")
-do
-	local LY = UI.layout
-	local saved = { providers = ns.providers, order = ns.providerOrder }
-	ns.providers, ns.providerOrder = {}, {}
-	ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = function()
-		return { { name = "Arcanite Reaper", key = 1, detail = "Lv 63  ·  Two-Hand Axe  ·  AH 92g 10s each  ·  vendor 18g" },
-			{ name = "Black Lotus", key = 2, detail = "x3  Bank" }, { name = "Copper Ore", key = 3, detail = "" } }
-	end })
-	ns:AliasesChanged()
-	local easy = ns.db.easyMode
-	ns.db.easyMode = false; UI:EasyChanged()
-	UI.lastScan, UI.lastExtra = nil, nil
-	UI:SetQuery("@item ", 6); FlushAll()
-	local rows = UI.rows
-	local one, two = LY.ROW_H, LY.ROW_H + LY.EXTRA
-	check(UI.sel == 1 and rows[1].expanded and rows[1].rowH == two and not rows[2].expanded and rows[2].rowH == one,
-		"the selected row in two lines, the next in one")
-	check(rows[2].baseY == rows[1].baseY - two and rows[3].baseY == rows[2].baseY - one, "the rows under it move down")
-	check(rows[1].detail:GetText():find("vendor 18g", 1, true) and rows[1].detailW == "two", "its whole detail under its name")
-	check(UI.selBar.h == two, "the selection band as tall as its row")
-	local tall = UI.heightTo
-	UI:Move(1); FlushAll()
-	check(UI.sel == 2 and not rows[1].expanded and rows[1].rowH == one and rows[2].expanded and rows[2].baseY == rows[1].baseY - one,
-		"the next row selected: it grows, the one before is one line again")
-	check(math.abs(UI.heightTo - tall) < 0.01, "the terminal as tall: one row grown either way")
-	check(type(rows[1].detailW) == "number", "the row before: its detail in its column again")
-	UI:Move(1); FlushAll()
-	check(UI.sel == 3 and not rows[3].expanded and math.abs(UI.heightTo - (tall - LY.EXTRA)) < 0.01,
-		"a row with no detail stays one line, the terminal a line shorter")
-	UI:Hide(); FlushAll()
-	ns.providers, ns.providerOrder = saved.providers, saved.order
-	ns:AliasesChanged()
-	ns.db.easyMode = easy; UI:EasyChanged()
-	UI.lastScan, UI.lastExtra = nil, nil
-end
-
 -- 1.6.14: the classic frame's depth: the stone grain in a lighter shade of the background, a shade toward the bottom
 io.write("[design: the classic frame's depth]\n")
 do

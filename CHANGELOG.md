@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.15 (in testing)
+
+**A new look: one line again**
+- The selected row is one line again, like the others (1.6.13's second line broke the list's rhythm, and the tooltip
+  beside it already says everything the line added).
+
 ## 1.6.14 (in testing)
 
 **A new look: the frame's depth**

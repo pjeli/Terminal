@@ -247,10 +247,7 @@ do
 	local L = UI.layout
 	list[3].detail = string.rep("long title ", 30)
 	UI:Render(); UI.sel = 2; UI:SelectionChanged(); UI.sel = 3; UI:SelectionChanged()
-	-- (the selected row is in two lines since 1.6.13, its detail from the left under its name: the arrow after its text,
-	-- never past its room)
-	check(r3.expanded and UI.navArrow.lastPoint[1] == "LEFT" and UI.navArrow.lastPoint[4] == r3.detail:GetWidth() + 4,
-		"a text cut off: the arrow at the end of what shows, not past it: " .. tostring(UI.navArrow.lastPoint[4]))
+	check(UI.navArrow.lastPoint[4] == -(r3.detail:GetWidth() + 4), "a text cut off: the arrow at the start of what shows, not past it: " .. tostring(UI.navArrow.lastPoint[4]))
 	check(r1.label.lastPoint and r1.label.lastPoint[2] == r1.kind and r1.label.lastPoint[4] == -(16 + L.DETAIL_W),
 		"the name ends where the detail's room begins (never under a distance)")
 	UI:Hide(); T.FlushAll()

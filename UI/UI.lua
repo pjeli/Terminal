@@ -20,7 +20,7 @@ UI.SLICE_CHECK = SLICE_CHECK
 UI.SLICE_MS = SLICE_MS
 
 -- layout, recomputed from the theme (only ApplyTheme writes it; read through LY when needed, never copied at load)
-UI.layout = { ROWS = 10, ROW_H = 26, HEADER_H = 50, LINE_H = 19, DETAIL_W = 192, NAV_SLOT = 22, DIST_W = 52, EXTRA = 16 }
+UI.layout = { ROWS = 10, ROW_H = 26, HEADER_H = 50, LINE_H = 19, DETAIL_W = 192, NAV_SLOT = 22, DIST_W = 52 }
 local LY = UI.layout
 
 local TAB_LATE = 1.0 -- (opened by the toggle key this long ago, nothing typed since: Tab let go = it was Tab+`)
@@ -583,7 +583,6 @@ local function ApplyLayout(t)
 	LY.ROW_H = math.max(22, t.fontSize + 12)
 	LY.HEADER_H = math.max(50, t.fontSize + 36)
 	LY.LINE_H = t.fontSize + 6
-	LY.EXTRA = math.max(9, t.fontSize - 2) + 5 -- (1.6.13: the selected row's second line, its detail: List.lua)
 	UI.linesKey = nil -- (fonts changed: the prompt's lines are measured again)
 end
 
@@ -738,9 +737,7 @@ local function ApplyRowsTheme(self, t)
 	LY.DIST_W = math.ceil((type(w) == "number" and w > 0) and w + 4 or 52)
 	for i = 1, MAX_ROWS do
 		local row = rows[i]
-		if row.expanded then UI.SetExpanded(row, false) end -- (one line again: placed below for the new layout)
 		row:SetHeight(LY.ROW_H)
-		row.rowH = LY.ROW_H
 		row.slide = nil
 		row.icon:SetSize(LY.ROW_H - 6, LY.ROW_H - 6)
 		row.detail:SetWidth(LY.DETAIL_W)

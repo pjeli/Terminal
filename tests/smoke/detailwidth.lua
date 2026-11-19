@@ -27,17 +27,13 @@ check(r.detailW == base, "a short detail: its column as before")
 local saved = { providers = ns.providers, order = ns.providerOrder }
 ns.providers, ns.providerOrder = {}, {}
 ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = function()
-	return { { name = "Exploding Shot", key = 1, detail = LONG }, { name = "Linen Cloth", key = 2, detail = "x20  Backpack" },
-		{ name = "Silk Cloth", key = 3, detail = "x5  Bag" } }
+	return { { name = "Exploding Shot", key = 1, detail = LONG }, { name = "Linen Cloth", key = 2, detail = "x20  Backpack" } }
 end })
 ns:AliasesChanged()
 local easy = ns.db.easyMode
 ns.db.easyMode = false; UI:EasyChanged()
 UI.lastScan, UI.lastExtra = nil, nil
 UI:SetQuery("@item ", 6); FlushAll()
--- (the selected row is drawn in two lines since 1.6.13, its detail under its name: the third row selected)
-for i, e in ipairs(UI.results) do if e.name == "Silk Cloth" then UI.sel = i end end
-UI:SelectionChanged(); FlushAll()
 local wide, kept
 for i = 1, 10 do
 	local row = UI.rows[i]
