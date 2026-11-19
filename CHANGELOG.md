@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.6 (in testing)
+
+**`is:upgrade` over `@loot`: one rule for both addons' rows**
+- OneForAll's quest rewards, crafted gear and reputation rewards in `@loot` could be "upgrades", while AtlasLoot's
+  crafting and faction items never were. Both now follow the rule `is:upgrade` states: loot from dungeons you can
+  enter. (Quest rewards have "quest upgrades", vendors "vendor upgrades".)
+
 ## 1.6.5 (in testing)
 
 **A faction's rewards: one list**

@@ -102,6 +102,12 @@ do
 	check(not From(61, "Naxxramas"), "a raid's: not")
 	check(not From(61, "Engineering", "AL_Crafting"), "a profession's: not")
 	check(not From(61, "Scholomance"), "a dungeon you can't enter yet (45, you're 20): not")
+	-- (1.6.6, the mismatch hunt) OneForAll's planner rows by their own source: a dungeon you can enter counts; a quest's, a
+	-- recipe's, a faction's don't, as AtlasLoot's professions and factions don't
+	local function OFA(src, lvl) return F.GearFit()({ kind = "loot", itemID = 61, lootSource = src, lootLevel = lvl }) end
+	check(OFA("dungeon", 15) and not OFA("dungeon", 45) and not OFA("raid", 60), "OneForAll's dungeon row: by its level; a raid's: not")
+	check(not OFA("quest") and not OFA("crafted") and not OFA("reputation"),
+		"OneForAll's quest, crafted and reputation rows: not upgrades over @loot, as AtlasLoot's aren't")
 	ITEMS[71] = { "Bound Helm", "|Hitem:71|h", 2, 22, 16, "Armor", "Mail", 1, "INVTYPE_HEAD", 1, 1, 4, 3, 1 } -- (bound when picked up)
 	ITEMS[72] = { "Loose Helm", "|Hitem:72|h", 2, 22, 16, "Armor", "Mail", 1, "INVTYPE_HEAD", 1, 1, 4, 3, 2 } -- (bound when worn)
 	STATS[71], STATS[72] = { ITEM_MOD_STRENGTH_SHORT = 9 }, { ITEM_MOD_STRENGTH_SHORT = 9 }

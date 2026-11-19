@@ -151,7 +151,8 @@ do
 			.. Src("source:dungeon") .. " / " .. Src("source:raid") .. " / " .. Src("source:quest"))
 		local res = UI:Search("@loot is:upgrade")
 		check(#res == 1 and res[1].itemID == 991, "@loot is:upgrade: OneForAll's upgrade among its gear: " .. tostring(res[1] and res[1].name))
-		check(ns.Integrations.LootPlace(by[1002]).kind == "raid" and ns.Integrations.LootPlace(by[1001]) == nil, "its raid's place a raid's (left out of upgrades, as AtlasLoot's raids), a quest's none")
+		check(ns.Integrations.LootPlace(by[1002]).kind == "raid" and ns.Integrations.LootPlace(by[1001]).kind == "quest",
+			"its raid's place a raid's (left out of upgrades, as AtlasLoot's raids), a quest's a quest's (left out too: 1.6.6)")
 		-- (review, 1.0.34) to chat: a boss's "dropped by", a quest's, a recipe's or a faction's "from"; Shift+Enter pressed by the game
 		local SH = ns.Share
 		check(SH.LootSource(by[992]) == L["dropped by %s in %s"]:format("Arugal", "Shadowfang Keep") and SH.LootSource(by[1001]) == L["from %s"]:format("Quest: Ours")

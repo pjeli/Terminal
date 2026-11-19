@@ -134,10 +134,11 @@ function I.NotePlace(addon, content, kind, enter)
 end
 --- A loot row's place: { kind = "dungeon" / "raid" / "world" (World Bosses) / "other", enter = level } (nil: not known, an index from before 0.51.9).
 function I.LootPlace(e)
-	-- (OneForAll's: its dungeon's or raid's, the level it gives; a quest's, a recipe's, a faction's: none, as AtlasLoot's
-	-- crafting and factions have none)
+	-- (OneForAll's: its dungeon's or raid's, with the level it gives; a quest's, a recipe's, a faction's: that kind, no
+	-- level, as AtlasLoot's crafting and factions are "other". Until 1.6.6 nil, which is:upgrade took as "anywhere": its
+	-- quest, crafted and reputation rows could be upgrades, AtlasLoot's never; the mismatch hunt)
 	local s = rawget(e, "lootSource")
-	if s then return (s == "dungeon" or s == "raid") and { kind = s, enter = rawget(e, "lootLevel") } or nil end
+	if s then return { kind = s, enter = (s == "dungeon" or s == "raid") and rawget(e, "lootLevel") or nil } end
 	local t = loot.places[e.addon]
 	return t and t[e.content] or nil
 end
