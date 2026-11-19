@@ -3565,4 +3565,7 @@ L["found (%s). Auction house prices for the items TSM has none for"] = "encontra
 L["found (%s). Auction house prices on items (sort:ahvalue, | sum ahvalue, is:auctionable) and @auction (is:undercut), from its AuctionDB (the TSM desktop app's prices)"] = "encontrado (%s). Precios de la casa de subastas en los objetos (sort:ahvalue, | sum ahvalue, is:auctionable) y @auction (is:undercut), de su AuctionDB (los precios de la aplicación de escritorio de TSM)"
 L["prices from %s"] = "precios de %s"
 L["show in Dungeon Journal"] = "mostrar en el Dungeon Journal"
+L["Bought with %d Merchant's Favor"] = "Se compra con %d Merchant's Favor"
+L["Bought with the Merchant's Favor"] = "Se compra con Merchant's Favor"
+L["Vendor (the other faction only)"] = "Vendedor (solo de la otra facción)"
 --@end-do-not-package@

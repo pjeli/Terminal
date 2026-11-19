@@ -3565,4 +3565,7 @@ L["found (%s). Auction house prices for the items TSM has none for"] = "已找�
 L["found (%s). Auction house prices on items (sort:ahvalue, | sum ahvalue, is:auctionable) and @auction (is:undercut), from its AuctionDB (the TSM desktop app's prices)"] = "已找到（%s）。物品上的拍卖行价格（sort:ahvalue、| sum ahvalue、is:auctionable）和 @auction（is:undercut），来自它的 AuctionDB（TSM 桌面应用的价格）"
 L["prices from %s"] = "价格来自 %s"
 L["show in Dungeon Journal"] = "在 Dungeon Journal 中显示"
+L["Bought with %d Merchant's Favor"] = "用 %d 个 Merchant's Favor 购买"
+L["Bought with the Merchant's Favor"] = "用 Merchant's Favor 购买"
+L["Vendor (the other faction only)"] = "商人（仅限另一阵营）"
 --@end-do-not-package@

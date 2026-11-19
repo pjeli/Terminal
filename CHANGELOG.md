@@ -1,195 +1,85 @@
 # Changelog
 
-## 1.6.23 (in testing)
+## 1.7.0
 
-**Clean-up from the release review**
-- `trainer:` filter help names its rank form (`trainer:tailoring:expert`: those who can teach Expert).
-- One table of trainer ranks for that filter and "where to learn" (two copies); code left unused by 1.6.3 and 1.6.7
-  taken out (the zones' own race and class checks, Suggest's rank levels).
-- docs/PROVIDERS.md says how the kinds' column, its colours and icons are drawn now; docs/QUESTIONS.md says what
-  `is:cantake` checks since 1.6.3.
+Terminal 1.7: a new look (cropped, framed icons, Forever's parchment-white names, a quieter kind column, a frame with
+some depth), and one answer everywhere: places that answered one question two ways (how a recipe is learned, can you
+take a quest, when to train a profession's next rank, a faction's rewards, `!t` answers) now agree, with the fixes of a
+release review.
 
-## 1.6.22 (in testing)
-
-**Quests: what a step unlocks, quests a standing opens**
-- "What does <quest> unlock" names only the quest a step really leads to: with OneForAll's chains, every earlier step
-  was said to unlock the dungeon quest at the end.
-- "Quests that need honored with <faction>" lists the ones you can take first by the same rule as "can i take" (level
-  and the steps before it too, 1.6.3): one above your level sorted as one you could take.
-
-## 1.6.21 (in testing)
-
-**Clients in other languages: trash rows and factions to come**
-- On a client in another language, AtlasLoot's trash rows ("Треш", "Ennemis communs") get no boss's drop chance
-  either, as on an English client (1.6.9 knew only the English "Trash Mobs").
-- A faction not in WoW Forever yet (the Zandalar Tribe) is known by the game's name for it too: on a German client its
-  AtlasLoot rewards were still listed.
-
-## 1.6.20 (in testing)
-
-**A reward's vendor: from where you are**
-- A reputation reward's vendor on the map is picked from where you stand, read once for all the rewards: the rows,
-  kept until your standing changes, could have been made while answering a `!t` asker, from where they stood.
-- A quest's giver and a reward's vendor are picked by one rule (one of your side, the nearest of those).
-
-## 1.6.19 (in testing)
-
-**Recipe colours: the row and the filters agree**
-- A recipe row is drawn in the colour `is:orange`, `is:yellow`, `is:green`, `is:grey` and `is:skillup` judge it by
-  (your skill now, 1.6.8): a recipe its window last showed orange that is grey at your skill now was drawn orange while
-  `is:grey` listed it. The rows are drawn again after a skill-up.
-- Those filters read your professions once a frame, not once for every recipe row.
-
-## 1.6.18 (in testing)
-
-**Training the next rank: the examples agree too**
-- The empty prompt's examples judge "time to train the next rank" as "what should i do" does (1.6.7): What's
-  Training's next rank first, and a trainer who can teach it ("nearest journeyman blacksmithing trainer (70/75)",
-  `@npc trainer:blacksmithing:journeyman`). They still offered a Journeyman Tailor at 150, or a rank not due yet.
-
-## 1.6.17 (in testing)
-
-**The kind column: release review**
-- The column is hidden only when you asked for one kind: an `@kind` typed, a question's answer, a chain's step, a
-  category you picked. A category Simple mode chose by itself, an action word's lists, the .command and /slash lists
-  and the pick lists keep it: in Simple mode it came and went as you typed.
-- Its width is the widest kind's whole name (it was measured against the column's own room: 80, or 1 while hidden,
-  so names were cut), the chains' and IDs' own labels counted too, and again when an add-on registers a list later.
-- It no longer keeps the last list it judged (a list freed after ten minutes unused stayed in memory), and it looks
-  at a list's first 200 rows at most.
-
-## 1.6.16 (in testing)
-
-**A new look: the kind column, again**
-- A kind's name stays on one line ("Recipe to Learn" wrapped onto two), the column as wide as the longest name in
-  your font, and its dot sits in a gap of its own before it: 1.6.12 put it on the end of the details.
-- When you asked for one kind ("@item", a question such as "recipes i can learn now", a chain's step, a category)
-  and every row is of it, the column is hidden: the footer already says what they are, and the names and details
-  get its room. A plain search keeps it, so it never comes and goes as you type.
-
-## 1.6.15 (in testing)
-
-**A new look: one line again**
-- The selected row is one line again, like the others (1.6.13's second line broke the list's rhythm, and the tooltip
-  beside it already says everything the line added).
-
-## 1.6.14 (in testing)
-
-**A new look: the frame's depth**
-- The classic frame (the Forever, Horde and Alliance themes) has the game's stone grain under its colour, faint, and a
-  shade darkening toward the bottom; it was one flat colour. The flat frame stays flat.
-
-## 1.6.13 (in testing)
-
-**A new look: the selected row in two lines**
-- The selected row shows its name, and under it its whole detail, the row wide (on one line a long detail was cut to
-  its column). The rows under it move down a line; a row saying how far, or with no detail, stays one line.
-
-## 1.6.12 (in testing)
-
-**A new look: the kind column**
-- Each row's kind ("Spell", "Quest"...) is written in the details' colour after a small dot of its own colour; the
-  selected row's is in its colour as before. The column was a rainbow beside the items' quality colours.
-
-## 1.6.11 (in testing)
-
-**A new look: Forever's colours**
-- The Forever theme's names are parchment-white and the letters you typed gold in them (they were white in gold
-  names); details are a softer brown-grey. A Forever theme you never tuned takes the new colours; one you tuned stays.
-
-## 1.6.10 (in testing)
-
-**A new look: icons**
-- The result rows' icons are drawn the way the bags draw them: without the icon's own rough edge, in a thin frame,
-  an item's in its quality colour from uncommon up.
-
-## 1.6.9 (in testing)
-
-**Close calls made to agree**
-- A drop chance from OneForAll is no longer put on AtlasLoot's trash row by the item alone (on a client in another
-  language, a boss's chance landed there and hid AtlasLoot's own rate in the tooltip).
-- A reputation reward's vendor on the map (Enter) is one who'll sell to you, the nearest, as "<item> > sources" lists
-  them; it was the first OneForAll lists (the Argent Dawn's Hasana in Tirisfal, wherever you stood).
-- A place in Simple mode ("vendor barrens") takes NPCs there by their zone's name too, as its Alt+` line `in:barrens`
-  does: the two could list different NPCs.
-
-## 1.6.8 (in testing)
-
-**Smaller answers made to agree**
-- `is:skillup` and `is:orange` / `is:yellow` / `is:green` / `is:grey` judge a recipe's colour at your skill now, as
-  the levelling plan does, not as its window showed it when last opened (a recipe gone grey since still counted).
-- "skinner" (and the other professions' people: "miner", "herbalist"...) finds only trainers who'll teach you, as
-  "skinning trainer" does; Alt+` writes `faction:friendly` for it.
-- A quest several NPCs give: its distance, Shift+Enter and map pin go to one of yours, the nearest, not to the first
-  listed (which could be the other faction's).
-- "who sells pet food" takes the game's answer on what your pet eats first, as "what can my pet eat" does.
-
-## 1.6.7 (in testing)
-
-**Training a profession's next rank: one answer**
-- "what should i do" and the prompt's examples now decide the same way when it's time to train a profession's next
-  rank: TrainerSpells' next rank when it's installed, else your skill at the top of a rank a trainer teaches past.
-  Fishing, Cooking and First Aid at 150 are no longer offered a trainer (their next rank is a book, then a quest).
-- Its suggestion asks for a trainer who can teach that rank ("nearest expert tailoring trainer"): a Journeyman Tailor
-  can't teach Expert and is left out, as "where to learn" already leaves such trainers out. Any trainer search takes
-  a rank the same way (`trainer:tailoring:expert`; apprentice, journeyman, expert or artisan).
-
-## 1.6.6 (in testing)
-
-**`is:upgrade` over `@loot`: one rule for both addons' rows**
-- OneForAll's quest rewards, crafted gear and reputation rewards in `@loot` could be "upgrades", while AtlasLoot's
-  crafting and faction items never were. Both now follow the rule `is:upgrade` states: loot from dungeons you can
-  enter. (Quest rewards have "quest upgrades", vendors "vendor upgrades".)
-
-## 1.6.5 (in testing)
-
-**A faction's rewards: one list**
-- "<faction> > rewards" (from a faction's row) lists AtlasLoot's rewards OneForAll doesn't, as "<faction> rewards" and
-  `@reputation is:reward` already did: "Argent Dawn > rewards" left out the Mantles of the Dawn.
-- A faction OneForAll says isn't in WoW Forever yet (Zandalar Tribe, Brood of Nozdormu, Hydraxian Waterlords) no longer
-  has AtlasLoot's rewards listed for it, as `@itemset` and `@enchant` already leave out what it marks so.
-
-## 1.6.4 (in testing)
-
-**`!t` answers: the asker's, not yours**
-- Your own Simple-mode Filter and Sort picks (kept from your last search) no longer apply to a guildie's `!t`
-  question: with "Rare or better" picked, "!t nearest innkeeper" found nothing. They're put aside while it searches
-  and are still yours after.
-- "around my level", "above my level" and every `lvl:me` in a `!t` question are the asker's level, as "where should i
-  level" already was.
-
-## 1.6.3 (in testing)
-
-**Can you take a quest: one answer everywhere**
-- "can i take <quest>", `is:cantake` and `sort:cantake`, the quests for your level ("quests near me", "where should i
-  quest", the zones' counts) and "quest upgrades" now judge a quest by the same rules: your race, class and side (a
-  quest only the other faction's NPCs give isn't yours), its level, what it needs (a profession's skill, a standing)
-  and what QuestieDB says stands in the way. Each used part of these before: `is:cantake` ranked a level 40 quest
-  "can take" at 10, "quests near me" listed quests only the other faction gives, "quest upgrades" listed quests that
-  need a standing you don't have.
-- `sort:cantake`'s detail says the level a quest needs, as "can i take" does.
-- OneForAll's quest prerequisites that QuestieDB lacks (which "> chain" already showed) now count for "can i take",
-  `is:cantake` and "what does <quest> unlock" too.
-
-## 1.6.2 (in testing)
+**A new look**
+- The result rows' icons are drawn the way the bags draw them: without the icon's own rough edge, in a thin frame, an
+  item's in its quality colour from uncommon up.
+- The Forever theme's names are parchment-white with the letters you typed in gold (they were white in gold names);
+  details are a softer brown-grey. A Forever theme you never tuned takes the new colours; one you tuned stays.
+- The kind column is quieter: each row's kind ("Spell", "Quest"...) in the details' colour after a small dot of its own
+  colour, the selected row's in its colour; on one line, the column as wide as the longest kind's name in your font.
+  The column was a rainbow beside the items' quality colours.
+- When you asked for one kind (an `@kind` typed, a question such as "recipes i can learn now", a chain's step, a
+  category you picked) and every row is of it, the kind column is hidden: the footer says what they are, and the names
+  and details get its room. Plain searches keep it, so it never comes and goes as you type.
+- The classic frame (the Forever, Horde and Alliance themes) has the game's stone grain over its colour, faint, and a
+  shade darkening toward the bottom. The flat frame stays flat.
 
 **How a recipe is learned: one answer**
-- A recipe you don't know (`@recipe is:unknown`) and its "where to learn" are now made from one record, so they say
-  the same: the Merchant's Favor and its vendor, a trainer (one whose window listed it, TrainerSpells' list, or a craft
-  AtlasLoot knows with no recipe item and no Favor), and the recipe item with where to get it.
-- Fixed: a Favor recipe that also has a recipe item ("Enchant Gloves - Holy Power": 240 Favor, and its formula) left
-  the Favor out of "where to learn"; a recipe only TrainerSpells lists said "Trainer" on its row and nothing in "where to
-  learn"; a recipe whose only sellers serve the other faction now says "Vendor (the other faction only)" on its row, as
-  "where to learn" does.
+- A recipe you don't know (`@recipe is:unknown`) and its "where to learn" are made from one record, so they say the
+  same: the Merchant's Favor and its vendor ("Bought with 30 Merchant's Favor", the vendor's own row after it), a
+  trainer (one whose window listed it, TrainerSpells' list, or a craft AtlasLoot knows with no recipe item and no
+  Favor), and the recipe item with where to get it.
+- Fixed: a Favor recipe AtlasLoot knows as a craft (Mrrggl Smrrthle) said "Trainer" on its row and listed trainers in
+  "where to learn"; a Favor recipe that also has a recipe item left the Favor out; a recipe only TrainerSpells lists
+  said "Trainer" and nothing in "where to learn"; a recipe whose only sellers serve the other faction says "Vendor (the
+  other faction only)" on its row, as "where to learn" does.
+- A recipe row is drawn in the colour `is:orange`, `is:yellow`, `is:green`, `is:grey` and `is:skillup` judge it by:
+  your skill now, as the levelling plan does (they read the window's last colour, and the row was drawn in it). The
+  rows are drawn again after a skill-up.
 
-## 1.6.1 (in testing)
+**Can you take a quest: one answer everywhere**
+- "can i take <quest>", `is:cantake` and `sort:cantake`, the quests for your level ("quests near me", the zones'
+  counts), "quest upgrades" and the quests a standing opens judge a quest by the same rules: your race, class and side
+  (a quest only the other faction's NPCs give isn't yours), its level, what it needs (a profession's skill, a
+  standing) and what QuestieDB and OneForAll's prerequisites say stands in the way.
+- `sort:cantake`'s detail says the level a quest needs, as "can i take" does.
+- "What does <quest> unlock" counts OneForAll's chains too, and names only the quest a step really leads to.
 
-**Merchant's Favor recipes: one answer**
-- A recipe OneForAll says the Merchant's Favor buys, which AtlasLoot knows as a craft with no recipe item (Mrrggl
-  Smrrthle), said "Trainer" beside its Favor cost on `@recipe is:unknown`'s row, and "where to learn" it listed the
-  nearest trainers of its profession. Now the row says only the Favor, and "where to learn" it says "Bought with 30
-  Merchant's Favor", its vendor and where, then the vendor's own row (its distance; Enter shows it on the map) when
-  Questie knows them. A trainer whose window listed it still counts.
+**Training a profession's next rank: one answer**
+- "what should i do" and the prompt's examples decide the same way when it's time to train a profession's next rank:
+  TrainerSpells' next rank when it's installed, else your skill at the top of a rank a trainer teaches past. Fishing,
+  Cooking and First Aid at 150 aren't offered a trainer (their next rank is a book, then a quest).
+- Both ask for a trainer who can teach that rank ("nearest expert tailoring trainer"): a Journeyman Tailor can't teach
+  Expert and is left out, as "where to learn" leaves such trainers out. Any trainer search takes a rank the same way
+  (`trainer:tailoring:expert`; apprentice, journeyman, expert or artisan).
+
+**`!t` answers: the asker's, not yours**
+- Your own Simple-mode Filter and Sort picks no longer apply to a guildie's `!t` question (with "Rare or better"
+  picked, "!t nearest innkeeper" found nothing); they're still yours after.
+- "around my level", "above my level" and every `lvl:me` in a `!t` question are the asker's level.
+
+**A faction's rewards: one list**
+- "<faction> > rewards" lists AtlasLoot's rewards OneForAll doesn't, as "<faction> rewards" and `@reputation
+  is:reward` did: "Argent Dawn > rewards" left out the Mantles of the Dawn.
+- A faction OneForAll says isn't in WoW Forever yet (Zandalar Tribe, Brood of Nozdormu, Hydraxian Waterlords) has no
+  AtlasLoot rewards listed for it, on any client language.
+- A reward's vendor on the map (Enter) is one who'll sell to you, the nearest to where you stand, as "<item> > sources"
+  lists them (it was the first OneForAll lists: the Argent Dawn's Hasana in Tirisfal, wherever you stood).
+
+**Smaller answers made to agree**
+- `is:upgrade` over `@loot` follows its rule for both addons' rows: loot from dungeons you can enter (OneForAll's quest
+  rewards, crafted gear and reputation rewards could be "upgrades", AtlasLoot's never were).
+- A boss's drop chance from OneForAll is never put on AtlasLoot's trash row, on any client language (it hid AtlasLoot's
+  own rate in the tooltip).
+- "skinner" (and "miner", "herbalist"...) finds only trainers who'll teach you, as "skinning trainer" does.
+- A quest several NPCs give: its distance, Shift+Enter and map pin go to one of yours, the nearest.
+- "who sells pet food" takes the game's answer on what your pet eats first, as "what can my pet eat" does.
+- A place in Simple mode ("vendor barrens") takes NPCs there by their zone's name too, as its Alt+` line `in:barrens`
+  does.
+
+**Other changes**
+- The `trainer:` filter's help names its rank form; docs/PROVIDERS.md says how the kinds' column, its colours and
+  icons are drawn for add-on authors.
+- The colour filters read your professions once a frame, not once per recipe row; the kind column looks at a list's
+  first 200 rows at most and keeps no list it judged.
+- Translations: the new texts in German, French, Spanish, Russian and Chinese.
 
 ## 1.6.0
 

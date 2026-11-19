@@ -14,15 +14,16 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.6.23", when = "in testing",
+		v = "1.7.0", when = "released November 2026",
 		items = {
-			"A new look: icons drawn like the bags', framed in their item's quality colour; the Forever theme's names parchment-white, the letters you typed gold; each row's kind quieter, on one line after a dot of its colour, and left out when you asked for one kind; the classic frame with the game's stone grain and a shade.",
-			"Recipes: a recipe you don't know and its \"where to learn\" now say the same, the Merchant's Favor and its vendor, a trainer (TrainerSpells' too) and the recipe item; a Favor recipe no longer says \"Trainer\".",
-			"Quests: \"can i take\", is:cantake, \"quests near me\", the zones' counts and \"quest upgrades\" judge a quest by the same rules (side, level, skill, standing, prerequisites, OneForAll's too).",
+			"A new look: icons drawn like the bags', framed in their item's quality colour; the Forever theme's names parchment-white, the letters you typed gold.",
+			"A quieter kind column: a dot of each kind's colour, and no column at all when you asked for one kind; the classic frame has the game's stone grain and a shade.",
+			"Recipes: a recipe you don't know and its \"where to learn\" say the same (the Merchant's Favor and its vendor, a trainer, the recipe item), and it's drawn in the colour is:orange... judge it by.",
+			"Quests: \"can i take\", is:cantake, \"quests near me\", the zones' counts and \"quest upgrades\" judge a quest by the same rules.",
+			"\"train the next rank\" and the prompt's examples agree, and send you to a trainer who can teach the rank (\"nearest expert tailoring trainer\").",
 			"!t answers ignore your own Filter and Sort picks, and \"my level\" is the asker's.",
-			"\"<faction> > rewards\" lists AtlasLoot's rewards too; factions not in WoW Forever yet have none listed.",
-			"\"train the next rank\" skips Fishing, Cooking and First Aid at 150 and sends you to a trainer who can teach the rank (\"nearest expert tailoring trainer\").",
-			"Smaller fixes: is:upgrade over @loot, is:skillup at your skill now, \"skinner\" finds trainers of your side, a quest's giver of your side, pet food vendors, drop chances on trash rows, reward vendors, places in Simple mode.",
+			"\"<faction> > rewards\" lists AtlasLoot's rewards too; factions not in WoW Forever yet have none listed, and a reward's vendor is one of yours, the nearest.",
+			"Smaller fixes: is:upgrade over @loot, no boss's drop chance on a trash row, \"skinner\" finds trainers of your side, a quest's giver of your side, pet food vendors, places in Simple mode.",
 		},
 	},
 	{
