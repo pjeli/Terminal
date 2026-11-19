@@ -627,6 +627,76 @@ local function FitDetail(r)
 end
 UI.FitDetail = FitDetail -- (tests)
 
+-- (1.6.10) A game icon (Interface\Icons, or a file id) is drawn without its own baked-in edge, the way the bags draw
+-- them, inside a thin frame: an item's quality colour from uncommon up, else a dark line. Anything else (a quest mark,
+-- a friend's dot, a picture with its own coords) as it is, unframed.
+UI.ICON_CROP = 0.08
+UI.ICON_EDGE = { 0, 0, 0, 0.85 }
+local iconKind = {} -- texture path -> true when it's a game icon
+local function GameIcon(tex)
+	if type(tex) == "number" then return true end
+	if type(tex) ~= "string" then return false end
+	local is = iconKind[tex]
+	if is == nil then
+		is = tex:sub(1, 16):lower():gsub("/", "\\") == "interface\\icons\\"
+		iconKind[tex] = is
+	end
+	return is
+end
+UI.GameIcon = GameIcon -- (tests)
+
+--- The frame's colour round an item's icon: its quality's from uncommon up, else nil (the dark line).
+local function EdgeColor(e)
+	local id = tonumber(e.itemID)
+	local q = id and ns.ItemQuality(id)
+	if not (q and q >= 2) then return nil end
+	local hex = ns.QualityHex(q)
+	hex = hex and hex:match("^|c%x%x(%x%x%x%x%x%x)")
+	return hex and Theme.Readable(hex:lower()) or nil
+end
+
+local function SetIcon(r, e)
+	local icon, border = r.icon, r.iconBorder
+	if e.icon == false then
+		icon:Hide()
+		if border then border:Hide() end
+		return
+	end
+	local tex = e.icon or QUESTION_MARK
+	icon:Show()
+	icon:SetTexture(tex)
+	-- (a picture filling only part of its texture: a holiday's, Calendar.lua) its own coords; the next row as its own
+	local c, crop = e.iconCoords, nil
+	if type(c) == "table" then crop = c
+	elseif GameIcon(tex) then crop = "icon" end
+	if crop ~= r.iconCrop then
+		r.iconCrop = crop
+		if crop == "icon" then
+			local k = UI.ICON_CROP
+			icon:SetTexCoord(k, 1 - k, k, 1 - k)
+		elseif crop then
+			icon:SetTexCoord(crop[1], crop[2], crop[3], crop[4])
+		else
+			icon:SetTexCoord(0, 1, 0, 1)
+		end
+	end
+	if not border then return end
+	if crop ~= "icon" then border:Hide() return end
+	local hex = EdgeColor(e)
+	if hex ~= r.iconEdge or not border:IsShown() then
+		r.iconEdge = hex
+		if hex then
+			local cr, cg, cb = Theme.RGB(hex)
+			border:SetColorTexture(cr, cg, cb, 1)
+		else
+			local d = UI.ICON_EDGE
+			border:SetColorTexture(d[1], d[2], d[3], d[4])
+		end
+		border:Show()
+	end
+end
+UI.SetIcon = SetIcon -- (tests)
+
 local function FillRow(self, r, e, light)
 	r:Show()
 	if e.raw then
@@ -649,21 +719,7 @@ local function FillRow(self, r, e, light)
 		if note then text = text .. "     " .. note end
 		r.label:SetText(Theme.FixColors(text))
 	end
-	if e.icon == false then
-		r.icon:Hide()
-	else
-		r.icon:Show()
-		r.icon:SetTexture(e.icon or QUESTION_MARK)
-		-- (a picture filling only part of its texture: a holiday's, Calendar.lua) cropped; the next row uncropped again
-		local c = e.iconCoords
-		if type(c) == "table" then
-			r.icon:SetTexCoord(c[1], c[2], c[3], c[4])
-			r.iconCropped = true
-		elseif r.iconCropped then
-			r.icon:SetTexCoord(0, 1, 0, 1)
-			r.iconCropped = nil
-		end
-	end
+	SetIcon(r, e)
 	local from = self.linked and self.linked[e]
 	local yd, rest
 	if not from and rawget(e, "_dist") and type(e.detail) == "string" then yd, rest = e.detail:match("^(%d+ yd)%s*(.*)$") end

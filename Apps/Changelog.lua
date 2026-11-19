@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.6.9", when = "in testing",
+		v = "1.6.10", when = "in testing",
 		items = {
+			"A new look: icons drawn like the bags', framed in their item's quality colour.",
 			"Recipes: a recipe you don't know and its \"where to learn\" now say the same, the Merchant's Favor and its vendor, a trainer (TrainerSpells' too) and the recipe item; a Favor recipe no longer says \"Trainer\".",
 			"Quests: \"can i take\", is:cantake, \"quests near me\", the zones' counts and \"quest upgrades\" judge a quest by the same rules (side, level, skill, standing, prerequisites, OneForAll's too).",
 			"!t answers ignore your own Filter and Sort picks, and \"my level\" is the asker's.",

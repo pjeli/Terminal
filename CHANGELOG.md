@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.10 (in testing)
+
+**A new look: icons**
+- The result rows' icons are drawn the way the bags draw them: without the icon's own rough edge, in a thin frame,
+  an item's in its quality colour from uncommon up.
+
 ## 1.6.9 (in testing)
 
 **Close calls made to agree**
