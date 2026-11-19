@@ -145,10 +145,11 @@ end
 --- AtlasLoot's faction loot as @reputation's rewards: each item of its Factions module, saying its faction and the
 --- standing it needs ("Brood of Nozdormu  ·  Exalted", as its tables are filed: "<standing>  <faction>"), whether yours
 --- allows it, Enter opening AtlasLoot on it as @loot's row does (a view on that row). `mine`: lowercase faction name ->
---- your standing (1-8); `have`: item ids listed already (OneForAll's, which say their quartermaster). (AtlasLoot's own
+--- your standing (1-8); `have`: item ids listed already (OneForAll's, which say their quartermaster); `absent`: lowercase
+--- faction names left out (OneForAll's "not in WoW Forever yet", 1.6.5). (AtlasLoot's own
 --- rows, not @loot's list: building @loot inside @reputation's collect was most of its 86 ms at login, and again on
 --- every rep gain; its faction rows found once per index, each one's standing and faction read then.)
-function I.FactionLoot(mine, have)
+function I.FactionLoot(mine, have, absent)
 	local out = {}
 	local lp = ns.providers.loot
 	if not lp then return out end
@@ -182,7 +183,7 @@ function I.FactionLoot(mine, have)
 			name = I.LootName(id)
 			if name then r.name = name end
 		end
-		if type(name) == "string" and not (have and have[id]) then
+		if type(name) == "string" and not (have and have[id]) and not (absent and absent[x.lfac]) then
 			local my = mine and mine[x.lfac]
 			local need = x.need
 			local can = my ~= nil and my >= need

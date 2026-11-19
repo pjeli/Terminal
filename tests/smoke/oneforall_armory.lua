@@ -264,6 +264,8 @@ do
 				detail = "Exalted  Brood of Nozdormu" },
 			{ key = "al2", itemID = 22014, name = "Hallowed Brazier", addon = "AtlasLootClassic_Factions", content = "ArgentDawn", detail = "Honored  Argent Dawn" },
 			{ key = "al3", itemID = 9999, name = "A Dungeon Sword", addon = "AtlasLootClassic_DungeonsAndRaids", content = "SFK", detail = "Arugal  Shadowfang Keep" },
+			{ key = "al4", itemID = 18182, name = "Chromatic Mantle of the Dawn", addon = "AtlasLootClassic_Factions", content = "ArgentDawn", detail = "Exalted  Argent Dawn" },
+			{ key = "al5", itemID = 20077, name = "Zandalar Signet of Might", addon = "AtlasLootClassic_Factions", content = "ZandalarTribe", detail = "Exalted  Zandalar Tribe" },
 		} end }
 		ns.providers.reputation._dirty = true
 		local brood = UI:Search("@reputation is:reward brood")
@@ -297,6 +299,21 @@ do
 		local braziers = 0
 		for _, e in ipairs(UI:Search("@reputation is:reward brazier")) do if e.itemID == 22014 then braziers = braziers + 1 end end
 		check(braziers == 1, "an item both list: once (OneForAll's, with its quartermaster): " .. braziers)
+		-- (1.6.5, the mismatch hunt) "argent dawn > rewards" lists AtlasLoot's rewards too, as "argent dawn rewards" does
+		local viaChain = ns.Pipes.Run("rewards", { { kind = "reputation", factionID = 529, name = "Argent Dawn" } })
+		local chainAL, chainBraziers = false, 0
+		for _, e in ipairs(viaChain) do
+			if e.itemID == 18182 then chainAL = true end
+			if e.itemID == 22014 then chainBraziers = chainBraziers + 1 end
+		end
+		check(chainAL and chainBraziers == 1, "argent dawn > rewards: AtlasLoot's Chromatic Mantle too, the Brazier once: " .. Names(viaChain))
+		-- a faction OneForAll says isn't in WoW Forever yet (Zandalar Tribe, st 0): AtlasLoot's rewards of it not listed either
+		local zq = A.Question("zandalar tribe rewards")
+		local za = zq and A.Answer(zq) or {}
+		local zrows = 0
+		for _, e in ipairs(za) do if e.itemID == 20077 then zrows = zrows + 1 end end
+		check(#UI:Search("@reputation is:reward zandalar") == 0 and zrows == 0 and A.AbsentFactions()["zandalar tribe"],
+			"Zandalar Tribe (not in WoW Forever yet, OneForAll says): its AtlasLoot rewards aren't listed")
 		check(#UI:Search("@reputation dungeon sword") == 0, "a dungeon's loot: not a reward")
 		-- (review, 1.0.38) one item in Loot and in reputation's rewards: still the clear winner
 		local W = ns.UI._Scan.Winner

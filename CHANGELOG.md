@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.5 (in testing)
+
+**A faction's rewards: one list**
+- "<faction> > rewards" (from a faction's row) lists AtlasLoot's rewards OneForAll doesn't, as "<faction> rewards" and
+  `@reputation is:reward` already did: "Argent Dawn > rewards" left out the Mantles of the Dawn.
+- A faction OneForAll says isn't in WoW Forever yet (Zandalar Tribe, Brood of Nozdormu, Hydraxian Waterlords) no longer
+  has AtlasLoot's rewards listed for it, as `@itemset` and `@enchant` already leave out what it marks so.
+
 ## 1.6.4 (in testing)
 
 **`!t` answers: the asker's, not yours**

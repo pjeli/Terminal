@@ -95,6 +95,23 @@ function A.Factions()
 	end)
 end
 
+--- The factions OneForAll says aren't in WoW Forever yet (st 0: Zandalar Tribe, Brood of Nozdormu...): { [lower-case
+--- name] = true }, {} without it. AtlasLoot's rewards of these aren't listed either (I.FactionLoot), as @itemset and
+--- @enchant already leave out what it marks so (1.6.5, the mismatch hunt).
+local absentOf, absentFrom
+function A.AbsentFactions()
+	local lib = OA.Lib and OA.Lib()
+	local raw = type(lib) == "table" and rawget(lib, "ARMORY_REPUTATION")
+	if raw == absentFrom and absentOf then return absentOf end
+	local out = {}
+	for _, f in ipairs(type(raw) == "table" and raw or {}) do
+		local name = type(f) == "table" and f.st == 0 and OA.Text(f.n)
+		if name then out[Lower(name)] = true end
+	end
+	absentOf, absentFrom = out, raw
+	return out
+end
+
 --- OneForAll's item sets, checked: { { id, name, group, sub, status (1 obtainable, 2 source not known yet, 0 not in WoW
 --- Forever yet), side, classes = { FILE = true } or nil (any class), armor, level, bonuses = { { pieces, text } },
 --- pieces = { { id, name, slot, quality, icon, sources = { text... } } } } }, or nil.
@@ -650,9 +667,22 @@ OA.AddSetup(function()
 			applies = function(e) return e.kind == "reputation" and not e.repReward and e.factionID ~= nil end,
 			run = function(rows)
 				local out = {}
+				-- (and AtlasLoot's rewards OneForAll doesn't list, as "<faction> rewards" and @reputation is:reward list them:
+				-- 1.6.5, the mismatch hunt; @reputation's rows of no faction id, by the faction's name)
+				local p = ns.providers.reputation
+				local all = p and ns:GetEntries(p) or {}
 				for _, e in ipairs(rows) do
-					for i, r in ipairs(A.RewardsOf(e.factionID)) do
-						out[#out + 1] = setmetatable({ _score = 1e6 - i }, { __index = r })
+					local n = 0
+					for _, r in ipairs(A.RewardsOf(e.factionID)) do
+						n = n + 1
+						out[#out + 1] = setmetatable({ _score = 1e6 - n }, { __index = r })
+					end
+					local lname = type(e.name) == "string" and Lower(e.name)
+					for _, r in ipairs(all) do
+						if lname and r.repReward and not r.factionID and Lower(tostring(r.faction)) == lname then
+							n = n + 1
+							out[#out + 1] = setmetatable({ _score = 1e6 - n }, { __index = r })
+						end
 					end
 				end
 				return out

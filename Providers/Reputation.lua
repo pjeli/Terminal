@@ -191,7 +191,9 @@ ns:RegisterProvider("reputation", {
 			for _, e in ipairs(out) do
 				if e.repReward then have[e.itemID] = true elseif type(e.name) == "string" then mine[ns.Lower(e.name)] = e.reaction end
 			end
-			for _, r in ipairs(I.FactionLoot(mine, have)) do out[#out + 1] = r end
+			-- (not a faction OneForAll says isn't in WoW Forever yet: 1.6.5)
+			local absent = AR and AR.AbsentFactions and AR.AbsentFactions() or nil
+			for _, r in ipairs(I.FactionLoot(mine, have, absent)) do out[#out + 1] = r end
 		end
 		return out
 	end,
