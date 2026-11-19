@@ -18,15 +18,16 @@ function T.Darken(hex, f)
 end
 
 -- Default: Classic Forever look. Soft earthy brown (the game's scroll backgrounds) inside a
--- bronze frame, gold text, blue prompt.
+-- bronze frame, parchment-white names with the typed letters in gold, blue prompt (1.6.11: the names were gold too,
+-- and the gold of the matched letters, the kinds and the selection ran together).
 T.DEFAULTS = {
 	preset = "forever",
 	promptText = ">",
 	prompt = "6db8ff",   -- prompt colour
 	accent = "c79c4e",   -- selected row
-	match = "ffffff",    -- matched letters
-	text = "ffd100",
-	dim = "c9c2b0",      -- details, footer
+	match = "ffd100",    -- matched letters
+	text = "f2e8d5",
+	dim = "b8a88a",      -- details, footer
 	bg = "47331f",
 	promptBg = "322416", -- the prompt's background (slightly darker than bg)
 	border = "b08040",
@@ -53,13 +54,14 @@ T.DEFAULTS = {
 	fzfGlow = "breathe", -- fuzzy finding's glow round the prompt: T.FZF_GLOW_ORDER
 	fzfColor = false, -- its colour (false: the theme's selection colour)
 	waypoints = "tomtom", -- where Enter's waypoints go while TomTom is there: T.WAYPOINT_ORDER (Maps.lua's M.PinTo)
-	v = 4, -- theme defaults version (see T.Get)
+	v = 5, -- theme defaults version (see T.Get)
 }
 
+T.FOREVER_V5 = { "text", "match", "dim" } -- (what v5 changed in the Forever preset: T.Get)
 T.PRESET_ORDER = { "forever", "foreverblue", "midnight", "matrix", "dracula", "solarized", "horde", "alliance",
 	"wowhead", "allakhazam", "thottbot", "mmochampion" }
 T.PRESETS = {
-	forever = { label = "Forever", bg = "47331f", border = "b08040", accent = "c79c4e", prompt = "6db8ff", text = "ffd100", dim = "c9c2b0", match = "ffffff", bgAlpha = 0.95, frame = "classic" },
+	forever = { label = "Forever", bg = "47331f", border = "b08040", accent = "c79c4e", prompt = "6db8ff", text = "f2e8d5", dim = "b8a88a", match = "ffd100", bgAlpha = 0.95, frame = "classic" },
 	foreverblue = { label = "Forever Blue", bg = "47331f", border = "b08040", accent = "c79c4e", prompt = "ffd100", text = "a8d8ff", dim = "d6c49a", match = "ffd100", bgAlpha = 0.95, frame = "classic" },
 	midnight = { label = "Midnight", bg = "0d0f14", border = "40475a", accent = "ffd200", prompt = "33ff99", text = "ffffff", dim = "8c8c8c", match = "ffd200", bgAlpha = 0.96, frame = "flat" },
 	matrix = { label = "Matrix", bg = "000a00", border = "0f6b26", accent = "00ff66", prompt = "00ff66", text = "c8ffc8", dim = "4f8f5f", match = "9dff9d", bgAlpha = 0.95, frame = "flat" },
@@ -239,6 +241,14 @@ function T.Get()
 	if t.v == 3 then
 		t.slashKey = nil
 		t.v = 4
+	end
+	-- v5 (1.6.11): Forever's names parchment-white, its matched letters gold; a Forever theme with all three as they
+	-- were (none of them tuned) takes the new ones
+	if t.v == 4 then
+		if t.preset == "forever" and t.text == "ffd100" and t.match == "ffffff" and t.dim == "c9c2b0" then
+			for _, k in ipairs(T.FOREVER_V5) do t[k] = T.PRESETS.forever[k] end
+		end
+		t.v = 5
 	end
 	-- animations were on/off before there were styles
 	if t.animations == true then t.animations = "smooth" elseif t.animations == false then t.animations = "off" end

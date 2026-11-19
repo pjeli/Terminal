@@ -21,7 +21,7 @@ do
 	-- (0.56.14, the author's call) off unless turned on; a theme saved by the test builds, when it was on for everyone, too
 	local theme = ns.db.theme
 	ns.db.theme = { v = 3, preset = "forever", slashKey = true }
-	check(ns.Theme.Get().slashKey == false and ns.Theme.Get().v == 4, "a test build's theme: off now")
+	check(ns.Theme.Get().slashKey == false and ns.Theme.Get().v >= 4, "a test build's theme: off now")
 	ns.db.theme = {}
 	check(ns.Theme.Get().slashKey == false, "a new theme: off")
 	ns.db.theme = theme

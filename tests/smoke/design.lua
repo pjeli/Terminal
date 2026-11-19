@@ -37,3 +37,22 @@ do
 	-- drawn: the rows have the frame
 	check(UI.rows[1] and UI.rows[1].iconBorder, "every row has an icon frame")
 end
+
+-- 1.6.11: Forever's names parchment-white, matched letters gold; an untouched saved Forever theme takes them
+io.write("[design: Forever's names and matched letters]\n")
+do
+	local P = Theme.PRESETS.forever
+	check(P.text ~= P.match and P.match == "ffd100" and Theme.DEFAULTS.text == P.text and Theme.DEFAULTS.match == P.match,
+		"Forever: names and matched letters apart, the defaults the same")
+	local was = ns.db.theme
+	ns.db.theme = { v = 4, preset = "forever", text = "ffd100", match = "ffffff", dim = "c9c2b0", bg = "47331f" }
+	local t = Theme.Get()
+	check(t.v == 5 and t.text == P.text and t.match == P.match and t.dim == P.dim, "an untouched Forever theme from 1.6.10: the new colours")
+	ns.db.theme = { v = 4, preset = "forever", text = "ffd100", match = "ff0000", dim = "c9c2b0" }
+	t = Theme.Get()
+	check(t.v == 5 and t.text == "ffd100" and t.match == "ff0000", "a tuned one: kept as it was")
+	ns.db.theme = { v = 4, preset = "midnight", text = "ffd100", match = "ffffff", dim = "c9c2b0" }
+	check(Theme.Get().text == "ffd100", "another preset: kept")
+	ns.db.theme = was
+	Theme.Get()
+end

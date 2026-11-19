@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.11 (in testing)
+
+**A new look: Forever's colours**
+- The Forever theme's names are parchment-white and the letters you typed gold in them (they were white in gold
+  names); details are a softer brown-grey. A Forever theme you never tuned takes the new colours; one you tuned stays.
+
 ## 1.6.10 (in testing)
 
 **A new look: icons**
