@@ -702,6 +702,20 @@ function I.LootTipMore(e, t)
 	end
 end
 
+--- Is this boss name one of AtlasLoot's trash tables? Its own name for them in the client's language ("Trash Mobs",
+--- "Треш", "Ennemis communs": AtlasLoot.Locales), or "trash" in it (release review: English only, so on other clients a
+--- boss's chance still landed on the trash row).
+function I.IsTrash(boss)
+	if type(boss) ~= "string" then return false end
+	local lb = ns.Lower(boss)
+	if lb:find("trash", 1, true) then return true end
+	local A = AL()
+	local loc = type(A) == "table" and A.Locales
+	local ok, name = pcall(function() return type(loc) == "table" and loc["Trash Mobs"] or nil end)
+	name = ok and type(name) == "string" and name ~= "" and ns.Lower(name) or nil
+	return name ~= nil and lb:find(name, 1, true) ~= nil
+end
+
 --- OneForAll's drop chance for a loot row ("Boss  Instance", its item), or nil. `byDetail`: what each detail's boss was
 --- found as, kept across one list's rows. By the boss's name; not found (AtlasLoot's names in another language), by the
 --- item alone when OneForAll lists it once (W.ItemChance), but never for AtlasLoot's trash: a boss's number on the trash
@@ -714,7 +728,7 @@ function I.LootChance(d, id, byDetail)
 	if at == nil then
 		local boss, inst = I.LootSplit(d) -- (the one reading of "Boss  Instance")
 		at = boss and W.BossChances(inst, boss) or false
-		if not at and boss and ns.Lower(boss):find("trash", 1, true) then at = "trash" end
+		if not at and boss and I.IsTrash(boss) then at = "trash" end
 		byDetail[d] = at
 	end
 	return (type(at) == "table" and at[id]) or (at == false and W.ItemChance and W.ItemChance(id)) or nil

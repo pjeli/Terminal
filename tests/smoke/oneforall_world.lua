@@ -102,6 +102,12 @@ do
 		check(I.LootChance("Aku'mai  Blackfathom Deeps", 6909) == 20 and I.LootChance("Aku'mai  Tiefschwarze Grotte", 6910) == 0.28
 			and I.LootChance("Trash Mobs  Tiefschwarze Grotte", 6910) == nil and I.LootChance("Trash Mobs  Blackfathom Deeps", 6910) == nil,
 			"a loot row's chance: its boss's; in another language by the item; a trash row none (the mismatch hunt)")
+		-- (release review) AtlasLoot's trash in the client's language, by its own name for it
+		local alWas = rawget(_G, "AtlasLoot")
+		_G.AtlasLoot = setmetatable({ Locales = { ["Trash Mobs"] = "Треш" } }, { __index = alWas })
+		check(I.LootChance("Треш  Тлеющие глубины", 6910) == nil and I.LootChance("Акумай  Тлеющие глубины", 6910) == 0.28,
+			"a Russian client: AtlasLoot's trash row (Треш) has no chance; a boss's row still by the item")
+		_G.AtlasLoot = alWas
 		local lp = ns.providers.loot
 		if lp then
 			lootRow = setmetatable({ key = "test:bfd:6909", itemID = 6909, name = "Strike of the Hydra", detail = "Aku'mai  Blackfathom Deeps" },

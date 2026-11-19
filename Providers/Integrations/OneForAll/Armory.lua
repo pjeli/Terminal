@@ -106,7 +106,14 @@ function A.AbsentFactions()
 	local out = {}
 	for _, f in ipairs(type(raw) == "table" and raw or {}) do
 		local name = type(f) == "table" and f.st == 0 and OA.Text(f.n)
-		if name then out[Lower(name)] = true end
+		if name then
+			out[Lower(name)] = true
+			-- (and as the game names it, which is AtlasLoot's name for it on any client: OneForAll's are English; release
+			-- review, a German client listed the Zandalarstamm's rewards)
+			local QR, fid = ns.QuestRewards, Num(f.id)
+			local game = fid and QR and QR.FactionName and QR.FactionName(fid)
+			if type(game) == "string" and game ~= "" then out[Lower(game)] = true end
+		end
 	end
 	absentOf, absentFrom = out, raw
 	return out

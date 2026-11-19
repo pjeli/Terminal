@@ -314,6 +314,20 @@ do
 		for _, e in ipairs(za) do if e.itemID == 20077 then zrows = zrows + 1 end end
 		check(#UI:Search("@reputation is:reward zandalar") == 0 and zrows == 0 and A.AbsentFactions()["zandalar tribe"],
 			"Zandalar Tribe (not in WoW Forever yet, OneForAll says): its AtlasLoot rewards aren't listed")
+		-- (release review) on a German client AtlasLoot names it as the game does: matched by the game's name too
+		local QRf = ns.QuestRewards
+		local fnWas = QRf.FactionName
+		QRf.FactionName = function(fid) if fid == 270 then return "Stamm der Zandalar" end return fnWas(fid) end
+		local libRaw = OA.Lib and OA.Lib()
+		local rawRep = libRaw and rawget(libRaw, "ARMORY_REPUTATION")
+		if type(rawRep) == "table" then
+			local copy = {}
+			for i, f in ipairs(rawRep) do copy[i] = f end
+			rawset(libRaw, "ARMORY_REPUTATION", copy) -- (a new table: AbsentFactions reads it again)
+			check(A.AbsentFactions()["stamm der zandalar"] == true, "its name in the client's language counts too")
+			rawset(libRaw, "ARMORY_REPUTATION", rawRep)
+		end
+		QRf.FactionName = fnWas
 		check(#UI:Search("@reputation dungeon sword") == 0, "a dungeon's loot: not a reward")
 		-- (review, 1.0.38) one item in Loot and in reputation's rewards: still the clear winner
 		local W = ns.UI._Scan.Winner

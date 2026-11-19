@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.21 (in testing)
+
+**Clients in other languages: trash rows and factions to come**
+- On a client in another language, AtlasLoot's trash rows ("Треш", "Ennemis communs") get no boss's drop chance
+  either, as on an English client (1.6.9 knew only the English "Trash Mobs").
+- A faction not in WoW Forever yet (the Zandalar Tribe) is known by the game's name for it too: on a German client its
+  AtlasLoot rewards were still listed.
+
 ## 1.6.20 (in testing)
 
 **A reward's vendor: from where you are**
