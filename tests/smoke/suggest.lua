@@ -107,6 +107,23 @@ do
 	_G.UnitLevel = lv
 	SG.Forget()
 end
+-- (1.6.7, the mismatch hunt) one rule with the prompt's examples (E.ProfDue): Fishing, Cooking, First Aid at 150 have
+-- no trainer rank past it (a book, a quest); the row's search asks for a trainer who can teach the next rank
+do
+	local pp, lv = ns.Professions.PlayerProfessions, _G.UnitLevel
+	ns.Professions.PlayerProfessions = function() return { { name = "Fishing", rank = 150, maxRank = 150, skillLine = 356 },
+		{ name = "Tailoring", rank = 150, maxRank = 150, skillLine = 197 } } end
+	_G.UnitLevel = function() return 25 end
+	SG.Forget()
+	local got = {}
+	for _, r in ipairs(SG.Rows(true, 20)) do got[r.suggestId] = r end
+	check(not got["rank:fishing"], "Fishing at 150: no trainer rank to train (the examples say so too)")
+	local t = got["rank:tailoring"]
+	check(t and (t.searchText or ""):find("expert tailoring trainer", 1, true) or (t and not (t.searchText or ""):find("nearest", 1, true)),
+		"Tailoring at 150: its next rank, from a trainer who can teach Expert: " .. tostring(t and t.searchText))
+	ns.Professions.PlayerProfessions, _G.UnitLevel = pp, lv
+	SG.Forget()
+end
 check(by["level:cooking"] and not by["level:mining"] and not by["level:herbalism"], "the profession furthest from its cap (herbalism's gathered: no plan)")
 check(by.turnin and by.turnin.name:find("1", 1, true) and by.turnin.searchText == "quests to turn in", "a quest to turn in")
 check(by.repair._at == 1, "a worn piece at 18% first")

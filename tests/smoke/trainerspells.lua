@@ -380,3 +380,20 @@ do
 	UI:Hide(); FlushAll()
 	if not ok then check(false, "trainerspells: " .. tostring(err)) end
 end
+
+io.write("[trainers who can teach a rank (1.6.7)]\n")
+do
+	-- (1.6.7, the mismatch hunt) trainer:tailoring:expert: a trainer whose title rank tops out below Expert left out, as the
+	-- learn chain leaves them out; "expert tailoring trainer" reads as it
+	local F = ns.Filters
+	local meta = ns:CompactMeta({ id = "npc", label = "NPC" }, {}, {})
+	local function T(name, sub) return setmetatable({ _compact = true, key = #name, name = name, sub = sub }, meta) end
+	local jour, art, plain, bs = T("Jo", "Journeyman Tailor Trainer"), T("Artie", "Artisan Tailor Trainer"), T("Plainname", "Tailoring Trainer"), T("Smith", "Expert Blacksmith Trainer")
+	local f = F.Parse("trainer:tailoring:expert")
+	check(f and not f(jour) and f(art) and f(plain) and not f(bs),
+		"trainer:tailoring:expert: not the Journeyman (to 150), the Artisan and a title with no rank yes, not another profession's")
+	local kept, specs = ns.Easy.TrainerProfs({ "expert", "tailoring" }, true)
+	check(specs and specs[1] == "trainer:tailoring:expert" and #kept == 0, "expert tailoring trainer: trainer:tailoring:expert: " .. tostring(specs and specs[1]))
+	kept, specs = ns.Easy.TrainerProfs({ "tailoring" }, true)
+	check(specs and specs[1] == "trainer:tailoring", "tailoring trainer: as before")
+end

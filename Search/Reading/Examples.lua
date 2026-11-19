@@ -332,6 +332,21 @@ function E.ProfCapped(pr, level)
 	local need = E.PROF_RANK_LEVEL[pr.max]
 	return not (need and level and level < need)
 end
+--- Is it time to train a profession's next rank? One answer for the prompt's examples and "what should i do" (they
+--- judged it two ways until 1.6.7: Fishing at 150 was offered a rank no trainer teaches). `pr`: Professions' row
+--- ({ name, rank, maxRank, skillLine }). TrainerSpells' next rank when it says (due when your skill reaches it), else
+--- E.ProfCapped. Returns due, the next rank's English word ("expert", for "nearest expert tailoring trainer"), and
+--- TrainerSpells' answer.
+E.NEXT_RANK = { [75] = "journeyman", [150] = "expert", [225] = "artisan" }
+function E.ProfDue(pr, level)
+	local TS = ns.TrainerSpells
+	local nr = TS and TS.NextRank and select(2, pcall(TS.NextRank, pr)) or nil
+	if type(nr) ~= "table" then nr = nil end
+	local max = pr.maxRank or 0
+	local word = E.NEXT_RANK[max]
+	if nr then return nr.now == true, word, nr end
+	return E.ProfCapped({ line = pr.skillLine, rank = pr.rank or 0, max = max }, level), word, nil
+end
 --- At the very top (300): nothing left to learn from a trainer.
 function E.ProfDone(pr) return pr.max >= E.PROF_TOP and pr.rank >= pr.max - E.PROF_NEAR end
 

@@ -726,6 +726,9 @@ function E.TrainerProfs(words, trainerSaid)
 	-- ("master" is set aside only with "weapon": "master leatherworking trainer" keeps it, a word of the search)
 	local ASIDE = { my = true, class = true, weapon = true, weapons = true, master = weaponSaid, masters = weaponSaid }
 	local kept, specs, aside = {}, nil, {}
+	-- (a rank said with a profession, "expert tailoring trainer": those who can teach it, trainer:tailoring:expert; 1.6.7)
+	local rank
+	for _, w in ipairs(words) do if F.TRAINER_RANKS and F.TRAINER_RANKS[w] then rank = w end end
 	for k, w in ipairs(words) do
 		local aid = w == "aid" and words[k - 1] == "first" -- (said with "first": taken with it)
 		local prof = not aid and (w ~= "first" or words[k + 1] == "aid") and ProfNamed(w) or nil
@@ -737,7 +740,10 @@ function E.TrainerProfs(words, trainerSaid)
 		if not prof and F.TrainerWeapon then prof = F.TrainerWeapon(w) end -- ("dagger trainer": its weapon masters)
 		if prof then
 			specs = specs or {}
-			specs[#specs + 1] = "trainer:" .. (prof:gsub(" ", ""))
+			local ranked = rank and ProfNamed(w) and not (F.TrainerClass and F.TrainerClass(w))
+			specs[#specs + 1] = "trainer:" .. (prof:gsub(" ", "")) .. (ranked and (":" .. rank) or "")
+		elseif rank and w == rank then
+			-- (said with the profession's spec above)
 		elseif ASIDE[w] then
 			aside[w] = true
 		elseif not aid then

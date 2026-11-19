@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.7 (in testing)
+
+**Training a profession's next rank: one answer**
+- "what should i do" and the prompt's examples now decide the same way when it's time to train a profession's next
+  rank: TrainerSpells' next rank when it's installed, else your skill at the top of a rank a trainer teaches past.
+  Fishing, Cooking and First Aid at 150 are no longer offered a trainer (their next rank is a book, then a quest).
+- Its suggestion asks for a trainer who can teach that rank ("nearest expert tailoring trainer"): a Journeyman Tailor
+  can't teach Expert and is left out, as "where to learn" already leaves such trainers out. Any trainer search takes
+  a rank the same way (`trainer:tailoring:expert`; apprentice, journeyman, expert or artisan).
+
 ## 1.6.6 (in testing)
 
 **`is:upgrade` over `@loot`: one rule for both addons' rows**

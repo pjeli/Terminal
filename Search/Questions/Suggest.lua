@@ -220,17 +220,19 @@ CHECKS[#CHECKS + 1] = function(build)
 	for _, pr in ipairs((P.PlayerProfessions())) do
 		local name, rank, max = pr.name, pr.rank or 0, pr.maxRank or 0
 		local lw = Lower(name)
-		local nr = TS and TS.NextRank and select(2, pcall(TS.NextRank, pr)) or nil
-		if type(nr) ~= "table" then nr = nil end
 		local capped = max > 0 and rank >= max
-		-- (without TrainerSpells to say: the level each rank asks, Journeyman 10, Expert 20, Artisan 35)
-		local need = SG.RANK_LEVEL[max]
-		if (nr and nr.now) or (capped and not nr and max < 300 and not (need and level and level < need)) then
+		-- (one answer with the prompt's examples, E.ProfDue: TrainerSpells' next rank, else your skill at the top of a rank
+		-- a trainer teaches past (not Cooking, First Aid, Fishing at 150: a book and a quest), at the level it asks; 1.6.7)
+		local due, word, nr = false, nil, nil
+		if ns.Easy and ns.Easy.ProfDue then due, word, nr = ns.Easy.ProfDue(pr, level) end
+		if due then
 			local parts = { L["skill %d/%d"]:format(rank, max) }
 			if nr and nr.title then parts[#parts + 1] = nr.title end
 			if nr and (nr.cost or 0) > 0 then parts[#parts + 1] = ns.Money(nr.cost) end
 			out[#out + 1] = { id = "rank:" .. lw, name = L["%s: train the next rank"]:format(name), detail = table.concat(parts, SEP),
-				icon = pr.icon, search = Has("Questie") and ("nearest " .. lw .. " trainer") or (lw .. " training"), score = capped and 75 or 45 }
+				-- (a trainer who can teach that rank: "nearest expert tailoring trainer" leaves out a Journeyman Tailor)
+				icon = pr.icon, search = Has("Questie") and ("nearest " .. (word and (word .. " ") or "") .. lw .. " trainer") or (lw .. " training"),
+				score = capped and 75 or 45 }
 		-- (asked only: on the empty prompt's count, SG.Pressing, nearly everyone has one to level: not pressing)
 		elseif build and max > 0 and rank < max and not SG.GATHERING[lw] then
 			-- (the one furthest from its cap)
