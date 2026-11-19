@@ -110,7 +110,8 @@ end
 -- (1.6.7, the mismatch hunt) one rule with the prompt's examples (E.ProfDue): Fishing, Cooking, First Aid at 150 have
 -- no trainer rank past it (a book, a quest); the row's search asks for a trainer who can teach the next rank
 do
-	local pp, lv = ns.Professions.PlayerProfessions, _G.UnitLevel
+	local pp, lv, miss = ns.Professions.PlayerProfessions, _G.UnitLevel, ns.Integrations.AddonMissing
+	ns.Integrations.AddonMissing = function() return false end -- (Questie there: the row's search is "nearest ...")
 	ns.Professions.PlayerProfessions = function() return { { name = "Fishing", rank = 150, maxRank = 150, skillLine = 356 },
 		{ name = "Tailoring", rank = 150, maxRank = 150, skillLine = 197 } } end
 	_G.UnitLevel = function() return 25 end
@@ -119,9 +120,9 @@ do
 	for _, r in ipairs(SG.Rows(true, 20)) do got[r.suggestId] = r end
 	check(not got["rank:fishing"], "Fishing at 150: no trainer rank to train (the examples say so too)")
 	local t = got["rank:tailoring"]
-	check(t and (t.searchText or ""):find("expert tailoring trainer", 1, true) or (t and not (t.searchText or ""):find("nearest", 1, true)),
+	check(t and t.searchText == "nearest expert tailoring trainer",
 		"Tailoring at 150: its next rank, from a trainer who can teach Expert: " .. tostring(t and t.searchText))
-	ns.Professions.PlayerProfessions, _G.UnitLevel = pp, lv
+	ns.Professions.PlayerProfessions, _G.UnitLevel, ns.Integrations.AddonMissing = pp, lv, miss
 	SG.Forget()
 end
 check(by["level:cooking"] and not by["level:mining"] and not by["level:herbalism"], "the profession furthest from its cap (herbalism's gathered: no plan)")

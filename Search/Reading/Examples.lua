@@ -355,14 +355,17 @@ local function ProfessionExamples(f, add, advanced)
 	for _, pr in ipairs(f.profs or {}) do
 		local word = pr.name
 		f.trainerFor[word] = true
-		local capped = E.ProfCapped(pr, f.level)
+		-- (E.ProfDue, as "what should i do" judges it: TrainerSpells' next rank first, and a trainer who can teach it;
+		-- release review: these still read E.ProfCapped alone, without the rank)
+		local capped, rank = E.ProfDue({ name = pr.name, rank = pr.rank, maxRank = pr.max, skillLine = pr.line }, f.level)
+		rank = capped and rank or nil
 		if E.ProfDone(pr) then -- (nothing to train)
 		elseif advanced then
 			-- (trainer: reads Questie's English titles: the English word by skill line, whatever the client's language)
 			local en = E.PROF_WORD and E.PROF_WORD[pr.line or 0] or word:gsub(" ", "")
-			add("@npc trainer:" .. en .. " sort:distance", nil, "city", capped)
+			add("@npc trainer:" .. en .. (rank and (":" .. rank) or "") .. " sort:distance", nil, "city", capped)
 		else
-			add(capped and ("nearest " .. word .. " trainer (" .. pr.rank .. "/" .. pr.max .. ")")
+			add(capped and ("nearest " .. (rank and (rank .. " ") or "") .. word .. " trainer (" .. pr.rank .. "/" .. pr.max .. ")")
 				or ("nearest " .. word .. " trainer"), "Questie", "city", capped)
 		end
 		for _, place in ipairs(E.PROF_PLACES[pr.line or 0] or {}) do

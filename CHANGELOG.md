@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.18 (in testing)
+
+**Training the next rank: the examples agree too**
+- The empty prompt's examples judge "time to train the next rank" as "what should i do" does (1.6.7): What's
+  Training's next rank first, and a trainer who can teach it ("nearest journeyman blacksmithing trainer (70/75)",
+  `@npc trainer:blacksmithing:journeyman`). They still offered a Journeyman Tailor at 150, or a rank not due yet.
+
 ## 1.6.17 (in testing)
 
 **The kind column: release review**

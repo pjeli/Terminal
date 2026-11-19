@@ -33,8 +33,18 @@ end
 do
 	local mine = E.PersonalTagged(false)
 	local all = Texts(mine)
-	local bs = Find(mine, "nearest blacksmithing trainer (70/75)")
-	check(bs and bs.todo, "blacksmithing at the top of its rank (70 of 75): its trainer, with the skill, offered more often: " .. all)
+	local bs = Find(mine, "nearest journeyman blacksmithing trainer (70/75)")
+	check(bs and bs.todo, "blacksmithing at the top of its rank (70 of 75): a trainer of its next rank, with the skill, offered more often: " .. all)
+	-- (release review: one rule with "what should i do", E.ProfDue: TrainerSpells saying the next rank isn't due yet wins)
+	local TS = ns.TrainerSpells
+	local nrWas = TS and TS.NextRank
+	if TS then
+		TS.NextRank = function(pr) if pr.skillLine == 164 then return { now = false, skill = 75 } end end
+		local m2 = E.PersonalTagged(false)
+		check(Find(m2, "nearest blacksmithing trainer") and not Find(m2, "nearest journeyman blacksmithing trainer (70/75)"),
+			"TrainerSpells: the next rank not due yet: no rank to train, as \"what should i do\" says: " .. Texts(m2))
+		TS.NextRank = nrWas
+	end
 	check(Find(mine, "nearest mining trainer") and not Find(mine, "nearest mining trainer").todo,
 		"mining with room to grow (120 of 150): its trainer, as any other suggestion")
 	check(Find(mine, "nearest anvil") and Find(mine, "nearest forge"), "blacksmithing and mining: the nearest anvil and forge")
@@ -52,7 +62,7 @@ do
 	-- Advanced: the same, as its syntax (where this setup has the kinds)
 	local adv = E.PersonalTagged(true)
 	if ns:ResolveProvider("npc") then
-		check(Find(adv, "@npc trainer:blacksmithing sort:distance") and Find(adv, "@npc trainer:blacksmithing sort:distance").todo,
+		check(Find(adv, "@npc trainer:blacksmithing:journeyman sort:distance") and Find(adv, "@npc trainer:blacksmithing:journeyman sort:distance").todo,
 			"Advanced: the trainer as @npc trainer:, offered more often when it's time: " .. Texts(adv))
 	else
 		check(not Texts(adv):find("@npc", 1, true), "Advanced, no @npc here (no Questie): no trainer suggested by it: " .. Texts(adv))
