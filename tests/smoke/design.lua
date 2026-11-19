@@ -61,6 +61,8 @@ end
 io.write("[design: the kind column]\n")
 do
 	local r = { kind = T.Obj("FontString"), kindDot = T.Obj("Texture") }
+	local shownWas = UI.layout.kindShown
+	UI.layout.kindShown = true -- (the column shown: 1.6.16 hides it for one kind asked for)
 	UI.SetKind(r, { kindLabel = "|cff9d7bffSpell|r" }, false)
 	check(r.kind:GetText() == "Spell" and r.kindDot.shown == true and r.kindDotHex == "9d7bff", "a row: its kind plain, a dot in its colour")
 	UI.SetKind(r, { kindLabel = "|cff9d7bffSpell|r" }, true)
@@ -69,6 +71,7 @@ do
 	check(r.kind:GetText() == "" and r.kindDot.shown == false, "no kind: no dot")
 	UI.SetKind(r, { kindLabel = "plain" }, false)
 	check(r.kind:GetText() == "plain" and r.kindDot.shown == false, "a kind without a colour: no dot")
+	UI.layout.kindShown = shownWas
 	-- drawn: the selection's row coloured, the others plain, and the colour follows the selection
 	local saved = { providers = ns.providers, order = ns.providerOrder }
 	ns.providers, ns.providerOrder = {}, {}
@@ -79,7 +82,8 @@ do
 	local easy = ns.db.easyMode
 	ns.db.easyMode = false; UI:EasyChanged()
 	UI.lastScan, UI.lastExtra = nil, nil
-	UI:SetQuery("@spell ", 7); FlushAll()
+	-- (a plain search: "@spell" asks for one kind, and its column is hidden since 1.6.16)
+	UI:SetQuery("e", 1); FlushAll()
 	local rows = UI.rows
 	local function Coloured(i) return (rows[i].kind:GetText() or ""):find("|cff9d7bff", 1, true) ~= nil end
 	check(UI.sel == 1 and Coloured(1) and not Coloured(2) and rows[2].kind:GetText() == "Spell" and rows[2].kindDot.shown == true,
@@ -110,4 +114,47 @@ do
 	UI:Hide(); FlushAll()
 	ns.db.theme = was
 	Theme.Changed()
+end
+
+-- 1.6.16: the kind column on one line, its dot in a gap of its own; hidden when the search asked for one kind
+io.write("[design: the kind column's width, and hidden for one kind asked for]\n")
+do
+	local LY = UI.layout
+	local saved = { providers = ns.providers, order = ns.providerOrder }
+	ns.providers, ns.providerOrder = {}, {}
+	ns:RegisterProvider("missingrecipes", { label = "Recipe to Learn", aliases = { "learnable" }, color = "ff9ec9b4", collect = function()
+		return { { name = "Crispy Bat Wing", key = 1, detail = "Cooking 1  ·  Vendor" }, { name = "Peace Tea", key = 2, detail = "Cooking 25  ·  Trainer" } }
+	end })
+	ns:RegisterProvider("spells", { label = "Spell", aliases = { "spell" }, color = "ff9d7bff", collect = function()
+		return { { name = "Cleave", key = 1, detail = "Rank 1" } }
+	end })
+	ns:AliasesChanged()
+	local easy = ns.db.easyMode
+	ns.db.easyMode = false; UI:EasyChanged()
+	UI:Open(""); FlushAll()
+	UI:ApplyTheme()
+	-- (the harness's fonts: 7 px a character; "Recipe to Learn" is 15)
+	check(UI.KIND_W == 15 * 7 + 2 and UI.rows[1].kind.w == UI.KIND_W, "the column as wide as the widest kind's name: " .. tostring(UI.KIND_W))
+	UI.lastScan, UI.lastExtra = nil, nil
+	UI:SetQuery("@learnable ", 11); FlushAll()
+	local r1 = UI.rows[1]
+	check(LY.kindShown == false and r1.kind:GetText() == "" and r1.kindDot.shown == false and r1.kind.w == 1,
+		"one kind asked for (@learnable), every row of it: the column hidden")
+	check(r1.detail.lastPoint and r1.detail.lastPoint[4] == 0 and LY.SPAN == LY.SPAN_BASE - 9 - 8,
+		"the names and details take its room")
+	UI.lastScan, UI.lastExtra = nil, nil
+	UI:SetQuery("c", 1); FlushAll()
+	check(LY.kindShown == true and #UI.Results() >= 2, "a plain search: the column shows")
+	local row
+	for i = 1, 10 do if UI.rows[i] and (UI.rows[i].kind:GetText() or ""):find("Recipe to Learn", 1, true) then row = UI.rows[i] end end
+	local dp = row and row.kindDot.lastPoint
+	check(dp and dp[2] == row.kind and dp[4] == -(15 * 7 + 5) and 15 * 7 + 5 + UI.KIND_DOT_SIZE < UI.KIND_W + UI.KIND_GAP,
+		"the dot before the name, inside the gap before the details: " .. tostring(dp and dp[4]))
+	check(row.detail.lastPoint[4] == -UI.KIND_GAP, "the details end before the gap")
+	UI:Hide(); FlushAll()
+	ns.providers, ns.providerOrder = saved.providers, saved.order
+	ns:AliasesChanged()
+	ns.db.easyMode = easy; UI:EasyChanged()
+	UI.lastScan, UI.lastExtra = nil, nil
+	UI:ApplyTheme()
 end

@@ -248,7 +248,7 @@ do
 	list[3].detail = string.rep("long title ", 30)
 	UI:Render(); UI.sel = 2; UI:SelectionChanged(); UI.sel = 3; UI:SelectionChanged()
 	check(UI.navArrow.lastPoint[4] == -(r3.detail:GetWidth() + 4), "a text cut off: the arrow at the start of what shows, not past it: " .. tostring(UI.navArrow.lastPoint[4]))
-	check(r1.label.lastPoint and r1.label.lastPoint[2] == r1.kind and r1.label.lastPoint[4] == -(16 + L.DETAIL_W),
+	check(r1.label.lastPoint and r1.label.lastPoint[2] == r1.kind and r1.label.lastPoint[4] == -(L.KIND_GAP + 8 + L.DETAIL_W),
 		"the name ends where the detail's room begins (never under a distance)")
 	UI:Hide(); T.FlushAll()
 	I.Here, I.NpcDistance, I.Facing, I.Bearing, I.RowDistance = was.here, was.dist, was.facing, was.bearing, was.rowDist

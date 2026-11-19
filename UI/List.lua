@@ -480,6 +480,14 @@ end
 local function SetKind(r, e, selected)
 	local label = e.kindLabel
 	label = type(label) == "string" and label or ""
+	if LY.kindShown == false then
+		if r.kindKey ~= false then
+			r.kindKey, r.kindDotHex = false, nil
+			r.kind:SetText("")
+			if r.kindDot then r.kindDot:Hide() end
+		end
+		return
+	end
 	local key = selected and ("\1" .. label) or label
 	if r.kindKey == key then return end
 	r.kindKey = key
@@ -501,7 +509,7 @@ local function SetKind(r, e, selected)
 	w = type(w) == "number" and w or 0
 	if type(room) == "number" and room > 0 and w > room then w = room end
 	dot:ClearAllPoints()
-	dot:SetPoint("RIGHT", r.kind, "RIGHT", -(math.ceil(w) + 4), 0)
+	dot:SetPoint("RIGHT", r.kind, "RIGHT", -(math.ceil(w) + 5), 0) -- (a name the column's width: the dot in its gap)
 	dot:Show()
 end
 UI.SetKind = SetKind -- (tests)
@@ -658,7 +666,7 @@ local function SetDetailW(r, w)
 	r.detail:SetWidth(w)
 	r.label:ClearAllPoints()
 	r.label:SetPoint("LEFT", r.icon, "RIGHT", 8, 0)
-	r.label:SetPoint("RIGHT", r.kind, "LEFT", -(16 + w), 0)
+	r.label:SetPoint("RIGHT", r.kind, "LEFT", -((LY.KIND_GAP or UI.KIND_GAP) + 8 + w), 0)
 end
 
 --- (0.62.1, the player at 800 wide: "a lot of space in the detail column"... details cut off beside short names) a
@@ -682,6 +690,81 @@ local function FitDetail(r)
 	SetDetailW(r, w)
 end
 UI.FitDetail = FitDetail -- (tests)
+
+-- (1.6.16) The kind's column: as wide as the widest kind's name in this font (UI.KIND_MIN to UI.KIND_MAX), on one line,
+-- its dot in a gap of its own before it (1.6.12 placed the dot by a wrapped name's whole width: it landed in the
+-- details). Hidden when the search asked for one kind ("@item", a question's answer, a chain's step, a category) and
+-- every row is of it: the footer says what they are, the names and details take its room. A plain search keeps it,
+-- so it never comes and goes as you type.
+UI.KIND_W, UI.KIND_GAP, UI.KIND_MIN, UI.KIND_MAX = 80, 14, 60, 130
+
+--- The column's width: the widest kind's name, as drawn in the rows' small font.
+function UI.MeasureKinds()
+	local probe = rows[1] and rows[1].kind
+	if not probe then return end
+	local was, widest = probe:GetText(), 0
+	for id, p in pairs(ns.providers or {}) do
+		local label = type(p) == "table" and (p.label or id)
+		if type(label) == "string" and label ~= "" then
+			probe:SetText(ns.TitleCase and ns.TitleCase(label) or label)
+			local w = probe:GetStringWidth()
+			if type(w) == "number" and w > widest then widest = w end
+		end
+	end
+	probe:SetText(was or "")
+	UI.KIND_W = math.max(UI.KIND_MIN, math.min(UI.KIND_MAX, math.ceil(widest) + 2))
+	probe:SetWidth(UI.KIND_W)
+end
+
+--- Every row's kind column shown (or not), and the name, the detail and the distance placed beside it.
+function UI.LayoutKinds(shown)
+	shown = shown and true or false
+	LY.kindShown = shown
+	LY.KIND_W = shown and UI.KIND_W or 1
+	LY.KIND_GAP = shown and UI.KIND_GAP or 0
+	-- (the name's and the detail's room together: less the kind's column, its right edge, the gaps either side of
+	-- the detail)
+	LY.SPAN = (LY.SPAN_BASE or 400) - (LY.KIND_W + 8) - (LY.KIND_GAP + 8)
+	for i = 1, MAX_ROWS do
+		local r = rows[i]
+		if r then
+			r.kind:SetWidth(LY.KIND_W)
+			r.detail:ClearAllPoints()
+			r.detail:SetPoint("RIGHT", r.kind, "LEFT", -LY.KIND_GAP, 0)
+			-- (the distance: just after the arrow's slot at the left of the detail's room)
+			r.dist:ClearAllPoints()
+			r.dist:SetPoint("LEFT", r.kind, "LEFT", -(LY.KIND_GAP + LY.DETAIL_W) + LY.NAV_SLOT, 0)
+			-- (the name ends where the detail's room begins, whatever part of it a distance takes)
+			r.label:ClearAllPoints()
+			r.detailW = nil
+			SetDetailW(r, LY.DETAIL_W)
+			r.fitName = nil
+			r.kindKey = nil
+		end
+	end
+end
+
+--- Is the list one kind asked for (the column hidden)? Read once per list.
+local oneKind = {}
+function UI:OneKindAsked()
+	local q, list = self.whyQ, UI.results
+	local asked = self.answerNote or self.pipeTrail or self.category
+		or (type(q) == "table" and (q.answer or (type(q.kinds) == "table" and next(q.kinds) ~= nil)))
+	if not asked or #list == 0 then return false end
+	if oneKind.list == list and oneKind.n == #list and oneKind.first == list[1] and oneKind.last == list[#list] then
+		return oneKind.is
+	end
+	local first, is = nil, true
+	for i = 1, #list do
+		local k = list[i].kindLabel
+		if type(k) == "string" and k ~= "" then
+			if first == nil then first = k elseif k ~= first then is = false break end
+		end
+	end
+	is = is and first ~= nil
+	oneKind.list, oneKind.n, oneKind.first, oneKind.last, oneKind.is = list, #list, list[1], list[#list], is
+	return is
+end
 
 -- (1.6.10) A game icon (Interface\Icons, or a file id) is drawn without its own baked-in edge, the way the bags draw
 -- them, inside a thin frame: an item's quality colour from uncommon up, else a dark line. Anything else (a quest mark,
@@ -822,6 +905,8 @@ function UI:Render()
 	-- only a new layout (theme changes) puts them up at once
 	local animated = self:Animated() and not (self.snapNext and not self.opening)
 	local now, entering = GetTime(), 0
+	local kinds = not self:OneKindAsked()
+	if kinds ~= (LY.kindShown ~= false) then UI.LayoutKinds(kinds) end
 	for i = 1, MAX_ROWS do
 		local r = rows[i]
 		local idx = UI.offset + i

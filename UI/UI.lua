@@ -492,8 +492,9 @@ do
 			b.kind = b:CreateFontString(nil, "OVERLAY")
 			b.kind:SetFontObject(Theme.fonts.small)
 			b.kind:SetPoint("RIGHT", -8, 0)
-			b.kind:SetWidth(80)
+			b.kind:SetWidth(UI.KIND_W)
 			b.kind:SetJustifyH("RIGHT")
+			b.kind:SetWordWrap(false) -- (1.6.16: "Recipe to Learn" wrapped onto two lines in its 80)
 			-- (1.6.12: the kind's own colour, as a dot before its name: List.lua's SetKind)
 			b.kindDot = b:CreateTexture(nil, "OVERLAY")
 			b.kindDot:SetTexture(UI.KIND_DOT)
@@ -726,7 +727,8 @@ local function ApplyRowsTheme(self, t)
 	LY.DETAIL_W = math.floor(t.width * 0.3)
 	-- (the name's and the detail's room together: the row less its icon, the kind's column and the gaps; a detail longer
 	-- than DETAIL_W takes what the name doesn't need, List.lua's FitDetail; 0.62.1, the player at 800 wide)
-	LY.SPAN = t.width - 12 - 6 - (LY.ROW_H - 6) - 8 - 88 - 16
+	-- (less the kind's column and its gaps: List.lua's LayoutKinds, the column as wide as the widest kind's name)
+	LY.SPAN_BASE = t.width - 12 - 6 - (LY.ROW_H - 6) - 8
 	LY.NAV_SLOT = UI.NAV_SIZE + 2
 	local probe, w = rows[1] and rows[1].dist, nil
 	if probe then
@@ -743,13 +745,7 @@ local function ApplyRowsTheme(self, t)
 		row.detail:SetWidth(LY.DETAIL_W)
 		row.detailW = LY.DETAIL_W
 		row.fitName, row.fitDetail = nil, nil -- (List.lua's FitDetail measures again in the new layout)
-		-- (the name ends where the detail's room begins, whatever part of it a distance takes)
-		row.label:ClearAllPoints()
-		row.label:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
-		row.label:SetPoint("RIGHT", row.kind, "LEFT", -(16 + LY.DETAIL_W), 0)
-		-- (the distance: just after the arrow's slot at the left of the detail's room)
-		row.dist:ClearAllPoints()
-		row.dist:SetPoint("LEFT", row.kind, "LEFT", -(8 + LY.DETAIL_W) + LY.NAV_SLOT, 0)
+		-- (the name, the detail and the distance beside the kind's column: List.lua's LayoutKinds, below)
 		row.dist:SetWidth(LY.DIST_W)
 		row.label:SetTextColor(tr, tg, tb)
 		row.detail:SetTextColor(dr, dg, db)
@@ -758,6 +754,8 @@ local function ApplyRowsTheme(self, t)
 		row.dist:SetTextColor(dr, dg, db)
 		if i > LY.ROWS then row:Hide() end
 	end
+	UI.MeasureKinds()
+	UI.LayoutKinds(LY.kindShown ~= false)
 	self:LayoutHeader() -- (the divider, the prompt's background, the rows' places, the click area)
 	status:SetTextColor(dr, dg, db)
 	hints:SetTextColor(dr, dg, db)

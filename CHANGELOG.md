@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.16 (in testing)
+
+**A new look: the kind column, again**
+- A kind's name stays on one line ("Recipe to Learn" wrapped onto two), the column as wide as the longest name in
+  your font, and its dot sits in a gap of its own before it: 1.6.12 put it on the end of the details.
+- When you asked for one kind ("@item", a question such as "recipes i can learn now", a chain's step, a category)
+  and every row is of it, the column is hidden: the footer already says what they are, and the names and details
+  get its room. A plain search keeps it, so it never comes and goes as you type.
+
 ## 1.6.15 (in testing)
 
 **A new look: one line again**
