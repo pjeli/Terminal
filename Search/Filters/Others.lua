@@ -88,6 +88,9 @@ end
 -- say. 1.6.8, the mismatch hunt)
 local NAMES = { [F.DIFF.orange] = "orange", [F.DIFF.yellow] = "yellow", [F.DIFF.green] = "green", [F.DIFF.grey] = "grey" }
 local function ColourNow(e)
+	-- (a recipe row drawn in its colour now carries it: the filter and the row agree, release review)
+	local own = rawget(e, "colourNow")
+	if own then return own end
 	local PL = ns.Plan
 	local c = PL and PL.ColourNow and PL.ColourNow(e)
 	if c then return c end

@@ -117,13 +117,19 @@ end
 ----------------------------------------------------------------------
 
 -- your professions, by name (lowercase) and skill line
+-- (read once a frame: the colour filters ask for every recipe row, a search's slice is one frame; release review: the
+-- game's professions read again for each row)
+local profsNow = {}
 local function Professions()
+	local now = GetTime and GetTime()
+	if profsNow.by and profsNow.at == now then return profsNow.by end
 	local P = ns.Professions
 	local by = {}
 	for _, pr in ipairs(P and P.PlayerProfessions and (P.PlayerProfessions()) or {}) do
 		by[Lower(pr.name)] = pr
 		if pr.skillLine then by[pr.skillLine] = pr end
 	end
+	profsNow.at, profsNow.by = now, by
 	return by
 end
 

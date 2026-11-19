@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.19 (in testing)
+
+**Recipe colours: the row and the filters agree**
+- A recipe row is drawn in the colour `is:orange`, `is:yellow`, `is:green`, `is:grey` and `is:skillup` judge it by
+  (your skill now, 1.6.8): a recipe its window last showed orange that is grey at your skill now was drawn orange while
+  `is:grey` listed it. The rows are drawn again after a skill-up.
+- Those filters read your professions once a frame, not once for every recipe row.
+
 ## 1.6.18 (in testing)
 
 **Training the next rank: the examples agree too**

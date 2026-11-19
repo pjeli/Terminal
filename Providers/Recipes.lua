@@ -66,6 +66,17 @@ local function DiffColor(d)
 	end
 	return DIFF_HEX[d]
 end
+--- (release review) A recipe row's colour as the filters judge it: at your skill now (Plan.lua's PL.ColourNow, the
+--- colour is:orange, is:skillup... read), the window's when the plan can't say. The row was drawn in the window's last
+--- colour while is:yellow left it out.
+local function ColourOf(e, d)
+	local PL = ns.Plan
+	local c = PL and PL.ColourNow and PL.ColourNow(e)
+	local D = ns.Filters.DIFF
+	if c and D[c] then return DiffColor(D[c]), c end
+	return DiffColor(d), nil
+end
+P.RecipeColour = ColourOf
 
 --- What opens a recipe in its window, on a row of its own (a recipe's, a camp's): the window's names, how the game
 --- opens it, the link. castSpell: the spell that opens this profession's window (false: none), once per profession;
@@ -98,12 +109,11 @@ local function MakeEntry(profID, pdata, r, castSpell)
 			lines[#lines + 1] = rg[2] .. "x " .. nm
 		end
 	end
-	return {
+	local e = {
 		key = r.id,
 		name = r.name,
 		icon = r.icon,
-		color = DiffColor(r.diff), -- (every caller lists known recipes only: no "unlearned" grey)
-		difficulty = r.diff, -- (is:skillup, is:orange...: as of the window's last read)
+		difficulty = r.diff, -- (the window's colour when last read; the colour now is colourNow, below)
 		detail = ns.Detail(pdata.name),
 		text = table.concat(parts, " "),
 		tip = #lines > 0 and L["Reagents: %s"]:format(table.concat(lines, ", ")) or nil,
@@ -118,6 +128,9 @@ local function MakeEntry(profID, pdata, r, castSpell)
 		secondary = RecipeLinkInChat,
 		secondarySecure = RECIPE_CHATBOX, secondaryIsOpen = ns.ChatBoxNeverOpen, -- (the game opens the chat box with it)
 	}
+	-- (every caller lists known recipes only: no "unlearned" grey) drawn in the colour the filters read (colourNow)
+	e.color, e.colourNow = ColourOf(e, r.diff)
+	return e
 end
 
 P.MakeRecipeEntry = MakeEntry
@@ -127,6 +140,9 @@ ns:RegisterProvider("recipes", {
 	label = L["Recipe"],
 	color = "ff66ffc7", -- (mint: apart from professions' teal; kind colours stay apart)
 	aliases = { "recipe", "craft", "crafts", "crafting", "reagent" },
+	-- (a skill-up: the rows' colours drawn again at the new skill; Smelting's rise with mining, out of its window)
+	events = { "SKILL_LINES_CHANGED" },
+	guard = 5,
 	collect = function()
 		P.unresolved = 0
 		local out, count = {}, 0

@@ -76,6 +76,13 @@ do
 	check(not skillup(mace) and not isOrange(mace) and ns.Filters.Parse("is:grey")(mace),
 		"at 100 (its window last read at 50, orange): grey now, not a skill-up, as the plan says")
 	rank = 50
+	-- (release review) a recipe row is drawn in the colour the filters read: its window last said orange (at 50), at 100
+	-- it's grey
+	rank = 100
+	local row = ns.Professions.MakeRecipeEntry(164, { name = BS, skillLine = 164 }, { id = 2737, name = "Copper Mace", diff = D.orange }, false)
+	check(row.colourNow == "grey" and row.color == "|cff808080" and ns.Filters.Parse("is:grey")(row) and not isOrange(row),
+		"the row drawn grey, as is:grey lists it (not the window's orange: " .. tostring(row.color) .. ")")
+	rank = 50
 	check(PL.VendorSold(2880) and PL.VendorSold(2320) and not PL.VendorSold(2318) and not PL.VendorSold(2840),
 		"sold: a vendor's window showed it, or a friendly Questie vendor; not one hostile to you")
 
