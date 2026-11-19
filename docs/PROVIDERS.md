@@ -52,8 +52,8 @@ That's a working list. Everything else below is optional.
 
 | Field | What it does |
 |---|---|
-| `label` | The kind's name on each row ("Note"). On an English client it's shown in title case ("Quest log" as "Quest Log"; a new Simple-mode category's `label` too), other languages as given. |
-| `color` | The kind label's colour, `"aarrggbb"`. Pick one apart from Terminal's own kinds. |
+| `label` | The kind's name on each row ("Note"), on one line in the kinds' column at the right (as wide as the longest list's label, 60-130 px; longer is cut). On an English client it's shown in title case ("Quest log" as "Quest Log"; a new Simple-mode category's `label` too), other languages as given. The column is hidden when the player asked for one kind (`@note`, a question, a category picked) and every row is of it. |
+| `color` | The kind's colour, `"aarrggbb"`: a small dot before the label on every row, and the label itself on the selected row (the others are in the theme's detail colour). Pick one apart from Terminal's own kinds. |
 | `aliases` | The words after `@` that reach this list. The first one is how Terminal names it (`.mem`, Alt+\`). Keep them unique: the first list registered keeps a word two of them share. |
 | `collect(p)` | Returns the rows (a list of tables, below). Called when the list is first searched, and again after it's marked changed. |
 | `events` | Game events that mark the list changed (`{ "BAG_UPDATE" }`). It's made again the next time it's searched, not on every event. |
@@ -72,7 +72,7 @@ That's a working list. Everything else below is optional.
 |---|---|
 | `name` | **Required.** Searched (fuzzily: "lnn" finds "linen") and shown. |
 | `key` | A stable id. Terminal's history and "picked often" follow it across rebuilds. Defaults to the name. |
-| `icon` | A texture path or file id. |
+| `icon` | A texture path or file id. A game icon (a file id, or a path under `Interface\Icons`) is drawn cropped, like the bags draw them, in a thin frame: the item's quality colour from uncommon up when the row has an `itemID`. Other textures are drawn whole, unframed. |
 | `detail` | The grey text on the right. |
 | `text` | More words to search by that aren't shown (a description, a zone, tags). |
 | `color` | A colour code for the name, `"|cffrrggbb"`. |

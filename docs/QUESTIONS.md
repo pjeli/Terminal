@@ -133,8 +133,10 @@ Each a filter, sort or field anyone can type in Advanced mode, added where a que
 - **`sort:list`**: the rows in their lists' own order (their `_rank`, else the order the list gives them), never your
   picks first. (Spells and the quest log needed no `_rank`: Keyed's tie is the row's place, the list's order.)
 - **No 100-row cut for a sorted list with no words**: `@bank sort:name` lists the whole bank (up to `Score.LIST_MAX`).
-- **Quest filters**: `is:foryou` (your race, class and side may take it: `QR.ForYou`), `is:cantake` (and you meet its
-  needs: `QR.MeetsRequires`, and nothing in QuestieDB's quest fields stops you: `QR.CanTakeNow`, QuestAccess.lua), `is:itemstart` (an item starts it), `is:started` (some progress made).
+- **Quest filters**: `is:foryou` (your race, class and side may take it: `QR.ForYou`), `is:cantake` (you can take it now,
+  one rule for every place that asks, `QR.CanTakeAll`: your side by its givers, its required level, its needs
+  (`QR.MeetsRequires`), and nothing in QuestieDB's quest fields or OneForAll's prerequisites stops you: `QR.CanTakeNow`,
+  QuestAccess.lua), `is:itemstart` (an item starts it), `is:started` (some progress made).
 - **Recipe filter**: `prof:` (the recipe's profession, `profName`: Smelting is Mining's).
 - **Sorts**: `sort:need` (the skill a recipe needs), `sort:grey` (grey quests first, then level), `sort:cantake` (quests
   you can take first, saying what each needs).

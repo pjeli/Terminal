@@ -16,7 +16,8 @@ local ns = select(2, ...)
 --   on:plamen                    stored on that character (or guild)
 --   count:20+                    how many (bags, alts and banks)
 --   trainer:mage trainer:class   Questie trainers by what they teach (a class, a profession, pet,
---                                riding; class = your class, mine = mining); is:classtrainer, is:proftrainer
+--                                riding; class = your class, mine = mining; trainer:tailoring:expert: who
+--                                can teach that rank); is:classtrainer, is:proftrainer
 --   faction:horde                Questie NPCs friendly to the Horde (alliance, neutral = both,
 --                                friendly = to your own faction)
 --   standing:honored+            reputations by standing (names or 1-8; <friendly, 4-6, honored-exalted)

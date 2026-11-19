@@ -260,45 +260,22 @@ end
 -- Questie's quests at a level, per zone name (cached per level until the quest list changes): those of a level
 -- from 2 below to 3 above, not done yet, for your race and class (when Questie says).
 local questCounts = {}
-local function RaceClassBits()
-	local race = UnitRace and select(3, Safe(UnitRace, "player"))
-	local class = UnitClass and select(3, Safe(UnitClass, "player"))
-	return type(race) == "number" and 2 ^ (race - 1) or nil, type(class) == "number" and 2 ^ (class - 1) or nil
-end
-local function Allows(mask, bitv)
-	if type(mask) ~= "number" or mask == 0 or not bitv or not (_G.bit and _G.bit.band) then return true end
-	return _G.bit.band(mask, bitv) ~= 0
-end
 --- A Questie quest at your level (2 below to 3 above), not done, for your race and class, that you can take now: a
 --- test for its rows.
 function Z.QuestFitter(level)
-	local QD = ns.QuestieData
-	local DB = QD and QD.DB and QD.DB()
-	local raceBit, classBit = RaceClassBits()
 	local done = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
-	-- (and what it needs: a profession's skill, a standing; Rewards.lua's QR.MeetsRequires. "tailoring quests", "quests
-	-- that need honored with stormwind" list them)
+	-- (every rule "can i take" uses, QR.CanTakeAll, 1.6.3: race, class and side by its givers, its level, a profession's
+	-- skill, a standing, what stands in the way (QuestAccess.lua). The memo keeps the game's done / in log per quest for
+	-- this pass. Its own copy of the race and class checks went in the release review: never reached)
 	local QR = ns.QuestRewards
-	local meets = QR and QR.MeetsRequires
-	-- (and what QuestieDB says stands in the way: prerequisites, an exclusive quest done, a level cap, a breadcrumb
-	-- leading to a quest done...; QuestAccess.lua. The memo keeps the game's done / in log per quest for this pass)
-	local QA = ns.QuestAccess
-	local canTake = QA and QA.CanTake
 	local memo = {}
 	return function(q)
 		local lv = rawget(q, "level")
 		if type(lv) ~= "number" or lv < level - 2 or lv > level + 3 then return false end
 		local id = rawget(q, "key")
+		if type(id) ~= "number" then return true end
 		if done and Safe(done, id) then return false end
-		-- (every rule "can i take" uses, QR.CanTakeAll: 1.6.3; the side by its givers too, its level)
-		if type(id) == "number" and QR and QR.CanTakeAll then return QR.CanTakeAll(id, level, memo) end
-		if DB and DB.QueryQuestSingle then
-			if not (Allows(Safe(DB.QueryQuestSingle, id, "requiredRaces"), raceBit)
-				and Allows(Safe(DB.QueryQuestSingle, id, "requiredClasses"), classBit)) then return false end
-		end
-		if meets and type(id) == "number" and not meets(id, memo) then return false end
-		if canTake and type(id) == "number" and not canTake(id, level, memo) then return false end
-		return true
+		return QR.CanTakeAll(id, level, memo)
 	end
 end
 

@@ -420,7 +420,7 @@ L["@mail: mail running out within 3 days; cod unread returned (sent back to you)
 L["@map: zones your fishing skill is enough for (fish:150: what 150 is enough for; fish:130-205: needing that much)"] = true
 L["@npc and @questie are unavailable."] = true
 L["@npc is unavailable."] = true
-L["@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), a weapon skill (trainer:daggers: its weapon masters), class (your class), classes (any), profession, pet, riding, weapon"] = true
+L["@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), a weapon skill (trainer:daggers: its weapon masters), class (your class), classes (any), profession, pet, riding, weapon; a profession's rank (trainer:tailoring:expert: those who can teach Expert)"] = true
 L["@npc, @flight: friendly to the Horde / alliance / neutral (both) / friendly (to you)"] = true
 L["@npc, @mailbox, @forge, @anvil, @cookingfire, @moonwell, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] = true
 L["@npc, for a hunter with OneForAll: the beasts you can tame, with their family and the ranks they teach (@npc \"teaches bite 4;\"); @spell is:ability: your pet's abilities, each rank, learned or not"] = true

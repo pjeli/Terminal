@@ -282,7 +282,7 @@ L["@mail: mail running out within 3 days; cod unread returned (sent back to you)
 L["@map: zones your fishing skill is enough for (fish:150: what 150 is enough for; fish:130-205: needing that much)"] = "@map：你的钓鱼技能足够的区域（fish:150：150够用的区域；fish:130-205：需要这么多技能的区域）"
 L["@npc and @questie are unavailable."] = "@npc和@questie不可用。"
 L["@npc is unavailable."] = "@npc不可用。"
-L["@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), a weapon skill (trainer:daggers: its weapon masters), class (your class), classes (any), profession, pet, riding, weapon"] = "@npc 按所教内容查找训练师：职业、专业（trainer:mining 也会找到矿工）、武器技能（trainer:daggers：它的武器大师），class（你的职业）、classes（任意职业）、profession、pet、riding、weapon"
+L["@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), a weapon skill (trainer:daggers: its weapon masters), class (your class), classes (any), profession, pet, riding, weapon; a profession's rank (trainer:tailoring:expert: those who can teach Expert)"] = "@npc 按所教内容查找训练师：职业、专业（trainer:mining 也会找到矿工）、武器技能（trainer:daggers：它的武器大师），class（你的职业）、classes（任意职业）、profession、pet、riding、weapon；专业的等级（trainer:tailoring:expert：能教授专家级的训练师）"
 L["@npc, @flight: friendly to the Horde / alliance / neutral (both) / friendly (to you)"] = "@npc、@flight：对 horde（部落）/ alliance（联盟）/ neutral（双方）/ friendly（你）友好"
 L["@npc, @mailbox, @forge, @anvil, @cookingfire, @moonwell, @dungeon, @raid, @flight: within that many yards of you (near:<300, near:200-800)"] = "@npc、@mailbox、@forge、@anvil、@cookingfire、@moonwell、@dungeon、@raid、@flight：距离你不超过这么多码（near:<300、near:200-800）"
 L["@npc: Questie vendors selling an item (its name, part of it, or its id; nothing for an unknown item)"] = "@npc：出售某物品的Questie商人（物品名称、部分名称或ID；未知物品没有结果）"

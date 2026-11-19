@@ -871,7 +871,7 @@ F.HELP = {
 	{ "cost:0", L["@spell: by cost: 0 (none), mana, rage, energy, or how much (cost:<100)"] },
 	{ "range:30", L["@spell: by range in yards: melee, self, or how far (range:30, range:>=20)"] },
 	{ "cd:0", L["@spell: by its own cooldown in seconds: 0 (none), cd:<10, cd:>60 (cooldown: says the same)"] },
-	{ "trainer:mage", L["@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), a weapon skill (trainer:daggers: its weapon masters), class (your class), classes (any), profession, pet, riding, weapon"] },
+	{ "trainer:mage", L["@npc trainers by what they teach: a class, a profession (trainer:mining finds Miners too), a weapon skill (trainer:daggers: its weapon masters), class (your class), classes (any), profession, pet, riding, weapon; a profession's rank (trainer:tailoring:expert: those who can teach Expert)"] },
 	{ "faction:horde", L["@npc, @flight: friendly to the Horde / alliance / neutral (both) / friendly (to you)"] },
 	{ "standing:honored+", L["reputation standing: hated hostile unfriendly neutral friendly honored revered exalted (also standing:<friendly, standing:4-6)"] },
 	{ "source:quest", L["@loot: where it comes from: dungeon raid quest crafted reputation world pvp collection"] },

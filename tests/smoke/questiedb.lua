@@ -781,7 +781,7 @@ do
 	-- (1.6.9, the mismatch hunt) Simple mode's place test is the one its Alt+` line's in: makes: an NPC there by its zone's
 	-- name counts too, not only by where it stands (here, where it stands told nothing: the zone's name still finds them)
 	do
-		local pfWas = I.PlaceFilter
+		local pfWas, easyWas = I.PlaceFilter, ns.db.easyMode
 		I.PlaceFilter = function() return function() return false end end
 		ns.db.easyMode = true
 		local names = {}
@@ -790,6 +790,7 @@ do
 		local adv = {}
 		for _, e in ipairs(UI:Search("@npc in:barrens is:vendor")) do adv[#adv + 1] = tostring(e.name) end
 		I.PlaceFilter = pfWas
+		ns.db.easyMode = easyWas -- (as it was, not off: release review)
 		table.sort(names); table.sort(adv)
 		check(#names > 0 and table.concat(names, ",") == table.concat(adv, ","),
 			"vendor barrens (Simple) lists what its Alt+` line does: " .. table.concat(names, ",") .. " / " .. table.concat(adv, ","))

@@ -387,16 +387,18 @@ local CLASS_SET = {}
 for _, c in ipairs(CLASSES) do CLASS_SET[c] = true end
 F.TrainerClass = function(w) return CLASS_SET[w] and w or nil end -- (Simple mode: "mage trainer" is trainer:mage, Simple.lua)
 
--- a profession trainer's rank by the title: the highest skill each rank teaches to (classic's ranks; Pipes' RANK_CAP for
--- the learn chain's trainers says the same). trainer:tailoring:expert keeps those who can teach Expert: a title rank
+-- a profession trainer's rank by the title: the highest skill each rank teaches to (classic's ranks; the learn chain's
+-- trainers read the same table, ChainLearn.lua). trainer:tailoring:expert keeps those who can teach Expert: a title rank
 -- that tops out below it goes, a title with no rank stays (1.6.7: "train the next rank" sent you to a Journeyman Tailor
 -- for Expert, while the learn chain leaves such trainers out)
 F.TRAINER_RANKS = { apprentice = 75, journeyman = 150, expert = 225, artisan = 300 }
-local TITLE_RANKS = { { "grand master", 450 }, { "master", 375 }, { "artisan", 300 }, { "expert", 225 }, { "journeyman", 150 },
+F.TITLE_RANKS = { { "grand master", 450 }, { "master", 375 }, { "artisan", 300 }, { "expert", 225 }, { "journeyman", 150 },
 	{ "apprentice", 75 } }
+--- The highest skill a trainer of this title teaches (its title lowercase: "expert tailor"), or nil.
 local function TitleCap(sub)
-	for _, r in ipairs(TITLE_RANKS) do if sub:find(r[1], 1, true) then return r[2] end end
+	for _, r in ipairs(F.TITLE_RANKS) do if sub:find(r[1], 1, true) then return r[2] end end
 end
+F.TitleCap = TitleCap
 
 KEYS.trainer = function(v)
 	if v == "" then return nil end

@@ -33,7 +33,6 @@ SG.REPAIR_PCT = 30    -- a worn piece this low (or broken): repair
 SG.JUNK_MIN = 3       -- grey items to be worth a trip (fewer, when bags are nearly full)
 SG.BAGS_LOW = 4       -- free bag slots that count as nearly full
 SG.ZONE_QUESTS = 5    -- quests at your level in your zone to stay; under 2, move on
-SG.RANK_LEVEL = { [75] = 10, [150] = 20, [225] = 35 } -- (a rank's cap: the level its next rank asks)
 SG.GATHERING = { herbalism = true, skinning = true, fishing = true } -- (no recipes: no plan to level them by)
 
 local function Has(addon)
@@ -215,7 +214,6 @@ end
 CHECKS[#CHECKS + 1] = function(build)
 	local P = ns.Professions
 	if not (P and P.PlayerProfessions) then return end
-	local TS = ns.TrainerSpells
 	local out, levelUp, level = {}, nil, Level()
 	for _, pr in ipairs((P.PlayerProfessions())) do
 		local name, rank, max = pr.name, pr.rank or 0, pr.maxRank or 0

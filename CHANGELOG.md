@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.23 (in testing)
+
+**Clean-up from the release review**
+- `trainer:` filter help names its rank form (`trainer:tailoring:expert`: those who can teach Expert).
+- One table of trainer ranks for that filter and "where to learn" (two copies); code left unused by 1.6.3 and 1.6.7
+  taken out (the zones' own race and class checks, Suggest's rank levels).
+- docs/PROVIDERS.md says how the kinds' column, its colours and icons are drawn now; docs/QUESTIONS.md says what
+  `is:cantake` checks since 1.6.3.
+
 ## 1.6.22 (in testing)
 
 **Quests: what a step unlocks, quests a standing opens**

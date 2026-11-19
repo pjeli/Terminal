@@ -397,3 +397,12 @@ do
 	kept, specs = ns.Easy.TrainerProfs({ "tailoring" }, true)
 	check(specs and specs[1] == "trainer:tailoring", "tailoring trainer: as before")
 end
+-- (release review) one table of trainer ranks for trainer:<profession>:<rank> and the learn chain; its help says the form
+do
+	local F = ns.Filters
+	check(ns.Pipes.RANK_CAP == F.TITLE_RANKS and F.TitleCap("expert tailor") == 225 and F.TitleCap("tailor") == nil,
+		"one table of ranks: the filter's and the learn chain's")
+	local said = false
+	for _, h in ipairs(F.HELP or {}) do if h[1] == "trainer:mage" and tostring(h[2]):find("trainer:tailoring:expert", 1, true) then said = true end end
+	check(said or not F.HELP, "the trainer: help names the rank form")
+end

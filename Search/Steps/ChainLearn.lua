@@ -27,9 +27,9 @@ P.AL_PROFS = {
 	[9] = { "engineering", 202, "Engineering" }, [10] = { "enchanting", 333, "Enchanting" }, [11] = { "fishing", 356, "Fishing" },
 	[12] = { "skinning", 393, "Skinning" }, [14] = { "jewelcrafting", 755, "Jewelcrafting" }, [15] = { "inscription", 773, "Inscription" },
 }
--- the highest skill a trainer of each rank teaches (classic's ranks; a title with none of these: kept)
-P.RANK_CAP = { { "grand master", 450 }, { "master", 375 }, { "artisan", 300 }, { "expert", 225 }, { "journeyman", 150 },
-	{ "apprentice", 75 } }
+-- the highest skill a trainer of each rank teaches (classic's ranks; a title with none of these: kept): the filters'
+-- table, one for trainer:tailoring:expert and the learn chain (Filters/Npcs.lua; two copies until the release review)
+P.RANK_CAP = ns.Filters.TITLE_RANKS
 P.TRAINERS = 5 -- (the nearest ones listed)
 
 local function AtlasRecipes()
@@ -79,9 +79,7 @@ function P.ProfOfName(name)
 	end
 end
 
-local function RankCap(title)
-	for _, r in ipairs(P.RANK_CAP) do if title:find(r[1], 1, true) then return r[2] end end
-end
+local function RankCap(title) return ns.Filters.TitleCap(title) end
 
 -- the NPC list's trainers of a profession friendly to you, made once per list
 local trainersOf = { list = nil, by = {} }
