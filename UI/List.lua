@@ -460,10 +460,66 @@ function UI:UpdateNav()
 	if nav.spot then navTicker:Show() end
 end
 
---- What shows the selection: the arrow, the band, the footer, the tooltip, the ghost text; and the catcher follows
---- its row when the list moved under the pointer (typing, scrolling).
+-- (1.6.12) The kind column, quiet: a row's kind in the details' colour after a small dot of the kind's own colour;
+-- the selected row's in its own colour. (Some 55 lists each have a colour of their own: at full strength the column
+-- was a rainbow beside the items' quality colours, the colours that mean something.)
+UI.KIND_DOT = "Interface\\CHARACTERFRAME\\TempPortraitAlphaMask" -- (a round white disc: Terminal_Share's Dots.lua)
+UI.KIND_DOT_SIZE = 6
+local kindParts = {} -- a kind label -> { its text without colours, its colour or false }
+local function KindParts(label)
+	local p = kindParts[label]
+	if not p then
+		local hex = label:match("^|c%x%x(%x%x%x%x%x%x)")
+		local plain = label:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+		p = { plain, hex and hex:lower() or false }
+		kindParts[label] = p
+	end
+	return p[1], p[2]
+end
+
+local function SetKind(r, e, selected)
+	local label = e.kindLabel
+	label = type(label) == "string" and label or ""
+	local key = selected and ("\1" .. label) or label
+	if r.kindKey == key then return end
+	r.kindKey = key
+	local plain, hex = KindParts(label)
+	r.kind:SetText(selected and Theme.FixColors(label) or plain)
+	local dot = r.kindDot
+	if not dot then return end
+	if not (hex and plain ~= "") then
+		r.kindDotHex = nil
+		dot:Hide()
+		return
+	end
+	hex = Theme.Readable(hex)
+	r.kindDotHex = hex
+	local cr, cg, cb = Theme.RGB(hex)
+	dot:SetVertexColor(cr, cg, cb, 1)
+	-- (just before the name, which sits at the column's right: cut to the column's room when it's longer)
+	local w, room = r.kind:GetStringWidth(), r.kind:GetWidth()
+	w = type(w) == "number" and w or 0
+	if type(room) == "number" and room > 0 and w > room then w = room end
+	dot:ClearAllPoints()
+	dot:SetPoint("RIGHT", r.kind, "RIGHT", -(math.ceil(w) + 4), 0)
+	dot:Show()
+end
+UI.SetKind = SetKind -- (tests)
+
+--- Every row's kind as the selection has it.
+local function PaintKinds()
+	for i = 1, LY.ROWS do
+		local r, idx = rows[i], UI.offset + i
+		local e = UI.results[idx]
+		if r and e and r:IsShown() and not r.leaving then SetKind(r, e, idx == UI.sel and not e.noActivate) end
+	end
+end
+
+--- What shows the selection: the arrow, the band, the footer, the tooltip, the ghost text, the kinds' colours; and the
+--- catcher follows its row when the list moved under the pointer (typing, scrolling).
 local function ShowSelection(self)
 	local catcher = UI.catcher
+	PaintKinds()
 	self:UpdateNav()
 	self:PlaceSelection()
 	self:SetStatus()
@@ -754,7 +810,6 @@ local function FillRow(self, r, e, light)
 		end
 		FitDetail(r)
 	end
-	r.kind:SetText(Theme.FixColors(e.kindLabel or ""))
 end
 
 function UI:Render()

@@ -483,6 +483,11 @@ do
 			b.kind:SetPoint("RIGHT", -8, 0)
 			b.kind:SetWidth(80)
 			b.kind:SetJustifyH("RIGHT")
+			-- (1.6.12: the kind's own colour, as a dot before its name: List.lua's SetKind)
+			b.kindDot = b:CreateTexture(nil, "OVERLAY")
+			b.kindDot:SetTexture(UI.KIND_DOT)
+			b.kindDot:SetSize(UI.KIND_DOT_SIZE, UI.KIND_DOT_SIZE)
+			b.kindDot:Hide()
 			b.detail = b:CreateFontString(nil, "OVERLAY")
 			b.detail:SetFontObject(Theme.fonts.small)
 			b.detail:SetPoint("RIGHT", b.kind, "LEFT", -8, 0)
@@ -711,6 +716,8 @@ local function ApplyRowsTheme(self, t)
 		row.dist:SetWidth(LY.DIST_W)
 		row.label:SetTextColor(tr, tg, tb)
 		row.detail:SetTextColor(dr, dg, db)
+		row.kind:SetTextColor(dr, dg, db) -- (1.6.12: kinds in the details' colour, the selected row's its own)
+		row.kindKey = nil
 		row.dist:SetTextColor(dr, dg, db)
 		if i > LY.ROWS then row:Hide() end
 	end

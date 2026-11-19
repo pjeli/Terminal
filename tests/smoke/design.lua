@@ -56,3 +56,39 @@ do
 	ns.db.theme = was
 	Theme.Get()
 end
+
+-- 1.6.12: the kind column quiet: the name in the details' colour after a dot of the kind's colour, the selected row's in it
+io.write("[design: the kind column]\n")
+do
+	local r = { kind = T.Obj("FontString"), kindDot = T.Obj("Texture") }
+	UI.SetKind(r, { kindLabel = "|cff9d7bffSpell|r" }, false)
+	check(r.kind:GetText() == "Spell" and r.kindDot.shown == true and r.kindDotHex == "9d7bff", "a row: its kind plain, a dot in its colour")
+	UI.SetKind(r, { kindLabel = "|cff9d7bffSpell|r" }, true)
+	check(r.kind:GetText() == "|cff9d7bffSpell|r" and r.kindDot.shown == true, "the selected row: its kind in its colour")
+	UI.SetKind(r, { kindLabel = "" }, false)
+	check(r.kind:GetText() == "" and r.kindDot.shown == false, "no kind: no dot")
+	UI.SetKind(r, { kindLabel = "plain" }, false)
+	check(r.kind:GetText() == "plain" and r.kindDot.shown == false, "a kind without a colour: no dot")
+	-- drawn: the selection's row coloured, the others plain, and the colour follows the selection
+	local saved = { providers = ns.providers, order = ns.providerOrder }
+	ns.providers, ns.providerOrder = {}, {}
+	ns:RegisterProvider("spells", { label = "Spell", aliases = { "spell" }, color = "ff9d7bff", collect = function()
+		return { { name = "Charge", key = 1 }, { name = "Cleave", key = 2 }, { name = "Rend", key = 3 } }
+	end })
+	ns:AliasesChanged()
+	local easy = ns.db.easyMode
+	ns.db.easyMode = false; UI:EasyChanged()
+	UI.lastScan, UI.lastExtra = nil, nil
+	UI:SetQuery("@spell ", 7); FlushAll()
+	local rows = UI.rows
+	local function Coloured(i) return (rows[i].kind:GetText() or ""):find("|cff9d7bff", 1, true) ~= nil end
+	check(UI.sel == 1 and Coloured(1) and not Coloured(2) and rows[2].kind:GetText() == "Spell" and rows[2].kindDot.shown == true,
+		"drawn: the selected row's kind coloured, the next plain with its dot")
+	UI:Move(1); FlushAll()
+	check(UI.sel == 2 and Coloured(2) and not Coloured(1), "the colour follows the selection")
+	UI:Hide(); FlushAll()
+	ns.providers, ns.providerOrder = saved.providers, saved.order
+	ns:AliasesChanged()
+	ns.db.easyMode = easy; UI:EasyChanged()
+	UI.lastScan, UI.lastExtra = nil, nil
+end

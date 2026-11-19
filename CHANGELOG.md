@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.12 (in testing)
+
+**A new look: the kind column**
+- Each row's kind ("Spell", "Quest"...) is written in the details' colour after a small dot of its own colour; the
+  selected row's is in its colour as before. The column was a rainbow beside the items' quality colours.
+
 ## 1.6.11 (in testing)
 
 **A new look: Forever's colours**
