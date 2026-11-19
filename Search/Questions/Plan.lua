@@ -131,6 +131,16 @@ local function ProfOf(e, profs)
 	return (e.profID and profs[e.profID]) or (e.profName and profs[Lower(e.profName)]) or nil
 end
 
+--- A recipe row's colour now ("orange", "yellow", "green", "grey"), or nil: at your skill today, as the plan judges it
+--- (PL.Chance), not as its window showed it when last opened. is:skillup and is:orange... ask it (1.6.8: they read the
+--- window's colour, so a recipe gone grey since the window was last read still counted; the mismatch hunt).
+function PL.ColourNow(e)
+	if not (e and e.recipeID) then return nil end
+	local pr = ProfOf(e, Professions())
+	local _, colour = PL.Chance(e, pr and pr.rank)
+	return colour
+end
+
 -- how many of each material: in bags and bank, and with your alts' too
 local function Counts(ids)
 	local Pi = ns.Pipes

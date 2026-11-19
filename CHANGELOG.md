@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.6.8 (in testing)
+
+**Smaller answers made to agree**
+- `is:skillup` and `is:orange` / `is:yellow` / `is:green` / `is:grey` judge a recipe's colour at your skill now, as
+  the levelling plan does, not as its window showed it when last opened (a recipe gone grey since still counted).
+- "skinner" (and the other professions' people: "miner", "herbalist"...) finds only trainers who'll teach you, as
+  "skinning trainer" does; Alt+` writes `faction:friendly` for it.
+- A quest several NPCs give: its distance, Shift+Enter and map pin go to one of yours, the nearest, not to the first
+  listed (which could be the other faction's).
+- "who sells pet food" takes the game's answer on what your pet eats first, as "what can my pet eat" does.
+
 ## 1.6.7 (in testing)
 
 **Training a profession's next rank: one answer**

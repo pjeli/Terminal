@@ -23,7 +23,10 @@ local EASY_FLIGHTS_UNCHECKED = L["Terminal doesn't know your flight paths here y
 --- add ("nearest repair": someone who'll serve you, so only NPCs friendly to your faction; "nearest hogger": a name,
 --- anyone).
 --- Simple mode's role words typed (trainer, vendor, innkeeper... soft or strict): the faction:friendly filter, else nil.
-function Scan.RoleFriendly(softWords, strictWords)
+function Scan.RoleFriendly(softWords, strictWords, trainerAsked)
+	-- (a profession's people, "skinner", read as trainer:skinning and taken out of the words: friendly too, as "skinning
+	-- trainer" is; 1.6.8, the mismatch hunt)
+	if trainerAsked then return ns.Filters and ns.Filters.Parse("faction:friendly") end
 	for _, list in ipairs({ softWords or false, strictWords or false }) do
 		for _, w in ipairs(list or {}) do
 			if ns.Easy.ROLE_WORDS[w] then return ns.Filters and ns.Filters.Parse("faction:friendly") end
@@ -39,7 +42,7 @@ function Scan.NoneThere()
 	return type(name) == "string" and L["None of those in %s that Questie knows of."]:format(name) or nil
 end
 
-function Scan.NearestStart(tokens, filters, softWords, strictWords, far)
+function Scan.NearestStart(tokens, filters, softWords, strictWords, far, trainerAsked)
 	local I = ns.Integrations
 	local okind = I and I.ObjectKind and I.ObjectKind(tokens)
 	-- (the flight paths' words left to be in their names or zones, and "unlearned"/"learned" when said)
@@ -77,7 +80,7 @@ function Scan.NearestStart(tokens, filters, softWords, strictWords, far)
 	if not ns.providers.npc then return PseudoEntries({ EASY_NO_NPCS }) end
 	local here = ns.Integrations and ns.Integrations.Here()
 	if not here then return PseudoEntries({ EASY_NOWHERE }) end
-	return nil, here, Scan.RoleFriendly(softWords, strictWords)
+	return nil, here, Scan.RoleFriendly(softWords, strictWords, trainerAsked)
 end
 
 --- A row with a distance, as a view saying how far and what it is ("120 yd  Mining Trainer", a spot row its zone:

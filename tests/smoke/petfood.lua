@@ -71,6 +71,12 @@ do
 		check(v[501] and not v[502] and not v[503] and not v[504], "the vendors of raw meat, not of bread or a sword")
 		check(sells({ kind = "npc", key = 501 }) and not F.Parse("sells:petfood")({ kind = "npc", key = 502 }) and not sells({ kind = "items", key = 501 }),
 			"sells:petfood on NPC rows")
+		-- (1.6.8, the mismatch hunt) the game's answer first, as is:petfood: raw meat it says the pet won't eat isn't sold
+		-- to it, whatever its food type
+		_G.C_PetInfo.CanPetEatItem = function(id) return false end
+		PF.Forget()
+		v = PF.Vendors()
+		check(not v[501] and not petfood({ kind = "items", itemID = 2001 }), "the game says no to the raw meat: not its vendor either (as is:petfood)")
 		-- a diet in another language: each food asked of the game
 		diet = { "Fleisch" }; eats = { [2003] = true }
 		_G.C_PetInfo.CanPetEatItem = function(id) return eats[id] == true end

@@ -170,7 +170,9 @@ function PF.Vendors()
 	if vendorsOf.key == d.key and vendorsOf.foods == list then return vendorsOf.set end
 	local set = {}
 	for _, f in ipairs(list) do
-		if d.types[f.ft] or (d.unknown and CanEat(f.id)) then
+		-- (the game's answer first, its food type else: PF.Eats, as is:petfood asks it; until 1.6.8 the food type first,
+		-- so "who sells pet food" and "what can my pet eat" could disagree on an item; the mismatch hunt)
+		if PF.Eats(f.id) then
 			for _, npc in pairs(f.vendors) do if type(npc) == "number" then set[npc] = true end end
 		end
 	end

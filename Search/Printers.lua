@@ -200,7 +200,7 @@ function ns.QueryToAdvanced(text, category, shown, noGroup)
 	for i, sp in ipairs(specs) do specs[i] = Quoted(sp) end
 	for _, sp in ipairs(specs) do Add(sp) end
 	-- an NPC's role (trainer, vendor...) nearest: one who'll serve you (Scan.NearestStart)
-	if nearest and Scan.RoleFriendly(q.softWords, q.strictWords) then Add("faction:friendly") end
+	if nearest and Scan.RoleFriendly(q.softWords, q.strictWords, q.trainerAsked) then Add("faction:friendly") end
 	if nearest or q.sortNear then Add(distWord) end
 	if q.sortPlan then Add("sort:plan") end
 	if q.sortBest then Add("sort:best") end

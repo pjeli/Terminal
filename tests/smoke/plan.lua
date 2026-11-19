@@ -67,6 +67,15 @@ do
 	check(c == 0.75 and col == "yellow", "yellow in the window, orange to AtlasLoot: yellow (" .. tostring(c) .. ", " .. tostring(col) .. ")")
 	c, col = PL.Chance({ recipeID = 2737, difficulty = D.orange }, 60)
 	check(math.abs(c - 0.875) < 1e-9 and col == "yellow", "AtlasLoot's worse colour still counts: " .. tostring(c) .. ", " .. tostring(col))
+	-- (1.6.8, the mismatch hunt) is:skillup and is:orange... judge the colour at your skill now, as the plan does: the
+	-- window's last colour isn't kept once your skill has passed it
+	local skillup, isOrange = ns.Filters.Parse("is:skillup"), ns.Filters.Parse("is:orange")
+	local mace = { kind = "recipes", recipeID = 2737, profName = BS, profID = 164, difficulty = D.orange }
+	check(skillup(mace) and isOrange(mace), "at 50: Copper Mace orange (its window said so too): a skill-up")
+	rank = 100
+	check(not skillup(mace) and not isOrange(mace) and ns.Filters.Parse("is:grey")(mace),
+		"at 100 (its window last read at 50, orange): grey now, not a skill-up, as the plan says")
+	rank = 50
 	check(PL.VendorSold(2880) and PL.VendorSold(2320) and not PL.VendorSold(2318) and not PL.VendorSold(2840),
 		"sold: a vendor's window showed it, or a friendly Questie vendor; not one hostile to you")
 

@@ -670,8 +670,8 @@ steps: -
 group: -
 pick sort: -
 category: -
-advanced: "@npc trainer:skinning sort:distance "
-explain: "NPCs, who teach skinning, nearest first"
+advanced: "@npc trainer:skinning faction:friendly sort:distance "
+explain: "Friendly NPCs, who teach skinning, nearest first"
 
 == weapon master
 question: -

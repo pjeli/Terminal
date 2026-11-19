@@ -228,6 +228,7 @@ do
 			[203] = { name = "Plain Errand", questLevel = 11, zoneOrSort = Z, startedBy = { { 240 } } },
 			[204] = { name = "Deep Errand", questLevel = 11, zoneOrSort = Z, startedBy = { { 240 } } },
 			[205] = { name = "The Lead In", questLevel = 11, zoneOrSort = Z, startedBy = { { 240 } } },
+			[206] = { name = "Two Givers", questLevel = 11, zoneOrSort = Z, startedBy = { { 250, 240 } } }, -- (the Horde's listed first)
 		}),
 		Npc = Entity({ [240] = { name = "Marshal Dughan", friendlyToFaction = "A", spawns = SP, npcFlags = 2 },
 			[250] = { name = "Grunt Logash", friendlyToFaction = "H", spawns = SP, npcFlags = 2 } }),
@@ -251,10 +252,13 @@ do
 		local fits = ns.Zones.QuestFitter(11)
 		local took = {}
 		for _, e in ipairs(list) do if fits(e) then took[#took + 1] = e end end
-		check(Keys(took) == "203,205", "[can take] quests for your level (quests near me, the zones' counts): " .. Keys(took))
+		check(Keys(took) == "203,205,206", "[can take] quests for your level (quests near me, the zones' counts): " .. Keys(took))
 		ns.db.easyMode = false
 		UI.lastScan = nil
-		check(Keys(UI:Search("@questie is:cantake")) == "203,205", "[can take] is:cantake: " .. Keys(UI:Search("@questie is:cantake")))
+		check(Keys(UI:Search("@questie is:cantake")) == "203,205,206", "[can take] is:cantake: " .. Keys(UI:Search("@questie is:cantake")))
+		-- (1.6.8, the mismatch hunt) its giver for distance, Shift+Enter and the map: one of yours, not the first listed
+		if ns.Pipes.ForgetFriendly then ns.Pipes.ForgetFriendly() end
+		check(I.QuestGiver(206) == 240, "[giver] two givers, the other side's listed first: yours: " .. tostring(I.QuestGiver(206)))
 		local vet
 		for _, e in ipairs(list) do if rawget(e, "key") == 201 then vet = e end end
 		check(tostring(ns.FIELD_DETAIL.cantake(vet)):find(ns.L["Requires level %d"]:format(20), 1, true),

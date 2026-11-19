@@ -666,6 +666,7 @@ function P.Friendly(row)
 	if not friendlyTest then return true end -- (no filters: nothing to judge by)
 	return Safe(friendlyTest, row) == true
 end
+function P.ForgetFriendly() friendlyTest = nil end -- (tests: your faction kept in it from the first ask)
 
 -- nearer first; one with no known spot on your continent after, in Questie's order
 local function NearFirst(a, b)

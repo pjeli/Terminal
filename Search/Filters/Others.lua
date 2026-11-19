@@ -84,10 +84,21 @@ local function Difficulty(e)
 	local d = e.recipeID and e.difficulty
 	return type(d) == "number" and d or nil
 end
-local function DiffIs(which) return function(e) return Difficulty(e) == F.DIFF[which] end end
-local function SkillUp(e)
+-- (the colour at your skill now, as the levelling plan judges it: Plan.lua's PL.ColourNow; the window's when it can't
+-- say. 1.6.8, the mismatch hunt)
+local NAMES = { [F.DIFF.orange] = "orange", [F.DIFF.yellow] = "yellow", [F.DIFF.green] = "green", [F.DIFF.grey] = "grey" }
+local function ColourNow(e)
+	local PL = ns.Plan
+	local c = PL and PL.ColourNow and PL.ColourNow(e)
+	if c then return c end
 	local d = Difficulty(e)
-	return d ~= nil and (d == F.DIFF.orange or d == F.DIFF.yellow)
+	return d ~= nil and NAMES[d] or nil
+end
+local function DiffIs(which) return function(e) return Difficulty(e) ~= nil and ColourNow(e) == which end end
+local function SkillUp(e)
+	if not Difficulty(e) then return false end
+	local c = ColourNow(e)
+	return c == "orange" or c == "yellow"
 end
 -- is: values only recipes answer: "@profession is:skillup" searches the recipes too (and is:learned, which Tab offers
 -- there: "@profession is:learned" listed nothing)

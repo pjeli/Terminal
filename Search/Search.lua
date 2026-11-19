@@ -369,7 +369,7 @@ function Scan.SimpleScope(self, q)
 	if act and act.map then
 		-- an action word: its lists (Scan.UseAction), no categories to pick from
 		if act.nearest then
-			local early, here, friendly = Scan.NearestStart(q.tokens, q.filters, q.softWords, q.strictWords, (q.actWord and act.far) or (not q.actWord and q.sortFar))
+			local early, here, friendly = Scan.NearestStart(q.tokens, q.filters, q.softWords, q.strictWords, (q.actWord and act.far) or (not q.actWord and q.sortFar), q.trainerAsked)
 			if early then return early end
 			q.here = here
 			Scan.AddFilter(q, friendly, "hard", "faction:friendly", nil, "faction:friendly")

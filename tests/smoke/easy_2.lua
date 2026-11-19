@@ -247,8 +247,9 @@ Run("nearest", function()
 	check(not E.NearTypo("newest") and not E.NearTypo("nearly") and E.NearTypo("nearset") and E.NearTypo("nearbby"),
 		"(release review) newest and nearly are words of their own")
 	-- "skinner", "weapon master": a profession's trainers, the weapon masters; the nearest (Questie's titles)
-	check(E.ToAdvanced("skinner"):find("trainer:skinning", 1, true) and E.ToAdvanced("skinner"):find("sort:distance", 1, true),
-		"skinner: the nearest skinning trainer: " .. E.ToAdvanced("skinner"))
+	check(E.ToAdvanced("skinner"):find("trainer:skinning", 1, true) and E.ToAdvanced("skinner"):find("sort:distance", 1, true)
+		and E.ToAdvanced("skinner"):find("faction:friendly", 1, true),
+		"skinner: the nearest skinning trainer, one of yours as \"skinning trainer\" (1.6.8): " .. E.ToAdvanced("skinner"))
 	check(E.ToAdvanced("weapon master"):find("is:weaponmaster", 1, true) and E.ToAdvanced("weapon master"):find("sort:distance", 1, true),
 		"weapon master: the nearest of them: " .. E.ToAdvanced("weapon master"))
 	local wm = ns.Filters.Parse("is:weaponmaster")
