@@ -269,6 +269,11 @@ function A.Rows(question, asker)
 	local loadingWas, fitWas = F and F.loading, F and F.fitMade
 	ns.Asker = { here = asker and asker.here or false, class = asker and asker.class, level = asker and asker.level }
 	if E then E.tempSimple = true end
+	-- (your own Simple-mode bar picks, a filter or a sort kept from your last search, aren't the asker's: put aside while
+	-- it searches, back after. They filtered "!t nearest innkeeper" to nothing with "Rare or better" picked: 1.6.4)
+	local Bar = ns.Bar
+	local barWas = Bar and Bar.Save and Bar.Restore and Bar.Save() or nil
+	if barWas then Bar.Restore({}) end
 	-- (whatever happens in it, you're you again after: an error left in would have measured your "nearest" from Bob)
 	local adv
 	local ok, out = pcall(function()
@@ -290,6 +295,7 @@ function A.Rows(question, asker)
 	end)
 	ns.Asker = askerWas
 	if E then E.tempSimple = tempWas end
+	if barWas then Bar.Restore(barWas) end
 	UI.flightNote = flightWas
 	if F then F.loading, F.fitMade = loadingWas, fitWas end
 	if not ok then ns:Trace("ask: " .. tostring(out)) out = {} end

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.4 (in testing)
+
+**`!t` answers: the asker's, not yours**
+- Your own Simple-mode Filter and Sort picks (kept from your last search) no longer apply to a guildie's `!t`
+  question: with "Rare or better" picked, "!t nearest innkeeper" found nothing. They're put aside while it searches
+  and are still yours after.
+- "around my level", "above my level" and every `lvl:me` in a `!t` question are the asker's level, as "where should i
+  level" already was.
+
 ## 1.6.3 (in testing)
 
 **Can you take a quest: one answer everywhere**

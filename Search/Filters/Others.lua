@@ -228,7 +228,9 @@ P.ClearStanding = function() standingWords = nil end
 --- A level value with "me" in it, as numbers ("me+3" at 30: "33", "me-2..me+3": "28-33"); else the value as it is.
 function F.MyLevelValue(v)
 	if type(v) ~= "string" or not v:find("me", 1, true) then return v end
+	-- (a !t question: the asker's level, as the zones' and quests' questions take it: 1.6.4, the mismatch hunt)
 	local okL, me = pcall(_G.UnitLevel or function() end, "player")
+	if ns.Asker and type(ns.Asker.level) == "number" then okL, me = true, ns.Asker.level end
 	me = okL and type(me) == "number" and not ns.Secret(me) and me > 0 and me or nil
 	if not me then return nil end
 	local function At(sign, n)

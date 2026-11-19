@@ -257,6 +257,23 @@ do
 		ns.providers.asktest._dirty = true
 		A.Rows("hogger", { name = "Ann" })
 		check(seen.here == nil, "an asker with no place known: no place, not yours")
+		-- (1.6.4, the mismatch hunt) your own Simple-mode bar picks don't filter the asker's answer, and are kept for you
+		local B = ns.Bar
+		local easyWas = ns.db.easyMode
+		ns.db.easyMode = true
+		B.Restore({ filters = { "q:epic+" } })
+		ns.providers.asktest._dirty = true
+		local picked = A.Rows("hogger", { name = "Cid", level = 23 })
+		local kept = B.Save()
+		check(#picked == 1 and picked[1].name == "Hogger", "your bar's Epic or better: not on the asker's answer: " .. #picked)
+		check(kept.filters[1] == "q:epic+", "...and still yours after")
+		B.Restore({})
+		ns.db.easyMode = easyWas
+		-- (1.6.4) "my level" in a !t question is the asker's: lvl:me is read as their level
+		ns.Asker = { level = 23 }
+		local mine = F.MyLevelValue("me-2..me+3")
+		ns.Asker = nil
+		check(mine == "21-26", "lvl:me in a !t question: the asker's level (23), not yours: " .. tostring(mine))
 		-- the class trainer filter reads the asker's class
 		local meta = ns:CompactMeta({ id = "npc", label = "NPC" }, {}, {})
 		local mage = setmetatable({ _compact = true, key = 71001, name = "Jennea", sub = "Mage Trainer" }, meta)
