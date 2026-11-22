@@ -144,6 +144,18 @@ local function Keep(id, q)
 	qualityOf[id] = q
 	if ns.ItemStore then ns.ItemStore.Put("quality", id, q) end
 end
+--- An item's type and subtype as the game names them, lowercase ("recipe tailoring", "armor cloth"), for a row's
+--- searchable text, as @item's rows have them: GetItemInfoInstant, the client's own data (no server ask, cheap).
+--- "" when the client doesn't know the item. (1.7.10: "@faction cenarion tailoring")
+function ns.ItemTypeText(id)
+	if type(id) ~= "number" then return "" end
+	local get = C_Item and C_Item.GetItemInfoInstant
+	local iid, itemType, subType = ns.Safe(get, id)
+	if iid ~= id then return "" end
+	itemType, subType = ns.Str(itemType), ns.Str(subType)
+	return ns.Lower(((itemType or "") .. " " .. (subType or "")):gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
 function ns.ItemQuality(id)
 	if type(id) ~= "number" then return nil end
 	local get = C_Item and C_Item.GetItemQualityByID

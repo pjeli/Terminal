@@ -194,7 +194,8 @@ function I.FactionLoot(mine, have, absent)
 			out[#out + 1] = setmetatable({ key = "al:" .. id .. ":" .. tostring(r.content), name = name, repReward = true, namesOnly = true,
 				faction = x.fac, reaction = need, mine = my, canBuy = can,
 				detail = x.fac .. SEP .. st .. (can and (SEP .. L["you can buy it"]) or ""),
-				text = ns.Lower(L["reputation reward"] .. " reputation reward rep " .. x.fac .. " " .. st .. " " .. x.st .. (can and " canbuy" or "")) },
+				text = ns.Lower(L["reputation reward"] .. " reputation reward rep " .. x.fac .. " " .. st .. " " .. x.st .. (can and " canbuy" or ""))
+					.. " " .. ns.ItemTypeText(id) }, -- (its type: "@faction cenarion tailoring", 1.7.10)
 				{ __index = r })
 		end
 	end

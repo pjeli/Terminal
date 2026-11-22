@@ -505,7 +505,8 @@ function A.RewardRows()
 					detail = f.name .. SEP .. A.StandingName(it.need) .. (it.slot and (SEP .. it.slot) or "")
 						.. (can and (SEP .. L["you can buy it"]) or ""),
 					text = Lower(table.concat({ L["reputation reward"], "reputation reward rep", f.name, A.StandingName(it.need),
-						STANDING_ENGLISH[it.need], it.slot or "", it.what, v and v.name or "", can and "canbuy" or "" }, " ")),
+						STANDING_ENGLISH[it.need], it.slot or "", it.what, v and v.name or "", can and "canbuy" or "",
+						ns.ItemTypeText(it.id) }, " ")), -- (its type: "@faction cenarion tailoring", 1.7.10)
 				}
 				if spot then
 					row.ui, row.px, row.py = spot.ui, spot.x, spot.y

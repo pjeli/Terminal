@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.7.9", when = "in testing",
+		v = "1.7.10", when = "in testing",
 		items = {
+			"Faction rewards are found by what they are: \"@faction cenarion tailoring\" lists its tailoring patterns.",
 			"Your gold no longer lists a \"Warband bank\" at 0c with Baganator (WoW Forever has none).",
 			"Track or untrack your PvP quests in one go: \"untrack pvp quests\", \"track battleground quests\" (is:pvp in Advanced).",
 			"Ask Terminal how: \"how do i send to party\", \"what does shift enter do\": the answer as rows, Enter writes the example.",

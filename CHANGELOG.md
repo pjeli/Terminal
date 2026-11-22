@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.7.10 (in testing)
+
+**Faction rewards found by what they are: "@faction cenarion tailoring"**
+- A quartermaster's reward (OneForAll's, and AtlasLoot's faction loot) is found by its type and subtype as the game
+  names them, as `@item`'s rows are: `@faction cenarion tailoring` lists the Cenarion Circle's tailoring patterns,
+  `@rep timbermaw leatherworking` Timbermaw's leatherworking ones, `@rep argent plate` the Argent Dawn's plate. It
+  listed nothing before: the rows knew only their names, faction, standing, slot and vendor.
+- `type:` filters them too: `@rep is:reward type:tailoring`.
+
 ## 1.7.9 (in testing)
 
 **No more "Warband bank 0c" in your gold**

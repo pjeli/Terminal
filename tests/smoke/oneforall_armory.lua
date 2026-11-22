@@ -299,6 +299,29 @@ do
 		local braziers = 0
 		for _, e in ipairs(UI:Search("@reputation is:reward brazier")) do if e.itemID == 22014 then braziers = braziers + 1 end end
 		check(braziers == 1, "an item both list: once (OneForAll's, with its quartermaster): " .. braziers)
+		-- (1.7.10, the player: "@faction cenarion tailoring" listed nothing) a reward is found by its type and subtype too,
+		-- as the game names them: a pattern by its profession; and type: filters them
+		do
+			local instWas = C_Item.GetItemInfoInstant
+			local TYPES = { [20253] = { "Recipe", "Tailoring", 9, 2 }, [18182] = { "Armor", "Plate", 4, 4 } }
+			C_Item.GetItemInfoInstant = function(id)
+				local t = TYPES[id]
+				if t then return id, t[1], t[2], "", 0, t[3], t[4] end
+				return instWas(id)
+			end
+			A.ForgetRewards(); ns.providers.reputation._dirty = true
+			local function Ids(r) local t = {} for _, e in ipairs(r) do t[#t + 1] = tostring(e.itemID) end table.sort(t) return table.concat(t, ",") end
+			check(Ids(UI:Search("@reputation timbermaw tailoring")) == "20253", "@reputation timbermaw tailoring: OneForAll's pattern by its profession: "
+				.. Ids(UI:Search("@reputation timbermaw tailoring")))
+			check(Ids(UI:Search("@reputation argent plate")):find("18182", 1, true), "@reputation argent plate: AtlasLoot's reward by its subtype: "
+				.. Ids(UI:Search("@reputation argent plate")))
+			check(#UI:Search("@reputation timbermaw leatherworking") == 0, "another profession: nothing")
+			check(Ids(UI:Search("@reputation is:reward type:tailoring")) == "20253", "type:tailoring on the rewards: "
+				.. Ids(UI:Search("@reputation is:reward type:tailoring")))
+			C_Item.GetItemInfoInstant = instWas
+			A.ForgetRewards(); ns.providers.reputation._dirty = true
+			if ns.Filters.ClearCache then ns.Filters.ClearCache() end
+		end
 		-- (1.6.5, the mismatch hunt) "argent dawn > rewards" lists AtlasLoot's rewards too, as "argent dawn rewards" does
 		local viaChain = ns.Pipes.Run("rewards", { { kind = "reputation", factionID = 529, name = "Argent Dawn" } })
 		local chainAL, chainBraziers = false, 0
