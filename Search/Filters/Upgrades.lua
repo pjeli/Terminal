@@ -842,7 +842,18 @@ function F.GearFit()
 	if #sets == 1 then return GearFitWith(sets[1][1], sets[1][2]) end
 	local fits = {}
 	for i, s in ipairs(sets) do fits[i] = GearFitWith(s[1], s[2]) end
+	local instant = C_Item and C_Item.GetItemInfoInstant
 	return function(e)
+		-- (not equipment, by the client's own data: no set's fit asked; most rows, every keystroke. Release review: two
+		-- or three Pawn scales shown ran every fit on every row)
+		if e.kind ~= "questie" and e.kind ~= "quests" then
+			local id = not e.slotId and ItemOf(e)
+			if not id then gains[e] = nil return false end
+			if instant then
+				local ok, _, _, _, loc = pcall(instant, id)
+				if ok and type(loc) == "string" and not SLOTS[loc] then gains[e] = nil return false end
+			end
+		end
 		local best, any = nil, false
 		for _, f in ipairs(fits) do
 			if f(e) then
@@ -1153,7 +1164,7 @@ end
 function F.ApplyPawn(text)
 	local w, name, ignored = F.ParsePawn(text)
 	-- (not one, or cut off by the prompt's length: the window takes a whole one; 0.65.x review)
-	if not w then return false, L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights pawn opens a window to paste it into."] end
+	if not w then return false, L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights paste opens a window to paste it into."] end
 	if not F.WeighsAny(w) then return false, L["No stat in it weighs anything (all 0 or less)."] end
 	F.SetCustomWeights(w, name)
 	if not F.CustomWeights() then return false, L["No character to keep them for yet: try again in a moment."] end
@@ -1172,9 +1183,10 @@ ns:RegisterCommand("weights", {
 		for _, r in ipairs(F.RolesOf(MyClass())) do
 			out[#out + 1] = { r[1], r[1] == "custom" and F.WeightsText(F.CustomWeights().w, 4) or F.WeightsText(r[2], 4) }
 		end
-		out[#out + 1] = { "all", L["the tree your talent points are in"] }
+		out[#out + 1] = { "all", F.PawnScales() and L["your Pawn scales, as Pawn shows them"] or L["the tree your talent points are in"] }
 		out[#out + 1] = { "set", L["your own: .weights set str=2 agi=1 sta=0.5"] }
 		out[#out + 1] = { "pawn", F.PawnScales() and L["your Pawn scales, as Pawn shows them"] or L["paste a Pawn scale string"] }
+		out[#out + 1] = { "paste", L["paste a Pawn scale string"] }
 		if F.CustomWeights() then out[#out + 1] = { "clear", L["forget your own weights"] } end
 		return out
 	end,
@@ -1201,6 +1213,15 @@ ns:RegisterCommand("weights", {
 				F.SetCustomWeights(w, nil)
 				F.SetRoles({ "custom" })
 				lines[#lines + 1] = L["Upgrades: judged by your own weights: %s"]:format(F.WeightsText(w, 30))
+			elseif low == "paste" then
+				-- (the window, whether Pawn is there or not: .weights pawn alone goes back to Pawn's scales when it shows one;
+				-- release review)
+				local O = ns.Options
+				if O and O.PasteDialog then
+					O.PasteDialog(L["Your Pawn scale"], L["Paste a Pawn scale string (Ctrl+V): it starts with ( Pawn: v1:"], F.ApplyPawn)
+					return { L["Paste your Pawn scale string into the window (Ctrl+V), then Enter."] }
+				end
+				return { L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights paste opens a window to paste it into."] }
 			elseif first == "pawn" or args:find("^%(%s*[Pp][Aa][Ww][Nn]") then
 				-- a Pawn scale string: typed after it, or pasted in a window (they're often longer than the prompt
 				-- takes)
@@ -1215,7 +1236,7 @@ ns:RegisterCommand("weights", {
 						O.PasteDialog(L["Your Pawn scale"], L["Paste a Pawn scale string (Ctrl+V): it starts with ( Pawn: v1:"], F.ApplyPawn)
 						return { L["Paste your Pawn scale string into the window (Ctrl+V), then Enter."] }
 					end
-					return { L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights pawn opens a window to paste it into."] }
+					return { L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights paste opens a window to paste it into."] }
 				end
 				if text ~= "" then
 					local ok, say = F.ApplyPawn(text)
@@ -1271,8 +1292,9 @@ ns:RegisterCommand("weights", {
 				.. ": " .. F.WeightsText(s.w, 30)
 				.. (#s.ignored > 0 and (" " .. L["(not weighed here: %s)"]:format(table.concat(s.ignored, ", "))) or "")
 		end
-		lines[#lines + 1] = L[".weights <tree> picks one (.weights %s); .weights all goes back to the tree your talent points are in (none spent: your class's levelling tree)."]:format(
-			(F.ROLES[class or ""] and F.ROLES[class][1] and F.ROLES[class][1][1]) or "arms")
+		local tree1 = (F.ROLES[class or ""] and F.ROLES[class][1] and F.ROLES[class][1][1]) or "arms"
+		lines[#lines + 1] = F.PawnScales() and L[".weights <tree> picks one (.weights %s); .weights all goes back to your Pawn scales."]:format(tree1)
+			or L[".weights <tree> picks one (.weights %s); .weights all goes back to the tree your talent points are in (none spent: your class's levelling tree)."]:format(tree1)
 		lines[#lines + 1] = "  " .. L["Hit, crit, dodge, parry and block per 1%; defense per point of skill; the rest per point."]
 		-- (the hit cap: what you have now against it)
 		local h = F.HitNow()
@@ -1283,7 +1305,7 @@ ns:RegisterCommand("weights", {
 		elseif h.spellhit then
 			lines[#lines + 1] = "  " .. L["Spell hit counts up to your cap: %s%% of %s%% now"]:format(Pct(h.spellhit[1]), Pct(h.spellhit[2]))
 		end
-		lines[#lines + 1] = L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights pawn and paste a Pawn scale string; .weights custom picks them again, .weights clear forgets them."]
+		lines[#lines + 1] = L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights paste for a Pawn scale string; .weights custom picks them again, .weights clear forgets them."]
 		return lines
 	end,
 })

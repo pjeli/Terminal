@@ -217,9 +217,9 @@ function UI:UpdateTooltip()
 				end
 			end
 		end
-		-- the role it's an upgrade for (.weights: several picked)
+		-- the role it's an upgrade for (.weights: several picked; or Pawn's scale, when Pawn's judge: release review)
 		local g = F and F.fitMade and F.GainOf and F.GainOf(e)
-		if g and g.role and F.MyRoles and F.MyRoles() then
+		if g and g.role and ((F.MyRoles and F.MyRoles()) or (F.PawnJudges and F.PawnJudges())) then
 			t:AddLine(L["An upgrade for: %s"]:format(F.ROLE_SAY[g.role] or g.role), 0.25, 1, 0.25)
 		end
 		-- (its hit past your cap counted for nothing: said, as the game's comparison shows it all)

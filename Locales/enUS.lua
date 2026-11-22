@@ -398,6 +398,7 @@ L[".share off to disconnect"] = true
 L[".theme lists the themes (.theme dracula applies one); \"terminal settings\" has the font, size and colours."] = true
 L[".tour shows the basics in a few short steps."] = true
 L[".weights <tree> picks one (.weights %s); .weights all goes back to the tree your talent points are in (none spent: your class's levelling tree)."] = true
+L[".weights <tree> picks one (.weights %s); .weights all goes back to your Pawn scales."] = true
 L[".zen fades the rest of the interface while Terminal is open; .zen again turns it off."] = true
 L["/ searches on, ? back, n the next match, N the one before, q or Esc quits. The wheel scrolls too."] = true
 L["1 craft"] = true
@@ -1430,7 +1431,7 @@ L["Not %s"] = true
 L["Not a directory"] = true
 L["Not a role of your class: %s. Yours: %s"] = true
 L["Not a stat and its weight: %s"] = true
-L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights pawn opens a window to paste it into."] = true
+L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights paste opens a window to paste it into."] = true
 L["Not as expected:"] = true
 L["Not changed (the game refused): %s"] = true
 L["Not changed (the tracker holds %d at most): %s"] = true
@@ -2393,7 +2394,7 @@ L["Your mounts"] = true
 L["Your other characters:"] = true
 L["Your own commands: .alias <name> <a search, /slash or .command> makes .<name> run it; .alias lists them; .unalias <name> forgets one"] = true
 L["Your own weights forgotten."] = true
-L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights pawn and paste a Pawn scale string; .weights custom picks them again, .weights clear forgets them."] = true
+L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights paste for a Pawn scale string; .weights custom picks them again, .weights clear forgets them."] = true
 L["Your party"] = true
 L["Your pets"] = true
 L["Your pets don't know it yet"] = true

@@ -2710,7 +2710,7 @@ L["No character to keep them for yet: try again in a moment."] = "Aún no hay ni
 L["No quest Questie knows of rewards one"] = "Ninguna misión que Questie conozca da una como recompensa"
 L["No stat in it weighs anything (all 0 or less)."] = "Ninguna estadística tiene peso (todas 0 o menos)."
 L["Not a stat and its weight: %s"] = "No es una estadística con su peso: %s"
-L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights pawn opens a window to paste it into."] = "No es una cadena de escala de Pawn completa: ( Pawn: v1: \"Name\": Strength=1, ... ). Si es larga, se corta en la línea de entrada: .weights pawn abre una ventana para pegarla."
+L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights paste opens a window to paste it into."] = "No es una cadena de escala de Pawn completa: ( Pawn: v1: \"Name\": Strength=1, ... ). Si es larga, se corta en la línea de entrada: .weights paste abre una ventana para pegarla."
 L["Not what you'd pick? .weights sets how upgrades are judged"] = "¿No es lo que elegirías? .weights fija cómo se juzgan las mejoras"
 L["Now: %s"] = "Ahora: %s"
 L["One role at a time: .weights %s. Yours: %s"] = "Un rol a la vez: .weights %s. Los tuyos: %s"
@@ -2736,7 +2736,7 @@ L["Warn at login: mail about to expire"] = "Avisar al entrar: correo a punto de 
 L["Which stats? .weights set str=2 agi=1 sta=0.5"] = "¿Qué estadísticas? .weights set str=2 agi=1 sta=0.5"
 L["Your Pawn scale"] = "Tu escala de Pawn"
 L["Your own weights forgotten."] = "Pesos propios olvidados."
-L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights pawn and paste a Pawn scale string; .weights custom picks them again, .weights clear forgets them."] = "Los tuyos: .weights set str=2 agi=1 sta=0.5, o .weights pawn y pega una cadena de escala de Pawn; .weights custom los vuelve a elegir, .weights clear los olvida."
+L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights paste for a Pawn scale string; .weights custom picks them again, .weights clear forgets them."] = "Los tuyos: .weights set str=2 agi=1 sta=0.5, o .weights paste y pega una cadena de escala de Pawn; .weights custom los vuelve a elegir, .weights clear los olvida."
 L["a - turns a sort round: sort:-level the highest first, sort:-name Z to A, sort:-quality the worst first (not sort:best or plan); Simple mode's Sort turns round when picked again, its arrow saying which way"] = "un - invierte un orden: sort:-level el nivel más alto primero, sort:-name de la Z a la A, sort:-quality la peor calidad primero (no con sort:best ni plan); Ordenar en el modo Simple se invierte al elegirlo otra vez, y su flecha indica en qué sentido"
 L["drop this alt: its mail, experience and lockouts"] = "olvidar este alter: su correo, experiencia y bloqueos"
 L["forget your own weights"] = "olvidar tus propios pesos"
@@ -3637,4 +3637,5 @@ L["Say it: \"rare swords under level 30\", \"boe cloth\", \"stamina food\"; the 
 L["Say it: \"swords sorted by level\", \"nearest innkeeper\"; the bar's Sort menu too."] = "Dilo: \"swords sorted by level\", \"nearest innkeeper\"; también el menú Ordenar de la barra."
 L["Say it: \"quests per zone\", \"how many linen do i have\"; the bar's Group menu too."] = "Dilo: \"quests per zone\", \"how many linen do i have\"; también el menú Agrupar de la barra."
 L["Ask \"where to get linen cloth\", \"mats for thorium belt\" or \"what uses copper bar\"."] = "Pregunta \"where to get linen cloth\", \"mats for thorium belt\" o \"what uses copper bar\"."
+L[".weights <tree> picks one (.weights %s); .weights all goes back to your Pawn scales."] = ".weights <rama> elige una (.weights %s); .weights all vuelve a tus escalas de Pawn."
 --@end-do-not-package@

@@ -2710,7 +2710,7 @@ L["No character to keep them for yet: try again in a moment."] = "还没有可�
 L["No quest Questie knows of rewards one"] = "Questie 已知的任务都不奖励这类物品"
 L["No stat in it weighs anything (all 0 or less)."] = "其中没有任何属性有权重（全部为 0 或更小）。"
 L["Not a stat and its weight: %s"] = "不是属性及其权重：%s"
-L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights pawn opens a window to paste it into."] = "不是完整的 Pawn 方案字符串：( Pawn: v1: \"Name\": Strength=1, ... )。较长的字符串在提示符中会被截断：.weights pawn 会打开一个窗口供你粘贴。"
+L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights paste opens a window to paste it into."] = "不是完整的 Pawn 方案字符串：( Pawn: v1: \"Name\": Strength=1, ... )。较长的字符串在提示符中会被截断：.weights paste 会打开一个窗口供你粘贴。"
 L["Not what you'd pick? .weights sets how upgrades are judged"] = "不是你想要的？.weights 设置如何评判提升"
 L["Now: %s"] = "当前：%s"
 L["One role at a time: .weights %s. Yours: %s"] = "一次只能选一个职责：.weights %s。你的：%s"
@@ -2736,7 +2736,7 @@ L["Warn at login: mail about to expire"] = "登录时提醒：即将过期的邮
 L["Which stats? .weights set str=2 agi=1 sta=0.5"] = "哪些属性？.weights set str=2 agi=1 sta=0.5"
 L["Your Pawn scale"] = "你的 Pawn 方案"
 L["Your own weights forgotten."] = "已忘记你自己的权重。"
-L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights pawn and paste a Pawn scale string; .weights custom picks them again, .weights clear forgets them."] = "你自己的：.weights set str=2 agi=1 sta=0.5，或 .weights pawn 后粘贴 Pawn 方案字符串；.weights custom 重新选用它们，.weights clear 忘记它们。"
+L["Your own: .weights set str=2 agi=1 sta=0.5, or .weights paste for a Pawn scale string; .weights custom picks them again, .weights clear forgets them."] = "你自己的：.weights set str=2 agi=1 sta=0.5，或 .weights paste 后粘贴 Pawn 方案字符串；.weights custom 重新选用它们，.weights clear 忘记它们。"
 L["a - turns a sort round: sort:-level the highest first, sort:-name Z to A, sort:-quality the worst first (not sort:best or plan); Simple mode's Sort turns round when picked again, its arrow saying which way"] = "加上 - 可反转排序：sort:-level 最高在前，sort:-name 从 Z 到 A，sort:-quality 最差在前（sort:best 和 plan 除外）；简单模式的“排序”再次选择时会反转，箭头显示方向"
 L["drop this alt: its mail, experience and lockouts"] = "移除这个小号：它的邮件、经验和副本进度"
 L["forget your own weights"] = "忘记你自己的权重"
@@ -3637,4 +3637,5 @@ L["Say it: \"rare swords under level 30\", \"boe cloth\", \"stamina food\"; the 
 L["Say it: \"swords sorted by level\", \"nearest innkeeper\"; the bar's Sort menu too."] = "直接说：\"swords sorted by level\", \"nearest innkeeper\"；也可用栏上的排序菜单。"
 L["Say it: \"quests per zone\", \"how many linen do i have\"; the bar's Group menu too."] = "直接说：\"quests per zone\", \"how many linen do i have\"；也可用栏上的分组菜单。"
 L["Ask \"where to get linen cloth\", \"mats for thorium belt\" or \"what uses copper bar\"."] = "问 \"where to get linen cloth\", \"mats for thorium belt\" 或 \"what uses copper bar\"。"
+L[".weights <tree> picks one (.weights %s); .weights all goes back to your Pawn scales."] = ".weights <天赋树> 选择一个（.weights %s）；.weights all 回到你的 Pawn 权重。"
 --@end-do-not-package@

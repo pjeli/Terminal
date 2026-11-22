@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.7.14 (in testing)
+
+**Pawn's scales: the tooltip says which, `.weights paste`, cheaper** (release review)
+- An upgrade judged by Pawn's scales says which in its tooltip ("An upgrade for: Pawn "Healer""), as 1.7.3 promised: it
+  did only for trees picked in `.weights`.
+- `.weights paste` opens the window to paste a Pawn scale string into, whether Pawn is installed or not: with Pawn
+  showing a scale, `.weights pawn` alone goes back to Pawn's scales, and the messages that sent you there for the
+  window now say `.weights paste`.
+- With Pawn's scales judging, `.weights all` (its completion and `.weights`'s own help) says it goes back to Pawn's
+  scales, as it does; they said "the tree your talent points are in".
+- `is:upgrade` with two or three Pawn scales shown no longer weighs every row once per scale: a row that isn't
+  equipment is let go once. Translated.
+
 ## 1.7.13 (in testing)
 
 **"How do I..." answers: only when every word fits** (release review)

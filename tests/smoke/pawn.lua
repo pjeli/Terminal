@@ -79,6 +79,49 @@ do
 	-- both shown: an upgrade for either
 	SCALES[2].IsVisible = true
 	check(Upgrades() == "Cat Helm, Healer Helm", "two scales shown: an upgrade for either: " .. Upgrades())
+	-- (release review) the tooltip names the Pawn scale it's an upgrade for (it did only for .weights picks)
+	do
+		F.ForgetPawn(); F.ClearFit()
+		UI:Open("@loot is:upgrade"); FlushAll()
+		local TT = _G.TerminalTooltip
+		local said, add = {}, TT.AddLine
+		TT.AddLine = function(self, s2, ...) said[#said + 1] = tostring(s2) return add(self, s2, ...) end
+		for i, e in ipairs(UI.Results()) do if e.name == "Healer Helm" then UI.sel = i end end
+		TT.entry, TT.noneFor = nil, nil
+		TT:Hide()
+		UI:UpdateTooltip()
+		TT.AddLine = add
+		UI:HideNow(); FlushAll()
+		check(table.concat(said, "\n"):find(L["An upgrade for: %s"]:format(F.PawnRole("Healer")), 1, true),
+			"the tooltip: An upgrade for: Pawn \"Healer\": " .. table.concat(said, " / "))
+	end
+	-- (release review) a row that isn't equipment: the client's data asked once, not once per scale shown
+	do
+		local n, inst = 0, C_Item.GetItemInfoInstant
+		C_Item.GetItemInfoInstant = function(id) n = n + 1 return id, "Recipe", "Tailoring", "" end
+		F.ForgetPawn(); F.ClearFit()
+		local fit = F.GearFit()
+		local yes = fit({ kind = "loot", itemID = 9999, name = "Pattern" })
+		C_Item.GetItemInfoInstant = inst
+		check(not yes and n == 1, "not equipment, two scales shown: asked once: " .. n)
+	end
+	-- (release review) .weights all and its help say Pawn's scales while Pawn's judge; .weights paste opens the window
+	local listing = table.concat(weights.run("", ns), "\n")
+	check(listing:find(L[".weights <tree> picks one (.weights %s); .weights all goes back to your Pawn scales."]:format("balance"), 1, true)
+		or listing:find(L[".weights <tree> picks one (.weights %s); .weights all goes back to your Pawn scales."]:format("feral"), 1, true)
+		or listing:find(".weights all goes back to your Pawn scales.", 1, true), ".weights: all goes back to Pawn's: " .. listing)
+	local allSaid
+	for _, o in ipairs(weights.complete("") or {}) do if o[1] == "all" then allSaid = o[2] end end
+	check(allSaid == L["your Pawn scales, as Pawn shows them"], "the completion of all: Pawn's: " .. tostring(allSaid))
+	do
+		local O = ns.Options
+		local real, opened = O.PasteDialog, false
+		O.PasteDialog = function() opened = true end
+		local said = table.concat(weights.run("paste", ns), "\n")
+		O.PasteDialog = real
+		check(opened and said:find(L["Paste your Pawn scale string into the window (Ctrl+V), then Enter."], 1, true),
+			".weights paste: the window, Pawn there or not")
+	end
 
 	-- the same weights read again: the same table (the verdicts kept are keyed by it)
 	F.ForgetPawn()
