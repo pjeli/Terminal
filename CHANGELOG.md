@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.7.3 (in testing)
+
+**Pawn's scales judge upgrades**
+- With Pawn installed, the scales it shows in its tooltips for your character judge `is:upgrade` ("upgrades", "quest
+  upgrades", "vendor upgrades"), read as they are now, with no export and paste. Two scales shown: an item counts if
+  it's an upgrade for either, and its tooltip says which ("An upgrade for: Pawn "Healer"").
+- A tree or your own weights picked in `.weights` still come first; `.weights pawn` goes back to Pawn's scales.
+  OneForAll's gear value is used when neither Pawn nor `.weights` says.
+- `.weights` lists Pawn's scales with their weights; `.integrations` has a Pawn line. Read through the functions Pawn
+  offers other addons (its "Pawn API"); nothing of Pawn's is copied. (A player on CurseForge: "use the current Pawn
+  scales automatically when Pawn is installed".)
+
 ## 1.7.2 (in testing)
 
 **The key that opens Terminal isn't typed into it**

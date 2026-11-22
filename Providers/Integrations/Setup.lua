@@ -139,6 +139,8 @@ ns:RegisterCommand("integrations", {
 			Add("TradeSkillMaster:", ns.Auctionator.TSM.Status())
 			Add("Auctionator:", ns.Auctionator.Status())
 		end
+		-- (Pawn's scales shown in its tooltips judge is:upgrade: 1.7.3)
+		if ns.Filters and ns.Filters.PawnStatus then Add("Pawn:", ns.Filters.PawnStatus()) end
 		local M = ns.Maps
 		if M and M.TomTom and M.TomTom() then lines[#lines + 1] = "  TomTom: " .. I.TomTomStatus() end
 		if ns.DungeonJournal then Add("DungeonJournal:", ns.DungeonJournal.Status(), I.FailedText(ns.DungeonJournal.NAME)) end

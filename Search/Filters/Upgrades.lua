@@ -256,6 +256,21 @@ end
 -- (a Pawn string's entries that aren't stats: not said as stats Terminal doesn't weigh; 0.65.x review)
 local PAWN_NOT_STATS = { class = true, spec = true, specid = true, gemqualitylevel = true, metagemqualitylevel = true,
 	speedbaseline = true, unusable = true }
+--- One of a Pawn scale's entries (its stat's name, the number) into weights `w`; one Terminal doesn't weigh into
+--- `ignored`. True when it was a stat Terminal weighs. (A pasted string's and Pawn's own scales': 1.7.3)
+local function AddPawnStat(w, ignored, k, n)
+	local low = ns.Lower(k)
+	local kind = PAWN[low]
+	if kind then
+		if w[kind] == nil or n > w[kind] then w[kind] = n end -- (melee and ranged DPS, rating and value: the more)
+		-- (its plain Dps: a weapon's, either slot)
+		if low == "dps" and (w.rdps == nil or n > w.rdps) then w.rdps = n end
+		return true
+	elseif n ~= 0 and not PAWN_NOT_STATS[low] and not low:find("^is") then -- (IsPlate, IsDagger...: not stats)
+		ignored[#ignored + 1] = k
+	end
+	return false
+end
 function F.ParsePawn(text)
 	-- (any case: "( pawn: v1: ..."; 0.65.x review)
 	local name, body = tostring(text or ""):match('%(%s*[Pp][Aa][Ww][Nn]%s*:%s*[Vv]%d+%s*:%s*"([^"]*)"%s*:(.-)%)')
@@ -264,17 +279,7 @@ function F.ParsePawn(text)
 	for piece in body:gmatch("[^,]+") do
 		local k, v = piece:match("^%s*([%w_]+)%s*=%s*(.-)%s*$")
 		local n = v and tonumber(v)
-		if k and n then
-			local kind = PAWN[ns.Lower(k)]
-			if kind then
-				if w[kind] == nil or n > w[kind] then w[kind] = n end -- (melee and ranged DPS, rating and value: the more)
-				-- (its plain Dps: a weapon's, either slot)
-				if ns.Lower(k) == "dps" and (w.rdps == nil or n > w.rdps) then w.rdps = n end
-				any = true
-			elseif n ~= 0 and not PAWN_NOT_STATS[ns.Lower(k)] then
-				ignored[#ignored + 1] = k
-			end
-		end
+		if k and n and AddPawnStat(w, ignored, k, n) then any = true end
 	end
 	if not any then return nil end
 	return w, name ~= "" and name or nil, ignored
@@ -329,6 +334,96 @@ function F.Scaled(w)
 	for k, v in pairs(w) do s[k] = top > 0 and v / top or v end
 	scaled[w] = s
 	return s
+end
+
+----------------------------------------------------------------------
+-- Pawn's scales (1.7.3, a player on CurseForge: "use the current Pawn scales automatically when Pawn is installed,
+-- instead of having to export and paste"). The scales Pawn shows in its tooltips for this character, read through the
+-- functions it offers other addons (its "Pawn API": PawnIsReady, PawnGetAllScalesEx, PawnGetAllStatValues; nothing of
+-- its own data kept or copied), judge is:upgrade when you haven't picked weights in .weights: ahead of OneForAll's gear
+-- value and your talents' tree. Several shown: an upgrade for any of them, its tooltip naming the scale. Read again
+-- every F.PAWN_EVERY seconds; the same weights keep the same table (the verdicts kept are keyed by it: F.FitKey).
+----------------------------------------------------------------------
+F.PAWN_EVERY = 1
+local pawnKept = {} -- { at, sig, scales }
+--- Is Pawn there (its functions for other addons)?
+function F.PawnLoaded()
+	return type(rawget(_G, "PawnGetAllScalesEx")) == "function" and type(rawget(_G, "PawnGetAllStatValues")) == "function"
+end
+local function ReadPawn()
+	if not F.PawnLoaded() then return nil, "absent" end
+	local ready = rawget(_G, "PawnIsReady")
+	if type(ready) == "function" then
+		local ok, yes = pcall(ready)
+		if not (ok and yes) then return nil, "loading" end
+	end
+	local ok, list = pcall(_G.PawnGetAllScalesEx)
+	if not ok or type(list) ~= "table" then return nil, "loading" end
+	local out = {}
+	for _, s in ipairs(list) do
+		if type(s) == "table" and s.IsVisible and type(s.Name) == "string" then
+			local okV, values = pcall(_G.PawnGetAllStatValues, s.Name)
+			if okV and type(values) == "table" then
+				-- (its own table, read and never written: Pawn's API says so)
+				local w, ignored, keys = {}, {}, {}
+				for k in pairs(values) do if type(k) == "string" then keys[#keys + 1] = k end end
+				table.sort(keys)
+				for _, k in ipairs(keys) do
+					local n = values[k]
+					if type(n) == "number" and not ns.Secret(n) then AddPawnStat(w, ignored, k, n) end
+				end
+				if F.WeighsAny(w) then
+					local name = type(s.LocalizedName) == "string" and s.LocalizedName ~= "" and s.LocalizedName or s.Name
+					out[#out + 1] = { name = name, w = w, ignored = ignored }
+				end
+			end
+		end
+	end
+	return #out > 0 and out or nil, "none"
+end
+--- The scales Pawn shows for this character: { { name, w (Terminal's stats), ignored = { Pawn's names } } ... }, or nil
+--- (and why: "absent", "loading", "none").
+function F.PawnScales()
+	local now = GetTime and GetTime() or 0
+	if pawnKept.at and now >= pawnKept.at and now - pawnKept.at < F.PAWN_EVERY then return pawnKept.scales, pawnKept.why end
+	pawnKept.at = now
+	local scales, why = ReadPawn()
+	local parts = {}
+	for _, s in ipairs(scales or {}) do
+		local ks = {}
+		for k, v in pairs(s.w) do ks[#ks + 1] = k .. "=" .. tostring(v) end
+		table.sort(ks)
+		parts[#parts + 1] = s.name .. ":" .. table.concat(ks, ",")
+	end
+	local sig = table.concat(parts, ";")
+	pawnKept.why = why
+	if scales and sig == pawnKept.sig then return pawnKept.scales, why end
+	pawnKept.sig, pawnKept.scales = scales and sig or nil, scales
+	return scales, why
+end
+F.ForgetPawn = function() pawnKept = {} end -- (tests)
+--- An upgrade's role when a Pawn scale judged it: 'Pawn "Name"' (said as it is: the tooltip, Why).
+function F.PawnRole(name) return 'Pawn "' .. tostring(name) .. '"' end
+--- Pawn's scales judging is:upgrade now (none picked in .weights), or nil.
+function F.PawnJudges()
+	if F.MyRoles() then return nil end
+	return (F.PawnScales())
+end
+--- .integrations' Pawn line, or nil when Pawn isn't there.
+function F.PawnStatus()
+	if not F.PawnLoaded() then return nil end
+	local scales, why = F.PawnScales()
+	if not scales then
+		return why == "loading" and L["found, still loading"]
+			or L["found, no scale shown in its tooltips for this character: is:upgrade uses Terminal's own weights"]
+	end
+	local names = {}
+	for _, s in ipairs(scales) do names[#names + 1] = '"' .. s.name .. '"' end
+	local picked = F.MyRoles()
+	if picked then
+		return L["found, not used: you picked %s in .weights (.weights pawn uses its scales again)"]:format(F.ROLE_SAY[picked[1]] or picked[1])
+	end
+	return L["found: its scales shown in tooltips judge is:upgrade (%s)"]:format(table.concat(names, ", "))
 end
 
 --- Your class's roles, and yours ("custom") after them when you've set your own: { { id, weights } ... }.
@@ -416,6 +511,13 @@ function F.MyWeightSets()
 	local class = MyClass()
 	local roles = F.MyRoles()
 	if not roles then
+		-- (Pawn's scales shown in its tooltips, when nothing's picked in .weights: 1.7.3)
+		local pawn = F.PawnScales()
+		if pawn then
+			local out = {}
+			for i, s in ipairs(pawn) do out[i] = { F.Scaled(s.w), F.PawnRole(s.name) } end
+			return out
+		end
 		local t = F.TalentTree(class)
 		if t then
 			for _, r in ipairs(F.ROLES[class] or {}) do if r[1] == t then return { { r[2], t } } end end
@@ -652,7 +754,8 @@ F.ClearFit = function() fit = {}; wornKept = {}; F.fitGen = F.fitGen + 1; if ns.
 --- while this stays the same is still right (vendor upgrades, kept two seconds: review, a role picked or a piece put on
 --- within them was judged by the old).
 function F.FitKey()
-	local set = F.MyWeightSets()[1]
+	local sets = F.MyWeightSets()
+	local set = sets[1]
 	local _, worn = WornLinks()
 	-- (your hit as its numbers: the table HitNow makes was a new one each time, its address in the key, so the key was
 	-- never the same twice and vendor upgrades were judged again on every keystroke)
@@ -661,7 +764,10 @@ function F.FitKey()
 	table.sort(kinds)
 	local now = F.HitNow()
 	for _, kind in ipairs(kinds) do hit[#hit + 1] = kind .. "=" .. tostring(now[kind][1]) .. "/" .. tostring(now[kind][2]) end
-	return table.concat({ tostring(set[1]), tostring(set[2]), tostring(_G.UnitLevel and _G.UnitLevel("player")),
+	-- (Pawn's several scales: each one judged by, 1.7.3)
+	local more = {}
+	for i = 2, #sets do more[#more + 1] = tostring(sets[i][1]) end
+	return table.concat({ tostring(set[1]), tostring(set[2]), table.concat(more, ","), tostring(_G.UnitLevel and _G.UnitLevel("player")),
 		table.concat(hit, ","), tostring(F.fitGen), worn }, "\002")
 end
 F.ForgetSessionFit = function() fit = {} end -- (tests: a new session, what was kept between sessions still there)
@@ -731,8 +837,23 @@ local GearFitWith
 --- A filter: the item is an upgrade for you now (see above). Items the game hasn't loaded yet aren't, for now. With
 --- several roles picked (.weights): a clear upgrade for any of them, the biggest gain kept and its role said.
 function F.GearFit()
-	local set = F.MyWeightSets()[1] -- (one role at a time: 0.65.9)
-	return GearFitWith(set[1], set[2])
+	local sets = F.MyWeightSets()
+	-- (one role at a time: 0.65.9; Pawn's scales shown are several at once, 1.7.3: an upgrade for any, the biggest gain)
+	if #sets == 1 then return GearFitWith(sets[1][1], sets[1][2]) end
+	local fits = {}
+	for i, s in ipairs(sets) do fits[i] = GearFitWith(s[1], s[2]) end
+	return function(e)
+		local best, any = nil, false
+		for _, f in ipairs(fits) do
+			if f(e) then
+				any = true
+				local g = gains[e]
+				if g and (not best or (g.gain or 0) > (best.gain or 0)) then best = g end
+			end
+		end
+		gains[e] = best
+		return any
+	end
 end
 
 GearFitWith = function(weights, role)
@@ -1053,7 +1174,7 @@ ns:RegisterCommand("weights", {
 		end
 		out[#out + 1] = { "all", L["the tree your talent points are in"] }
 		out[#out + 1] = { "set", L["your own: .weights set str=2 agi=1 sta=0.5"] }
-		out[#out + 1] = { "pawn", L["paste a Pawn scale string"] }
+		out[#out + 1] = { "pawn", F.PawnScales() and L["your Pawn scales, as Pawn shows them"] or L["paste a Pawn scale string"] }
 		if F.CustomWeights() then out[#out + 1] = { "clear", L["forget your own weights"] } end
 		return out
 	end,
@@ -1067,7 +1188,8 @@ ns:RegisterCommand("weights", {
 		if args ~= "" then
 			if low == "all" or low == "reset" or low == "none" or low == "allround" or low == "auto" or low == "talents" then
 				F.SetRoles(nil)
-				lines[#lines + 1] = L["Upgrades: judged for the tree your talent points are in again."]
+				lines[#lines + 1] = F.PawnScales() and L["Upgrades: judged by your Pawn scales again."]
+					or L["Upgrades: judged for the tree your talent points are in again."]
 			elseif first == "set" then
 				-- your own: .weights set str=2 agi=1 sta=0.5
 				local w, bad = F.ParseWeights(rest)
@@ -1083,7 +1205,11 @@ ns:RegisterCommand("weights", {
 				-- a Pawn scale string: typed after it, or pasted in a window (they're often longer than the prompt
 				-- takes)
 				local text = first == "pawn" and restRaw or args
-				if text == "" then
+				-- (Pawn there with a scale shown: its scales again, nothing to paste; 1.7.3)
+				if text == "" and F.PawnScales() then
+					F.SetRoles(nil)
+					lines[#lines + 1] = L["Upgrades: judged by your Pawn scales again."]
+				elseif text == "" then
 					local O = ns.Options
 					if O and O.PasteDialog then
 						O.PasteDialog(L["Your Pawn scale"], L["Paste a Pawn scale string (Ctrl+V): it starts with ( Pawn: v1:"], F.ApplyPawn)
@@ -1091,9 +1217,11 @@ ns:RegisterCommand("weights", {
 					end
 					return { L["Not a whole Pawn scale string: ( Pawn: v1: \"Name\": Strength=1, ... ). A long one is cut off in the prompt: .weights pawn opens a window to paste it into."] }
 				end
-				local ok, say = F.ApplyPawn(text)
-				if not ok then return { say } end
-				lines[#lines + 1] = say
+				if text ~= "" then
+					local ok, say = F.ApplyPawn(text)
+					if not ok then return { say } end
+					lines[#lines + 1] = say
+				end
 			elseif first == "clear" or first == "forget" then
 				F.SetCustomWeights(nil)
 				lines[#lines + 1] = L["Your own weights forgotten."]
@@ -1117,8 +1245,10 @@ ns:RegisterCommand("weights", {
 		-- (none picked: the class's levelling tree is the one used, said so on its line; 0.65.x review: an "All-round" line
 		-- repeated it under another name)
 		local default, fromTalents
-		if not picked then default, fromTalents = F.UnpickedTree(class) end
-		if not picked and not default then lines[#lines + 1] = "  " .. L["Now: %s"]:format(F.WeightsText(GENERIC, 30)) end
+		-- (Pawn's scales shown in its tooltips judge when none is picked: not your talents' tree; 1.7.3)
+		local pawn = not picked and F.PawnScales() or nil
+		if not picked and not pawn then default, fromTalents = F.UnpickedTree(class) end
+		if not picked and not default and not pawn then lines[#lines + 1] = "  " .. L["Now: %s"]:format(F.WeightsText(GENERIC, 30)) end
 		if default then on[default] = true end
 		local custom = F.CustomWeights()
 		for _, r in ipairs(F.RolesOf(class)) do
@@ -1134,6 +1264,12 @@ ns:RegisterCommand("weights", {
 			-- (every stat: the top few were the per-1% ones, and a tree's main stat never showed; 0.65.x review)
 			lines[#lines + 1] = "  " .. (now and "|cff40ff40" or "") .. label .. (now and (" " .. now .. "|r") or "")
 				.. ": " .. F.WeightsText(w, 30)
+		end
+		for _, s in ipairs(F.PawnScales() or {}) do
+			local now = pawn and L["(now: from Pawn)"]
+			lines[#lines + 1] = "  " .. (now and "|cff40ff40" or "") .. F.PawnRole(s.name) .. (now and (" " .. now .. "|r") or "")
+				.. ": " .. F.WeightsText(s.w, 30)
+				.. (#s.ignored > 0 and (" " .. L["(not weighed here: %s)"]:format(table.concat(s.ignored, ", "))) or "")
 		end
 		lines[#lines + 1] = L[".weights <tree> picks one (.weights %s); .weights all goes back to the tree your talent points are in (none spent: your class's levelling tree)."]:format(
 			(F.ROLES[class or ""] and F.ROLES[class][1] and F.ROLES[class][1][1]) or "arms")

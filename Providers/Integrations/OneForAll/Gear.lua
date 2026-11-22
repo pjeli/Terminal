@@ -44,6 +44,8 @@ end
 function G.Judge()
 	local F = ns.Filters
 	if F and F.MyRoles and F.MyRoles() then G.gv = nil return nil end
+	-- (Pawn's scales shown in its tooltips judge instead: the player's own; 1.7.3)
+	if F and F.PawnJudges and F.PawnJudges() then G.gv = nil return nil end
 	-- (found once a search, each row's verdict asks it: review)
 	G.gv = GV()
 	return G.gv and G or nil
@@ -166,5 +168,8 @@ OA.AddSetup(function()
 end)
 OA.AddStatus(function()
 	if not G.Available() then return nil end
-	return G.Judge() and L["its gear value decides is:upgrade"] or L["its gear value (not used: you picked roles in .weights)"]
+	if G.Judge() then return L["its gear value decides is:upgrade"] end
+	local F = ns.Filters
+	if F and F.PawnJudges and F.PawnJudges() then return L["its gear value (not used: your Pawn scales judge is:upgrade)"] end
+	return L["its gear value (not used: you picked roles in .weights)"]
 end)
