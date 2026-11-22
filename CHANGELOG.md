@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.2 (in testing)
+
+**The key that opens Terminal isn't typed into it**
+- With Terminal bound to a chord whose key types a character (Ctrl+Space, on clients where it types a space; Shift and
+  a letter), that character is no longer typed into the prompt as it opens, as ` and Shift+~ already weren't. A
+  space typed after it is typed. (A player on CurseForge: "the space used to open the terminal shouldn't become part
+  of the input".)
+
 ## 1.7.1 (in testing)
 
 **Keep your session: a checkbox**

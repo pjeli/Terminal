@@ -681,7 +681,17 @@ end
 --- player on CurseForge: Shift+~ bound, Terminal opened on a kept search typed a ~ after it.)
 function ns.IsToggleChar(ch)
 	if ch == "~" or ns.IsTickKey(ch) then return true end
-	if type(ch) ~= "string" or ch == "" or #ch > 2 or ch:find("[%w%s]") then return false end
+	if type(ch) ~= "string" or ch == "" or #ch > 2 then return false end
+	-- a chord bound to it types its own key's character on some clients: Ctrl+Space a space, Shift+Q a Q (1.7.2, a
+	-- player on CurseForge: "the space used to open the terminal shouldn't become part of the input"). Asked only of the
+	-- first character after the key's press (OnChar's swallowTick), so a space typed after it is typed
+	for _, k in ipairs(ns.ToggleBindings()) do
+		local base, mods = Base(k)
+		if #mods > 0 and ((base == "SPACE" and ch == " ") or (#base == 1 and base:find("%w") and ns.Lower(ch) == ns.Lower(base))) then
+			return true
+		end
+	end
+	if ch:find("[%w%s]") then return false end
 	if not (IsShiftKeyDown and IsShiftKeyDown()) then return false end
 	for _, k in ipairs(ns.ToggleBindings()) do
 		local base, mods = Base(k)

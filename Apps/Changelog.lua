@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.7.1", when = "in testing",
+		v = "1.7.2", when = "in testing",
 		items = {
+			"Opening Terminal with Ctrl+Space (or another chord bound to it) no longer types its space into the prompt.",
 			"The options panel has a \"Keep your session\" checkbox (it was only in \"terminal settings\" and .set).",
 		},
 	},

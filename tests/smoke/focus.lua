@@ -120,6 +120,18 @@ do -- (a player on CurseForge: "I used shift+~, enter "nearest vendor", close te
 	UI:Hide(); FlushAll()
 	check(not ns.IsToggleChar("a") and not ns.IsToggleChar(" ") and not ns.IsToggleChar("@"),
 		"a letter, a space, a symbol with Shift up: never the key's")
+	-- (1.7.2, a player on CurseForge) Ctrl+Space bound types a space on their client: not typed into the kept search
+	bound = "CTRL-SPACE"
+	ns.db.tabs = { list = { { text = "linen" } }, cur = 1 }
+	now = now + 600
+	Reopen(" ")
+	check(T.query() == "linen", "Ctrl+Space bound: its space not typed: '" .. T.query() .. "'")
+	F.scripts.OnChar(F, " "); FlushAll()
+	check(T.query() == "linen ", "a space typed after that is typed: '" .. T.query() .. "'")
+	UI:Hide(); FlushAll()
+	check(ns.IsToggleChar(" ") and not ns.IsToggleChar("a"), "Ctrl+Space bound: a space is its character, a letter isn't")
+	bound = "SHIFT-Q"
+	check(ns.IsToggleChar("Q") and ns.IsToggleChar("q") and not ns.IsToggleChar(" "), "Shift+Q bound: its Q")
 	ns.db.tabs, Th.Get().keepSession = was.tabs, was.keep
 	ns.db.easyMode = was.easy; UI:EasyChanged()
 	_G.GetTime, _G.GetBindingKey, _G.IsShiftKeyDown = was.time, was.bind, was.shift

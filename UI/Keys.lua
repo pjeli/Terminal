@@ -630,8 +630,8 @@ function UI:OnChar(text)
 	if not self.keys or not self:IsShown() then return end
 	-- the ` of Alt+` (its OnChar follows the key that switched to Advanced): not typed
 	-- (the time first: IsToggleChar reads the key bindings, and every character typed comes here; 1.2.5 review)
-	-- (only the first character after the key: a key that types nothing (F9, Ctrl+Space) left it set, and a ~ or a
-	-- Shift symbol typed in the next half second was dropped; 1.3.0 review)
+	-- (only the first character after the key: a key that types nothing (F9) left it set, and a ~ or a Shift symbol
+	-- typed in the next half second was dropped; 1.3.0 review. Ctrl+Space types a space on some clients: 1.7.2)
 	local tick = self.swallowTick
 	self.swallowTick = nil
 	if tick and GetTime() - tick < 0.5 and ns.IsToggleChar(text) then return end
