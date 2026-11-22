@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "1.7.1", when = "in testing",
+		items = {
+			"The options panel has a \"Keep your session\" checkbox (it was only in \"terminal settings\" and .set).",
+		},
+	},
+	{
 		v = "1.7.0", when = "released November 2026",
 		items = {
 			"A new look: icons drawn like the bags', framed in their item's quality colour; the Forever theme's names parchment-white, the letters you typed gold.",
@@ -44,18 +50,6 @@ CL.LOG = {
 			".integrations lists only the addons Terminal found, with what each gives and how many enchants, books and item sets come from which.",
 			"Legacy rewards: Enter finds the innkeeper who gives them on a game client in any language.",
 			"Faster: a misspelled long word finds its close spellings in under half the time, and a hunter's first \"pet food\" question or a first \"what does <token> give\" no longer hitches.",
-		},
-	},
-	{
-		v = "1.4.0", when = "released November 2026",
-		items = {
-			"Quest suggestions only list quests you can actually take (QuestieDB's prerequisites, either-or quests, level caps, breadcrumbs); \"why can't i take <quest>\" says what stops you, and \"what does <quest> unlock\" what comes after it.",
-			"WoW Forever's Legacy: \"which legacy points am i missing\", \"what gives legacy points for mage\", \"legacy rewards\" (and where to claim them), \"legacy perks\"; and PvP ranks: \"my pvp rank\", \"what does pvp rank 11 unlock\".",
-			"Enchants (with AtlasLoot or OneForAll): @enchant lists every enchant with its slot, what it gives and how you get it; \"enchants for bracers\", \"enchants for my weapon\", \"agility enchants\", \"enchants i can make\"; Enter opens its recipe or where to learn it.",
-			"\"Where to get\" knows more: the clams, sacks and boxes an item comes out of, who to skin, where to fish, what to disenchant (with OneForAll); and \"what does <token> give\" lists what a token, libram or sack turns into (AtlasLoot).",
-			"Hunters: \"what can my pet eat\", \"nearest pet food vendor\". Loot rows' tooltips say the boss's level and type (and its drop rate from AtlasLoot); \"summoned bosses in blackrock spire\". Currency tooltips add your alts' amounts (Syndicator).",
-			"Fixed: on WoW Forever, Enter on an achievement or a Legacy challenge opens the Legacy window's Challenges by the achievement button, without leaving the Legacy window tainted.",
-			"Many fixes from three reviews: enchants from both addons together and in every language, the Legacy points kept up to date, \"feed pet\" finds the spell again.",
 		},
 	},
 }

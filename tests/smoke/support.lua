@@ -1183,6 +1183,22 @@ do
 	-- (0.51.2, the player's screenshot) the Animation dropdown ends well before the Example (x 440)
 	local ap, aw = O.widgets.animations.lastPoint, O.widgets.animations.w
 	check(ap and aw and ap[2] + aw <= 430, "options: the Animation dropdown clear of the Example: ends at " .. tostring(ap and aw and ap[2] + aw))
+	-- (1.7.1, the player) Keep your session has a checkbox: in the right column above Key hints, under the style buttons
+	do
+		local Th = ns.Theme
+		local kc, hp, wp = O.widgets.keepSession, O.widgets.hints and O.widgets.hints.lastPoint, O.widgets.waypointsButton.lastPoint
+		local kp = kc and kc.lastPoint
+		check(kp and kp[2] == 440 and hp and hp[2] == 440 and kp[3] - 24 >= hp[3] and wp and kp[3] <= wp[3] - 22,
+			"options: Keep your session's checkbox above Key hints, under the waypoints button: " .. tostring(kp and kp[3]))
+		local was = Th.Get().keepSession
+		Th.Set("keepSession", "on"); O.Refresh()
+		check(kc.checked == true, "options: Keep your session on: ticked")
+		kc:SetChecked(false); kc.scripts.OnClick(kc)
+		check(Th.Get().keepSession == false, "options: unticked: the setting off")
+		O.Refresh()
+		check(kc.checked == false, "options: off: unticked after a refresh")
+		Th.Set("keepSession", was and "on" or "off"); O.Refresh()
+	end
 	local C = ns.CopyBox
 	ns:ShowText("t", "keep me")
 	C.edit.text = "typed"

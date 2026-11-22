@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.1 (in testing)
+
+**Keep your session: a checkbox**
+- The options panel (Options > AddOns > Terminal) has a "Keep your session" checkbox, in the right column
+  above "Key hints in footer"; it was only in "terminal settings" and `.set keepSession`.
+
 ## 1.7.0
 
 Terminal 1.7: a new look (cropped, framed icons, Forever's parchment-white names, a quieter kind column, a frame with

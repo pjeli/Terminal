@@ -439,8 +439,9 @@ Check("hints", 440, -456)
 Check("suggest", 16, -480, L["(\"try: ...\")"])
 O.widgets.autoScanLabel = Check("autoScan", 440, -480)
 O.widgets.slashKeyLabel = Check("slashKey", 440, -480, L["(slash commands)"])
--- (Keep your session has no checkbox: the panel is full down to its frame's edge; .set keepSession and
--- "terminal settings" have it)
+-- (1.7.1, the player: Keep your session's checkbox too) above Key hints, a checkbox row higher in the right column:
+-- under the style buttons (the waypoints one ends at -402), nothing below it moves
+Check("keepSession", 440, -432)
 
 -- the panel's own actions, on a row of their own below everything else (O.Refresh moves the row under the
 -- last row of settings shown)
@@ -585,6 +586,7 @@ function O.Refresh()
 	O.widgets.autoScan:SetShown(canScan)
 	O.widgets.autoScanLabel:SetShown(canScan)
 	O.widgets.slashKey:SetChecked(t.slashKey == true)
+	O.widgets.keepSession:SetChecked(t.keepSession ~= false)
 	-- (beside Suggestions where the profession indexing is hidden; else under it, the panel's buttons a row lower)
 	if O.slashPlaced ~= canScan then
 		O.slashPlaced = canScan
