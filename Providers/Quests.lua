@@ -394,9 +394,13 @@ end
 -- Battlegrounds sort (QuestSort 25, -25 as QuestieDB keeps sorts).
 local PVP_TAG = QTAG.PvP or 41
 local BG_SORT = -25
-local bgNames -- (kept once the game named its battlegrounds; asked again at each rebuild until then)
+local bgNames -- (kept once the game named its battlegrounds)
+local bgTried, bgLast -- (until then: asked again at most every 30 s, the last answer used meanwhile; release review)
 local function Battlegrounds()
 	if bgNames then return bgNames end
+	local now = GetTime and GetTime() or 0
+	if bgLast and bgTried and now - bgTried < 30 then return bgLast end
+	bgTried = now
 	local out, any, misses = {}, false, 0
 	local P = _G.C_PvP
 	local f = P and P.GetBattlegroundInfo
@@ -412,26 +416,30 @@ local function Battlegrounds()
 	local heading = ns.GameText("BATTLEGROUNDS")
 	if heading then out[Lower(heading)] = true end
 	if any then bgNames = out end
+	bgLast = out
 	return out
 end
 
-local questiePvP = {} -- quest id -> what QuestieDB's zone said (kept: a quest's zone doesn't change)
+-- quest id -> QuestieDB's zone for it: true (the Battlegrounds sort), its area's name lowercase, or false (none). Kept
+-- whatever the battleground list says now (a quest's zone doesn't change), and matched against it when asked.
+local questieZone = {}
 local function QuestieSaysPvP(id)
-	local known = questiePvP[id]
-	if known ~= nil then return known end
-	local QD = ns.QuestieData
-	local DB = QD and QD.Ready() and QD.DB()
-	if not (DB and DB.QueryQuestSingle) then return false end -- (not read yet: asked again next time)
-	local zone = Num(Call(DB.QueryQuestSingle, id, "zoneOrSort"))
-	local yes = false
-	if zone == BG_SORT then yes = true
-	elseif zone and zone > 0 and C_Map and C_Map.GetAreaInfo then
-		local name = Str(Call(C_Map.GetAreaInfo, zone))
-		yes = name ~= nil and name ~= "" and Battlegrounds()[Lower(name)] == true
-		if not bgNames then return yes end -- (the game hasn't named its battlegrounds yet: not kept)
+	local z = questieZone[id]
+	if z == nil then
+		local QD = ns.QuestieData
+		local DB = QD and QD.Ready() and QD.DB()
+		if not (DB and DB.QueryQuestSingle) then return false end -- (not read yet: asked again next time)
+		local zone = Num(Call(DB.QueryQuestSingle, id, "zoneOrSort"))
+		z = false
+		if zone == BG_SORT then z = true
+		elseif zone and zone > 0 and C_Map and C_Map.GetAreaInfo then
+			local name = Str(Call(C_Map.GetAreaInfo, zone))
+			if name and name ~= "" then z = Lower(name) end
+		end
+		questieZone[id] = z
 	end
-	questiePvP[id] = yes
-	return yes
+	if z == true then return true end
+	return z ~= false and Battlegrounds()[z] == true
 end
 
 --- Whether a quest in the log is a PvP quest (`tag`: its tag's id, TagKind's second answer).
@@ -484,6 +492,9 @@ end
 
 local QT = {}
 ns.QuestTip = QT
+
+--- (tests) forget the battleground names and QuestieDB's zones read for PvP quests.
+function QT.ForgetPvP() bgNames, bgTried, bgLast, questieZone = nil, nil, nil, {} end
 
 -- the game's colours for how hard a quest is for you (C_PlayerInfo.GetContentDifficultyQuestForPlayer)
 QT.COLOURS = { [0] = { 0.53, 0.53, 0.53 }, { 0.25, 0.75, 0.25 }, { 1, 1, 0 }, { 1, 0.5, 0.25 }, { 1, 0.1, 0.1 } }

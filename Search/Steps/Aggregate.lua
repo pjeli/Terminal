@@ -116,6 +116,8 @@ local function Instant(e)
 end
 
 --- An item row's category ("Recipes", "Weapons", "Gear", "Consumables", "Pets", "Mounts", "Other"), or nil: not an item.
+--- A recipe of yours (@recipe) is the item it makes, as type: and slot: read it: @recipe's rows group as Weapons, Gear,
+--- Consumables; a pattern as an item (a reward, loot, your bags) is a Recipe.
 function A.Category(e)
 	local _, _, c, sc = Instant(e)
 	if not c then return nil end

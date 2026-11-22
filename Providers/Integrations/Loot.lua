@@ -191,11 +191,18 @@ function I.FactionLoot(mine, have, absent)
 			-- (said as OneForAll's are: the game's name for the standing, "you can buy it", the words its filters and
 			-- Group read. ns.StandingName, OneForAll on or not: review)
 			local st = ns.StandingName(need) or x.st
+			-- (its type words, kept with the row read: an item's type doesn't change; "" not kept, the client may know it
+			-- later; release review)
+			local tt = x.typeText
+			if not tt then
+				tt = ns.ItemTypeText(id)
+				if tt ~= "" then x.typeText = tt end
+			end
 			out[#out + 1] = setmetatable({ key = "al:" .. id .. ":" .. tostring(r.content), name = name, repReward = true, namesOnly = true,
 				faction = x.fac, reaction = need, mine = my, canBuy = can,
 				detail = x.fac .. SEP .. st .. (can and (SEP .. L["you can buy it"]) or ""),
 				text = ns.Lower(L["reputation reward"] .. " reputation reward rep " .. x.fac .. " " .. st .. " " .. x.st .. (can and " canbuy" or ""))
-					.. " " .. ns.ItemTypeText(id) }, -- (its type: "@faction cenarion tailoring", 1.7.10)
+					.. " " .. tt }, -- (its type: "@faction cenarion tailoring", 1.7.10)
 				{ __index = r })
 		end
 	end

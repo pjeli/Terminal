@@ -135,6 +135,15 @@ do
 	check(B.strip.buttons[1].label:find("Filter: ", 1, true) and B.strip.buttons[1].active, "Filter says the group's filter: " .. B.strip.buttons[1].label)
 	check(UI:GoBack() and UI.edit:GetText() == "sword" and B.state.group == "quality", "Shift+Left: the groups again: " .. UI.edit:GetText())
 	FlushAll()
+	-- (release review) a group its menu doesn't offer (typed: | group by type): shown, ticked, so it can be taken off
+	do
+		local was = B.state.group
+		B.state.group = "type"
+		local t
+		for _, o in ipairs(B.Options("group")) do if o.id == "type" then t = o end end
+		B.state.group = was
+		check(t and t.on, "a group by type kept: in the Group menu, ticked")
+	end
 	-- (1.0.33, the player: "the footer would say shift+left: back but nothing would happen") in combat the prompt is the
 	-- game's own text box: Shift+Left there goes back too, once a press
 	for i, e in ipairs(UI.Results()) do if e.kind == "aggregate" and e.drillTo then gi = i break end end

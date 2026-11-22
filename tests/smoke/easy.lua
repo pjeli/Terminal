@@ -562,6 +562,21 @@ Run("stats in the client's language: Ausdauer Essen, and Russian word endings", 
 	check(Has("и повышает показатель выносливости и духа на 6 ед.", "выносливость") and Has("увеличивает силу атаки на 40", "сила атаки")
 		and not Has("увеличивает ловкость на 25", "выносливость") and Has("erhöht ausdauer um 6", "ausdauer"),
 		"Russian: a stat's name found in its bent forms; another stat not; other languages as they are")
+	-- (release review) battle pets' families aren't type:pet's words on another client ("Wasser": Aquatic); the class is
+	do
+		local subWas, clsWas = C_Item.GetItemSubClassInfo, C_Item.GetItemClassInfo
+		C_Item.GetItemSubClassInfo = function(c, sc)
+			if c == 17 and sc == 8 then return "Wasser" end
+			if c == 15 and sc == 2 then return "Haustiere" end
+			return subWas and subWas(c, sc)
+		end
+		C_Item.GetItemClassInfo = function(c) if c == 17 then return "Kampfhaustiere" end return clsWas and clsWas(c) end
+		E.ForgetGameWords()
+		check(E.WORDS["wasser"] ~= "type:pet" and E.WORDS["haustiere"] == "type:pet" and E.WORDS["kampfhaustiere"] == "type:pet",
+			"German: Haustiere and Kampfhaustiere are type:pet, Wasser isn't: " .. tostring(E.WORDS["wasser"]) .. " / "
+			.. tostring(E.WORDS["kampfhaustiere"]))
+		C_Item.GetItemSubClassInfo, C_Item.GetItemClassInfo = subWas, clsWas
+	end
 	ns.LOCALE = save.locale; E.ForgetGameWords()
 	for _, k in ipairs(G) do _G[k] = save.g[k] end
 	rawset(ns.L, "words: food", save.food)

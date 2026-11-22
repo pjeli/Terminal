@@ -695,12 +695,23 @@ function B.Options(which)
 	elseif which == "group" then
 		local tg = typed.group
 		local on = B.GroupOn()
+		local listed = {}
 		for _, id in ipairs(B.GROUPS) do
 			local typedHere = tg and tg.id == id
 			if Has(id) or on == id or typedHere then
 				local f = A.FIELDS[id]
 				out[#out + 1] = { id = id, label = ns.UpperFirst(f and f.label or id), on = on == id,
 					typed = typedHere and tg.word or nil }
+				listed[id] = true
+			end
+		end
+		-- (one typed or kept that the menu doesn't offer, "| group by type": shown, ticked, so it can be taken off;
+		-- release review)
+		for _, id in ipairs({ on or false, tg and tg.id or false }) do
+			if id and not listed[id] and A.FIELDS[id] then
+				listed[id] = true
+				out[#out + 1] = { id = id, label = ns.UpperFirst(A.FIELDS[id].label or id), on = on == id,
+					typed = (tg and tg.id == id) and tg.word or nil }
 			end
 		end
 	end

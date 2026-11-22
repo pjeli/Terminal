@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.7.16 (in testing)
+
+**PvP quests, `type:pet`, the Group menu: review fixes** (release review)
+- On a German, French, Spanish, Russian or Chinese client the battle pets' family names ("Wasser", "Untot", "Bête")
+  were Simple mode's words for `type:pet`: "wasser" found only pets. Battle pets are `type:pet` by their class now,
+  whose name ("Kampfhaustiere") is the word; companion pets as before.
+- PvP quests: while the game names no battleground, the list is asked again at most every 30 seconds, not for every
+  quest on every quest log update; QuestieDB's zone for a quest is read once, not again on every update.
+- A group the Group menu doesn't offer (typed: `| group by type`, or kept from before) is shown in it, ticked, so it can
+  be taken off there.
+- AtlasLoot's faction rewards read an item's type words once, not on every reputation gain.
+
 ## 1.7.15 (in testing)
 
 **A chord's character dropped only while the chord is held** (release review)

@@ -335,6 +335,15 @@ do
 	do
 		local QD = ns.QuestieData
 		local keep = { pvp = _G.C_PvP, bgs = _G.BATTLEGROUNDS, ready = QD.Ready, db = QD.DB }
+		ns.QuestTip.ForgetPvP()
+		-- (release review) the game naming no battleground yet: asked again at most every 30 s, not per quest per rebuild
+		do
+			local asks = 0
+			_G.C_PvP = { GetBattlegroundInfo = function() asks = asks + 1 return nil end }
+			for _ = 1, 3 do ns.providers.quests._dirty = true; ns:GetEntries(ns.providers.quests) end
+			check(asks > 0 and asks <= 3, "no battleground named: asked once, not per quest per rebuild: " .. asks)
+			ns.QuestTip.ForgetPvP()
+		end
 		_G.C_PvP = { GetBattlegroundInfo = function(i)
 			local n = ({ "Alterac Valley", "Warsong Gulch", "Arathi Basin" })[i]
 			return n and { name = n, maxPlayers = 40 } or nil
@@ -388,8 +397,14 @@ do
 		key("ENTER"); FlushAll()
 		check(W() == "", "Enter: untracked")
 		UI:Hide(); FlushAll()
+		-- (release review) QuestieDB asked once per quest, not again on every rebuild
+		local queries = 0
+		QD.DB = function() return { QueryQuestSingle = function(id, field) queries = queries + 1 if field == "zoneOrSort" then return ZONE[id] end end } end
+		for _ = 1, 3 do ns.providers.quests._dirty = true; ns:GetEntries(ns.providers.quests) end
+		check(queries == 0, "QuestieDB's zones kept: not asked again on rebuilds: " .. queries)
 		TAG[97303] = nil
 		_G.C_PvP, _G.BATTLEGROUNDS, QD.Ready, QD.DB = keep.pvp, keep.bgs, keep.ready, keep.db
+		ns.QuestTip.ForgetPvP()
 	end
 
 	Q.GetNumQuestLogEntries, Q.GetInfo, Q.GetQuestObjectives, Q.ReadyForTurnIn = save.num, save.info, save.obj, save.ready
