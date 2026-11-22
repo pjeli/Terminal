@@ -43,7 +43,26 @@ do
 	check(E.Example() == LINE, "(said again for this test)")
 	UI:SetQuery("linen", 5); FlushAll()
 	check(db.newsSeen == "9.9.9" and CL.NewsLine() == nil, "typed over: not said again")
+	-- (release review) emptied again: not the what's-new line, and Enter doesn't open the changelog
+	UI:SetQuery("", 0); FlushAll()
+	check(E.Example() ~= LINE and not E.newsShown, "typed over, then emptied: not drawn again: " .. tostring(E.Example()))
+	UI:Activate(nil, {}); FlushAll()
+	check(not CL.IsShown(), "Enter on the emptied prompt: no changelog")
+	CL.Close(); UI:HideNow(); FlushAll()
+	-- (release review) shown once, then another suggestion first (Share's invite): Enter isn't the changelog's
+	db.newsSeen = nil
+	UI:Open(""); FlushAll()
+	check(E.newsShown, "(shown)")
 	UI:HideNow(); FlushAll()
+	local firstWas = E.FIRST
+	E.FIRST = { function() return "try: .share accept" end }
+	UI:Open(""); FlushAll()
+	check(E.Example() == "try: .share accept" and not E.newsShown, "another suggestion drawn: not marked what's new")
+	UI:Activate(nil, {}); FlushAll()
+	check(not CL.IsShown(), "Enter on it: no changelog")
+	E.FIRST = firstWas
+	CL.Close(); UI:HideNow(); FlushAll()
+	db.newsSeen = "9.9.9"
 	-- another update: said again
 	db.versionSeen = "9.9.9"
 	ns.version = "9.9.10"

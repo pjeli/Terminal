@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.7.11", when = "in testing",
+		v = "1.7.12", when = "in testing",
 		items = {
 			"Group by category: a faction's rewards, loot or your bags as recipes, weapons, gear, consumables, pets and mounts; then by subtype (recipes by profession).",
 			"Faction rewards are found by what they are: \"@faction cenarion tailoring\" lists its tailoring patterns.",

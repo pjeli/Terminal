@@ -664,7 +664,8 @@ end
 E.TOUR_EXAMPLE = "try: .tour"
 function E.NextExample()
 	local db = ns.db
-	pool.first, pool.fromFirst = nil, nil
+	pool.first, pool.fromFirst, pool.isNews = nil, nil, nil
+	E.newsShown = nil -- (said when it's drawn: E.ExampleShown)
 	-- (something waiting for you, Terminal: Share's invite: E.FIRST's functions, the first answer shown before anything)
 	for _, f in ipairs(E.FIRST or {}) do
 		local ok, ex = pcall(f)
@@ -677,7 +678,7 @@ function E.NextExample()
 	local CL = ns.Changelog
 	local news = CL and CL.NewsLine and CL.NewsLine()
 	if news then
-		pool.first = news
+		pool.first, pool.isNews = news, true
 		return news
 	end
 	-- (spent when it's shown, E.ExampleShown: not on an open with suggestions off or with text typed)
@@ -693,10 +694,16 @@ end
 function E.ExampleShown(ex)
 	if ex == E.TOUR_EXAMPLE and type(ns.db) == "table" then ns.db.tourOffered = true end
 	-- (what's new shown: typing over it, or Enter on it, ends it; Results.lua, Activate.lua)
+	-- (anything else drawn, Share's invite or a suggestion: Enter on the empty prompt isn't the changelog's; release review)
 	local CL = ns.Changelog
-	if ex ~= nil and CL and CL.NewsLine and ex == CL.NewsLine() then E.newsShown = true end
+	E.newsShown = (ex ~= nil and CL and CL.NewsLine and ex == CL.NewsLine()) or nil
 end
 function E.Example()
+	-- (what's new read or typed over since it was drawn: not drawn again when the prompt is emptied; release review)
+	if pool.isNews then
+		local CL = ns.Changelog
+		if not (CL and CL.NewsLine and CL.NewsLine()) then pool.first, pool.isNews = nil, nil end
+	end
 	if pool.first then return pool.first end
 	local list = Pool()
 	return list[(math.max(1, pool.at) - 1) % #list + 1]

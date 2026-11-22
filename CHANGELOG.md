@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.12 (in testing)
+
+**What's new in the empty prompt: two fixes** (release review)
+- Typed over and then emptied, the prompt showed "try: .changelog (what's new in ...)" again, and Enter on it did
+  nothing. It's gone once typed over, as meant.
+- Once it had been shown, Enter on the empty prompt opened the changelog even when the prompt showed something else
+  (Terminal: Share's invite, or with suggestions turned off). Only the what's-new line opens it now.
+
 ## 1.7.11 (in testing)
 
 **Group by category: recipes, weapons, gear, consumables, pets, mounts**
