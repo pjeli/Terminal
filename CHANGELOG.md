@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.7.11 (in testing)
+
+**Group by category: recipes, weapons, gear, consumables, pets, mounts**
+- Group (the bar's menu, or `| group by category`) has a new choice, Category: items in broad strokes, as you'd sort a
+  quartermaster's rewards or a boss's loot. Recipes, Weapons, Gear (armour, rings, trinkets...), Consumables, Pets,
+  Mounts, and Other for the rest. `@rep is:reward | group by category`; Enter on a group lists its items.
+- Read from the game's own item data (no waiting on the server, the same in every language), for any list of items:
+  rewards, loot, your bags. Offered when the rows' categories differ. It takes Type's place in the menu (the game's
+  classes said the same, Armor or Weapon); `| group by type` still works typed.
+- Subtype is in the menu too: step into a category's group and split it further, the recipes by profession
+  (Blacksmithing, Enchanting, Tailoring...), gear by Cloth, Leather, Mail or Plate, weapons by Swords or Maces. Read from
+  the game's own item data first, so rewards the server hasn't sent yet are sorted too.
+- `type:pet` (companion and battle pets) and `type:mount` filter by them too.
+
 ## 1.7.10 (in testing)
 
 **Faction rewards found by what they are: "@faction cenarion tailoring"**

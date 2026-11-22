@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.7.10", when = "in testing",
+		v = "1.7.11", when = "in testing",
 		items = {
+			"Group by category: a faction's rewards, loot or your bags as recipes, weapons, gear, consumables, pets and mounts; then by subtype (recipes by profession).",
 			"Faction rewards are found by what they are: \"@faction cenarion tailoring\" lists its tailoring patterns.",
 			"Your gold no longer lists a \"Warband bank\" at 0c with Baganator (WoW Forever has none).",
 			"Track or untrack your PvP quests in one go: \"untrack pvp quests\", \"track battleground quests\" (is:pvp in Advanced).",

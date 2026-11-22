@@ -98,6 +98,33 @@ local function QualityName(q)
 	return name, ns.QualityHex and ns.QualityHex(q) -- (the whole code, "|cff0070dd")
 end
 
+-- What an item is in broad strokes, as a player sorts rewards and loot (1.7.11, the player: "group reward types as
+-- consumables, weapons, pets, gear, recipes"): by GetItemInfoInstant's class and subclass, the client's own item data
+-- (no server ask, the same in every language). Everything else: other.
+local IC = (Enum and Enum.ItemClass) or {}
+local C_CONSUMABLE, C_WEAPON, C_ARMOR, C_RECIPE = IC.Consumable or 0, IC.Weapon or 2, IC.Armor or 4, IC.Recipe or 9
+local C_MISC, C_BATTLEPET = IC.Miscellaneous or 15, IC.Battlepet or 17
+local MISC_PET, MISC_MOUNT = 2, 5 -- (Enum.ItemMiscellaneousSubclass: CompanionPet, Mount)
+--- What the client's own item data says of a row's item: its type and subtype names, class and subclass, or nil.
+local function Instant(e)
+	local id = ns.Filters and ns.Filters.ItemOf and ns.Filters.ItemOf(e)
+	local get = type(id) == "number" and C_Item and C_Item.GetItemInfoInstant
+	if not get then return nil end
+	local ok, iid, t, st, _, _, c, sc = pcall(get, id)
+	if not ok or iid ~= id or type(c) ~= "number" then return nil end
+	return Str(t), Str(st), c, sc
+end
+
+--- An item row's category ("Recipes", "Weapons", "Gear", "Consumables", "Pets", "Mounts", "Other"), or nil: not an item.
+function A.Category(e)
+	local _, _, c, sc = Instant(e)
+	if not c then return nil end
+	local word = (c == C_CONSUMABLE and L["consumables"]) or (c == C_WEAPON and L["weapons"]) or (c == C_ARMOR and L["Gear"])
+		or (c == C_RECIPE and L["recipes"]) or (c == C_BATTLEPET and L["pets"])
+		or (c == C_MISC and sc == MISC_PET and L["pets"]) or (c == C_MISC and sc == MISC_MOUNT and L["mounts"]) or L["other"]
+	return ns.UpperFirst(word)
+end
+
 --- The fields: text (what a row is grouped by) and/or num (what's summed); money: a num that's copper. order: groups by
 --- this number, not by size (qualities: the best first). label: how a row says it.
 A.FIELDS = {
@@ -116,8 +143,19 @@ A.FIELDS = {
 		local info = Info(e)
 		return info and Num(info.quality)
 	end, text = function(e, f) return (QualityName(f.num(e))) end, order = true },
-	type = { label = L["type"], text = function(e) local i = Info(e); return i and Str(i.type) end },
-	subtype = { label = L["subtype"], text = function(e) local i = Info(e); return i and Str(i.subType) end },
+	category = { label = L["category"], text = function(e) return A.Category(e) end },
+	-- (the client's own item data first, as category: a reward the server hasn't sent yet has them too; then its full
+	-- info. Subtype inside a category: a recipe's profession, gear's Cloth or Plate, a weapon's Swords; 1.7.11)
+	type = { label = L["type"], text = function(e)
+		local t = Instant(e)
+		if t then return t end
+		local i = Info(e); return i and Str(i.type)
+	end },
+	subtype = { label = L["subtype"], text = function(e)
+		local _, st = Instant(e)
+		if st then return st end
+		local i = Info(e); return i and Str(i.subType)
+	end },
 	slot = { label = L["slot"], text = function(e)
 		local i = Info(e)
 		local loc = i and Str(i.equipLoc)
@@ -165,8 +203,9 @@ A.ALIASES = { q = "quality", lvl = "level", itemlevel = "ilvl", ["in"] = "zone",
 	area = "zone", dungeons = "dungeon", raids = "raid", instances = "instance", bosses = "boss", from = "boss", qty = "count", amount = "count", number = "count",
 	worth = "value", gold = "value", money = "value", vendor = "value", sell = "value", list = "kind", kinds = "kind",
 	sub = "subtype", subtypes = "subtype", types = "type", slots = "slot", zones = "zone", qualities = "quality",
-	owners = "owner", friend = "owner", friends = "owner", factions = "faction", standings = "standing", rep = "standing" }
-A.ORDER = { "value", "price", "count", "kind", "owner", "faction", "standing", "zone", "instance", "dungeon", "raid", "boss", "quality", "type", "subtype", "slot", "level", "ilvl" }
+	owners = "owner", friend = "owner", friends = "owner", factions = "faction", standings = "standing", rep = "standing",
+	categories = "category", cat = "category" }
+A.ORDER = { "value", "price", "count", "kind", "owner", "faction", "standing", "zone", "instance", "dungeon", "raid", "boss", "quality", "category", "type", "subtype", "slot", "level", "ilvl" }
 A.OPS = { count = "count", group = "group", sum = "sum", total = "sum", avg = "avg", average = "avg", mean = "avg" }
 A.FIRST_WORDS = { first = true, top = true, head = true }
 -- Comparing two searches: "| except @bank" leaves out what the other search finds, "| also @stored" adds it. "Recipes

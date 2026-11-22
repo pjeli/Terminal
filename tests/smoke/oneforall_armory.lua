@@ -300,10 +300,13 @@ do
 		for _, e in ipairs(UI:Search("@reputation is:reward brazier")) do if e.itemID == 22014 then braziers = braziers + 1 end end
 		check(braziers == 1, "an item both list: once (OneForAll's, with its quartermaster): " .. braziers)
 		-- (1.7.10, the player: "@faction cenarion tailoring" listed nothing) a reward is found by its type and subtype too,
-		-- as the game names them: a pattern by its profession; and type: filters them
+		-- as the game names them: a pattern by its profession; and type: filters them. Group by category (1.7.11)
 		do
 			local instWas = C_Item.GetItemInfoInstant
-			local TYPES = { [20253] = { "Recipe", "Tailoring", 9, 2 }, [18182] = { "Armor", "Plate", 4, 4 } }
+			local TYPES = { [20253] = { "Recipe", "Tailoring", 9, 2 }, [18182] = { "Armor", "Plate", 4, 4 },
+				[90001] = { "Weapon", "Swords", 2, 7 }, [90002] = { "Consumable", "Potion", 0, 1 }, [90003] = { "Miscellaneous", "Companion Pets", 15, 2 },
+				[90004] = { "Miscellaneous", "Mount", 15, 5 }, [90005] = { "Trade Goods", "Cloth", 7, 5 }, [90006] = { "Battle Pets", "Beast", 17, 7 },
+				[90007] = { "Recipe", "Blacksmithing", 9, 4 } }
 			C_Item.GetItemInfoInstant = function(id)
 				local t = TYPES[id]
 				if t then return id, t[1], t[2], "", 0, t[3], t[4] end
@@ -318,6 +321,37 @@ do
 			check(#UI:Search("@reputation timbermaw leatherworking") == 0, "another profession: nothing")
 			check(Ids(UI:Search("@reputation is:reward type:tailoring")) == "20253", "type:tailoring on the rewards: "
 				.. Ids(UI:Search("@reputation is:reward type:tailoring")))
+			-- (1.7.11, the player: "group reward types as consumables, weapons, pets, gear, recipes") Group by category
+			local AG2 = ns.Aggregate
+			local cats = {}
+			for _, id in ipairs({ 20253, 18182, 90001, 90002, 90003, 90004, 90005, 90006 }) do cats[#cats + 1] = tostring(AG2.Category({ itemID = id })) end
+			check(table.concat(cats, ",") == "Recipes,Gear,Weapons,Consumables,Pets,Mounts,Other,Pets"
+				and AG2.Category({ kind = "npc", name = "Hogger" }) == nil, "each item's category: " .. table.concat(cats, ","))
+			local groups = {}
+			UI:Open("@reputation is:reward | group by category"); FlushAll()
+			for _, e in ipairs(UI.Results()) do groups[#groups + 1] = tostring(e.name) end
+			UI:Hide(); FlushAll()
+			local gs = " " .. table.concat(groups, " ") .. " "
+			check(gs:find(" Recipes ", 1, true) and gs:find(" Gear ", 1, true), "@reputation is:reward | group by category: " .. gs)
+			local inMenu, typeToo = false, false
+			for _, id in ipairs(ns.Bar.GROUPS) do if id == "category" then inMenu = true elseif id == "type" then typeToo = true end end
+			check(inMenu and not typeToo and AG2.ALIASES.categories == "category" and AG2.FIELDS.type,
+				"Group's menu offers category, not type too (the player: redundant); | group by type still typed")
+			-- (the player: a category's group stepped into, its recipes grouped by profession) subtype, in the menu, read
+			-- from the client's own item data (a reward the server hasn't sent has it too)
+			local subInMenu = false
+			for _, id in ipairs(ns.Bar.GROUPS) do if id == "subtype" then subInMenu = true end end
+			local sub = AG2.FIELDS.subtype
+			check(subInMenu and sub.text({ itemID = 20253 }, sub) == "Tailoring" and sub.text({ itemID = 90007 }, sub) == "Blacksmithing"
+				and sub.text({ itemID = 18182 }, sub) == "Plate", "Subtype in Group's menu: a recipe's profession, gear's armour type")
+			groups = {}
+			UI:Open("@reputation is:reward type:recipe | group by subtype"); FlushAll()
+			for _, e in ipairs(UI.Results()) do groups[#groups + 1] = tostring(e.name) end
+			UI:Hide(); FlushAll()
+			check(table.concat(groups, ",") == "Tailoring", "the recipes grouped by subtype: their profession: " .. table.concat(groups, ","))
+			check(ns.Filters.Parse("type:pet")({ itemID = 90003 }) and ns.Filters.Parse("type:pets")({ itemID = 90006 })
+				and ns.Filters.Parse("type:mount")({ itemID = 90004 }) and not ns.Filters.Parse("type:pet")({ itemID = 90004 }),
+				"type:pet (companion and battle pets) and type:mount")
 			C_Item.GetItemInfoInstant = instWas
 			A.ForgetRewards(); ns.providers.reputation._dirty = true
 			if ns.Filters.ClearCache then ns.Filters.ClearCache() end

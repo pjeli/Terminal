@@ -2595,6 +2595,7 @@ L["cannot access '%s': %s"] = true
 L["cannot remove '%s': No such file or directory"] = true
 L["cast"] = true
 L["cast %s"] = true
+L["category"] = true
 L["change characters (tr a-z A-Z) or delete them (-d)"] = true
 L["change directory (cd -: the last one; cd: ~)"] = true
 L["changelog"] = true

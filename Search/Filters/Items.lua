@@ -328,6 +328,8 @@ local TYPE_IDS = {
 	cloth = { 401 }, leather = { 402 }, mail = { 403 }, plate = { 404 }, shield = { 406 }, libram = { 407 }, idol = { 408 },
 	totem = { 409 }, relic = { 411 },
 	potion = { 1 }, elixir = { 2 }, flask = { 3 }, scroll = { 4 }, food = { 5 }, drink = { 5 }, bandage = { 7 },
+	-- (1.7.11: Miscellaneous' companion pets and mounts; battle pets, class 17, every family)
+	pet = { 1502, 1700, 1701, 1702, 1703, 1704, 1705, 1706, 1707, 1708, 1709 }, mount = { 1505 },
 }
 local CLASS_WORDS = { consumable = 0, container = 1, bag = 1, weapon = 2, gem = 3, armor = 4, armour = 4, reagent = 5,
 	projectile = 6, ammo = 6, recipe = 9, quiver = 11, quest = 12, key = 13 }
