@@ -1071,13 +1071,16 @@ FlushAll(); UI:HideNow()
 if _G.SMOKE_EXTRAS_ONLY then
 	local own = 0
 	local function ownCheck(c, m) if not c then own = own + 1; io.write("FAIL: " .. m .. "\n") end end
-	own = own + RunFiles(ownCheck, _G.SMOKE_FIRST) + RunFiles(ownCheck, _G.SMOKE_EXTRA)
+	-- (a file's checks count into `own` as they run: added after, not read before them; 1.7.6)
+	local bad = RunFiles(ownCheck, _G.SMOKE_FIRST)
+	bad = bad + RunFiles(ownCheck, _G.SMOKE_EXTRA)
+	own = own + bad
 	_G.SMOKE_FAILS = own
 	return
 end
 -- (the files that compare with recorded output, the parse golden's parts: run before this file's own checks, on the
 -- set-up's state, as a run of them alone is; tests/gen_parse_golden.py records them so)
-fails = fails + RunFiles(check, _G.SMOKE_FIRST)
+do local bad = RunFiles(check, _G.SMOKE_FIRST); fails = fails + bad end -- (checks count into fails as they run)
 local mark
 
 do
@@ -6402,6 +6405,6 @@ do -- a profession sent to chat: its link, with every recipe you know (as the ga
 	_G.GetProfessions, _G.GetProfessionInfo, C_SpellBook.GetSpellBookItemTradeSkillLink = save.gp, save.gpi, save.tl
 	ns.providers.professions._dirty = true
 end
-fails = fails + RunFiles(check, _G.SMOKE_EXTRA)
+do local bad = RunFiles(check, _G.SMOKE_EXTRA); fails = fails + bad end -- (checks count into fails as they run)
 _G.SMOKE_FAILS = fails -- run_smoke.py exits 1 when this is above 0
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))

@@ -2,9 +2,9 @@
 
   python tests/run_smoke.py                 everything: tests/smoke.lua's own checks, every tests/smoke/*.lua, then
                                             Terminal on each translated language (about 8 seconds)
-  python tests/run_smoke.py pawn focus      tests/smoke.lua's set-up, then only those files (tests/smoke/<name>.lua)
-  python tests/run_smoke.py --alone [names] each file on its own after the set-up, every file or those named: a file
-                                            that only passes after another (it borrows what that one left) fails here
+  python tests/run_smoke.py pawn focus      tests/smoke.lua (its set-up and its own checks), then only those files
+  python tests/run_smoke.py --alone [names] each file on its own after tests/smoke.lua, every file or those named: a
+                                            file that only passes after another (it borrows what that one left) fails
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -50,13 +50,13 @@ def main(argv):
     if argv and argv[0] == "--alone":
         bad = []
         for f in files_named(argv[1:]):
-            _, n = run([f], True)
+            _, n = run([f], False)
             if n:
                 bad.append(os.path.basename(f))
         print("EVERY FILE PASSES ALONE" if not bad else "FAILING ALONE (%d): %s" % (len(bad), ", ".join(bad)))
         return 1 if bad else 0
     if argv:
-        _, n = run(files_named(argv), True)
+        _, n = run(files_named(argv), False)
         print("PASSED" if n == 0 else "%d FAILURES" % n)
         return 1 if n else 0
     rt, n = run(files_named([]), False)

@@ -143,7 +143,8 @@ function R.Lines(opts)
 	local trace = D and D.trace or {}
 	if #trace > 0 then
 		lines[#lines + 1] = "Terminal's last steps:"
-		for i = math.max(1, #trace - R.STEPS + 1), #trace do lines[#lines + 1] = "  " .. tostring(trace[i].msg) end
+		-- (as plain text: a trace can hold an item's link, colour codes and all; 1.7.6, found by running report.lua alone)
+		for i = math.max(1, #trace - R.STEPS + 1), #trace do lines[#lines + 1] = "  " .. Plain(tostring(trace[i].msg)) end
 	end
 	for i, l in ipairs(lines) do lines[i] = R.Scrub(l, names) end
 	return lines

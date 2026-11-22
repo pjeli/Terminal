@@ -212,6 +212,9 @@ do
 		end
 	end
 	ns.providers, ns.providerOrder = {}, {}
+	-- (no picks counted yet: "Pebble 2589" shares Linen Cloth's key, picked by smoke.lua's checks, and came first; 1.7.6)
+	local freqWas = ns.db.freq
+	ns.db.freq = {}
 	ns:RegisterProvider("loot", { label = "Loot", aliases = { "loot" }, collect = Rows(150, "Helm %03d", 30000) })
 	ns:RegisterProvider("items", { label = "Item", aliases = { "item" }, collect = Rows(3000, "Pebble %04d", 40000) })
 	ns.Easy.Set(true)
@@ -287,6 +290,7 @@ do
 	check(not UI.held, "searched again, the same found: nothing held")
 	UI:Hide(); FlushAll()
 	ns.providers, ns.providerOrder = save.providers, save.order
+	ns.db.freq = freqWas
 	ns:AliasesChanged()
 	UI.lastScan, UI.lastExtra, UI.category = nil, nil, nil
 	ns.db.easyMode = save.easy

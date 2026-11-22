@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.7.5", when = "in testing",
+		v = "1.7.6", when = "in testing",
 		items = {
 			"After an update the empty prompt says what's new: Enter on it opens the changelog.",
 			"With Pawn installed, the scales it shows judge your upgrades: no more exporting and pasting (.weights picks still come first).",

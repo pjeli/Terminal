@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.6 (in testing)
+
+**`.report` in plain text; the test runs count every failure**
+- `.report`'s last trace lines are plain text: one holding an item's link pasted its colour codes on CurseForge.
+- The tests: 1.7.4's runs of chosen files and of each file alone dropped the failures a file's checks counted (only
+  errors and leaks counted), so "every file passes alone" was wrong for 13 files. They count now, and those runs start
+  after `tests/smoke.lua`'s own checks, as the whole run does; every file passes alone.
+
 ## 1.7.5 (in testing)
 
 **What's new, in the empty prompt**
