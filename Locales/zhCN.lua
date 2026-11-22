@@ -3631,4 +3631,10 @@ L["found: its scales shown in tooltips judge is:upgrade (%s)"] = "已找到：�
 L["its gear value (not used: your Pawn scales judge is:upgrade)"] = "它的装备价值（未使用：由你的 Pawn 权重评判 is:upgrade）"
 L["what's new in %s"] = "%s 的新内容"
 L["your Pawn scales, as Pawn shows them"] = "你的 Pawn 权重，按 Pawn 显示的样子"
+L["Right-click a row to send it to party, guild or say; the speaker button under the prompt sends every result at once."] = "右键点击一行可将其发送到小队、公会或说；提示符下方的喇叭按钮可一次发送所有结果。"
+L["Alt+` turns what you typed into Advanced mode's command line; turn Simple mode off in terminal settings to type it yourself."] = "Alt+` 会把你输入的内容变成高级模式的命令行；在 terminal settings 中关闭简单模式即可自己输入。"
+L["Say it: \"rare swords under level 30\", \"boe cloth\", \"stamina food\"; the bar's Filter menu too."] = "直接说：\"rare swords under level 30\", \"boe cloth\", \"stamina food\"；也可用栏上的筛选菜单。"
+L["Say it: \"swords sorted by level\", \"nearest innkeeper\"; the bar's Sort menu too."] = "直接说：\"swords sorted by level\", \"nearest innkeeper\"；也可用栏上的排序菜单。"
+L["Say it: \"quests per zone\", \"how many linen do i have\"; the bar's Group menu too."] = "直接说：\"quests per zone\", \"how many linen do i have\"；也可用栏上的分组菜单。"
+L["Ask \"where to get linen cloth\", \"mats for thorium belt\" or \"what uses copper bar\"."] = "问 \"where to get linen cloth\", \"mats for thorium belt\" 或 \"what uses copper bar\"。"
 --@end-do-not-package@

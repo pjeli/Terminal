@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.7.13 (in testing)
+
+**"How do I..." answers: only when every word fits** (release review)
+- A how-to question is answered only when every word it says fits one of the topics. "how do i get the scarlet key",
+  "how do i get a bigger bag", "how to get rare items", "how do i get a group for deadmines" and "how do i share
+  quests" took the keys', look's, filters' or sending's topics over the questions that answer them (the chains, "quests
+  to share"); they're theirs again, or searched as words.
+- "what does ___ do" answers keys and Terminal's own commands only ("what does shift enter do", "what does zen do"): "what
+  does fade do" (the priest's spell) and "what does power word fortitude do" answered with `.zen` and Advanced syntax.
+- In Simple mode the topics that taught Advanced syntax (`>>`, `q:rare+`, `sort:`, `| count`, `> mats`) say it Simple
+  mode's way: right-click a row or the speaker button to send, "rare swords under level 30", the bar's menus.
+  Translated.
+- Enter on the key's and your own commands' topics writes `.bind` and `.alias` (their help and what you have), not
+  `.bind CTRL-SPACE` and `.alias rep durability`, which a second Enter would have run.
+- Cheaper on every keystroke of a question: each word's fit is kept, and a line stops at its first word that fits no
+  topic (a ten-word line cost about 24 times a plain search's ranking).
+
 ## 1.7.12 (in testing)
 
 **What's new in the empty prompt: two fixes** (release review)

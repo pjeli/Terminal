@@ -3631,4 +3631,10 @@ L["found: its scales shown in tooltips judge is:upgrade (%s)"] = "найден: 
 L["its gear value (not used: your Pawn scales judge is:upgrade)"] = "его ценность снаряжения (не используется: ваши шкалы Pawn оценивают is:upgrade)"
 L["what's new in %s"] = "что нового в %s"
 L["your Pawn scales, as Pawn shows them"] = "ваши шкалы Pawn, как их показывает Pawn"
+L["Right-click a row to send it to party, guild or say; the speaker button under the prompt sends every result at once."] = "Щелчок правой кнопкой по строке отправит её в группу, гильдию или сказать; кнопка-динамик под строкой ввода отправит все результаты сразу."
+L["Alt+` turns what you typed into Advanced mode's command line; turn Simple mode off in terminal settings to type it yourself."] = "Alt+` превращает набранное в командную строку расширенного режима; выключите простой режим в terminal settings, чтобы набирать её самому."
+L["Say it: \"rare swords under level 30\", \"boe cloth\", \"stamina food\"; the bar's Filter menu too."] = "Скажите: \"rare swords under level 30\", \"boe cloth\", \"stamina food\"; а также меню «Фильтр» на панели."
+L["Say it: \"swords sorted by level\", \"nearest innkeeper\"; the bar's Sort menu too."] = "Скажите: \"swords sorted by level\", \"nearest innkeeper\"; а также меню «Сортировка» на панели."
+L["Say it: \"quests per zone\", \"how many linen do i have\"; the bar's Group menu too."] = "Скажите: \"quests per zone\", \"how many linen do i have\"; а также меню «Группировка» на панели."
+L["Ask \"where to get linen cloth\", \"mats for thorium belt\" or \"what uses copper bar\"."] = "Спросите \"where to get linen cloth\", \"mats for thorium belt\" или \"what uses copper bar\"."
 --@end-do-not-package@

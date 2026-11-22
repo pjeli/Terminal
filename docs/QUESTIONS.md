@@ -113,6 +113,7 @@ Kept only where no search can list the same rows, each with its reason in `custo
 | QuestPeople, NearQuests | a quest's giver / turn-in NPC: no relation in the search for it |
 | QuestAccess | reasons, not rows a list holds: what stops you taking one quest |
 | QuestTrack | its rows are the plan (to track / to untrack), with the "Track N" row that does it |
+| HowTo | Terminal's own help: explanations, no list holds them (1.7.7; `over` Chains: "how do i make my own command" isn't a craft. It takes a line only when every word fits a topic) |
 | InstanceBosses | boss rows whose Enter walks to the drops chain |
 | AhUpgradesQ, QuestUpgrades, VendorUpgrades | what is an upgrade by how much; a giver's distance or dungeon |
 | RepQuests | ranked by the reputation the faction asked for gives (its Alt+` lists the same quests: is:foryou) |

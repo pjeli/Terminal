@@ -39,9 +39,9 @@ Scan.ANSWERS = {
 	-- "what should i do", "what now", "suggestions": what's worth doing now (Search/Questions/Suggest.lua)
 	Asks("Suggest", { examples = { "what should i do", "what now", "suggestions" },
 		custom = "rows made from the game's state: no list holds them" }),
-	-- "how do i send to party", "what does shift enter do": Terminal's own help as rows (Search/Questions/HowTo.lua, 1.7.6).
-	-- It takes a line only when one of its topics fits ("how many linen do i have", "how do i get into scholomance" stay
-	-- the others'); over the chains: "how do i make my own command" isn't a craft
+	-- "how do i send to party", "what does shift enter do": Terminal's own help as rows (Search/Questions/HowTo.lua, 1.7.7).
+	-- It takes a line only when every word it says fits one of its topics ("how many linen do i have", "how do i get the
+	-- scarlet key", "how do i share quests" stay the others'); over the chains: "how do i make my own command" isn't a craft
 	Asks("HowTo", { over = { "Chains" }, examples = { "how do i send to party", "what does shift enter do", "how do i make my own command" },
 		custom = "Terminal's own help: explanations, no list holds them" }),
 	-- "untrack quests", "track completed quests", "track rfc quests only", "untrack red quests": QuestTrack.lua

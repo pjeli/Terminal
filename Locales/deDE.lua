@@ -3631,4 +3631,10 @@ L["found: its scales shown in tooltips judge is:upgrade (%s)"] = "gefunden: Sein
 L["its gear value (not used: your Pawn scales judge is:upgrade)"] = "sein Ausrüstungswert (nicht genutzt: deine Pawn-Skalen bewerten is:upgrade)"
 L["what's new in %s"] = "was neu ist in %s"
 L["your Pawn scales, as Pawn shows them"] = "deine Pawn-Skalen, wie Pawn sie zeigt"
+L["Right-click a row to send it to party, guild or say; the speaker button under the prompt sends every result at once."] = "Rechtsklick auf eine Zeile schickt sie an Gruppe, Gilde oder Sagen; der Lautsprecher-Knopf unter der Eingabe schickt alle Ergebnisse auf einmal."
+L["Alt+` turns what you typed into Advanced mode's command line; turn Simple mode off in terminal settings to type it yourself."] = "Alt+` macht aus dem Getippten die Befehlszeile des Erweiterten Modus; schalte den Einfachen Modus in terminal settings aus, um sie selbst zu tippen."
+L["Say it: \"rare swords under level 30\", \"boe cloth\", \"stamina food\"; the bar's Filter menu too."] = "Sag es: \"rare swords under level 30\", \"boe cloth\", \"stamina food\"; auch das Filter-Menü der Leiste."
+L["Say it: \"swords sorted by level\", \"nearest innkeeper\"; the bar's Sort menu too."] = "Sag es: \"swords sorted by level\", \"nearest innkeeper\"; auch das Sortieren-Menü der Leiste."
+L["Say it: \"quests per zone\", \"how many linen do i have\"; the bar's Group menu too."] = "Sag es: \"quests per zone\", \"how many linen do i have\"; auch das Gruppieren-Menü der Leiste."
+L["Ask \"where to get linen cloth\", \"mats for thorium belt\" or \"what uses copper bar\"."] = "Frag \"where to get linen cloth\", \"mats for thorium belt\" oder \"what uses copper bar\"."
 --@end-do-not-package@
