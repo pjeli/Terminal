@@ -89,6 +89,18 @@ do
 	check(not by.Hidden and not by.Old and not by["Far-Elsewhere"] and not by.Far, "characters hidden from its gold summary, or on other realms, left out")
 	check(by.Guildy and not by.Quiet and by["Warband bank"] and by["Warband bank"].money == 4000000, "guild banks shown for gold, and the warband bank")
 	check(res[1].detail:find("4 characters", 1, true), "the total says how many characters: " .. res[1].detail)
+	-- (1.7.9, seen in game) an empty warband record (WoW Forever has no warband bank): no "Warband bank 0c" row
+	do
+		local keepW = SD.Warband
+		SD.Warband = { { money = 0 } }
+		P._dirty = true
+		local r0 = UI:Search("@gold")
+		local any = false
+		for _, e in ipairs(r0) do if e.name == "Warband bank" then any = true end end
+		check(not any and r0[1].money == total - 4000000, "an empty warband record: no row: " .. list(r0))
+		SD.Warband = keepW
+		P._dirty = true
+	end
 	P._dirty = false
 	check(type(callbacks.CurrencyCacheUpdate) == "function", "listens to Syndicator's money updates")
 	callbacks.CurrencyCacheUpdate("Rich-Forever")

@@ -73,7 +73,10 @@ local function ReadSyndicator(A, add)
 	end
 	local w = A.GetWarband and Safe(A.GetWarband, 1)
 	if type(w) == "table" and (w.details == nil or w.details.gold) then
-		add({ key = "warband", who = L["Warband bank"], money = LiveWarband() or tonumber(w.money) or 0, kind = "warband" })
+		-- (only when it holds gold, as below: WoW Forever has no warband bank, yet Syndicator keeps an empty record of
+		-- one, shown as "Warband bank 0c"; 1.7.9, seen in game)
+		local money = LiveWarband() or tonumber(w.money) or 0
+		if money > 0 then add({ key = "warband", who = L["Warband bank"], money = money, kind = "warband" }) end
 	end
 end
 

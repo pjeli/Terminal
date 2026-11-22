@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.9 (in testing)
+
+**No more "Warband bank 0c" in your gold**
+- With Baganator (Syndicator), `@gold` ("gold" in Simple mode) listed a "Warband bank" row at 0c: WoW Forever has no
+  warband bank, but Syndicator keeps an empty record of one. The row shows only when it holds gold now, as it already
+  did with Bagnon or no bag addon.
+
 ## 1.7.8 (in testing)
 
 **Track or untrack your PvP quests in one go** (asked for on CurseForge)
