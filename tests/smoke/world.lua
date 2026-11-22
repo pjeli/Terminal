@@ -2,6 +2,7 @@
 -- (0.49.2 review fixes: Maps.lua, Questie.lua, QuestieQuests.lua, QuestieData.lua, Places.lua, Loot.lua, Keybinds.lua,
 -- Panels.lua, Simple.lua's map verbs).
 local T = ...
+local RestoreLists = T.KeepLists() -- (Questie set up here registers lists: taken away at the end; 1.7.4)
 local ns, UI, check, Obj, FlushAll = T.ns, T.UI, T.check, T.Obj, T.FlushAll
 local I, QD, M, S = ns.Integrations, ns.QuestieData, ns.Maps, ns.Secure
 
@@ -569,3 +570,4 @@ do
 	Th.Set("waypoints", save.to or "tomtom", true)
 	_G.C_Map, _G.UiMapPoint, _G.TomTom = save.map, save.ump, save.tt
 end
+RestoreLists()

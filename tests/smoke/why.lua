@@ -88,3 +88,4 @@ do
 	ns:AliasesChanged(); UI:EasyChanged()
 	UI.lastScan, UI.lastExtra = nil, nil
 end
+UI:Hide(); T.FlushAll() -- (closed as found: EasyChanged opened it again; 1.7.4)

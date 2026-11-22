@@ -6,6 +6,14 @@ local log = {}
 local function note(...) log[#log + 1] = table.concat({ ... }, " ") end
 
 _G.UNKNOWN_FRAME_METHODS = {} -- method names the mock answered with a no-op (printed at the end of the run)
+-- (1.7.4) the events each frame registered for, in order: T.Fire(event, ...) sends one to them as the game does
+local registered = {} -- event -> { frame, ... }
+local function Fire(event, ...)
+	for _, f in ipairs(registered[event] or {}) do
+		local h = f.scripts and f.scripts.OnEvent
+		if h then h(f, event, ...) end
+	end
+end
 local function Obj(kind)
 	local o = { __kind = kind, scripts = {}, text = "" }
 	return setmetatable(o, { __index = function(t, k)
@@ -19,6 +27,16 @@ local function Obj(kind)
 		if k == "Hide" then return function(self) self.shown = false end end
 		if k == "GetChildren" or k == "GetRegions" or k == "EnumerateValidItems" then return function() end end
 		if k == "HookScript" then return function(self, n, f) self.scripts[n] = f end end
+		if k == "RegisterEvent" then return function(self, ev)
+			local list = registered[ev] or {}
+			registered[ev] = list
+			for _, f in ipairs(list) do if f == self then return end end
+			list[#list + 1] = self
+		end end
+		if k == "UnregisterEvent" then return function(self, ev)
+			local list = registered[ev] or {}
+			for i = #list, 1, -1 do if list[i] == self then table.remove(list, i) end end
+		end end
 		if k == "EnableKeyboard" then return function(self, v) self.kb = v end end
 		if k == "SetPropagateKeyboardInput" then return function(self, v) self.propagate = v end end
 		if k == "ClearFocus" then return function(self) self.focused = false end end
@@ -88,7 +106,9 @@ _G.tinsert = table.insert
 _G.strtrim = function(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
 _G.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
 _G.CopyTable = function(t) local c = {} for k, v in pairs(t) do c[k] = type(v) == "table" and _G.CopyTable(v) or v end return c end
-local now = 0
+-- (the game's GetTime counts from the computer's start: never near 0. A clock from 0 made "at most every 10 s" waits,
+-- timed from 0, hold back the first try, so a file passed only after enough calls by the files before it; 1.7.4)
+local now = 1000
 _G.GetTime = function() now = now + 0.001; return now end
 _G.IsControlKeyDown = function() return false end
 _G.IsShiftKeyDown = function() return false end
@@ -116,6 +136,8 @@ _G.C_Container = {
 	GetContainerItemInfo = function(b, s) return bags[b] and bags[b][s] end,
 }
 _G.C_Item = { GetItemInfoInstant = function() return 1, "Miscellaneous", "Junk" end, GetItemInfo = function() return "x", "l", 1 end }
+_G.C_PlayerInfo = {} -- (the files set CanUseItem as each needs it)
+_G.date = os.date -- (the game has date(); the files used to get it from tests/smoke/example.lua, which set it)
 _G.GetInventorySlotInfo = function(n) return 1 end
 _G.GetInventoryItemLink = function(_, id) return nil end
 _G.GetInventoryItemTexture = function() return 1 end
@@ -333,7 +355,9 @@ assert(ns.Theme.Get().keepSession == true and ns.Theme.DEFAULTS.keepSession == t
 _G.SMOKE_KEEP_SESSION_DEFAULT = ns.Theme.DEFAULTS.keepSession -- (tabs.lua checks the real default)
 ns.Theme.DEFAULTS.keepSession = false -- (a theme reset in a test: still off)
 ns.Theme.Get().keepSession = false
-ef.scripts.OnEvent(ef, "PLAYER_LOGIN")
+-- (to every frame registered for it, as the game sends it: the integrations set up at login too; until 1.7.4 only
+-- Core's frame had it, and the first test file to call I.Setup decided what the files after it found)
+Fire("PLAYER_LOGIN")
 -- every macro the code hands the game during the whole run (a press's or a click's), for tests/smoke/macros.lua's lint
 -- (0.46.2: a /run line runs tainted, so what one may call is checked: game calls, /click and bindings only)
 _G.SMOKE_MACROS = {}
@@ -366,7 +390,7 @@ for _, id in ipairs(ns.providerOrder) do
 	local entries = ns:GetEntries(ns.providers[id])
 	io.write(("provider %-13s %d entries\n"):format(id, #entries))
 	check(not ns.providers[id]._warned, id .. " provider threw an error")
-	check(#entries > 0 or id == "camp" or id == "stored" or id == "bank" or id == "history" or id == "shared" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats" or id == "gear" or id == "guild" or id == "friends" or id == "who" or id == "lootlog" or id == "combatlog" or id == "experience" or id == "missing" or id == "mail" or id == "auctions" or id == "groupquests" or id == "lockouts" or id == "calendar" or id == "durability" or id == "addonoptions" or id == "corpse" or id == "layer" or id == "classspells" or id == "buyback" or id == "legacyreward" or id == "legacyperk", id .. " produced no entries") -- legacyreward, legacyperk: the game names them (tests/smoke/legacy.lua mocks it); camp: only objects you can make; options: needs the Settings panel; classspells: What's Training's catalog; layer: none met yet
+	check(#entries > 0 or id == "camp" or id == "stored" or id == "bank" or id == "history" or id == "shared" or id == "gameoptions" or id == "maps" or id == "equipmentset" or id == "reputation" or id == "skills" or id == "consumables" or id == "mats" or id == "gear" or id == "guild" or id == "friends" or id == "who" or id == "lootlog" or id == "combatlog" or id == "experience" or id == "missing" or id == "mail" or id == "auctions" or id == "groupquests" or id == "lockouts" or id == "calendar" or id == "durability" or id == "addonoptions" or id == "corpse" or id == "layer" or id == "classspells" or id == "buyback" or id == "legacyreward" or id == "legacyperk" or id == "enchant", id .. " produced no entries") -- enchant: AtlasLoot's come with its loot index, not built here; legacyreward, legacyperk: the game names them (tests/smoke/legacy.lua mocks it); camp: only objects you can make; options: needs the Settings panel; classspells: What's Training's catalog; layer: none met yet
 end
 
 io.write("[providers collected]\n")
@@ -825,26 +849,235 @@ local function typeText(s) for ch in s:gmatch(".") do key(ch == " " and "SPACE" 
 local function query() return UI.edit:GetText() end
 local function withCtrl(fn) _G.IsControlKeyDown = function() return true end; fn(); _G.IsControlKeyDown = function() return false end end
 
+-- Why an upgrade is one, in words (0.51.14-0.51.19's tooltip lines; the tooltip shows the game's comparison since 0.52.5,
+-- so these live here now, 0.52.15): the tests read what is:upgrade weighed each row against (F.GainOf) through them.
+local UpgradeWhy
+do
+	local F, L = ns.Filters, ns.L
+	local WhyLines
+	-- the stats' names in "why" (the game's own, in its language)
+	local KIND_NAME = { str = "ITEM_MOD_STRENGTH_SHORT", agi = "ITEM_MOD_AGILITY_SHORT", sta = "ITEM_MOD_STAMINA_SHORT",
+		int = "ITEM_MOD_INTELLECT_SHORT", spi = "ITEM_MOD_SPIRIT_SHORT", ap = "ITEM_MOD_ATTACK_POWER_SHORT",
+		rap = "ITEM_MOD_RANGED_ATTACK_POWER_SHORT", sp = "ITEM_MOD_SPELL_POWER_SHORT", heal = "ITEM_MOD_SPELL_HEALING_DONE_SHORT",
+		crit = "ITEM_MOD_CRIT_RATING_SHORT", hit = "ITEM_MOD_HIT_RATING_SHORT", haste = "ITEM_MOD_HASTE_RATING_SHORT",
+		mp5 = "ITEM_MOD_MANA_REGENERATION_SHORT", dps = "ITEM_MOD_DAMAGE_PER_SECOND_SHORT", armor = "ARMOR",
+		def = "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT", dodge = "ITEM_MOD_DODGE_RATING_SHORT", parry = "ITEM_MOD_PARRY_RATING_SHORT",
+		block = "ITEM_MOD_BLOCK_RATING_SHORT" }
+	local KIND_FALLBACK = { str = "Str", agi = "Agi", sta = "Sta", int = "Int", spi = "Spi", ap = "AP", rap = "RAP", sp = "SP",
+		heal = "Healing", crit = "Crit", hit = "Hit", haste = "Haste", mp5 = "MP5", dps = "DPS", armor = "Armor", def = "Defense",
+		dodge = "Dodge", parry = "Parry", block = "Block" }
+	local function KindName(k)
+		local g = KIND_NAME[k] and _G[KIND_NAME[k]]
+		if type(g) == "string" and g ~= "" and not ns.Secret(g) then return g end
+		return KIND_FALLBACK[k] or k
+	end
+	local function Num(v)
+		if v == math.floor(v) then return tostring(v) end
+		return ("%.1f"):format(v)
+	end
+
+	--- Why the row is an upgrade, lines for its tooltip: { text, good } each, the first what it's weighed against ("Over
+	--- what you wear (slot: head):"; a quest: its reward named first), then a line per stat: gains first (good = true, drawn
+	--- green), the biggest first, then losses (good = false, red). nil when the last search didn't weigh upgrades, or found
+	--- it no upgrade. (0.51.17, the player: one green line of every stat read badly; gains and losses apart.)
+	UpgradeWhy = function(e)
+		local g = F.fitMade and F.GainOf(e)
+		if not g then return nil end
+		local lines = WhyLines(g)
+		if g.item then table.insert(lines, 1, { text = g.item }) end -- (a quest's reward)
+		return lines
+	end
+	--- The lines for a gain (UpgradeWhy).
+	WhyLines = function(g)
+		if g.vs then -- (against each of two it could replace, each it beats: its own heading, then its lines)
+			local lines = {}
+			for _, one in ipairs(g.vs) do
+				local part = WhyLines(one)
+				if one.name then
+					local head = { text = L["Over %s:"]:format(one.name) }
+					if part[1] and part[1].good == nil then part[1] = head else table.insert(part, 1, head) end
+				end
+				for _, l in ipairs(part) do lines[#lines + 1] = l end
+			end
+			return lines
+		end
+		local slotName = _G[g.loc]
+		slotName = type(slotName) == "string" and not ns.Secret(slotName) and slotName:lower() or g.loc
+		if g.empty then return { { text = L["nothing worn there (slot: %s)"]:format(slotName), good = true } } end
+		local byLevel = { { text = L["item level %d over %d (slot: %s)"]:format(g.ilvl or 0, g.wLvl or 0, slotName), good = true } }
+		if g.byLevel then return byLevel end
+		local w = F.MyWeights()
+		local ups, downs, seen = {}, {}, {}
+		local function add(k)
+			if seen[k] or not w[k] then return end
+			seen[k] = true
+			local d = ((g.kinds or {})[k] or 0) - ((g.worn or {})[k] or 0)
+			if math.abs(d) < 0.05 then return end
+			local t = d > 0 and ups or downs
+			t[#t + 1] = { k = k, d = d, weight = math.abs(d) * w[k] }
+		end
+		for k in pairs(g.kinds or {}) do add(k) end
+		for k in pairs(g.worn or {}) do add(k) end
+		if #ups + #downs == 0 then return byLevel end
+		local function Biggest(a, b) if a.weight ~= b.weight then return a.weight > b.weight end return a.k < b.k end
+		table.sort(ups, Biggest)
+		table.sort(downs, Biggest)
+		local lines = { { text = L["Over what you wear (slot: %s):"]:format(slotName) } }
+		for _, list in ipairs({ ups, downs }) do
+			for _, d in ipairs(list) do
+				lines[#lines + 1] = { text = (d.d > 0 and "+" or "-") .. Num(math.abs(d.d)) .. " " .. KindName(d.k), good = d.d > 0 }
+			end
+		end
+		return lines
+	end
+
+end
+
+-- Extra test files (tests/smoke/*.lua, alphabetical) run here with the same game and helpers: each gets T =
+-- { ns, UI, F, S, check, log, logHas, key, typeText, query, withCtrl, names, Obj, Flush, FlushAll, timers }.
+-- (0.55.7, the search's rewrite) a question and its Advanced form (Alt+`) give the same results, in the same order: the
+-- result names of each, and the line ("" when the same; else what differs)
+local function SameAsAdvanced(question)
+	local was = ns.db.easyMode
+	ns.db.easyMode = true
+	local line = ns.Easy.ToAdvanced(question)
+	local function Names(res)
+		local t = {}
+		for _, e in ipairs(res) do if ns.Bar.Real(e) then t[#t + 1] = tostring(e.name) end end
+		return table.concat(t, " | ")
+	end
+	for _, p in pairs(ns.providers) do p._dirty = true end
+	local a = Names(UI:Search(question))
+	ns.db.easyMode = false
+	for _, p in pairs(ns.providers) do p._dirty = true end
+	local b = Names(UI:Search(line))
+	ns.db.easyMode = was
+	return a == b and a ~= "", ("'%s' -> '%s': %s  //  %s"):format(question, line, a, b)
+end
+
+-- The extra files (tests/smoke/*.lua, alphabetical, or the ones run_smoke.py --only names), each with its own budget
+-- under the runaway guard (line 1), not what's left of the run's. Each gets T: the game's stand-ins and the helpers.
+-- (Every file passes on its own too, after this file's set-up alone: run_smoke.py --only runs it so, and --alone each
+-- file so; a file sets up what it needs and puts back what it changed.)
+-- (1.7.4) What a file must put back as it found it: the game functions files stand in for, Terminal's own functions they
+-- watch, its settings, its lists and whether it's open. A file that leaves one changed hands the files after it a game
+-- that isn't the set-up's: the run says so, by name, as a failure (SMOKE_LEAKS_OK: said, not counted).
+-- (a held key or combat: what the stand-in says, not which function it is; a file's own "not held" is as good)
+local LEAK_STATES = { "IsShiftKeyDown", "IsControlKeyDown", "IsAltKeyDown", "InCombatLockdown" }
+local LEAK_GLOBALS = { "GetTime", "UnitLevel", "UnitClass", "UnitRace", "UnitFactionGroup", "UnitName", "GetBindingKey", "GetInventoryItemLink", "GetInventoryItemID",
+	"GetProfessions", "GetProfessionInfo", "IsInGroup", "IsInGuild", "IsInInstance", "GetRealZoneText", "IsPlayerSpell",
+	"date", "print" }
+local LEAK_TABLES = { C_Item = { "GetItemInfo", "GetItemStats", "GetItemInfoInstant", "GetDetailedItemLevelInfo",
+	"GetItemQualityByID" }, C_PlayerInfo = { "CanUseItem" }, C_Timer = { "After" }, C_QuestLog = { "IsQuestFlaggedCompleted",
+	"GetLogIndexForQuestID" }, C_Spell = { "GetSpellName", "GetSpellSubtext" } }
+local LEAK_THEME = { "preset", "frame", "keepSession", "rows", "width", "fontSize", "animations", "suggest", "hints", "syntax" }
+local function Snapshot()
+	local t = {}
+	for _, k in ipairs(LEAK_GLOBALS) do t["_G." .. k] = rawget(_G, k) end
+	for _, k in ipairs(LEAK_STATES) do
+		local f = rawget(_G, k)
+		local ok, v = pcall(f or function() return nil end)
+		t[k .. "()"] = ok and (v and true or false) or "error"
+	end
+	for tbl, keys in pairs(LEAK_TABLES) do
+		local x = rawget(_G, tbl)
+		for _, k in ipairs(keys) do t[tbl .. "." .. k] = type(x) == "table" and rawget(x, k) or nil end
+	end
+	for _, k in ipairs({ "Print", "Output", "ShowText", "Trace" }) do t["ns." .. k] = rawget(ns, k) end
+	t["ns.db.easyMode"] = ns.db and ns.db.easyMode
+	t["ns.db.upgradeRoles"] = ns.db and ns.db.upgradeRoles
+	local th = ns.Theme and ns.Theme.Get() or {}
+	for _, k in ipairs(LEAK_THEME) do t["theme." .. k] = th[k] end
+	local ids = {}
+	for id in pairs(ns.providers or {}) do ids[#ids + 1] = id end
+	table.sort(ids)
+	t["ns.providers"] = table.concat(ids, ",")
+	t["ns.providerOrder"] = table.concat(ns.providerOrder or {}, ",")
+	t["UI shown"] = (UI:IsShown() and not UI.closing) and true or false -- (closing: its fade-out, which no frame drives here)
+	return t
+end
+local function Leaks(before, after)
+	local out = {}
+	for k, v in pairs(before) do
+		if after[k] ~= v then
+			if k == "ns.providers" then -- (which lists: added +, gone -)
+				local was, now, d = {}, {}, {}
+				for id in tostring(v):gmatch("[^,]+") do was[id] = true end
+				for id in tostring(after[k]):gmatch("[^,]+") do now[id] = true end
+				for id in pairs(now) do if not was[id] then d[#d + 1] = "+" .. id end end
+				for id in pairs(was) do if not now[id] then d[#d + 1] = "-" .. id end end
+				table.sort(d)
+				out[#out + 1] = k .. " (" .. table.concat(d, " ") .. ")"
+			else
+				out[#out + 1] = k
+			end
+		end
+	end
+	for k, v in pairs(after) do if before[k] == nil and v ~= nil then out[#out + 1] = k end end
+	table.sort(out)
+	return out
+end
+
+--- Terminal's lists (ns.providers, ns.providerOrder) as they are now: call the function it gives back to have them so
+--- again, the same tables with the same lists in them (a file that sets up Questie registers @npc and @questie).
+local function KeepLists()
+	local p, o = ns.providers, ns.providerOrder
+	local pc, oc = {}, {}
+	for k, v in pairs(p) do pc[k] = v end
+	for i, v in ipairs(o) do oc[i] = v end
+	return function()
+		for k in pairs(p) do p[k] = nil end
+		for k, v in pairs(pc) do p[k] = v end
+		for i = #o, 1, -1 do o[i] = nil end
+		for i, v in ipairs(oc) do o[i] = v end
+		ns.providers, ns.providerOrder = p, o
+		ns:AliasesChanged()
+	end
+end
+
+local function RunFiles(chk, files)
+	local T = { ns = ns, UI = UI, F = F, S = S, check = chk, log = log, logHas = logHas, key = key, typeText = typeText,
+		SameAsAdvanced = SameAsAdvanced,
+		query = query, withCtrl = withCtrl, names = names, Obj = Obj, Flush = Flush, FlushAll = FlushAll, timers = timers,
+		ef = ef, clock = function() return clock end, UpgradeWhy = UpgradeWhy, -- (clock: the timers' time, for a GetTime that follows them)
+		Fire = Fire, -- (an event sent as the game sends it: to every frame registered for it)
+		KeepLists = KeepLists } -- (Terminal's lists as they are now; call what it gives back to have them so again)
+	local bad = 0
+	for _, file in ipairs(files or {}) do
+		local chunk, err = loadfile(file)
+		if not chunk then bad = bad + 1; io.write("FAIL: " .. tostring(err) .. "\n")
+		else
+			io.write("[" .. file:match("[^/\\]+$") .. "]\n")
+			local before = Snapshot()
+			debug.sethook(function() error("INSTRUCTION LIMIT HIT\n" .. debug.traceback(), 2) end, "", 20000000)
+			local ok, e = pcall(chunk, T)
+			if not ok then bad = bad + 1; io.write("FAIL: " .. file .. ": " .. tostring(e) .. "\n") end
+			debug.sethook()
+			local left = ok and Leaks(before, Snapshot()) or {}
+			if #left > 0 then
+				if not _G.SMOKE_LEAKS_OK then bad = bad + 1 end
+				io.write("FAIL: " .. file:match("[^/\\]+$") .. " left changed (put it back as it found it): " .. table.concat(left, ", ") .. "\n")
+			end
+		end
+	end
+	return bad
+end
+
 -- (tests/locale_usable.py: Terminal loaded as another client language loads it. The checks from here on expect English,
--- so only the extra files run, each with its own budget, and only their failures count)
+-- so only the extra files run, and only their failures count. run_smoke.py --only and --alone run so too: the files
+-- named, after the set-up above, without this file's own checks below)
+-- (the set-up ends with Terminal closed, as at login: the checks above leave it open)
+FlushAll(); UI:HideNow()
 if _G.SMOKE_EXTRAS_ONLY then
 	local own = 0
 	local function ownCheck(c, m) if not c then own = own + 1; io.write("FAIL: " .. m .. "\n") end end
-	local T = { ns = ns, UI = UI, F = F, S = S, check = ownCheck, log = log, logHas = logHas, key = key, typeText = typeText,
-		query = query, withCtrl = withCtrl, names = names, Obj = Obj, Flush = Flush, FlushAll = FlushAll, timers = timers,
-		ef = ef, clock = function() return clock end }
-	for _, file in ipairs(_G.SMOKE_EXTRA or {}) do
-		local chunk, err = loadfile(file)
-		if not chunk then own = own + 1; io.write("FAIL: " .. tostring(err) .. "\n")
-		else
-			debug.sethook(function() error("INSTRUCTION LIMIT HIT\n" .. debug.traceback(), 2) end, "", 20000000)
-			local ok, e = pcall(chunk, T)
-			if not ok then own = own + 1; io.write("FAIL: " .. file .. ": " .. tostring(e) .. "\n") end
-		end
-	end
+	own = own + RunFiles(ownCheck, _G.SMOKE_FIRST) + RunFiles(ownCheck, _G.SMOKE_EXTRA)
 	_G.SMOKE_FAILS = own
 	return
 end
+-- (the files that compare with recorded output, the parse golden's parts: run before this file's own checks, on the
+-- set-up's state, as a run of them alone is; tests/gen_parse_golden.py records them so)
+fails = fails + RunFiles(check, _G.SMOKE_FIRST)
 local mark
 
 do
@@ -4020,8 +4253,8 @@ do -- motion: fade/drift in and out, gliding selection, rows fading in
 	local Th = ns.Theme
 	Th.Get().animations = true
 	local M = UI.motion
-	local t0 = 500
 	local realGT = _G.GetTime
+	local t0 = math.floor(realGT()) + 500 -- (ahead of the harness's clock: a motion started before isn't sent back in time)
 	local clock = t0
 	_G.GetTime = function() return clock end
 	local function step(dt) clock = clock + dt; if M.shown ~= false then M.scripts.OnUpdate(M, dt) end end
@@ -6169,128 +6402,6 @@ do -- a profession sent to chat: its link, with every recipe you know (as the ga
 	_G.GetProfessions, _G.GetProfessionInfo, C_SpellBook.GetSpellBookItemTradeSkillLink = save.gp, save.gpi, save.tl
 	ns.providers.professions._dirty = true
 end
--- Why an upgrade is one, in words (0.51.14-0.51.19's tooltip lines; the tooltip shows the game's comparison since 0.52.5,
--- so these live here now, 0.52.15): the tests read what is:upgrade weighed each row against (F.GainOf) through them.
-local UpgradeWhy
-do
-	local F, L = ns.Filters, ns.L
-	local WhyLines
-	-- the stats' names in "why" (the game's own, in its language)
-	local KIND_NAME = { str = "ITEM_MOD_STRENGTH_SHORT", agi = "ITEM_MOD_AGILITY_SHORT", sta = "ITEM_MOD_STAMINA_SHORT",
-		int = "ITEM_MOD_INTELLECT_SHORT", spi = "ITEM_MOD_SPIRIT_SHORT", ap = "ITEM_MOD_ATTACK_POWER_SHORT",
-		rap = "ITEM_MOD_RANGED_ATTACK_POWER_SHORT", sp = "ITEM_MOD_SPELL_POWER_SHORT", heal = "ITEM_MOD_SPELL_HEALING_DONE_SHORT",
-		crit = "ITEM_MOD_CRIT_RATING_SHORT", hit = "ITEM_MOD_HIT_RATING_SHORT", haste = "ITEM_MOD_HASTE_RATING_SHORT",
-		mp5 = "ITEM_MOD_MANA_REGENERATION_SHORT", dps = "ITEM_MOD_DAMAGE_PER_SECOND_SHORT", armor = "ARMOR",
-		def = "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT", dodge = "ITEM_MOD_DODGE_RATING_SHORT", parry = "ITEM_MOD_PARRY_RATING_SHORT",
-		block = "ITEM_MOD_BLOCK_RATING_SHORT" }
-	local KIND_FALLBACK = { str = "Str", agi = "Agi", sta = "Sta", int = "Int", spi = "Spi", ap = "AP", rap = "RAP", sp = "SP",
-		heal = "Healing", crit = "Crit", hit = "Hit", haste = "Haste", mp5 = "MP5", dps = "DPS", armor = "Armor", def = "Defense",
-		dodge = "Dodge", parry = "Parry", block = "Block" }
-	local function KindName(k)
-		local g = KIND_NAME[k] and _G[KIND_NAME[k]]
-		if type(g) == "string" and g ~= "" and not ns.Secret(g) then return g end
-		return KIND_FALLBACK[k] or k
-	end
-	local function Num(v)
-		if v == math.floor(v) then return tostring(v) end
-		return ("%.1f"):format(v)
-	end
-
-	--- Why the row is an upgrade, lines for its tooltip: { text, good } each, the first what it's weighed against ("Over
-	--- what you wear (slot: head):"; a quest: its reward named first), then a line per stat: gains first (good = true, drawn
-	--- green), the biggest first, then losses (good = false, red). nil when the last search didn't weigh upgrades, or found
-	--- it no upgrade. (0.51.17, the player: one green line of every stat read badly; gains and losses apart.)
-	UpgradeWhy = function(e)
-		local g = F.fitMade and F.GainOf(e)
-		if not g then return nil end
-		local lines = WhyLines(g)
-		if g.item then table.insert(lines, 1, { text = g.item }) end -- (a quest's reward)
-		return lines
-	end
-	--- The lines for a gain (UpgradeWhy).
-	WhyLines = function(g)
-		if g.vs then -- (against each of two it could replace, each it beats: its own heading, then its lines)
-			local lines = {}
-			for _, one in ipairs(g.vs) do
-				local part = WhyLines(one)
-				if one.name then
-					local head = { text = L["Over %s:"]:format(one.name) }
-					if part[1] and part[1].good == nil then part[1] = head else table.insert(part, 1, head) end
-				end
-				for _, l in ipairs(part) do lines[#lines + 1] = l end
-			end
-			return lines
-		end
-		local slotName = _G[g.loc]
-		slotName = type(slotName) == "string" and not ns.Secret(slotName) and slotName:lower() or g.loc
-		if g.empty then return { { text = L["nothing worn there (slot: %s)"]:format(slotName), good = true } } end
-		local byLevel = { { text = L["item level %d over %d (slot: %s)"]:format(g.ilvl or 0, g.wLvl or 0, slotName), good = true } }
-		if g.byLevel then return byLevel end
-		local w = F.MyWeights()
-		local ups, downs, seen = {}, {}, {}
-		local function add(k)
-			if seen[k] or not w[k] then return end
-			seen[k] = true
-			local d = ((g.kinds or {})[k] or 0) - ((g.worn or {})[k] or 0)
-			if math.abs(d) < 0.05 then return end
-			local t = d > 0 and ups or downs
-			t[#t + 1] = { k = k, d = d, weight = math.abs(d) * w[k] }
-		end
-		for k in pairs(g.kinds or {}) do add(k) end
-		for k in pairs(g.worn or {}) do add(k) end
-		if #ups + #downs == 0 then return byLevel end
-		local function Biggest(a, b) if a.weight ~= b.weight then return a.weight > b.weight end return a.k < b.k end
-		table.sort(ups, Biggest)
-		table.sort(downs, Biggest)
-		local lines = { { text = L["Over what you wear (slot: %s):"]:format(slotName) } }
-		for _, list in ipairs({ ups, downs }) do
-			for _, d in ipairs(list) do
-				lines[#lines + 1] = { text = (d.d > 0 and "+" or "-") .. Num(math.abs(d.d)) .. " " .. KindName(d.k), good = d.d > 0 }
-			end
-		end
-		return lines
-	end
-
-end
-
--- Extra test files (tests/smoke/*.lua, alphabetical) run here with the same game and helpers: each gets T =
--- { ns, UI, F, S, check, log, logHas, key, typeText, query, withCtrl, names, Obj, Flush, FlushAll, timers }.
--- (0.55.7, the search's rewrite) a question and its Advanced form (Alt+`) give the same results, in the same order: the
--- result names of each, and the line ("" when the same; else what differs)
-local function SameAsAdvanced(question)
-	local was = ns.db.easyMode
-	ns.db.easyMode = true
-	local line = ns.Easy.ToAdvanced(question)
-	local function Names(res)
-		local t = {}
-		for _, e in ipairs(res) do if ns.Bar.Real(e) then t[#t + 1] = tostring(e.name) end end
-		return table.concat(t, " | ")
-	end
-	for _, p in pairs(ns.providers) do p._dirty = true end
-	local a = Names(UI:Search(question))
-	ns.db.easyMode = false
-	for _, p in pairs(ns.providers) do p._dirty = true end
-	local b = Names(UI:Search(line))
-	ns.db.easyMode = was
-	return a == b and a ~= "", ("'%s' -> '%s': %s  //  %s"):format(question, line, a, b)
-end
-
-do
-	local T = { ns = ns, UI = UI, F = F, S = S, check = check, log = log, logHas = logHas, key = key, typeText = typeText,
-		SameAsAdvanced = SameAsAdvanced,
-		query = query, withCtrl = withCtrl, names = names, Obj = Obj, Flush = Flush, FlushAll = FlushAll, timers = timers,
-		ef = ef, clock = function() return clock end, UpgradeWhy = UpgradeWhy } -- (clock: the timers' time, for a GetTime that follows them)
-	for _, file in ipairs(_G.SMOKE_EXTRA or {}) do
-		local chunk, err = loadfile(file)
-		if not chunk then fails = fails + 1; io.write("FAIL: " .. tostring(err) .. "\n")
-		else
-			io.write("[" .. file:match("[^/\\]+$") .. "]\n")
-			-- each file gets its own budget under the runaway guard (line 1), not what's left of the run's
-			debug.sethook(function() error("INSTRUCTION LIMIT HIT\n" .. debug.traceback(), 2) end, "", 20000000)
-			local ok, e = pcall(chunk, T)
-			if not ok then fails = fails + 1; io.write("FAIL: " .. file .. ": " .. tostring(e) .. "\n") end
-		end
-	end
-end
+fails = fails + RunFiles(check, _G.SMOKE_EXTRA)
 _G.SMOKE_FAILS = fails -- run_smoke.py exits 1 when this is above 0
 io.write(fails == 0 and "ALL SMOKE TESTS PASSED\n" or (fails .. " FAILURES\n"))

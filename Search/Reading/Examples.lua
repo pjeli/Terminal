@@ -585,7 +585,8 @@ local function Pool()
 	-- (a setting's tip gone once it's on: the settings are part of the setup)
 	setup = setup .. "|" .. E.SettingKey()
 	if pool.list and pool.adv == adv and pool.level == level and pool.zone == zone and pool.place == place
-		and pool.setup == setup and now - (pool.made or 0) < 60 then
+		and pool.setup == setup and pool.made and now - pool.made < 60 then -- (made nil: to be made again, whatever the
+		-- clock says: as 0 it was "made" in the game's first minute, and a pool marked stale stayed; 1.7.4)
 		return pool.list
 	end
 	-- (asked only when the pool is made again, a minute on: not on every open)

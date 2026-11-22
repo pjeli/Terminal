@@ -161,6 +161,7 @@ function G.Run()
 	_G.UnitLevel = unitLevel
 	ns.db.easyMode = wasEasy; UI:EasyChanged()
 	B.Reset()
+	if UI:IsShown() then UI:Hide(); T.FlushAll() end -- (closed as found: the files after it start from the set-up's state)
 	if not ok then check(false, "parse golden: " .. tostring(err)) end
 	if differ > 12 then io.write(("(%d more lines read differently)\n"):format(differ - 12)) end
 end

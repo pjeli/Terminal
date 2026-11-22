@@ -1,6 +1,7 @@
 -- (0.65.3, the player's ask: "quests that reward bags"; there are some notable ones) the quests whose reward is a bag (a
 -- quiver, an ammo pouch) that you can still take, the most slots first; @questie reward:bag in Advanced.
 local T = ...
+local RestoreLists = T.KeepLists() -- (Questie set up here registers lists: taken away at the end; 1.7.4)
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll
 local I, QD, QR, F = ns.Integrations, ns.QuestieData, ns.QuestRewards, ns.Filters
 
@@ -181,3 +182,4 @@ do
 	I.Setup(); FlushAll()
 	UI.lastScan = nil
 end
+RestoreLists()

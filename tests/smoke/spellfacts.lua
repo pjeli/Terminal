@@ -156,7 +156,7 @@ local ok, err = pcall(function()
 	local saveApi, saveClass = rawget(_G, "WT_API"), _G.UnitClass
 	SPELLS[783] = { name = "Travel Form", cast = 0, range = 0, cost = { { name = "MANA", cost = 40 } }, cd = 0,
 		desc = "Shapeshift into travel form, increasing movement speed by 40%." }
-	_G.WT_API = T.WTCatalogApi and T.WTCatalogApi()
+	_G.WT_API = assert(loadfile("Terminal/tests/lib/wt_catalog.lua"))().CatalogApi() -- (its own copy)
 	_G.UnitClass = function() return "Warrior", "WARRIOR" end
 	CS.Forget(); CS.ForgetRows()
 	ns.providers.classspells._dirty = true

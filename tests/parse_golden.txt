@@ -2059,7 +2059,7 @@ question: -
 tokens: firs
 filter: soft is:trainer  sig=~trainer  word=trainer
 sort: -
-kinds: -
+kinds: corpse dungeon flight maps raid
 action: -
 place: -
 send: -
@@ -2067,9 +2067,9 @@ steps: -
 group: -
 pick: spec=is:trainer word=trainer
 pick sort: -
-category: -
-advanced: "firs trainer "
-explain: "Everything matching firs trainer"
+category: places
+advanced: "@dungeon firs trainer "
+explain: "Dungeon matching firs trainer"
 
 == trainer
 question: -
@@ -2771,16 +2771,16 @@ explain: "Everything matching above"
 question: -
 tokens: level
 sort: -
-kinds: -
+kinds: achievements mounts
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: -
-advanced: "level "
-explain: "Everything matching level"
+category: collections
+advanced: "@achievement level "
+explain: "Achievements matching level"
 
 == swords lvl:20-30
 question: -
@@ -5283,7 +5283,7 @@ explain: "Everything matching a, then: mats "
 question: -
 tokens: x
 sort: -
-kinds: addonoptions addons auctions camp corpse currency cvars dungeon durability enchant equipmentset experience flight gameoptions gold keybinds layer lockouts mail maps panels professions raid recipes reputation skills terminal
+kinds: addonoptions addons camp corpse cvars dungeon enchant flight gameoptions keybinds maps panels professions raid recipes terminal
 action: -
 place: -
 send: -
@@ -7593,16 +7593,16 @@ explain: "Everything matching duskwood level"
 question: -
 tokens: level
 sort: -
-kinds: -
+kinds: achievements mounts
 action: -
 place: -
 send: -
 steps: -
 group: -
 pick sort: -
-category: -
-advanced: "level "
-explain: "Everything matching level"
+category: collections
+advanced: "@achievement level "
+explain: "Achievements matching level"
 
 == what are my bags worth
 question: -

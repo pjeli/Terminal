@@ -1,6 +1,7 @@
 -- QuestieDB without Questie: @questie, @npc and the Questie filters read the QuestieDB addon's
 -- LibQuestieDB directly (a Blizzard-like UI with Questie's data). With Questie installed, they wait for it.
 local T = ...
+local RestoreLists = T.KeepLists() -- (Questie set up here registers lists: taken away at the end; 1.7.4)
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll
 local F = ns.Filters
 local I, QD = ns.Integrations, ns.QuestieData
@@ -1178,3 +1179,4 @@ do
 	_G.C_TaxiMap, _G.C_MapExplorationInfo = save.taxi, save.x
 	I.Setup(); FlushAll()
 end
+RestoreLists()

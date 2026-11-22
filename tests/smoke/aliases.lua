@@ -91,11 +91,11 @@ do
 	check(ns.commands.fs and ns.commands.fs.staysOpen, "one naming a search alias: a search")
 	ns:FindCommand("unalias").run("fh"); ns:FindCommand("unalias").run("fs"); ns:FindCommand("unalias").run("heal")
 	-- a dot command: run
-	local theme = ns.db.theme
+	local theme = CopyTable(ns.db.theme) -- (a copy: .theme dracula changes the table itself; 1.7.4)
 	local out = ns.commands.dark.run("")
 	check(type(out) == "table", "a dot alias runs that command: " .. tostring(out and out[1]))
-	if ns.SetTheme and theme then pcall(ns.SetTheme, theme) end
 	ns.db.theme = theme
+	ns.Theme.Changed()
 	-- aliases running aliases stop before going round forever
 	ns.db.commandAliases.a1 = ".a2"; ns.db.commandAliases.a2 = ".a1"
 	A.Load()

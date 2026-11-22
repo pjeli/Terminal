@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.7.3", when = "in testing",
+		v = "1.7.4", when = "in testing",
 		items = {
 			"With Pawn installed, the scales it shows judge your upgrades: no more exporting and pasting (.weights picks still come first).",
 			"Opening Terminal with Ctrl+Space (or another chord bound to it) no longer types its space into the prompt.",

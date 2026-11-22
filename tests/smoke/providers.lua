@@ -428,6 +428,9 @@ do
 	_G.CommunitiesFrame, _G.GuildMicroButton, _G.COMMUNITIES_FRAME_DISPLAY_MODES = savedCF, savedGM, savedModes
 
 	-- character side tabs: the same route as the equipment sets page
+	-- (the character window's paper doll: its own, as smoke.lua's checks made one before this file; 1.7.4)
+	local hadPd = _G.PaperDollFrame
+	_G.PaperDollFrame = hadPd or T.Obj("Frame")
 	local cf, micro, pd = _G.CharacterFrame, _G.CharacterMicroButton, _G.PaperDollFrame
 	local savedCollapsed, savedPdShown, savedGet = cf.rightPaneCollapsed, pd.shown, _G.GetPaperDollSideBarFrame
 	_G.CharacterMicroButton = micro or Obj("Button")
@@ -458,6 +461,7 @@ do
 	ns.Print = printWas
 	for i = 1, 3 do _G["PaperDollSideBarTab" .. i] = nil end
 	cf.rightPaneCollapsed, pd.shown, _G.GetPaperDollSideBarFrame, _G.CharacterMicroButton = savedCollapsed, savedPdShown, savedGet, micro
+	_G.PaperDollFrame = hadPd
 	ns.providers.panels._dirty = true
 end
 

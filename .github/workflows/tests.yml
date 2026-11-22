@@ -26,5 +26,11 @@ jobs:
         run: pip install lupa==2.8 luaparser==4.2.0
       - name: Smoke tests, and Terminal in each translated language
         run: python tests/run_smoke.py
+      # (1.7.4) every test file on its own too: one that passes only after another, borrowing what that one left, fails
+      - name: Each test file on its own
+        run: python tests/run_smoke.py --alone
+      # (1.7.4) what a fixed set of searches costs, in Lua instructions: over 10% above tests/perf_baseline.json fails
+      - name: Speed check
+        run: python tests/perf.py
       - name: "The files: syntax, globals, shadowed locals, translations, the package, comment stripping"
         run: python tests/check.py

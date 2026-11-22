@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.7.4 (in testing)
+
+**The tests: each file on its own, and a speed check**
+- Every test file now passes on its own, and the run fails a file that leaves the game's stand-ins, Terminal's
+  settings, its lists or its window changed for the files after it (49 files passed only after others). `python
+  tests/run_smoke.py pawn focus` runs just those files in a second; `--alone` runs each on its own (CI does).
+- `tests/perf.py`: what a fixed set of searches costs, counted in Lua instructions; over 10% above
+  `tests/perf_baseline.json` fails (CI runs it).
+- Fixed: the empty prompt's suggestions, marked stale (your bags changed), could be kept in the game's first minute.
+
 ## 1.7.3 (in testing)
 
 **Pawn's scales judge upgrades**

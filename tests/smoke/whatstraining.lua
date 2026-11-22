@@ -514,3 +514,4 @@ do
 	ns.Pipes.ClearSteps()
 	check(not ns.Easy.HasForExample("WhatsTraining"), "gone: its examples aren't offered")
 end
+UI:Hide(); T.FlushAll() -- (closed as found; 1.7.4)

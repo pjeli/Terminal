@@ -2,9 +2,10 @@
 
     python tests/gen_parse_golden.py
 
-Runs the whole smoke harness as run_smoke.py does (the corpus is read with the state the earlier test files leave, as
-in a real run), with PARSE_GOLDEN_WRITE set: tests/smoke/parse_golden_*.lua keep each line's block instead of comparing
-it, and they're written out here, in the corpus's order. Run it only when a change to how lines are read is meant (or
+Runs tests/smoke.lua's set-up and then tests/smoke/parse_golden_*.lua alone (as run_smoke.py runs them: first, before
+any other file can leave its state behind; until the 1.7.4 test rework the corpus was read in whatever state the 120
+files before them left, so the golden matched only a whole run), with PARSE_GOLDEN_WRITE set: they keep each line's
+block instead of comparing it, and they're written out here, in the corpus's order. Run it only when a change to how lines are read is meant (or
 the corpus changed), and read the diff (git diff tests/parse_golden.txt) before committing it.
 Needs: pip install lupa
 """
@@ -15,9 +16,10 @@ repo = _env.enter()
 from lupa import lua51 as L
 rt = L.LuaRuntime(unpack_returned_tuples=True)
 import glob
-extra = sorted(glob.glob(os.path.join(repo, "tests", "smoke", "*.lua")))
+extra = sorted(glob.glob(os.path.join(repo, "tests", "smoke", "parse_golden_*.lua")))
 g = rt.globals()
-g.SMOKE_EXTRA = rt.table_from([p.replace("\\", "/") for p in extra])
+g.SMOKE_EXTRAS_ONLY = True
+g.SMOKE_FIRST = rt.table_from([p.replace("\\", "/") for p in extra])
 g.PARSE_GOLDEN_WRITE = True
 sys.stdout.flush()
 saved = os.dup(1)

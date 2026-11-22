@@ -184,6 +184,7 @@ do
 		if id == 9 then return "Fish", 0, false, 12, 50 end
 		return "c" .. i, 0, i <= 3, 0, 1
 	end
+	T.Fire("CRITERIA_UPDATE") -- (criteria moved, as the game says: progress worked out again, not kept from earlier files)
 	ns.providers.achievements._dirty = true
 	local plain = names(UI:Search("level"))
 	check(plain["Level 10"] and not plain["Level 20"], "plain searches: earned achievements only")

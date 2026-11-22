@@ -307,4 +307,4 @@ do
 	end
 	check(#wrong == 0, lang .. ": weapon damage and sentence words in its words: " .. table.concat(wrong, ", "))
 end
-
+T.FlushAll(); T.UI:HideNow() -- (closed as found, its fade-out skipped: no frame drives it here; 1.7.4)

@@ -3,6 +3,7 @@
 -- Z.QuestFitter and is:cantake leave out what fails; "why can't i take <quest>" says why; "<quest> > unlocks" and
 -- "what does <quest> unlock" go forward. A mocked LibQuestieDB, as questiedb.lua and rewards.lua do.
 local T = ...
+local RestoreLists = T.KeepLists() -- (Questie set up here registers lists: taken away at the end; 1.7.4)
 local ns, UI, check, FlushAll = T.ns, T.UI, T.check, T.FlushAll
 local I, QD, QR, QA = ns.Integrations, ns.QuestieData, ns.QuestRewards, ns.QuestAccess
 
@@ -300,3 +301,4 @@ do
 	Q.IsQuestFlaggedCompleted, Q.GetLogIndexForQuestID = save.done, save.log
 	if ns.Pipes.ForgetFriendly then ns.Pipes.ForgetFriendly() end -- (the stubbed side not kept for later files: review)
 end
+RestoreLists()
