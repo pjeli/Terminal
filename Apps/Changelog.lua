@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.7.6", when = "in testing",
+		v = "1.7.7", when = "in testing",
 		items = {
+			"Ask Terminal how: \"how do i send to party\", \"what does shift enter do\": the answer as rows, Enter writes the example.",
 			"After an update the empty prompt says what's new: Enter on it opens the changelog.",
 			"With Pawn installed, the scales it shows judge your upgrades: no more exporting and pasting (.weights picks still come first).",
 			"Opening Terminal with Ctrl+Space (or another chord bound to it) no longer types its space into the prompt.",

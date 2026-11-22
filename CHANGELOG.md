@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.7.7 (in testing)
+
+**"How do I...": Terminal's own help as search results**
+- Ask "how do i send to party", "what does shift enter do", "how do i make my own command", "how can i change the
+  theme": the topics your words name come up as rows, best first, each saying what to do in a line (its tooltip in
+  full). Enter writes its example into the prompt ("hearthstone >> party"); Shift+Left comes back. 25 topics, from
+  sending to chat and filters to aliases, themes, tabs and `!t`.
+- Only for lines no other question takes ("how many linen do i have" is still the count, "how do i get into
+  scholomance" the attunements'), and only when a topic fits: else your words are searched, as before.
+- Translated (German, French, Spanish, Russian, Chinese), with 1.7.x's other new texts.
+
 ## 1.7.6 (in testing)
 
 **`.report` in plain text; the test runs count every failure**
