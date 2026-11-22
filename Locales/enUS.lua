@@ -3632,6 +3632,7 @@ L["what you share in %s: .share %s all, limited, mats, consumables or none"] = t
 L["what you wear"] = true
 L["what you're after, in plain words: stamina food, nearest innkeeper, mats for thorium belt"] = true
 L["what's new"] = true
+L["what's new in %s"] = true
 L["where a command lives"] = true
 L["where a spell is taught: your trainer, a weapon master, a quest, a book (What's Training or TrainerSpells)"] = true
 L["where it comes from isn't known yet"] = true

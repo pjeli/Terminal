@@ -649,6 +649,8 @@ function UI:Refresh()
 	self.refreshedAt = now
 	self.refreshCount = (self.refreshCount or 0) + 1
 	if edit:GetText() ~= "" then self.showRecent = nil end -- (Down's recent picks last until you type)
+	-- (what's new was shown in the empty prompt and you typed over it: passed over, not said again; 1.7.5)
+	if edit:GetText() ~= "" and ns.Easy and ns.Easy.newsShown and ns.Changelog then ns.Changelog.NewsDone() end
 	if self.searchJob then ns:Trace("search: started again before the last one finished (" .. (self.searchJob.slices or 0) .. " frames in)") end
 	-- (a search of yours still going: one asked for in the background now runs as yours, its first frame's best not
 	-- held behind F5 as if it were the list)

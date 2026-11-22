@@ -14,8 +14,9 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.7.4", when = "in testing",
+		v = "1.7.5", when = "in testing",
 		items = {
+			"After an update the empty prompt says what's new: Enter on it opens the changelog.",
 			"With Pawn installed, the scales it shows judge your upgrades: no more exporting and pasting (.weights picks still come first).",
 			"Opening Terminal with Ctrl+Space (or another chord bound to it) no longer types its space into the prompt.",
 			"The options panel has a \"Keep your session\" checkbox (it was only in \"terminal settings\" and .set).",
@@ -144,6 +145,7 @@ function CL.Parts() return scroll, content, body end -- (tests)
 
 function CL.Open()
 	if not Panel.CanOpen(L["The changelog takes the arrow keys while open, which the game doesn't allow in combat."]) then return false end
+	CL.NewsDone() -- (read: the empty prompt's "what's new" goes)
 	Build()
 	Layout()
 	Panel.Opening(CL) -- (straight in, where the terminal was: it and the other panels go)
@@ -174,6 +176,7 @@ function CL.Announce()
 	db.versionSeen = now
 	if seen == now then return false end
 	if seen == nil and not (db.tourOffered or (type(db.history) == "table" and #db.history > 0)) then return false end
+	db.newsFor = now -- (the empty prompt says so too, until read: CL.NewsLine)
 	local top = CL.LOG[1]
 	local n = top and top.v == now and type(top.items) == "table" and #top.items or 0
 	if n > 0 then
@@ -182,6 +185,22 @@ function CL.Announce()
 		ns:Print(L["Updated to %s. .changelog shows what's new"]:format(now))
 	end
 	return true
+end
+--- (1.7.5) After an update the empty prompt says what's new, the first suggestion, until you open the changelog
+--- (Enter on that empty prompt does, Shift+Right writes .changelog) or start typing in a prompt that showed it: the
+--- chat line at login is easily lost among the game's and other addons'. Not on a fresh install (CL.Announce: the tour
+--- comes first there). nil when there's nothing new to say.
+function CL.NewsLine()
+	local db = ns.db
+	local now = ns.version
+	if type(db) ~= "table" or type(now) ~= "string" or db.newsFor ~= now or db.newsSeen == now then return nil end
+	return "try: .changelog (" .. L["what's new in %s"]:format(now) .. ")"
+end
+--- What's new read (the changelog opened) or passed over (typed over): not said again for this version.
+function CL.NewsDone()
+	local db = ns.db
+	if type(db) == "table" and db.newsFor ~= nil then db.newsSeen = db.newsFor end
+	if ns.Easy then ns.Easy.newsShown = nil end
 end
 do
 	-- (a few seconds in: after the game's and other addons' login lines, not lost among them)

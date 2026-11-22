@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.5 (in testing)
+
+**What's new, in the empty prompt**
+- After an update the empty prompt's first suggestion is "try: .changelog (what's new in 1.7.5)": Enter on it opens the
+  changelog, Shift+Right writes `.changelog`. Gone once the changelog is opened or you type over it; a fresh install
+  gets the tour instead, as before. (The chat line at login said so too, easily lost among the others.)
+
 ## 1.7.4 (in testing)
 
 **The tests: each file on its own, and a speed check**

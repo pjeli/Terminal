@@ -673,6 +673,13 @@ function E.NextExample()
 			return ex
 		end
 	end
+	-- (what's new after an update, until read or typed over: Changelog.lua's CL.NewsLine; 1.7.5)
+	local CL = ns.Changelog
+	local news = CL and CL.NewsLine and CL.NewsLine()
+	if news then
+		pool.first = news
+		return news
+	end
 	-- (spent when it's shown, E.ExampleShown: not on an open with suggestions off or with text typed)
 	if type(db) == "table" and not db.tourOffered and #(db.history or {}) == 0 then
 		pool.first = E.TOUR_EXAMPLE
@@ -685,6 +692,9 @@ end
 --- The example in the empty prompt was drawn (Completion.lua): the tour's is offered once.
 function E.ExampleShown(ex)
 	if ex == E.TOUR_EXAMPLE and type(ns.db) == "table" then ns.db.tourOffered = true end
+	-- (what's new shown: typing over it, or Enter on it, ends it; Results.lua, Activate.lua)
+	local CL = ns.Changelog
+	if ex ~= nil and CL and CL.NewsLine and ex == CL.NewsLine() then E.newsShown = true end
 end
 function E.Example()
 	if pool.first then return pool.first end

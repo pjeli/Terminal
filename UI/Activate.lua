@@ -537,6 +537,11 @@ function UI:Activate(idx, opts)
 	-- (a summed-up total has nothing to open, but ">> text" copies it: "in:bags | sum value >> text")
 	local copyable = e and e.kind == "aggregate" and self.sendTo and self.sendTo.copy
 	if self.histSearch then return self:HistoryAccept(e) end -- (Ctrl+R: the line goes in the prompt; none matched: what's typed)
+	-- (Enter on the empty prompt saying what's new: the changelog opens, where the terminal was; 1.7.5)
+	if not e and edit:GetText() == "" and ns.Easy and ns.Easy.newsShown and ns.Changelog then
+		ns.Changelog.Open()
+		return
+	end
 	if not e or (e.noActivate and not copyable) then return end
 	if self.fzf then return self:FuzzyPop(e, opts.secondary) end -- (a click: as Enter / Shift+Enter)
 	-- ">>> channel": every result at once, sent by Terminal inside this press (a macro runs 255 characters at most)
