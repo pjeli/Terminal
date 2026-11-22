@@ -764,7 +764,7 @@ F.APPLIES = {
 		canbuy = { "reputation" }, buyable = { "reputation" }, capped = { "currency" },
 		vendor = NPC, trainer = NPC, classtrainer = NPC, proftrainer = NPC, innkeeper = NPC, banker = NPC, repair = NPC,
 		auctioneer = NPC, questgiver = NPC, stablemaster = NPC, spirithealer = NPC, battlemaster = NPC, weaponmaster = NPC,
-		weaponmasters = NPC, pvpvendor = NPC, pvp = NPC,
+		weaponmasters = NPC, pvpvendor = NPC, pvp = { "npc", "quests" },
 		flightmaster = { "npc", "flight" }, flightpath = { "flight" }, learned = { "flight", "recipes", "professions" },
 		unlearned = { "flight", "recipes", "professions", "missing", "classspells" },
 		unknown = { "flight", "recipes", "professions", "missing", "classspells" },

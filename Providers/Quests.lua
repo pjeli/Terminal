@@ -345,11 +345,12 @@ end
 local QTAG = (Enum and Enum.QuestTag) or {}
 local TAG_KIND = { [QTAG.Dungeon or 81] = "dungeon", [QTAG.Heroic or 85] = "dungeon", [QTAG.Raid or 62] = "raid",
 	[QTAG.Raid10 or 88] = "raid", [QTAG.Raid25 or 89] = "raid" }
+--- The quest's kind by its tag ("dungeon", "raid" or nil), and the tag's id.
 local function TagKind(id)
 	local f = C_QuestLog.GetQuestTagInfo
 	local t = f and Call(f, id)
 	if Secret(t) or type(t) ~= "table" then return nil end
-	return TAG_KIND[t.tagID]
+	return TAG_KIND[t.tagID], t.tagID
 end
 
 -- an instance's name as the log's headers say it ("The Deadmines", "Dire Maul"): Terminal's entrances list
@@ -385,6 +386,59 @@ local function IsClassHeader(header)
 		for w in ("warrior paladin hunter rogue priest shaman mage warlock druid"):gmatch("%a+") do classNames[w] = true end
 	end
 	return classNames[Lower(header)] == true
+end
+
+-- PvP quests (1.7.8, a player on CurseForge: "track/untrack pvp quests"): the game's PvP tag; else under a
+-- battleground's name in the log (the game's own names, C_PvP.GetBattlegroundInfo, in the client's language, and its
+-- "Battlegrounds" heading); else QuestieDB's zone for the quest, when it's there: a battleground's area, or the
+-- Battlegrounds sort (QuestSort 25, -25 as QuestieDB keeps sorts).
+local PVP_TAG = QTAG.PvP or 41
+local BG_SORT = -25
+local bgNames -- (kept once the game named its battlegrounds; asked again at each rebuild until then)
+local function Battlegrounds()
+	if bgNames then return bgNames end
+	local out, any, misses = {}, false, 0
+	local P = _G.C_PvP
+	local f = P and P.GetBattlegroundInfo
+	for i = 1, 60 do
+		local info = f and Call(f, i)
+		local name = type(info) == "table" and not Secret(info) and Str(info.name) or nil
+		if name and name ~= "" then out[Lower(name)], any, misses = true, true, 0
+		else
+			misses = misses + 1
+			if misses >= 3 then break end
+		end
+	end
+	local heading = ns.GameText("BATTLEGROUNDS")
+	if heading then out[Lower(heading)] = true end
+	if any then bgNames = out end
+	return out
+end
+
+local questiePvP = {} -- quest id -> what QuestieDB's zone said (kept: a quest's zone doesn't change)
+local function QuestieSaysPvP(id)
+	local known = questiePvP[id]
+	if known ~= nil then return known end
+	local QD = ns.QuestieData
+	local DB = QD and QD.Ready() and QD.DB()
+	if not (DB and DB.QueryQuestSingle) then return false end -- (not read yet: asked again next time)
+	local zone = Num(Call(DB.QueryQuestSingle, id, "zoneOrSort"))
+	local yes = false
+	if zone == BG_SORT then yes = true
+	elseif zone and zone > 0 and C_Map and C_Map.GetAreaInfo then
+		local name = Str(Call(C_Map.GetAreaInfo, zone))
+		yes = name ~= nil and name ~= "" and Battlegrounds()[Lower(name)] == true
+		if not bgNames then return yes end -- (the game hasn't named its battlegrounds yet: not kept)
+	end
+	questiePvP[id] = yes
+	return yes
+end
+
+--- Whether a quest in the log is a PvP quest (`tag`: its tag's id, TagKind's second answer).
+local function IsPvP(id, header, tag)
+	if tag == PVP_TAG then return true end
+	if header and Battlegrounds()[Lower(header)] then return true end
+	return QuestieSaysPvP(id)
 end
 
 --- Shift+Enter on a quest to drop: Terminal's own confirmation for that one quest (QuestDrop.lua), then the C calls
@@ -682,8 +736,9 @@ ns:RegisterProvider("quests", {
 					local complete = Complete(info.questID)
 					local drop = not complete and (grey or behind ~= nil)
 					local why = drop and (grey and L["grey"] or L["zone left behind (Lv %d-%d)"]:format(behind.lo, behind.hi)) or nil
-					-- (bulk tracking and its filters: the log's colour, a dungeon's or raid's, a class quest)
-					local instance = TagKind(info.questID) or InstanceOf(zone)
+					-- (bulk tracking and its filters: the log's colour, a dungeon's or raid's, a class quest, a PvP quest)
+					local tagKind, tag = TagKind(info.questID)
+					local instance = tagKind or InstanceOf(zone)
 					out[#out + 1] = {
 						key = info.questID,
 						name = title,
@@ -704,6 +759,7 @@ ns:RegisterProvider("quests", {
 						grey = grey, behind = behind, complete = complete, drop = drop,
 						diffName = diff and DIFF_NAME[diff] or nil, instance = instance,
 						classQuest = IsClassHeader(zone) or nil,
+						pvp = IsPvP(info.questID, zone, tag) or nil,
 						-- Shift+Enter: one to drop, Terminal asks and drops it; any other, super-track it (the waypoint arrow)
 						secondary = drop and DropAsk or TrackQuest,
 					}

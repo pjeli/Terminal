@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.7.8 (in testing)
+
+**Track or untrack your PvP quests in one go** (asked for on CurseForge)
+- "untrack pvp quests", "track pvp quests only", "track battleground quests": the PvP quests in your log, beside the
+  dungeon, raid and class ones. A PvP quest is one the game tags PvP, one under a battleground's heading in your log
+  (the game's own battleground names, in your client's language) or under "Battlegrounds", or, with QuestieDB, one
+  whose zone is a battleground.
+- Advanced: `is:pvp` now finds PvP quests in your log too (it already found battlemasters and PvP vendors):
+  `@quest is:pvp >>> untrack`.
+
 ## 1.7.7 (in testing)
 
 **"How do I...": Terminal's own help as search results**

@@ -621,7 +621,8 @@ IS.battlemaster = Battlemaster
 IS.weaponmaster = function(e) local t = NpcTitle(e); return t ~= nil and t:find("weapon master", 1, true) ~= nil end
 IS.weaponmasters = IS.weaponmaster
 IS.pvpvendor = PvpVendor
-IS.pvp = function(e) return Battlemaster(e) or PvpVendor(e) end
+-- (and a PvP quest in your log: Providers/Quests.lua marks them, 1.7.8)
+IS.pvp = function(e) return (e.kind == "quests" and e.pvp == true) or Battlemaster(e) or PvpVendor(e) end
 -- (flight and flightmaster: FlightMaster below, the flight paths' own test)
 local ROLES = { vendor = "VENDOR", trainer = "TRAINER",
 	innkeeper = "INNKEEPER", inn = "INNKEEPER", banker = "BANKER", bank = "BANKER", repair = "REPAIR",

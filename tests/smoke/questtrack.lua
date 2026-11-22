@@ -1,5 +1,6 @@
 -- Tracking quests in bulk (QuestTrack.lua, 0.63.3, from a player's comment): "untrack quests", "track completed quests",
--- "untrack dungeon quests", "track class quest", "track rfc quests only", "untrack red quests", "track nearby quests";
+-- "untrack dungeon quests", "track class quest", "track rfc quests only", "untrack red quests", "track nearby quests",
+-- "untrack pvp quests" (1.7.8);
 -- the tracker's limit, Questie's tracker, ">>> track" / ">>> untrack" / ">> track", the filters and Alt+`.
 local T = ...
 local ns, UI, S, check, key, FlushAll = T.ns, T.UI, T.S, T.check, T.key, T.FlushAll
@@ -328,6 +329,68 @@ do
 	key("ENTER"); FlushAll()
 	check(printed[1] and printed[1]:find("Only quests in your log can be tracked", 1, true), ">> track on an item: said")
 	UI:Hide(); FlushAll()
+
+	-- PvP quests (1.7.8, a player on CurseForge: "track/untrack pvp quests"): by the game's PvP tag, under a battleground's
+	-- name (the game's own) or its "Battlegrounds" heading, or by QuestieDB's zone for the quest
+	do
+		local QD = ns.QuestieData
+		local keep = { pvp = _G.C_PvP, bgs = _G.BATTLEGROUNDS, ready = QD.Ready, db = QD.DB }
+		_G.C_PvP = { GetBattlegroundInfo = function(i)
+			local n = ({ "Alterac Valley", "Warsong Gulch", "Arathi Basin" })[i]
+			return n and { name = n, maxPlayers = 40 } or nil
+		end }
+		_G.BATTLEGROUNDS = "Battlegrounds"
+		local AREA = { [3358] = "Arathi Basin", [45] = "Arathi Highlands" }
+		_G.C_Map.GetAreaInfo = function(a) return AREA[a] end
+		local ZONE = { [97304] = 45, [97305] = 3358, [97306] = -25 }
+		QD.Ready = function() return false end
+		QD.DB = function() return { QueryQuestSingle = function(id, field) if field == "zoneOrSort" then return ZONE[id] end end } end
+		for i = #quests, 1, -1 do quests[i] = nil end
+		for _, q in ipairs({
+			{ title = "Alterac Valley", isHeader = true }, { title = "The Battle of Alterac", questID = 97301, level = 51 },
+			{ title = "Battlegrounds", isHeader = true }, { title = "Call to Arms", questID = 97302, level = 55 },
+			{ title = "Hillsbrad Foothills", isHeader = true }, { title = "Tarren Mill Skirmish", questID = 97303, level = 40 },
+			{ title = "Arathi Highlands", isHeader = true }, { title = "Hammerfall", questID = 97304, level = 30 },
+			{ title = "The Defilers' Call", questID = 97305, level = 45 },
+			{ title = "Ashenvale", isHeader = true }, { title = "Warsong Outriders", questID = 97306, level = 35 },
+		}) do quests[#quests + 1] = q end
+		TAG[97303] = 41 -- (Enum.QuestTag.PvP)
+		local function Marked()
+			ns.providers.quests._dirty = true
+			local by, t = {}, {}
+			for _, e in ipairs(ns:GetEntries(ns.providers.quests)) do
+				by[e.questID] = e
+				if e.pvp then t[#t + 1] = tostring(e.questID) end
+			end
+			table.sort(t)
+			return by, table.concat(t, ",")
+		end
+		local _, marked = Marked()
+		check(marked == "97301,97302,97303", "PvP quests without QuestieDB: by the tag, a battleground's heading, the Battlegrounds heading: " .. marked)
+		QD.Ready = function() return true end
+		local by
+		by, marked = Marked()
+		check(marked == "97301,97302,97303,97305,97306", "with QuestieDB: a battleground's area, the Battlegrounds sort; not Arathi Highlands: " .. marked)
+		Watch(97301, 97303, 97304, 97305)
+		check(Ids(Ask("untrack pvp quests")) == "do,97303,97305,97301", "untrack pvp quests: the tracked PvP ones: " .. Ids(Ask("untrack pvp quests")))
+		Watch()
+		r = Ask("track pvp quests")
+		check(Ids(r) == "do,97306,97303,97305,97301,97302" and r[1].name == "Track 5 quests", "track pvp quests: " .. Ids(r))
+		check(Ids(Ask("track battleground quests")) == Ids(r) and Ids(Ask("track bg quests")) == Ids(r), "battleground / bg quests: the same")
+		check(QK.ToAdvanced(QK.Question("untrack pvp quests")) == "@quest is:pvp >>> untrack"
+			and ns.Easy.ToAdvanced("untrack pvp quests") == "@quest is:pvp >>> untrack",
+			"Alt+`: is:pvp: " .. tostring(ns.Easy.ToAdvanced("untrack pvp quests")))
+		check(F.Parse("is:pvp")(by[97303]) and F.Parse("is:pvp")(by[97302]) and not F.Parse("is:pvp")(by[97304]), "is:pvp on quests")
+		Watch(97301)
+		UI:Open("@quest is:pvp >>> untrack"); FlushAll()
+		check(UI.Results()[1] and UI.Results()[1].name == "Untrack 1 quest", "@quest is:pvp >>> untrack, typed: "
+			.. tostring(UI.Results()[1] and UI.Results()[1].name))
+		key("ENTER"); FlushAll()
+		check(W() == "", "Enter: untracked")
+		UI:Hide(); FlushAll()
+		TAG[97303] = nil
+		_G.C_PvP, _G.BATTLEGROUNDS, QD.Ready, QD.DB = keep.pvp, keep.bgs, keep.ready, keep.db
+	end
 
 	Q.GetNumQuestLogEntries, Q.GetInfo, Q.GetQuestObjectives, Q.ReadyForTurnIn = save.num, save.info, save.obj, save.ready
 	Q.GetQuestTagInfo, Q.GetQuestWatchType, Q.AddQuestWatch, Q.RemoveQuestWatch = save.tag, save.wt, save.add, save.rem

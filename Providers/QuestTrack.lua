@@ -2,7 +2,7 @@ local ns = select(2, ...)
 local L = ns.L
 
 -- Tracking quests in bulk (0.63.3, a player on CurseForge): "untrack quests", "track completed quests", "untrack dungeon
--- quests", "track class quest", "track rfc quests only" (those, and nothing else), "untrack red quests", "track nearby
+-- quests", "track class quest", "untrack pvp quests" (1.7.8), "track rfc quests only" (those, and nothing else), "untrack red quests", "track nearby
 -- quests". The answer lists the quests that would change, with "Track 4 quests" (or untrack, or both) on top: Enter
 -- does it. Advanced: any quest search, then ">>> track", ">>> untrack" or ">>> track only" (">> track": the selected one).
 --
@@ -170,6 +170,7 @@ function QK.Fits(e, q, places)
 	if q.raid and e.instance ~= "raid" then return false end
 	if q.dungeon and not (e.instance == "dungeon" or e.instance == "raid") then return false end
 	if q.class and not e.classQuest then return false end
+	if q.pvp and not e.pvp then return false end
 	if q.diffs and next(q.diffs) and not q.diffs[e.diffName or ""] then return false end
 	if q.here and not QK.Here(e) then return false end
 	if places then return places[e.zone or ""] == true end
@@ -189,11 +190,12 @@ for w in ([[my the of in for from that are which i have please now me some any l
 local JOIN = { ["and"] = true, ["or"] = true, also = true, plus = true }
 local QUAL = { complete = "complete", completed = "complete", done = "complete", finished = "complete", ready = "complete",
 	incomplete = "incomplete", unfinished = "incomplete", dungeon = "dungeon", dungeons = "dungeon", instance = "dungeon",
-	instances = "dungeon", raid = "raid", raids = "raid", class = "class", nearby = "here", near = "here", here = "here",
+	instances = "dungeon", raid = "raid", raids = "raid", class = "class", pvp = "pvp", battleground = "pvp",
+	battlegrounds = "pvp", bg = "pvp", bgs = "pvp", nearby = "here", near = "here", here = "here",
 	close = "here", around = "here", ["local"] = "here" }
 local DIFF = { red = "red", orange = "orange", yellow = "yellow", green = "green", grey = "grey", gray = "grey", trivial = "grey" }
 
---- The question: { verb = "track"|"untrack", only, complete, incomplete, dungeon, raid, class, here, diffs = { red = true },
+--- The question: { verb = "track"|"untrack", only, complete, incomplete, dungeon, raid, class, pvp, here, diffs = { red = true },
 --- words = the words that name quests or places }, or nil when the line isn't one. It starts with what to do: "track",
 --- "untrack", "stop tracking" ("only"/"just" before it, or after); "quest(s)" said, or "all"/"everything".
 function QK.Question(text)
@@ -238,6 +240,7 @@ function QK.ToAdvanced(q)
 	if q.incomplete then parts[#parts + 1] = "-is:complete" end
 	if q.raid then parts[#parts + 1] = "is:raid" elseif q.dungeon then parts[#parts + 1] = "is:dungeon|raid" end
 	if q.class then parts[#parts + 1] = "is:class" end
+	if q.pvp then parts[#parts + 1] = "is:pvp" end
 	local d = {}
 	for _, c in ipairs({ "red", "orange", "yellow", "green", "grey" }) do if q.diffs and q.diffs[c] then d[#d + 1] = c end end
 	if #d > 0 then parts[#parts + 1] = "is:" .. table.concat(d, "|") end
