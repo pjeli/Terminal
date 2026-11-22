@@ -124,14 +124,33 @@ do -- (a player on CurseForge: "I used shift+~, enter "nearest vendor", close te
 	bound = "CTRL-SPACE"
 	ns.db.tabs = { list = { { text = "linen" } }, cur = 1 }
 	now = now + 600
-	Reopen(" ")
+	local ctrlWas = _G.IsControlKeyDown
+	local ctrl = true
+	_G.IsControlKeyDown = function() return ctrl end
+	UI:Toggle()
+	F.scripts.OnChar(F, " ")
+	FlushAll()
 	check(T.query() == "linen", "Ctrl+Space bound: its space not typed: '" .. T.query() .. "'")
 	F.scripts.OnChar(F, " "); FlushAll()
 	check(T.query() == "linen ", "a space typed after that is typed: '" .. T.query() .. "'")
 	UI:Hide(); FlushAll()
 	check(ns.IsToggleChar(" ") and not ns.IsToggleChar("a"), "Ctrl+Space bound: a space is its character, a letter isn't")
+	-- (release review) Ctrl let go: a quick space of yours, on a client that typed nothing for Ctrl+Space, is typed
+	ctrl = false
+	check(not ns.IsToggleChar(" "), "Ctrl let go: a space is yours")
+	now = now + 600
+	UI:Toggle()
+	F.scripts.OnChar(F, " ")
+	FlushAll()
+	check(T.query() == "linen  ", "reopened (\"linen \" kept), Ctrl let go, a quick space: typed: '" .. T.query() .. "'")
+	UI:Hide(); FlushAll()
+	_G.IsControlKeyDown = ctrlWas
 	bound = "SHIFT-Q"
-	check(ns.IsToggleChar("Q") and ns.IsToggleChar("q") and not ns.IsToggleChar(" "), "Shift+Q bound: its Q")
+	_G.IsShiftKeyDown = function() return true end
+	check(ns.IsToggleChar("Q") and ns.IsToggleChar("q") and not ns.IsToggleChar(" "), "Shift+Q bound, Shift held: its Q")
+	_G.IsShiftKeyDown = function() return false end
+	check(not ns.IsToggleChar("q"), "Shift let go: a q is yours")
+	_G.IsShiftKeyDown = was.shift
 	ns.db.tabs, Th.Get().keepSession = was.tabs, was.keep
 	ns.db.easyMode = was.easy; UI:EasyChanged()
 	_G.GetTime, _G.GetBindingKey, _G.IsShiftKeyDown = was.time, was.bind, was.shift

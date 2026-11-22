@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.15 (in testing)
+
+**A chord's character dropped only while the chord is held** (release review)
+- 1.7.2 dropped the first space (or the bound letter) typed just after Terminal opened with a chord bound to it, even
+  with the chord's keys let go: on a client that types nothing for Ctrl+Space, your own quick first space was lost
+  ("foo" and a quick " bar" gave "foobar"). It's dropped only while the chord's modifiers are still held.
+
 ## 1.7.14 (in testing)
 
 **Pawn's scales: the tooltip says which, `.weights paste`, cheaper** (release review)

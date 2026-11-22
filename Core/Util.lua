@@ -697,9 +697,12 @@ function ns.IsToggleChar(ch)
 	-- a chord bound to it types its own key's character on some clients: Ctrl+Space a space, Shift+Q a Q (1.7.2, a
 	-- player on CurseForge: "the space used to open the terminal shouldn't become part of the input"). Asked only of the
 	-- first character after the key's press (OnChar's swallowTick), so a space typed after it is typed
+	-- (its modifiers still held, the chord as it's bound: on a client that types nothing for Ctrl+Space, your own quick
+	-- first space after opening was dropped; release review)
 	for _, k in ipairs(ns.ToggleBindings()) do
 		local base, mods = Base(k)
-		if #mods > 0 and ((base == "SPACE" and ch == " ") or (#base == 1 and base:find("%w") and ns.Lower(ch) == ns.Lower(base))) then
+		if #mods > 0 and ((base == "SPACE" and ch == " ") or (#base == 1 and base:find("%w") and ns.Lower(ch) == ns.Lower(base)))
+			and ChordNow(base) == k then
 			return true
 		end
 	end
