@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.8.1 (in testing)
+
+**Bonus search** (the player: WoW Forever's items with effects by area type, "biome", or against a creature type)
+- `bonus:` finds gear by its bonus, read from the item's own tooltip (the game's English text): where it grows,
+  `bonus:haunted`, `bonus:swamp`, `bonus:stronghold` (the ten area types; `bonus:area`: any), or what it's against,
+  `bonus:undead`, `bonus:beast`, `bonus:troll` (the creature types and the species tooltips name; `bonus:creature`:
+  any). `is:bonus` is either. Wordings read: "This effect is doubled in Marsh and Swamp areas", "Increases Spirit by
+  16 in Cavernous or Underground areas", "+45 Attack Power when fighting Undead", "against the Naga", set bonuses too.
+- `| group by bonus` (also on the bar's Group menu) makes a group per bonus, "Haunted", "Against Undead"; an item with
+  two is in both. Enter on a group lists it with its `bonus:` filter.
+- Simple mode: "haunted bonus", "gear for swamp areas", "against undead", "vs beasts", "biome gear"; "items by bonus".
+- Which area types you're standing in isn't answered yet: the game doesn't say, and which zones are which isn't
+  published.
+
 ## 1.8.0
 
 Terminal 1.8: Pawn's scales judge your upgrades, Terminal answers "how do I..." with its own help, faction rewards

@@ -35,6 +35,11 @@ E.WORDS = {
 	["attack power"] = "stat:ap", ["spell power"] = "stat:sp", ["spell damage"] = "stat:sp", ["mana regen"] = "stat:mp5",
 	["healing power"] = "stat:healing", crit = "stat:crit", mp5 = "stat:mp5",
 	["weapon damage"] = "stat:weapondamage",
+	-- bonuses by where you are (an area type: "biome") or what you fight; the area types' own words as phrases below
+	biome = "bonus:area", biomes = "bonus:area", ["biome bonus"] = "bonus:area", ["biome bonuses"] = "bonus:area",
+	["area bonus"] = "bonus:area", ["area bonuses"] = "bonus:area", ["creature bonus"] = "bonus:creature",
+	haunted = "bonus:haunted", snowy = "bonus:snowy", mountainous = "bonus:mountainous", volcanic = "bonus:volcanic",
+	cavernous = "bonus:cavern", wasteland = "bonus:wasteland", wastelands = "bonus:wasteland",
 	-- gear that suits you: your level, your class, near what you wear there or better (strict: HARD_WORDS)
 	upgrade = "is:upgrade", upgrades = "is:upgrade",
 	-- where loot comes from: "raid loot", "dungeon gear". (Not "from quests", "from reputation", "quest gear": review,
@@ -204,6 +209,23 @@ end
 --- The filter one of the game's own words stands for, or nil (E.WORDS answers these too, after its own).
 function E.GameWord(w) return type(w) == "string" and E.GameWords()[w] or nil end
 function E.ForgetGameWords() gameWords = nil end -- (tests)
+-- bonuses (Bonus.lua): an area type's words with "bonus" or "areas" after ("swamp bonus", "gear for city areas": a zone's
+-- name alone, "swamp", stays a word), a creature's after "against", "vs" ("against undead", "vs beasts")
+do
+	local BN = ns.Bonus
+	for _, a in ipairs(BN and BN.AREAS or {}) do
+		for _, w in ipairs(a.words) do
+			for _, after in ipairs({ "bonus", "bonuses", "area", "areas" }) do
+				if rawget(E.WORDS, w .. " " .. after) == nil then E.WORDS[w .. " " .. after] = "bonus:" .. a.key end
+			end
+		end
+	end
+	for key, words in pairs(BN and BN.CREATURES or {}) do
+		for _, w in ipairs(words) do
+			for _, lead in ipairs({ "against", "vs", "versus" }) do E.WORDS[lead .. " " .. w] = "bonus:" .. key end
+		end
+	end
+end
 setmetatable(E.WORDS, { __index = function(_, w) return E.GameWord(w) end })
 --- Whether one of the game's own words names an NPC role (or a class's or profession's trainer).
 function E.GameRole(w)

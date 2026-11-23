@@ -145,6 +145,7 @@ local function FilterSay(key, val)
 	elseif key == "type" then return { noun = v }
 	elseif key == "slot" then return { after = L["for the %s slot"]:format(v) }
 	elseif key == "stat" or key == "stats" then return { after = L["with %s"]:format(v) }
+	elseif (key == "bonus" or key == "bonuses" or key == "biome") and ns.Bonus then return { after = ns.Bonus.Say(v) }
 	elseif key == "in" or key == "zone" or key == "where" then return { after = L["in %s"]:format(v) }
 	elseif key == "on" or key == "who" then return { after = L["on %s"]:format(v) }
 	elseif key == "faction" then return { adj = v == "friendly" and L["friendly"] or L["friendly to the %s"]:format(v) }

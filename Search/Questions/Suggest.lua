@@ -547,7 +547,7 @@ local PF = {}
 ns.PerField = PF
 -- (fields a list is grouped by: not the ones summed up, value, price, count)
 local GROUPS = { zone = true, instance = true, dungeon = true, raid = true, boss = true, quality = true, type = true,
-	subtype = true, slot = true, level = true, ilvl = true, kind = true, owner = true }
+	subtype = true, slot = true, level = true, ilvl = true, kind = true, owner = true, category = true, bonus = true }
 local LEAD = { how = true, many = true, number = true, of = true, count = true, the = true, show = true, list = true, all = true }
 
 local function GroupField(w)

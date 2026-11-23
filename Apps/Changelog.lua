@@ -14,6 +14,12 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
+		v = "1.8.1", when = "in testing",
+		items = {
+			"Find gear by its bonus: where it grows (\"haunted bonus\", bonus:swamp, bonus:area) or what it's against (\"against undead\", bonus:troll), read from the item's own tooltip; | group by bonus.",
+		},
+	},
+	{
 		v = "1.8.0", when = "released November 2026",
 		items = {
 			"With Pawn installed, the scales it shows judge your upgrades: no exporting and pasting (.weights picks still come first; .weights paste for a string).",
@@ -47,16 +53,6 @@ CL.LOG = {
 			"New setting \"Thank players who buff you\" (off unless turned on): a /thank to a player outside your group who buffs you; with OneForAll's own option on, Terminal leaves it to OneForAll.",
 			"\"library book rewards\" without OneForAll: just the Library's three reward tiers, each with how many books it takes.",
 			"No more short freeze half a minute after logging in: the recipes you haven't learned are read a little at a time.",
-		},
-	},
-	{
-		v = "1.5.0", when = "released November 2026",
-		items = {
-			"Item sets without OneForAll: with AtlasLoot alone, @itemset lists the sets, their pieces, where each drops and the set bonuses; Enter opens AtlasLoot on the set, and \"my class sets\" lists your class's, dungeon sets included.",
-			"Library Books without OneForAll: with Questie (or QuestieDB) alone, @book lists all 40 books, where each lies and how far along you are; \"library book rewards\" lists each reward as an item you can hover.",
-			".integrations lists only the addons Terminal found, with what each gives and how many enchants, books and item sets come from which.",
-			"Legacy rewards: Enter finds the innkeeper who gives them on a game client in any language.",
-			"Faster: a misspelled long word finds its close spellings in under half the time, and a hunter's first \"pet food\" question or a first \"what does <token> give\" no longer hitches.",
 		},
 	},
 }

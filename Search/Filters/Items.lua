@@ -127,6 +127,7 @@ F.ClearCache = function()
 	recipeItem = {}
 	if F.ClearStats then F.ClearStats() end
 	if F.ClearEffects then F.ClearEffects() end
+	if F.ClearBonuses then F.ClearBonuses() end
 	if F.ClearPlaces then F.ClearPlaces() end
 	if F.ClearSold then F.ClearSold() end
 	if F.ClearSlotNames then F.ClearSlotNames() end

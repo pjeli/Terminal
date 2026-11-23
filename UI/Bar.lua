@@ -101,7 +101,7 @@ B.DISTANCE_FIELD = { id = "distance", field = "distance", asc = true } -- (a lat
 -- (category, not type: the game's classes said the same as the categories, Armor / Gear, Weapon / Weapons, the player:
 -- "redundant"; "| group by type" still works typed. Subtype: inside a category's group, the recipes by profession,
 -- the gear by Cloth or Plate. 1.7.11)
-B.GROUPS = { "kind", "owner", "faction", "standing", "zone", "quality", "category", "subtype", "slot", "dungeon", "raid", "boss", "level" }
+B.GROUPS = { "kind", "owner", "faction", "standing", "zone", "quality", "category", "subtype", "slot", "bonus", "dungeon", "raid", "boss", "level" }
 
 local function E() return ns.Easy end
 local function ById(list, id) for _, o in ipairs(list) do if o.id == id then return o end end end

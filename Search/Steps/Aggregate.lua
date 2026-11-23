@@ -146,6 +146,12 @@ A.FIELDS = {
 		return info and Num(info.quality)
 	end, text = function(e, f) return (QualityName(f.num(e))) end, order = true },
 	category = { label = L["category"], text = function(e) return A.Category(e) end },
+	-- (an item's bonuses by area type or creature, Bonus.lua: "Haunted", "Against Undead"; texts: every one, an item with
+	-- two goes in both groups; text: them joined, for a sort and the menus; 1.8.1)
+	bonus = { label = L["bonus"], texts = function(e) return ns.Bonus and ns.Bonus.Labels(e) end, text = function(e)
+		local t = ns.Bonus and ns.Bonus.Labels(e)
+		return t and table.concat(t, ", ") or nil
+	end },
 	-- (the client's own item data first, as category: a reward the server hasn't sent yet has them too; then its full
 	-- info. Subtype inside a category: a recipe's profession, gear's Cloth or Plate, a weapon's Swords; 1.7.11)
 	type = { label = L["type"], text = function(e)
@@ -206,8 +212,8 @@ A.ALIASES = { q = "quality", lvl = "level", itemlevel = "ilvl", ["in"] = "zone",
 	worth = "value", gold = "value", money = "value", vendor = "value", sell = "value", list = "kind", kinds = "kind",
 	sub = "subtype", subtypes = "subtype", types = "type", slots = "slot", zones = "zone", qualities = "quality",
 	owners = "owner", friend = "owner", friends = "owner", factions = "faction", standings = "standing", rep = "standing",
-	categories = "category", cat = "category" }
-A.ORDER = { "value", "price", "count", "kind", "owner", "faction", "standing", "zone", "instance", "dungeon", "raid", "boss", "quality", "category", "type", "subtype", "slot", "level", "ilvl" }
+	categories = "category", cat = "category", bonuses = "bonus", biome = "bonus", biomes = "bonus" }
+A.ORDER = { "value", "price", "count", "kind", "owner", "faction", "standing", "zone", "instance", "dungeon", "raid", "boss", "quality", "category", "type", "subtype", "slot", "bonus", "level", "ilvl" }
 A.OPS = { count = "count", group = "group", sum = "sum", total = "sum", avg = "avg", average = "avg", mean = "avg" }
 A.FIRST_WORDS = { first = true, top = true, head = true }
 -- Comparing two searches: "| except @bank" leaves out what the other search finds, "| also @stored" adds it. "Recipes
@@ -392,13 +398,20 @@ local function PlainLower(t)
 	return v
 end
 
-local function KeepsRow(w, e)
-	if w.test then return w.test(A.FIELDS[w.where].num(e)) end -- (a number's step: by its range, "lvl:20-30")
-	local t = TextOf(w.where, e)
-	if not t then return false end
+local function Fits(w, t)
 	local lt = PlainLower(t)
 	if lt == w.value then return true end
 	return not w.exact and lt:find(w.value, 1, true) ~= nil
+end
+local function KeepsRow(w, e)
+	local fd = A.FIELDS[w.where]
+	if w.test then return w.test(fd.num(e)) end -- (a number's step: by its range, "lvl:20-30")
+	if fd.texts then -- (several: any of them)
+		for _, t in ipairs(fd.texts(e, fd) or {}) do if Fits(w, t) then return true end end
+		return false
+	end
+	local t = TextOf(w.where, e)
+	return t and Fits(w, t) or false
 end
 
 --- What a row is, to compare across lists: the same item (whoever holds it), quest, spell or NPC; else its name.
@@ -566,6 +579,7 @@ local FILTER_OF = {
 	boss = function(g) return 'in:"' .. g.text .. '"' end,
 	type = function(g) return 'type:"' .. g.text .. '"' end,
 	subtype = function(g) return 'type:"' .. g.text .. '"' end,
+	bonus = function(g) local v = ns.Bonus and ns.Bonus.ValueOf(g.text) return v and ("bonus:" .. v) or nil end,
 }
 DrillTo = function(spec, by, g)
 	local text = ns.Plain(g.text)
@@ -723,28 +737,41 @@ function A.Apply(spec, res, base)
 	local groups, order = {}, {}
 	local total, have = 0, 0
 	local texts -- (each row's group, read once: a zone is a Questie lookup per NPC row)
+	local many = s.by and A.FIELDS[s.by].texts -- (a row in several groups: an item's bonuses)
 	if s.by then -- (by raid: the raids' rows alone, no "no raid" group; by slot: what has one)
 		local kept = {}
 		texts = {}
 		for _, e in ipairs(rows) do
-			local t = TextOf(s.by, e)
+			local t
+			if many then
+				t = many(e, A.FIELDS[s.by])
+				if t and #t == 0 then t = nil end
+			else
+				t = TextOf(s.by, e)
+			end
 			if t then kept[#kept + 1] = e; texts[#kept] = t end
 		end
 		rows, n = kept, #kept
+	end
+	local function Into(t, e, v)
+		local g = groups[t]
+		if not g then
+			g = { text = t, n = 0, sum = 0, have = 0, sample = e }
+			groups[t] = g
+			order[#order + 1] = g
+		end
+		g.n = g.n + 1
+		if v then g.sum, g.have = g.sum + v, g.have + 1 end
 	end
 	for i, e in ipairs(rows) do
 		local v = f and f.num(e)
 		if v then total, have = total + v, have + 1 end
 		if s.by then
-			local t = texts[i]
-			local g = groups[t]
-			if not g then
-				g = { text = t, n = 0, sum = 0, have = 0, sample = e }
-				groups[t] = g
-				order[#order + 1] = g
+			if many then
+				for _, t in ipairs(texts[i]) do Into(t, e, v) end
+			else
+				Into(texts[i], e, v)
 			end
-			g.n = g.n + 1
-			if v then g.sum, g.have = g.sum + v, g.have + 1 end
 		end
 	end
 	local function Value(sum, got)
