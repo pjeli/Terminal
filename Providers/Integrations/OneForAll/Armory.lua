@@ -861,12 +861,15 @@ function A.Question(text)
 		local s = SetIn(t)
 		if s then return { what = "pieces", set = s } end
 	end
-	-- reputation rewards
+	-- reputation rewards (a bonus said too: "argent dawn rewards against trolls", "rep rewards with a mountainous bonus",
+	-- its bonus: filters; 1.8.2, the player)
 	if A.Factions() then
-		local f, at, n = FactionIn(words)
-		local q = { what = "rewards", faction = f, words = {} }
+		local bonus, left = {}, words
+		if ns.Bonus then bonus, left = ns.Bonus.Take(words) end
+		local f, at, n = FactionIn(left)
+		local q = { what = "rewards", faction = f, words = {}, bonus = #bonus > 0 and bonus or nil }
 		local reward, rep, buy = false, false, false
-		for i, w in ipairs(words) do
+		for i, w in ipairs(left) do
 			if not (f and i >= at and i < at + n) then
 				local st = StandingIn(w)
 				if st then q.standing = st
@@ -954,10 +957,16 @@ function A.Answer(q)
 	for _, e in ipairs(p and ns:GetEntries(p) or {}) do if e.repReward then all[#all + 1] = e end end
 	if #all == 0 then all = A.Rewards() end
 	local lf = q.faction and Lower(q.faction.name)
+	local bonus = {}
+	for _, spec in ipairs(q.bonus or {}) do
+		local f = ns.Filters and ns.Filters.Parse(spec)
+		if f then bonus[#bonus + 1] = f end
+	end
 	for _, e in ipairs(all) do
 		local ok = (not q.faction or (q.faction.id and e.factionID == q.faction.id) or (not e.factionID and Lower(tostring(e.faction)) == lf))
 			and (not q.standing or (q.upTo and e.reaction <= q.standing) or e.reaction == q.standing)
 			and (not q.kind or e.what == q.kind) and (not q.now or e.canBuy) and Has(e, q.words)
+			and (#bonus == 0 or ns.Filters.Pass(e, bonus))
 		if ok then rows[#rows + 1] = e end
 	end
 	ns.ScoreInOrder(rows)
@@ -968,6 +977,10 @@ function A.Answer(q)
 		title = title .. SEP .. (mine and L["you're %s"]:format(A.StandingName(mine)) or L["not met yet"])
 	end
 	if q.now then title = title .. SEP .. L["the ones you can buy"] end
+	for _, spec in ipairs(q.bonus or {}) do
+		local said = ns.Easy and ns.Easy.SayFilter and ns.Easy.SayFilter(spec)
+		if said then title = title .. SEP .. said end
+	end
 	if #rows == 0 then
 		return { ns.NoteRow(q.now and L["Nothing you can buy yet"] or L["No reputation reward has that"]) }, title
 	end
@@ -985,5 +998,6 @@ function A.ToAdvanced(q)
 	if q.standing then parts[#parts + 1] = "standing:" .. (q.upTo and "<=" or "") .. Lower(STANDING_ENGLISH[q.standing] or tostring(q.standing)) end
 	if q.kind then parts[#parts + 1] = q.kind end
 	if q.now then parts[#parts + 1] = "is:canbuy" end
+	for _, spec in ipairs(q.bonus or {}) do parts[#parts + 1] = spec end
 	return table.concat(parts, " ") .. " " .. w
 end

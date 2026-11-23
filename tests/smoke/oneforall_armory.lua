@@ -356,6 +356,54 @@ do
 			A.ForgetRewards(); ns.providers.reputation._dirty = true
 			if ns.Filters.ClearCache then ns.Filters.ClearCache() end
 		end
+		-- (1.8.2, the player: "searching for faction or reputation rewards that deal 2x damage to trolls, or have a bonus in
+		-- mountainous areas") a faction's rewards and a bonus together, in plain words and in Advanced
+		do
+			local tipWas, BN = _G.C_TooltipInfo, ns.Bonus
+			local TIPS = { [18171] = "Equip: Your attacks deal double damage against Trolls.",
+				[13724] = "Use: Restores 20 health. This effect is doubled in Mountainous areas." }
+			_G.C_TooltipInfo = { GetItemByID = function(id)
+				return { lines = { { leftText = "Item " .. id }, { leftText = TIPS[id] or "Equip: +5 Stamina." } } }
+			end }
+			BN.ForgetForTests()
+			A.ForgetRewards(); ns.providers.reputation._dirty = true
+			local function Ids(rows)
+				local t = {}
+				for _, e in ipairs(rows) do if e.itemID then t[#t + 1] = tostring(e.itemID) end end
+				table.sort(t)
+				return table.concat(t, ",")
+			end
+			check(Ids(UI:Search("@reputation is:reward bonus:troll")) == "18171", "@reputation is:reward bonus:troll: "
+				.. Ids(UI:Search("@reputation is:reward bonus:troll")))
+			check(Ids(UI:Search("@reputation is:reward argent bonus:mountainous")) == "13724", "...a faction's, in mountainous areas")
+			local easyWas = ns.db.easyMode
+			ns.db.easyMode = true; UI:EasyChanged()
+			for _, c in ipairs({
+				{ "argent dawn rewards against trolls", "18171", "@reputation is:reward argent dawn bonus:troll " },
+				{ "reputation rewards that deal 2x damage to trolls", "18171", "@reputation is:reward bonus:troll " },
+				{ "faction rewards with a bonus in mountainous areas", "13724", "@reputation is:reward bonus:mountainous " },
+				{ "rep rewards with a mountainous bonus", "13724", "@reputation is:reward bonus:mountainous " },
+				{ "argent dawn rewards against undead", "", nil },
+			}) do
+				UI:Open(c[1]); FlushAll()
+				local got = Ids(UI.Results())
+				check(got == c[2], c[1] .. ": " .. got .. " (wanted " .. c[2] .. ")")
+				UI:Hide(); FlushAll()
+				if c[3] then
+					local adv = A.ToAdvanced(A.Question(c[1]))
+					check(adv == c[3], c[1] .. ", Alt+`: " .. adv)
+				end
+			end
+			-- (the words a bonus is said with go in any list: "deal 2x damage" are no names to look for)
+			check(ns.Easy.ToAdvanced("trinkets that deal 2x damage to trolls"):find("bonus:troll", 1, true)
+				and not ns.Easy.ToAdvanced("trinkets that deal 2x damage to trolls"):find("damage", 1, true),
+				"trinkets that deal 2x damage to trolls: " .. ns.Easy.ToAdvanced("trinkets that deal 2x damage to trolls"))
+			check(A.Question("timbermaw recipes") and not A.Question("timbermaw recipes").bonus, "no bonus said: none taken")
+			ns.db.easyMode = easyWas; UI:EasyChanged()
+			_G.C_TooltipInfo = tipWas
+			BN.ForgetForTests()
+			A.ForgetRewards(); ns.providers.reputation._dirty = true
+		end
 		-- (1.6.5, the mismatch hunt) "argent dawn > rewards" lists AtlasLoot's rewards too, as "argent dawn rewards" does
 		local viaChain = ns.Pipes.Run("rewards", { { kind = "reputation", factionID = 529, name = "Argent Dawn" } })
 		local chainAL, chainBraziers = false, 0

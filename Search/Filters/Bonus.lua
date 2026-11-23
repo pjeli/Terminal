@@ -294,6 +294,44 @@ KEYS.biome = function(v) return KEYS.bonus(v) end
 IS.bonus = function(e) return BN.OfRow(e) ~= nil end
 IS.bonuses = IS.bonus
 
+-- A bonus said in plain words, inside a longer line ("argent dawn rewards against trolls", "reputation rewards that deal
+-- 2x damage to trolls", "rewards with a bonus in mountainous areas"): the bonus: filters it says, and the words left. The
+-- words around one ("deal 2x damage", "with a bonus") are how it was said, not names to look for: FILLER, dropped
+-- once a bonus was said (Query.lua's Simple-mode words too).
+BN.FILLER = {}
+for w in ([[deal deals dealing do does double doubled triple tripled quadrupled twice 2x 3x 4x x2 x3 extra damage
+	effect effects bonus bonuses area areas grow grows growing have has with in a an the that which when]]):gmatch("%S+") do BN.FILLER[w] = true end
+-- (an area type's word alone that no zone's name has: "mountainous rewards"; "swamp", "forest" want "bonus" or "areas")
+local ALONE = { haunted = true, snowy = true, mountainous = true, volcanic = true, cavernous = true, wasteland = true, wastelands = true }
+local FOE_WORD = { against = true, vs = true, versus = true, to = true, fighting = true }
+local AREA_AFTER = { bonus = true, bonuses = true, area = true, areas = true }
+--- The bonus: filters a list of (lowercase) words says, and the other words (none of FILLER when one was said).
+function BN.Take(words)
+	local specs, seen, rest = {}, {}, {}
+	local function Add(v)
+		if not seen[v] then seen[v] = true; specs[#specs + 1] = "bonus:" .. v end
+	end
+	local i = 1
+	while i <= #words do
+		local w, nx = words[i], words[i + 1]
+		local nxs = nx and nx:gsub("'s$", "")
+		if FOE_WORD[w] and nxs and (CREATURE_OF[nxs] or (w ~= "to" and w ~= "fighting" and #nxs > 2 and nxs:find("^%a+$")
+			and not NOT_CREATURE[nxs] and not BN.FILLER[nxs] and not AREA_OF[nxs])) then
+			Add(Stem(nxs)); i = i + 2
+		elseif AREA_OF[w] and ((nx and AREA_AFTER[nx]) or words[i - 1] == "in" or ALONE[w]) then
+			Add(AREA_OF[w]); i = i + 1
+		elseif w == "biome" or w == "biomes" then
+			Add("area"); i = i + 1
+		else
+			rest[#rest + 1] = w; i = i + 1
+		end
+	end
+	if #specs == 0 then return specs, words end
+	local left = {}
+	for _, w in ipairs(rest) do if not BN.FILLER[w] then left[#left + 1] = w end end
+	return specs, left
+end
+
 -- the values Tab offers, the lists they judge, .filters' line
 do
 	local V = F.VALUES
@@ -304,7 +342,10 @@ do
 	end
 	V.bonuses, V.biome = V.bonus, V.bonus
 	V.is[#V.is + 1] = "bonus"
-	local made = F.APPLIES.q["*"]
+	local made = {}
+	for _, k in ipairs(F.APPLIES.q["*"]) do made[#made + 1] = k end
+	made[#made + 1] = "reputation" -- (its rewards: "@reputation is:reward bonus:troll")
+	made[#made + 1] = "itemset" -- (a set's pieces)
 	F.APPLIES.bonus = { ["*"] = made }
 	F.APPLIES.bonuses, F.APPLIES.biome = F.APPLIES.bonus, F.APPLIES.bonus
 	F.APPLIES.is.bonus = made

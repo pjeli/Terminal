@@ -14,9 +14,10 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.8.1", when = "in testing",
+		v = "1.8.2", when = "in testing",
 		items = {
 			"Find gear by its bonus: where it grows (\"haunted bonus\", bonus:swamp, bonus:area) or what it's against (\"against undead\", bonus:troll), read from the item's own tooltip; | group by bonus.",
+			"A bonus goes with the rest of a search: \"argent dawn rewards against trolls\", \"reputation rewards that deal 2x damage to trolls\", \"faction rewards with a bonus in mountainous areas\".",
 		},
 	},
 	{

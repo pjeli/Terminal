@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.2 (in testing)
+
+**Bonuses combine with the rest of a search** (the player: "faction or reputation rewards that deal 2x damage to
+trolls, or have a bonus in mountainous areas")
+- A faction's rewards take a bonus said in plain words: "argent dawn rewards against trolls", "reputation rewards that
+  deal 2x damage to trolls", "faction rewards with a bonus in mountainous areas", "exalted rewards against undead".
+  Alt+` writes them as `@reputation is:reward argent dawn bonus:troll`; the title says the bonus too.
+- The words a bonus is said with ("deal 2x damage", "with a bonus", "that have") are no longer searched as names, in
+  any list: "trinkets that deal 2x damage to trolls" looks for trinkets with `bonus:troll`. "to trolls" and
+  "fighting undead" are read as "against".
+- Tab offers `bonus:`'s values after `@reputation` and `@itemset` too.
+
 ## 1.8.1 (in testing)
 
 **Bonus search** (the player: WoW Forever's items with effects by area type, "biome", or against a creature type)

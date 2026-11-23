@@ -222,7 +222,7 @@ do
 	end
 	for key, words in pairs(BN and BN.CREATURES or {}) do
 		for _, w in ipairs(words) do
-			for _, lead in ipairs({ "against", "vs", "versus" }) do E.WORDS[lead .. " " .. w] = "bonus:" .. key end
+			for _, lead in ipairs({ "against", "vs", "versus", "to", "fighting" }) do E.WORDS[lead .. " " .. w] = "bonus:" .. key end
 		end
 	end
 end

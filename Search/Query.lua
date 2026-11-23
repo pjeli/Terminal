@@ -73,6 +73,14 @@ function Scan.DropStop(tokens, softs)
 	return tokens
 end
 
+--- Does the query hold a bonus: filter (typed, or said in Simple mode's words)?
+function Scan.SaysBonus(q)
+	for _, spec in pairs(q.specOf or {}) do
+		if type(spec) == "string" and (" " .. spec):find("[%s|!%-]bonus:") then return true end
+	end
+	return false
+end
+
 --- tokens.short[i]: the full names of word i when it's a shorthand ("brd", "strat", "sw").
 function Scan.FillShorthand(tokens)
 	local SH = ns.Shorthand
@@ -770,6 +778,12 @@ function Scan.Prepare(self, q)
 	-- enchanting trainer") (a kind said, "quests in westfall": the little words go even when nothing else is left, the
 	-- kind was what was said)
 	if q.simple and #tokens > 0 then tokens = Scan.DropStop(tokens, q.softs or q.strictWords or q.trainerAsked or q.kindCat) end
+	-- (a bonus said, "dungeon loot that deals 2x damage to trolls": the words it was said with go too, Bonus.lua)
+	if q.simple and #tokens > 0 and ns.Bonus and Scan.SaysBonus(q) then
+		local kept = {}
+		for _, w in ipairs(tokens) do if not ns.Bonus.FILLER[w] then kept[#kept + 1] = w end end
+		tokens = kept
+	end
 	tokens.exact = q.exact -- ("quoted phrases": as they are; DropStop's list is a new one)
 	-- "brd", "strat", "sw": also the place's full name (Shorthand.lua), looked up once per search (before
 	-- the Simple overview, which scores with them too)
