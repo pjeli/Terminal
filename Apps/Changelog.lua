@@ -14,17 +14,16 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.7.16", when = "in testing",
+		v = "1.8.0", when = "released November 2026",
 		items = {
-			"Group by category: a faction's rewards, loot or your bags as recipes, weapons, gear, consumables, pets and mounts; then by subtype (recipes by profession).",
+			"With Pawn installed, the scales it shows judge your upgrades: no exporting and pasting (.weights picks still come first; .weights paste for a string).",
+			"Ask Terminal how: \"how do i send to party\", \"what does shift enter do\": its own help as rows, Enter writes the example.",
 			"Faction rewards are found by what they are: \"@faction cenarion tailoring\" lists its tailoring patterns.",
-			"Your gold no longer lists a \"Warband bank\" at 0c with Baganator (WoW Forever has none).",
-			"Track or untrack your PvP quests in one go: \"untrack pvp quests\", \"track battleground quests\" (is:pvp in Advanced).",
-			"Ask Terminal how: \"how do i send to party\", \"what does shift enter do\": the answer as rows, Enter writes the example.",
+			"Group by category: rewards, loot or your bags as recipes, weapons, gear, consumables, pets and mounts; then by subtype (recipes by profession).",
+			"Track or untrack your PvP quests in one go: \"untrack pvp quests\", \"track battleground quests\".",
 			"After an update the empty prompt says what's new: Enter on it opens the changelog.",
-			"With Pawn installed, the scales it shows judge your upgrades: no more exporting and pasting (.weights picks still come first).",
-			"Opening Terminal with Ctrl+Space (or another chord bound to it) no longer types its space into the prompt.",
-			"The options panel has a \"Keep your session\" checkbox (it was only in \"terminal settings\" and .set).",
+			"A \"Keep your session\" checkbox in the options panel; Ctrl+Space (or another chord bound to Terminal) no longer types its space.",
+			"Fixed: a \"Warband bank\" at 0c in your gold with Baganator; and the fixes of a release review.",
 		},
 	},
 	{

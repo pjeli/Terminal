@@ -1,163 +1,77 @@
 # Changelog
 
-## 1.7.16 (in testing)
+## 1.8.0
 
-**PvP quests, `type:pet`, the Group menu: review fixes** (release review)
-- On a German, French, Spanish, Russian or Chinese client the battle pets' family names ("Wasser", "Untot", "Bête")
-  were Simple mode's words for `type:pet`: "wasser" found only pets. Battle pets are `type:pet` by their class now,
-  whose name ("Kampfhaustiere") is the word; companion pets as before.
-- PvP quests: while the game names no battleground, the list is asked again at most every 30 seconds, not for every
-  quest on every quest log update; QuestieDB's zone for a quest is read once, not again on every update.
-- A group the Group menu doesn't offer (typed: `| group by type`, or kept from before) is shown in it, ticked, so it can
-  be taken off there.
-- AtlasLoot's faction rewards read an item's type words once, not on every reputation gain.
+Terminal 1.8: Pawn's scales judge your upgrades, Terminal answers "how do I..." with its own help, faction rewards
+are found and grouped by what they are, PvP quests track and untrack in one go, and what's new after an update waits
+in the empty prompt; with the fixes of a release review.
 
-## 1.7.15 (in testing)
-
-**A chord's character dropped only while the chord is held** (release review)
-- 1.7.2 dropped the first space (or the bound letter) typed just after Terminal opened with a chord bound to it, even
-  with the chord's keys let go: on a client that types nothing for Ctrl+Space, your own quick first space was lost
-  ("foo" and a quick " bar" gave "foobar"). It's dropped only while the chord's modifiers are still held.
-
-## 1.7.14 (in testing)
-
-**Pawn's scales: the tooltip says which, `.weights paste`, cheaper** (release review)
-- An upgrade judged by Pawn's scales says which in its tooltip ("An upgrade for: Pawn "Healer""), as 1.7.3 promised: it
-  did only for trees picked in `.weights`.
-- `.weights paste` opens the window to paste a Pawn scale string into, whether Pawn is installed or not: with Pawn
-  showing a scale, `.weights pawn` alone goes back to Pawn's scales, and the messages that sent you there for the
-  window now say `.weights paste`.
-- With Pawn's scales judging, `.weights all` (its completion and `.weights`'s own help) says it goes back to Pawn's
-  scales, as it does; they said "the tree your talent points are in".
-- `is:upgrade` with two or three Pawn scales shown no longer weighs every row once per scale: a row that isn't
-  equipment is let go once. Translated.
-
-## 1.7.13 (in testing)
-
-**"How do I..." answers: only when every word fits** (release review)
-- A how-to question is answered only when every word it says fits one of the topics. "how do i get the scarlet key",
-  "how do i get a bigger bag", "how to get rare items", "how do i get a group for deadmines" and "how do i share
-  quests" took the keys', look's, filters' or sending's topics over the questions that answer them (the chains, "quests
-  to share"); they're theirs again, or searched as words.
-- "what does ___ do" answers keys and Terminal's own commands only ("what does shift enter do", "what does zen do"): "what
-  does fade do" (the priest's spell) and "what does power word fortitude do" answered with `.zen` and Advanced syntax.
-- In Simple mode the topics that taught Advanced syntax (`>>`, `q:rare+`, `sort:`, `| count`, `> mats`) say it Simple
-  mode's way: right-click a row or the speaker button to send, "rare swords under level 30", the bar's menus.
-  Translated.
-- Enter on the key's and your own commands' topics writes `.bind` and `.alias` (their help and what you have), not
-  `.bind CTRL-SPACE` and `.alias rep durability`, which a second Enter would have run.
-- Cheaper on every keystroke of a question: each word's fit is kept, and a line stops at its first word that fits no
-  topic (a ten-word line cost about 24 times a plain search's ranking).
-
-## 1.7.12 (in testing)
-
-**What's new in the empty prompt: two fixes** (release review)
-- Typed over and then emptied, the prompt showed "try: .changelog (what's new in ...)" again, and Enter on it did
-  nothing. It's gone once typed over, as meant.
-- Once it had been shown, Enter on the empty prompt opened the changelog even when the prompt showed something else
-  (Terminal: Share's invite, or with suggestions turned off). Only the what's-new line opens it now.
-
-## 1.7.11 (in testing)
-
-**Group by category: recipes, weapons, gear, consumables, pets, mounts**
-- Group (the bar's menu, or `| group by category`) has a new choice, Category: items in broad strokes, as you'd sort a
-  quartermaster's rewards or a boss's loot. Recipes, Weapons, Gear (armour, rings, trinkets...), Consumables, Pets,
-  Mounts, and Other for the rest. `@rep is:reward | group by category`; Enter on a group lists its items.
-- Read from the game's own item data (no waiting on the server, the same in every language), for any list of items:
-  rewards, loot, your bags. Offered when the rows' categories differ. It takes Type's place in the menu (the game's
-  classes said the same, Armor or Weapon); `| group by type` still works typed.
-- Subtype is in the menu too: step into a category's group and split it further, the recipes by profession
-  (Blacksmithing, Enchanting, Tailoring...), gear by Cloth, Leather, Mail or Plate, weapons by Swords or Maces. Read from
-  the game's own item data first, so rewards the server hasn't sent yet are sorted too.
-- `type:pet` (companion and battle pets) and `type:mount` filter by them too.
-
-## 1.7.10 (in testing)
-
-**Faction rewards found by what they are: "@faction cenarion tailoring"**
-- A quartermaster's reward (OneForAll's, and AtlasLoot's faction loot) is found by its type and subtype as the game
-  names them, as `@item`'s rows are: `@faction cenarion tailoring` lists the Cenarion Circle's tailoring patterns,
-  `@rep timbermaw leatherworking` Timbermaw's leatherworking ones, `@rep argent plate` the Argent Dawn's plate. It
-  listed nothing before: the rows knew only their names, faction, standing, slot and vendor.
-- `type:` filters them too: `@rep is:reward type:tailoring`.
-
-## 1.7.9 (in testing)
-
-**No more "Warband bank 0c" in your gold**
-- With Baganator (Syndicator), `@gold` ("gold" in Simple mode) listed a "Warband bank" row at 0c: WoW Forever has no
-  warband bank, but Syndicator keeps an empty record of one. The row shows only when it holds gold now, as it already
-  did with Bagnon or no bag addon.
-
-## 1.7.8 (in testing)
-
-**Track or untrack your PvP quests in one go** (asked for on CurseForge)
-- "untrack pvp quests", "track pvp quests only", "track battleground quests": the PvP quests in your log, beside the
-  dungeon, raid and class ones. A PvP quest is one the game tags PvP, one under a battleground's heading in your log
-  (the game's own battleground names, in your client's language) or under "Battlegrounds", or, with QuestieDB, one
-  whose zone is a battleground.
-- Advanced: `is:pvp` now finds PvP quests in your log too (it already found battlemasters and PvP vendors):
-  `@quest is:pvp >>> untrack`.
-
-## 1.7.7 (in testing)
+**Pawn's scales judge upgrades** (a player on CurseForge)
+- With Pawn installed, the scales it shows in its tooltips for your character judge `is:upgrade` ("upgrades", "quest
+  upgrades", "vendor upgrades"), read as they are now: no exporting and pasting. Two scales shown: an item counts if
+  it's an upgrade for either, and its tooltip says which ("An upgrade for: Pawn "Healer"").
+- A tree or your own weights picked in `.weights` still come first; `.weights pawn` (or `.weights all`) goes back to
+  Pawn's scales. OneForAll's gear value is used when neither Pawn nor `.weights` says. `.weights paste` opens a window
+  to paste a Pawn scale string into, Pawn installed or not.
+- `.weights` lists Pawn's scales with their weights; `.integrations` has a Pawn line. Read through the functions Pawn
+  offers other addons; nothing of Pawn's is copied.
 
 **"How do I...": Terminal's own help as search results**
 - Ask "how do i send to party", "what does shift enter do", "how do i make my own command", "how can i change the
   theme": the topics your words name come up as rows, best first, each saying what to do in a line (its tooltip in
-  full). Enter writes its example into the prompt ("hearthstone >> party"); Shift+Left comes back. 25 topics, from
-  sending to chat and filters to aliases, themes, tabs and `!t`.
-- Only for lines no other question takes ("how many linen do i have" is still the count, "how do i get into
-  scholomance" the attunements'), and only when a topic fits: else your words are searched, as before.
-- Translated (German, French, Spanish, Russian, Chinese), with 1.7.x's other new texts.
+  full). Enter writes its example into the prompt; Shift+Left comes back. 25 topics, from sending to chat and filters
+  to aliases, themes, tabs and `!t`.
+- Answered only when every word fits a topic, so other questions keep their lines ("how many linen do i have", "how do
+  i get the scarlet key", "how do i share quests"); "what does ___ do" answers keys and Terminal's commands, not a
+  spell's or an item's name. In Simple mode it says things Simple mode's way, with no Advanced syntax.
 
-## 1.7.6 (in testing)
+**Faction rewards: found and grouped by what they are**
+- A quartermaster's reward (OneForAll's, and AtlasLoot's faction loot) is found by its type and subtype as the game
+  names them: `@faction cenarion tailoring` lists the Cenarion Circle's tailoring patterns, `@rep argent plate` the
+  Argent Dawn's plate. It listed nothing before. `type:` filters them too: `@rep is:reward type:tailoring`.
+- Group has a new choice, Category: Recipes, Weapons, Gear, Consumables, Pets, Mounts and Other, for any list of items
+  (rewards, loot, your bags): `@rep is:reward | group by category`. Step into a group and Subtype splits it further:
+  the recipes by profession (Blacksmithing, Enchanting, Tailoring...), gear by Cloth, Leather, Mail or Plate. Category
+  takes Type's place in the menu (they said the same); `| group by type` still works typed, and shows in the menu.
+- `type:pet` (companion and battle pets) and `type:mount` filter by them too.
 
-**`.report` in plain text; the test runs count every failure**
-- `.report`'s last trace lines are plain text: one holding an item's link pasted its colour codes on CurseForge.
-- The tests: 1.7.4's runs of chosen files and of each file alone dropped the failures a file's checks counted (only
-  errors and leaks counted), so "every file passes alone" was wrong for 13 files. They count now, and those runs start
-  after `tests/smoke.lua`'s own checks, as the whole run does; every file passes alone.
-
-## 1.7.5 (in testing)
+**Track or untrack your PvP quests** (a player on CurseForge)
+- "untrack pvp quests", "track pvp quests only", "track battleground quests": the PvP quests in your log, beside the
+  dungeon, raid and class ones. A PvP quest is one the game tags PvP, one under a battleground's heading in your log
+  (the game's own battleground names, in your client's language) or under "Battlegrounds", or, with QuestieDB, one
+  whose zone is a battleground. `is:pvp` finds them too: `@quest is:pvp >>> untrack`.
 
 **What's new, in the empty prompt**
-- After an update the empty prompt's first suggestion is "try: .changelog (what's new in 1.7.5)": Enter on it opens the
-  changelog, Shift+Right writes `.changelog`. Gone once the changelog is opened or you type over it; a fresh install
-  gets the tour instead, as before. (The chat line at login said so too, easily lost among the others.)
+- After an update the empty prompt's first suggestion is "try: .changelog (what's new in 1.8.0)": Enter on it opens
+  the changelog, Shift+Right writes `.changelog`. Gone once the changelog is opened or you type over it; a fresh
+  install gets the tour instead.
 
-## 1.7.4 (in testing)
+**And**
+- The options panel has a "Keep your session" checkbox; it was only in "terminal settings" and `.set keepSession`.
+- With Terminal bound to a chord whose key types a character (Ctrl+Space on clients where it types a space; Shift and
+  a letter), that character is no longer typed into the prompt as it opens, while the chord is held (a player on
+  CurseForge).
+- With Baganator, your gold no longer lists a "Warband bank" at 0c: WoW Forever has none.
+- `.report`'s last trace lines are plain text: one holding an item's link pasted its colour codes.
+- New texts translated (German, French, Spanish, Russian, Chinese).
 
-**The tests: each file on its own, and a speed check**
-- Every test file now passes on its own, and the run fails a file that leaves the game's stand-ins, Terminal's
-  settings, its lists or its window changed for the files after it (49 files passed only after others). `python
-  tests/run_smoke.py pawn focus` runs just those files in a second; `--alone` runs each on its own (CI does).
-- `tests/perf.py`: what a fixed set of searches costs, counted in Lua instructions; over 10% above
-  `tests/perf_baseline.json` fails (CI runs it).
-- Fixed: the empty prompt's suggestions, marked stale (your bags changed), could be kept in the game's first minute.
+**Release review fixes**
+- What's new: typed over and then emptied, the prompt showed it again (and Enter did nothing); once shown, Enter on
+  an empty prompt opened the changelog even when it showed Share's invite.
+- How-to questions took lines that weren't theirs ("how do i get the scarlet key", "what does fade do"); a how-to
+  question cost about 24 times a plain search's ranking on each keystroke; Enter on two topics wrote a command a
+  second Enter would have run (`.bind CTRL-SPACE`).
+- Pawn: the tooltip named Pawn's scale only for `.weights` picks; with two or three scales shown every row was weighed
+  once per scale; `.weights all` and the messages pointing at the paste window said what they did before Pawn.
+- A chord's character was dropped even with the chord's keys let go, so a quick first space of your own was lost.
+- On other clients the battle pets' family names ("Wasser") were Simple mode's words for `type:pet`.
+- PvP quests: with no battleground named, the list was asked again for every quest on every quest log update.
 
-## 1.7.3 (in testing)
-
-**Pawn's scales judge upgrades**
-- With Pawn installed, the scales it shows in its tooltips for your character judge `is:upgrade` ("upgrades", "quest
-  upgrades", "vendor upgrades"), read as they are now, with no export and paste. Two scales shown: an item counts if
-  it's an upgrade for either, and its tooltip says which ("An upgrade for: Pawn "Healer"").
-- A tree or your own weights picked in `.weights` still come first; `.weights pawn` goes back to Pawn's scales.
-  OneForAll's gear value is used when neither Pawn nor `.weights` says.
-- `.weights` lists Pawn's scales with their weights; `.integrations` has a Pawn line. Read through the functions Pawn
-  offers other addons (its "Pawn API"); nothing of Pawn's is copied. (A player on CurseForge: "use the current Pawn
-  scales automatically when Pawn is installed".)
-
-## 1.7.2 (in testing)
-
-**The key that opens Terminal isn't typed into it**
-- With Terminal bound to a chord whose key types a character (Ctrl+Space, on clients where it types a space; Shift and
-  a letter), that character is no longer typed into the prompt as it opens, as ` and Shift+~ already weren't. A
-  space typed after it is typed. (A player on CurseForge: "the space used to open the terminal shouldn't become part
-  of the input".)
-
-## 1.7.1 (in testing)
-
-**Keep your session: a checkbox**
-- The options panel (Options > AddOns > Terminal) has a "Keep your session" checkbox, in the right column
-  above "Key hints in footer"; it was only in "terminal settings" and `.set keepSession`.
+**For add-on authors and testers**
+- Every test file passes on its own, and the run fails a file that leaves the game's stand-ins, Terminal's settings,
+  its lists or its window changed (`python tests/run_smoke.py <names>`, `--alone`); failures inside a file's checks
+  are all counted. `tests/perf.py` checks what a fixed set of searches costs, in Lua instructions, against
+  `tests/perf_baseline.json` (over 10% more fails). CI runs both.
 
 ## 1.7.0
 
