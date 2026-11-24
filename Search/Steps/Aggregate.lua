@@ -151,7 +151,7 @@ A.FIELDS = {
 	bonus = { label = L["bonus"], texts = function(e) return ns.Bonus and ns.Bonus.Labels(e) end, text = function(e)
 		local t = ns.Bonus and ns.Bonus.Labels(e)
 		return t and table.concat(t, ", ") or nil
-	end },
+	end, peek = function(e) return ns.Bonus and ns.Bonus.KnownLabels(e) end }, -- (peek: the bar's menu, what's kept only)
 	-- (the client's own item data first, as category: a reward the server hasn't sent yet has them too; then its full
 	-- info. Subtype inside a category: a recipe's profession, gear's Cloth or Plate, a weapon's Swords; 1.7.11)
 	type = { label = L["type"], text = function(e)
@@ -407,7 +407,9 @@ local function KeepsRow(w, e)
 	local fd = A.FIELDS[w.where]
 	if w.test then return w.test(fd.num(e)) end -- (a number's step: by its range, "lvl:20-30")
 	if fd.texts then -- (several: any of them)
-		for _, t in ipairs(fd.texts(e, fd) or {}) do if Fits(w, t) then return true end end
+		local ts = fd.texts(e, fd)
+		if not ts then return false end -- (no table made for a row with none: thousands of loot rows)
+		for _, t in ipairs(ts) do if Fits(w, t) then return true end end
 		return false
 	end
 	local t = TextOf(w.where, e)

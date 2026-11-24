@@ -185,6 +185,18 @@ do -- (1.8.5) thousands of them (AtlasLoot's): a batch at a time, the search sho
 	BN.ForgetForTests()
 	BN.Of(7042)
 	check(reads == 1, "a new client build: read again: " .. reads)
+	-- (1.8.10, review) written at logout only when something new was read: the saved copy left as it is otherwise
+	BN.ForgetForTests()
+	local sentinel = { build = BN.Build(), items = "7042=f:troll:Trolls" }
+	ns.db.bonusIndex = sentinel
+	BN.Of(7042) -- (from the saved copy: nothing new)
+	BN.SaveKept()
+	check(ns.db.bonusIndex == sentinel, "nothing new read: not written again at logout")
+	-- the bar's Group menu: only what's kept is said, no tooltip read for a row not read yet
+	reads = 0
+	check(BN.KnownLabels({ itemID = 7042 }) == "Against Trolls" and BN.KnownLabels({ itemID = 7001 }) == nil and reads == 0,
+		"what's kept only, nothing read: " .. reads)
+	check(A.FIELDS.bonus.peek ~= nil, "Group by bonus's menu check reads what's kept (peek)")
 	-- (1.8.8, review) .saved clear bonuses: what was read this session goes too, not written back at logout
 	ns:FindCommand("saved").run("clear bonuses")
 	BN.SaveKept()

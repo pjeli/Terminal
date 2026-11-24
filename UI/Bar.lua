@@ -658,7 +658,8 @@ function B.Options(which)
 		local first
 		for _, e in ipairs(sample) do
 			local ok, v
-			if f.text then ok, v = pcall(f.text, e, f) else ok, v = pcall(f.num, e) end
+			-- (a field that's dear to read, bonus: what's known only, peek)
+			if f.peek then ok, v = pcall(f.peek, e) elseif f.text then ok, v = pcall(f.text, e, f) else ok, v = pcall(f.num, e) end
 			if ok and v ~= nil then
 				if first == nil then first = v elseif v ~= first then return true end
 			end

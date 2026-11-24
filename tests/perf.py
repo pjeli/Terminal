@@ -94,6 +94,30 @@ Case("a chain: sources", function() UI:Open("linen cloth > sources") end)
 Case("group by", function() UI:Open("@perfnpc ka | group by kind") end)
 Case("Alt+` of a Simple line", function() ns.Easy.ToAdvanced("rare swords under level 30 sorted by level") end, true)
 Case(".explain", function() ns:FindCommand("explain").run("@item q:rare+ lvl:20-30 sort:-level | first 5") end)
+-- (1.8.10; set up after the other cases, whose item filters it would change) a list of items the shape of @loot, every tenth with a creature bonus and every seventh an area one; their
+-- tooltips read once before (as after a first search): what a bonus search costs per keystroke
+local items, imeta = {}, nil
+local TIP_PLAIN, TIP_FOE, TIP_AREA = { lines = { { leftText = "x" }, { leftText = "Equip: +5 Stamina." } } },
+	{ lines = { { leftText = "x" }, { leftText = "Equip: +20 Attack Power when fighting Trolls." } } },
+	{ lines = { { leftText = "x" }, { leftText = "Use: Restores 40 mana. This effect is doubled in Haunted areas." } } }
+_G.C_TooltipInfo = { GetItemByID = function(id) return (id % 10 == 0 and TIP_FOE) or (id % 7 == 0 and TIP_AREA) or TIP_PLAIN end }
+C_Item.GetItemInfoInstant = function(id) return id, "Armor", "Misc", "INVTYPE_TRINKET", 0, 4, 0 end
+C_Item.IsItemDataCachedByID = function() return true end
+ns:RegisterProvider("perfitem", { label = "PItem", aliases = { "perfitem" }, explicit = true,
+	collect = function(p)
+		imeta = imeta or ns:CompactMeta(p, { icon = "x" }, { detail = function(t) return "Item #" .. t.itemID end })
+		if #items == 0 then
+			for i = 1, N do
+				local name = "Charm " .. i
+				items[i] = setmetatable({ _compact = true, key = i, itemID = 300000 + i, name = name, _lname = ns.Lower(name) }, imeta)
+			end
+		end
+		return items
+	end })
+ns:GetEntries(ns.providers.perfitem)
+for i = 1, N do ns.Bonus.Of(300000 + i) end
+Case("bonus: filter", function() UI:Open("@perfitem bonus:troll") end)
+Case("group by bonus", function() UI:Open("@perfitem | group by bonus") end)
 return out
 """
 

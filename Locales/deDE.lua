@@ -3658,4 +3658,5 @@ L["Terminal picks %s (of %d)"] = "Terminal wählt %s (von %d)"
 L["only you see the pick"] = "nur du siehst die Wahl"
 L["picked, out of %d"] = "gewählt, aus %d"
 L["picking..."] = "wähle..."
+L["reading 1 item's tooltip for bonuses"] = "lese den Tooltip eines Gegenstands nach Boni"
 --@end-do-not-package@

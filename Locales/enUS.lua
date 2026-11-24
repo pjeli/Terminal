@@ -3321,6 +3321,7 @@ L["rare"] = true
 L["read lines a page at a time, all of them (the scrollback keeps 2000): q quits, / searches"] = true
 L["read-only"] = true
 L["reading %s items' tooltips for bonuses"] = true
+L["reading 1 item's tooltip for bonuses"] = true
 L["reading what every NPC sells (once a session)..."] = true
 L["ready"] = true
 L["ready in %s"] = true

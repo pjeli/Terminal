@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.8.9", when = "in testing",
+		v = "1.8.10", when = "in testing",
 		items = {
 			"Find gear by its bonus: where it grows (\"haunted bonus\", bonus:swamp, bonus:area) or what it's against (\"against undead\", bonus:troll), read from the item's own tooltip; | group by bonus.",
 			"A bonus goes with the rest of a search: \"argent dawn rewards against trolls\", \"reputation rewards that deal 2x damage to trolls\", \"faction rewards with a bonus in mountainous areas\".",
@@ -25,6 +25,7 @@ CL.LOG = {
 			"Fixed: @xp listing nothing after an alt forgotten before the update, and two alts of one first name taken for one.",
 			"Fixed: a bonus search while tooltips are read: results go up as they come in (no F5 each time), no stray closest matches, and an item the server never sends no longer keeps it searching.",
 			"Fixed: with no realm name from the game, a Battle.net friend shown twice on the map.",
+			"Fixed: the bonus search costs less: the saved copy written only when it changed, the Group menu reading no tooltips.",
 		},
 	},
 	{

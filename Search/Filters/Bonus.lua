@@ -61,7 +61,7 @@ local NOT_CREATURE = {}
 for w in ([[you your yourself them it its him her all any a an that this these those each other enemy enemies target
 	targets foe foes opponent opponents player players creature creatures monster monsters magic spell spells attack
 	attacks ranged melee physical fire frost shadow nature arcane holy fear stun stuns silence poison poisons disease
-	diseases curse curses horde alliance damage harm critical falling up nearby your]]):gmatch("%a+") do NOT_CREATURE[w] = true end
+	diseases curse curses horde alliance damage harm critical falling up nearby]]):gmatch("%a+") do NOT_CREATURE[w] = true end
 
 -- the words before a foe: "+45 Attack Power when fighting Undead", "damage done to Demons", "vs. Beasts"
 local FOE_LEADS = { "when fighting ", "against ", "done to ", "versus ", "vs. ", "vs " }
@@ -105,12 +105,16 @@ local function PlaceList(clause, found)
 	return true
 end
 
-local function Plain(s) return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+local Plain = ns.Plain
 
 --- What one tooltip line gives a bonus for: adds area keys to `areas` and creature keys to `foes` (key -> its word as
 --- the tooltip writes it).
 function BN.ReadLine(text, areas, foes)
 	if type(text) ~= "string" or text == "" then return end
+	-- (a line with none of the words a bonus is said with isn't lowercased and read: most of a tooltip; a third of a
+	-- first read's cost)
+	if not (text:find("[Ii]n ") or text:find("gainst", 1, true) or text:find("ighting", 1, true) or text:find("one to", 1, true)
+		or text:find("[Vv]s") or text:find("ersus", 1, true)) then return end
 	local plain = Plain(text)
 	local low = Lower(plain)
 	if low:find('^%s*"') then return end -- (flavour text is quoted: never a bonus)
@@ -167,12 +171,13 @@ local pumping, redoAt, redoWaiting = false, 0, false
 -- every 30 s and the footer's note never went; 1.8.8, review)
 local gaveUp = {}
 local skipped = {} -- (not read for their item class, recipes and materials: kept false, not written to the saved file)
+local dirty = false -- (something read or cleared since the saved file was read: written at logout only then)
 BN.wantedText = nil -- (the prompt the search with a bonus filter was made for (UI:Search clears it): run again as items
                     -- come in while it's still typed)
 
 F.ClearBonuses = function() kept, skipped = {}, {} end
 function BN.ForgetForTests()
-	kept, labels, gaveUp, skipped = {}, {}, {}, {}
+	kept, labels, gaveUp, skipped, dirty = {}, {}, {}, {}, false
 	queue, head, queued, waiting, nWaiting, pumping = {}, 1, {}, {}, 0, false
 	redoAt, redoWaiting = 0, false
 	BN.wantedText, BN.loaded = nil, nil
@@ -182,6 +187,7 @@ end
 function BN.Clear()
 	kept, skipped = {}, {}
 	BN.loaded = true -- (nothing kept to read back: cleared)
+	dirty = false -- (the saved file's copy went with .saved clear: nothing to write back)
 end
 
 -- (kept across sessions: "<build>" and the items read as "id=" (none) or "id=haunted,f:undead:Undead", one string; a new
@@ -230,12 +236,13 @@ end
 --- Write what was read for the next session (at logout).
 function BN.SaveKept()
 	local db = ns.db
-	if not db then return end
+	if not (db and dirty) then return end -- (nothing new: the saved copy stays as it is; a whole rewrite at every
+	                                       -- logout and /reload cost tens of milliseconds with thousands kept)
 	BN.LoadKept() -- (an earlier session's, not read this session, kept too)
 	local parts = {}
 	for id, c in pairs(kept) do if not skipped[id] then parts[#parts + 1] = id .. "=" .. Pack(c or nil) end end
-	table.sort(parts)
 	db.bonusIndex = #parts > 0 and { build = Build(), items = table.concat(parts, ";") } or nil
+	dirty = false
 end
 
 local function Lines(id)
@@ -305,6 +312,7 @@ function BN.Read(id)
 	for _, key in ipairs(fk) do out[#out + 1] = { key = key } end
 	c = #out > 0 and out or false
 	kept[id] = c
+	dirty = true
 	return c
 end
 
@@ -356,7 +364,7 @@ local function Done(id, c)
 		nWaiting = nWaiting - 1
 		if nWaiting == 0 then BN.Listen() end
 	end
-	if c ~= nil then kept[id] = c end
+	if c ~= nil then kept[id], dirty = c, true end
 end
 
 Pump = function()
@@ -412,7 +420,8 @@ end
 function BN.Note()
 	local left = BN.Left()
 	if left <= 0 or not BN.wantedText then return nil end
-	return L["reading %s items' tooltips for bonuses"]:format(ns.Thousands and ns.Thousands(left) or tostring(left))
+	if left == 1 then return L["reading 1 item's tooltip for bonuses"] end
+	return L["reading %s items' tooltips for bonuses"]:format(ns.Thousands(left))
 end
 
 --- A row's item's bonuses (its own item, or what a recipe makes), or nil: none, or still loading.
@@ -440,6 +449,16 @@ function BN.Labels(e)
 		out[i] = t
 	end
 	return out
+end
+--- A row's bonuses said, only from what's kept (nothing read, nothing asked of the server): the bar's Group menu
+--- sampling a hundred rows to see whether Group by bonus tells them apart.
+function BN.KnownLabels(e)
+	local id = F.ItemOf(e)
+	local c = id and kept[id]
+	if not c then return nil end
+	local out = {}
+	for i, b in ipairs(c) do out[i] = BN.Label(b) end
+	return table.concat(out, ", ")
 end
 --- The bonus: value a group's label stands for, or nil.
 function BN.ValueOf(label) return label and valueOf[label] end
@@ -498,7 +517,7 @@ KEYS.bonus = function(v)
 	end
 end
 KEYS.bonuses = KEYS.bonus
-KEYS.biome = function(v) return KEYS.bonus(v) end
+KEYS.biome = KEYS.bonus
 IS.bonus = function(e)
 	if not BN.wantedText then Wanted() end
 	return BN.OfRow(e) ~= nil

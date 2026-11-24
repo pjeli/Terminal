@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.10 (in testing)
+
+**Review fixes: the bonus search's costs**
+- What was read is written at logout only when something new was read (it was rewritten, sorted, at every logout and
+  `/reload`: tens of milliseconds with thousands of items kept).
+- The bar's Group menu, checking whether Group by bonus tells the rows apart, reads only what's known: opening it over
+  `@loot` read a hundred tooltips and asked the server for items.
+- A `| bonus:x` step no longer makes a table for every row without a bonus; tooltip lines without any of the words a
+  bonus is said with aren't lowercased and read (about a third of a first read).
+- "reading 1 item's tooltip", not "1 items'". The speed check has two new cases, `bonus:` over 5,000 items and
+  `| group by bonus`, and its baseline is written again from this build.
+
 ## 1.8.9 (in testing)
 
 **Review fixes: sharing with no realm of yours named** (Terminal: Share)

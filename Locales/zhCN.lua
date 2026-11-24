@@ -3658,4 +3658,5 @@ L["Terminal picks %s (of %d)"] = "Terminal 挑中了 %s（共 %d 个）"
 L["only you see the pick"] = "只有你能看到结果"
 L["picked, out of %d"] = "已挑中，共 %d 个"
 L["picking..."] = "挑选中..."
+L["reading 1 item's tooltip for bonuses"] = "正在读取 1 件物品的鼠标提示以查找加成"
 --@end-do-not-package@
