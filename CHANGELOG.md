@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.8.6 (in testing)
+
+**`.pick`** (the player: "I like the .pick idea!")
+- `.pick` picks someone of your group at random ("who's buying the repairs"): their names roll by on screen, slower
+  and slower, and land on the pick, and Terminal says it in the group's chat (party, raid, or instance chat when your
+  group is the instance's), sent with the Enter that ran it.
+- `.pick quiet` keeps the pick to you. `.pick tacos, pizza, sushi` picks one of those (commas, or words without them);
+  outside a group a list is only shown to you.
+- While the game holds chat back from addons (an encounter in an instance), the pick is said only to you.
+- `.random` and `.choose` say the same. It's a new file: restart the game for it.
+
 ## 1.8.5 (in testing)
 
 **Bonuses in `@loot`** (the player: "why can I not look at `@loot` that has bonuses against trolls / biome?")

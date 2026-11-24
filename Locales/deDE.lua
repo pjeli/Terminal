@@ -3650,4 +3650,12 @@ L["gear whose bonus grows in an area type (forest swamp wasteland haunted mounta
 L["WoW Forever hides your layer since its November 20, 2026 hotfix: creatures no longer carry it, so no addon can tell which one you're on."] = "WoW Forever verbirgt deinen Layer seit dem Hotfix vom 20. November 2026: Kreaturen tragen ihn nicht mehr, kein Addon kann sagen, auf welchem du bist."
 L["reading %s items' tooltips for bonuses"] = "lese die Tooltips von %s Gegenständen nach Boni"
 L["items' bonuses read from their tooltips"] = "Boni von Gegenständen, aus ihren Tooltips gelesen"
+L["(the game doesn't let addons send chat right now)"] = "(das Spiel lässt Addons gerade nicht chatten)"
+L["Not in a group: .pick picks someone of your group; .pick tacos, pizza, sushi picks one of those."] = "Nicht in einer Gruppe: .pick wählt jemanden aus deiner Gruppe; .pick tacos, pizza, sushi wählt eins davon."
+L["Only one to pick from: %s."] = "Nur eins zur Auswahl: %s."
+L["Pick someone of your group at random, said in its chat (.pick quiet: only you see it); .pick tacos, pizza, sushi picks one of those"] = "Wählt zufällig jemanden aus deiner Gruppe und sagt es im Gruppenchat (.pick quiet: nur du siehst es); .pick tacos, pizza, sushi wählt eins davon"
+L["Terminal picks %s (of %d)"] = "Terminal wählt %s (von %d)"
+L["only you see the pick"] = "nur du siehst die Wahl"
+L["picked, out of %d"] = "gewählt, aus %d"
+L["picking..."] = "wähle..."
 --@end-do-not-package@

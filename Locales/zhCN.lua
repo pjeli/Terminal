@@ -3650,4 +3650,12 @@ L["gear whose bonus grows in an area type (forest swamp wasteland haunted mounta
 L["WoW Forever hides your layer since its November 20, 2026 hotfix: creatures no longer carry it, so no addon can tell which one you're on."] = "自 2026 年 11 月 20 日的热修复起，WoW Forever 隐藏了你所在的位面：生物不再携带它，任何插件都无法判断你在哪个位面。"
 L["reading %s items' tooltips for bonuses"] = "正在读取 %s 件物品的鼠标提示以查找加成"
 L["items' bonuses read from their tooltips"] = "从鼠标提示读取的物品加成"
+L["(the game doesn't let addons send chat right now)"] = "（游戏此刻不允许插件发送聊天）"
+L["Not in a group: .pick picks someone of your group; .pick tacos, pizza, sushi picks one of those."] = "不在队伍中：.pick 从你的队伍中挑一人；.pick tacos, pizza, sushi 从中挑一个。"
+L["Only one to pick from: %s."] = "只有一个可选：%s。"
+L["Pick someone of your group at random, said in its chat (.pick quiet: only you see it); .pick tacos, pizza, sushi picks one of those"] = "从你的队伍中随机挑一人并在队伍聊天中说出（.pick quiet：只有你看到）；.pick tacos, pizza, sushi 从中挑一个"
+L["Terminal picks %s (of %d)"] = "Terminal 挑中了 %s（共 %d 个）"
+L["only you see the pick"] = "只有你能看到结果"
+L["picked, out of %d"] = "已挑中，共 %d 个"
+L["picking..."] = "挑选中..."
 --@end-do-not-package@
