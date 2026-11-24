@@ -136,7 +136,7 @@ with a curled tip, the warlock's clawed demon hand in fel fire, a tree (the clas
 colour (`ns.ClassHex`, else `SH.FETCH_CLASS_HEX`) also colours you@host and the keys. `-c CLASS` shows another class
 (`SH.FetchClassNamed`: the file name, the game's own name, 3+ letters of either), `-n` the next one each run, round
 `SH.FETCH_ORDER` from yours (`SH.fetchAt`, this session). Beside it the system's facts only (the player's call: the
-character as hardware was too much): OS, Host (realm), Kernel (Terminal's version and the build), Uptime
+character as hardware was too much): OS, Host (the realm, when the game names it: WoW Forever hasn't since its November 20, 2026 hotfix), Kernel (Terminal's version and the build), Uptime
 (`FS.SessionSeconds`: the session, else since Terminal loaded; GetSessionTime may say 0), Packages (addons, loaded),
 Resolution, Locale; then two rows of colour blocks.
 

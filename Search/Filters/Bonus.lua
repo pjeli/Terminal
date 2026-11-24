@@ -496,7 +496,7 @@ function BN.Say(v)
 	if ANY_FOE[v] then return L["with a bonus against creatures"] end
 	if v == "any" or v == "all" or v == "bonus" then return L["with a bonus"] end
 	local area = AreaOf(v)
-	if area then return L["with a bonus in %s areas"]:format(AREA_BY_KEY[area].label) end
+	if area then return L["with a %s bonus"]:format(AREA_BY_KEY[area].label) end -- ("in Strongholds and Cities areas" read oddly)
 	return L["with a bonus against %s"]:format(v)
 end
 --- The search being made has a bonus in it: run again for this prompt as items come in.

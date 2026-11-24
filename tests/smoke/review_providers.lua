@@ -164,9 +164,9 @@ do -- (review, 0.53.6) "usable by you" is kept per character: with its surname w
 	local b = F._MyName()
 	T.check(a and b and a ~= b and a:find("Warr", 1, true), "two characters of one first name are two: " .. tostring(a) .. " / " .. tostring(b))
 	_G.RegionalUniqueNamesEnabled = nil
-	T.check(F._MyName() == "Plamen", "no surnames: the name alone (1.8.3: unique across realms, which the game no longer names): "
+	T.check(F._MyName() == "Plamen", "no surnames: the name alone (1.8.4: unique across realms, which the game no longer names): "
 		.. tostring(F._MyName()))
-	-- a role picked before 1.8.3, kept as Name@Realm: found again under the name, moved
+	-- a role picked before 1.8.4, kept as Name@Realm: found again under the name, moved
 	local t = { ["Plamen@Forever"] = { "fury" } }
 	T.check(F.MineKept(t, "Plamen")[1] == "fury" and t.Plamen and t["Plamen@Forever"] == nil, "picks kept as Name@Realm: moved to the name")
 	T.check(T.ns.SurnameSeparator() == nil, "no surnames: no separator")

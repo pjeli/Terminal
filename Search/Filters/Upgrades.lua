@@ -304,7 +304,7 @@ function F.SetCustomWeights(w, name)
 	if not (db and key) then return end
 	db.upgradeCustom = type(db.upgradeCustom) == "table" and db.upgradeCustom or {}
 	db.upgradeCustom[key] = w and { w = w, name = name } or nil
-	if not w and type(db.upgradeRoles) == "table" and type(db.upgradeRoles[key]) == "table" then
+	if not w and type(F.MineKept(db.upgradeRoles, key)) == "table" then
 		local kept = {}
 		for _, id in ipairs(db.upgradeRoles[key]) do if id ~= "custom" then kept[#kept + 1] = id end end
 		db.upgradeRoles[key] = #kept > 0 and kept or nil
@@ -795,7 +795,7 @@ local function MyName()
 end
 F._MyName = MyName -- (tests)
 --- This character's entry of a table kept by name (db.upgradeRoles, db.upgradeCustom): one kept as "Name@Realm" before
---- 1.8.3 is moved to the name alone the first time it's asked for.
+--- 1.8.4 is moved to the name alone the first time it's asked for.
 function F.MineKept(t, key)
 	if type(t) ~= "table" or not key then return nil end
 	if t[key] == nil then

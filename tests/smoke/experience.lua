@@ -49,7 +49,7 @@ do
 	local pally = by["Alt Pally"]
 	check(pally and pally.rested == 2500 and pally.estimated and pally.detail:find("~rested 5%", 1, true),
 		"8 h resting = 5% of a level, marked as an estimate: " .. tostring(pally and pally.detail))
-	-- (1.8.3) a realm kept from before isn't put after the name: names are unique across Forever's realms
+	-- (1.8.4) a realm kept from before isn't put after the name: names are unique across Forever's realms
 	local mage = by["Old Mage"]
 	check(mage and mage.rested == 7500, "an alt by its name alone; rested caps at a level and a half: " .. tostring(mage and mage.rested))
 	check(by["Maxed Rogue"].detail:find("Lv 60 (max)", 1, true), "max level says so")
@@ -130,7 +130,7 @@ do
 	unknown = {}
 	for _, e in ipairs(res) do if e.unknown then unknown[#unknown + 1] = e.who end end
 	check(#unknown == 0, "forgotten, its note with no realm: not back either: " .. table.concat(unknown, ", "))
-	-- (1.8.3) since WoW Forever's November 20, 2026 hotfix the game names no realm: the bag addon's alts, kept with one,
+	-- (1.8.4) since WoW Forever's November 20, 2026 hotfix the game names no realm: the bag addon's alts, kept with one,
 	-- are the notes Terminal has of them by name, and one forgotten before as "name|realm" stays forgotten
 	_G.GetRealmName = function() return "" end
 	ns.db.xpChars["Player-1-HHH"] = { name = "Blank Hunter", class = "HUNTER", level = 15, xp = 1, max = 100, rested = 0, t = now }

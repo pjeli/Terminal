@@ -32,8 +32,8 @@ do
 	check(not f.shown, "...and goes after a moment")
 	-- quiet: only you
 	sent, printed = {}, {}
-	run("quiet")
-	check(#sent == 0 and printed[1] == "Terminal picks Bob (of 3)", ".pick quiet: only to you: " .. tostring(printed[1]))
+	local said = run("quiet")
+	check(#sent == 0 and said and said[1] == "Terminal picks Bob (of 3)", ".pick quiet: only to you, as the command's line: " .. tostring(said and said[1]))
 	FlushAll()
 	-- a list: commas, or words
 	sent = {}
@@ -54,16 +54,20 @@ do
 	-- chat locked (an encounter in an instance): said to you instead
 	sent, printed = {}, {}
 	ns.ChatLocked = function() return true end
-	run("")
-	check(#sent == 0 and printed[1] and printed[1]:find("Terminal picks Bob", 1, true), "chat locked: said to you: " .. tostring(printed[1]))
+	said = run("")
+	check(#sent == 0 and said and said[1]:find("Terminal picks Bob", 1, true), "chat locked: said to you: " .. tostring(said and said[1]))
 	ns.ChatLocked = function() return false end
 	FlushAll()
 	-- no group: a list still works (only to you); nothing to pick from says how
 	grouped, sent, printed = false, {}, {}
 	local out = run("")
 	check(out and out[1]:find("Not in a group", 1, true), "no group, no list: says how: " .. tostring(out and out[1]))
-	run("tacos, pizza")
-	check(#sent == 0 and printed[1] == "Terminal picks pizza (of 2)", "no group, a list: only to you: " .. tostring(printed[1]))
+	said = run("tacos, pizza")
+	check(#sent == 0 and said and said[1] == "Terminal picks pizza (of 2)", "no group, a list: only to you: " .. tostring(said and said[1]))
+	-- (1.8.11, review) "quiet" offered only as the first word: a list's last word matched it and was written over
+	local complete = ns:FindCommand("pick").complete
+	check(#complete("") == 1 and #complete("qu") == 1 and #complete("yes, no, qu") == 0 and #complete("me you qu") == 0,
+		"quiet offered only as the first word")
 	FlushAll()
 	out = run("tacos")
 	check(out and out[1]:find("Only one", 1, true), "one thing listed: nothing to pick: " .. tostring(out and out[1]))

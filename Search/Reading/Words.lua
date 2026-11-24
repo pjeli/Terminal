@@ -38,8 +38,7 @@ E.WORDS = {
 	-- bonuses by where you are (an area type: "biome") or what you fight; the area types' own words as phrases below
 	biome = "bonus:area", biomes = "bonus:area", ["biome bonus"] = "bonus:area", ["biome bonuses"] = "bonus:area",
 	["area bonus"] = "bonus:area", ["area bonuses"] = "bonus:area", ["creature bonus"] = "bonus:creature",
-	haunted = "bonus:haunted", snowy = "bonus:snowy", mountainous = "bonus:mountainous", volcanic = "bonus:volcanic",
-	cavernous = "bonus:cavern", wasteland = "bonus:wasteland", wastelands = "bonus:wasteland",
+	-- (an area type's word alone isn't one: it's in names, "Volcanic Leggings", "The Haunted Isle"; 1.8.11, review)
 	-- gear that suits you: your level, your class, near what you wear there or better (strict: HARD_WORDS)
 	upgrade = "is:upgrade", upgrades = "is:upgrade",
 	-- where loot comes from: "raid loot", "dungeon gear". (Not "from quests", "from reputation", "quest gear": review,
@@ -215,7 +214,7 @@ do
 	local BN = ns.Bonus
 	for _, a in ipairs(BN and BN.AREAS or {}) do
 		for _, w in ipairs(a.words) do
-			for _, after in ipairs({ "bonus", "bonuses", "area", "areas" }) do
+			for _, after in ipairs({ "bonus", "bonuses", "area", "areas", "gear" }) do
 				if rawget(E.WORDS, w .. " " .. after) == nil then E.WORDS[w .. " " .. after] = "bonus:" .. a.key end
 			end
 		end

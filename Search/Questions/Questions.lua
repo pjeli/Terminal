@@ -188,7 +188,7 @@ Scan.ANSWERS = {
 	Asks("LegacyRewards", { examples = { "legacy rewards", "what can i claim with legacy points" } }),
 	Asks("LegacyPerks", { examples = { "legacy perks", "my perks" } }),
 	Asks("PvpRank", { examples = { "my pvp rank", "rank points", "what does pvp rank 11 unlock" } }),
-	-- "what layer am i on", "my layer": the layer the creatures around you are on (Providers/Layer.lua)
+	-- "what layer am i on", "my layer": WoW Forever hides it since its November 20, 2026 hotfix, said so (Providers/Layer.lua)
 	Asks("Layer", { examples = { "what layer am i on", "my layer" } }),
 	-- "where are my friends", "friends location", "where is bob" (a friend sharing it): friends' places by Terminal: Share
 	-- (Terminal_Share/Share.lua's ns.SharePlaces; .share settings location)

@@ -161,7 +161,7 @@ do
 	check(not SSH.game.env.eligible({ kind = "bn", id = 91 }), "...another server in its GUID: not")
 	check(table.concat(SSH.Debug(), "\n"):find("left out (another realm): Zed (no realm)", 1, true),
 		".share debug says who was left out for another realm")
-	-- (1.8.3) since WoW Forever's November 20, 2026 hotfix the game names no realm of yours: a friend Battle.net gives a
+	-- (1.8.4) since WoW Forever's November 20, 2026 hotfix the game names no realm of yours: a friend Battle.net gives a
 	-- realm for is told apart by the server in the GUIDs, and a claim with no realm ("zed@") is theirs
 	local rn, nrn = rawget(_G, "GetRealmName"), rawget(_G, "GetNormalizedRealmName")
 	_G.GetRealmName, _G.GetNormalizedRealmName = function() return "" end, function() return "" end

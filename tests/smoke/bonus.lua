@@ -284,7 +284,9 @@ do -- Simple mode's words, and how the filter is said
 	check(E.WORDS["vs beasts"] == "bonus:beast", "vs beasts: " .. tostring(E.WORDS["vs beasts"]))
 	check(E.WORDS["swamp bonus"] == "bonus:swamp", "swamp bonus: " .. tostring(E.WORDS["swamp bonus"]))
 	check(E.WORDS["city areas"] == "bonus:stronghold", "city areas: " .. tostring(E.WORDS["city areas"]))
-	check(E.WORDS["haunted"] == "bonus:haunted" and E.WORDS["biome"] == "bonus:area", "haunted, biome alone")
+	-- (1.8.11, review) an area type's word alone isn't one: names have them ("Volcanic Leggings", "The Haunted Isle")
+	check(rawget(E.WORDS, "haunted") == nil and rawget(E.WORDS, "volcanic") == nil and E.WORDS["haunted gear"] == "bonus:haunted"
+		and E.WORDS["biome"] == "bonus:area", "haunted alone a word, haunted gear the bonus, biome alone too")
 	check(rawget(E.WORDS, "swamp") == nil and rawget(E.WORDS, "forest") == nil, "a zone's word alone stays a word (Swamp of Sorrows, Elwynn Forest)")
 	local said = E.SayFilter("bonus:haunted") or ""
 	check(said:find("Haunted", 1, true), "bonus:haunted said: " .. said)

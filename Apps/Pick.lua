@@ -113,7 +113,7 @@ function PK.Run(args)
 	local words = tostring(args or "")
 	local quiet = false
 	local first = ns.Lower(words:match("^%s*(%S*)") or "")
-	if first == "quiet" or first == "me" then quiet, words = true, words:gsub("^%s*%S+%s*", "") end
+	if first == "quiet" then quiet, words = true, words:gsub("^%s*%S+%s*", "") end
 	local names = PK.Listed(words) or PK.GroupNames()
 	if not names then
 		return { L["Not in a group: .pick picks someone of your group; .pick tacos, pizza, sushi picks one of those."] }
@@ -123,23 +123,23 @@ function PK.Run(args)
 	local said = L["Terminal picks %s (of %d)"]:format(pick, #names)
 	local chat = not quiet and PK.Chat()
 	PK.Roll(names, pick, #names)
+	-- (said in the group's chat, it's in your chat window already; otherwise the line, printed: Commands' way)
 	if chat then
 		local send = ns.ChatSender and ns.ChatSender()
-		if ns.ChatLocked and ns.ChatLocked() then
-			ns:Print(said .. "  " .. L["(the game doesn't let addons send chat right now)"])
-		elseif send then
-			local ok = pcall(send, said, chat)
-			if not ok then ns:Print(said) end
-		end
-		return nil
+		if ns.ChatLocked and ns.ChatLocked() then return { said .. "  " .. L["(the game doesn't let addons send chat right now)"] } end
+		if send and pcall(send, said, chat) then return nil end
 	end
-	ns:Print(said)
-	return nil
+	return { said }
 end
 
 ns:RegisterCommand("pick", {
 	desc = L["Pick someone of your group at random, said in its chat (.pick quiet: only you see it); .pick tacos, pizza, sushi picks one of those"],
 	aliases = { "random", "choose" },
-	complete = function() return { { "quiet", L["only you see the pick"] } } end,
+	-- (only as the first word: a list's last word matched "quiet" and was written over by it; review)
+	complete = function(args)
+		local before = tostring(args or ""):match("^(.-)%S*$") or ""
+		if before:find("%S") then return {} end
+		return { { "quiet", L["only you see the pick"] } }
+	end,
 	run = function(args) return PK.Run(args) end,
 })

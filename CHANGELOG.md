@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.8.11 (in testing)
+
+**Review fixes: consistency**
+- An area type's word alone is no longer the bonus in Simple mode: it's in names ("Volcanic Leggings", "The Haunted
+  Isle", searched as a bonus before). Say "haunted gear", "haunted bonus" or "haunted areas"; "biome" still works.
+- A bonus is said as "with a Haunted bonus" (".explain", Simple mode); "in Strongholds and Cities areas" read oddly.
+- `.pick` offers "quiet" only as its first word (a list's last word that matched it was written over: ".pick yes,
+  no, qu"), "me" no longer means quiet, and a pick only for you is the command's own line.
+- `@layer`'s leftovers: the help line says the game hides it; it's no longer suggested in the empty prompt.
+- Your `.weights` picks kept as `Name@Realm` are found again when you clear your own weights too.
+- The share and console docs say what happens with no realm named; the questions doc says a faction's rewards take a
+  bonus.
+
 ## 1.8.10 (in testing)
 
 **Review fixes: the bonus search's costs**
@@ -100,7 +113,7 @@ bonus filter search")
 trolls, or have a bonus in mountainous areas")
 - A faction's rewards take a bonus said in plain words: "argent dawn rewards against trolls", "reputation rewards that
   deal 2x damage to trolls", "faction rewards with a bonus in mountainous areas", "exalted rewards against undead".
-  Alt+` writes them as `@reputation is:reward argent dawn bonus:troll`; the title says the bonus too.
+  In Advanced syntax they're `@reputation is:reward argent dawn bonus:troll`; the title says the bonus too.
 - The words a bonus is said with ("deal 2x damage", "with a bonus", "that have") are no longer searched as names, in
   any list: "trinkets that deal 2x damage to trolls" looks for trinkets with `bonus:troll`. "to trolls" and
   "fighting undead" are read as "against".

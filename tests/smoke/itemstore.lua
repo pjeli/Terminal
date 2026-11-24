@@ -54,7 +54,7 @@ do
 		check(not up(81), other .. ": not one (who can use it is kept per character; " .. other .. " was never asked)")
 	end
 	_G.UnitName = function() return "Grom" end
-	-- (1.8.3) by the name alone: unique across Forever's realms, which the game no longer names
+	-- (1.8.4) by the name alone: unique across Forever's realms, which the game no longer names
 	_G.GetRealmName = function() return "" end
 	F.ForgetSessionFit()
 	check(up(81), "Grom with no realm named: still Grom, as kept")
