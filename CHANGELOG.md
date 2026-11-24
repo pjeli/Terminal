@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.7 (in testing)
+
+**Review fixes: experience** (a review of 1.8.1-1.8.6)
+- 1.8.4 moved alts forgotten with `.forget` to their names while walking the list it changed: with a few of them
+  `@xp` listed nothing, and `.forget` failed the same way. They're gathered first, then moved.
+- Your bag addon's alts are matched to Terminal's notes by the whole name, and by the first name only when one side
+  has no surname: "Plamen Warr" noted no longer hid "Plamen Mage" from "not noted yet", and `.forget plamen warr`
+  no longer hid Mage too.
+
 ## 1.8.6 (in testing)
 
 **`.pick`** (the player: "I like the .pick idea!")

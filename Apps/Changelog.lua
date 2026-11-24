@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.8.6", when = "in testing",
+		v = "1.8.7", when = "in testing",
 		items = {
 			"Find gear by its bonus: where it grows (\"haunted bonus\", bonus:swamp, bonus:area) or what it's against (\"against undead\", bonus:troll), read from the item's own tooltip; | group by bonus.",
 			"A bonus goes with the rest of a search: \"argent dawn rewards against trolls\", \"reputation rewards that deal 2x damage to trolls\", \"faction rewards with a bonus in mountainous areas\".",
@@ -22,6 +22,7 @@ CL.LOG = {
 			"Nothing relies on your realm's name any more (the game no longer gives it): alts, mail, lockouts, upgrade picks and sharing with Battle.net friends go by names alone.",
 			"@loot finds bonuses too (\"@loot bonus:troll\"): items the game hasn't loaded are read in the background, the footer counting them down, and remembered for next time.",
 			".pick: someone of your group picked at random, with a roll of names on screen and the pick said in group chat (.pick quiet: only you; .pick tacos, pizza, sushi: one of those).",
+			"Fixed: @xp listing nothing after an alt forgotten before the update, and two alts of one first name taken for one.",
 		},
 	},
 	{

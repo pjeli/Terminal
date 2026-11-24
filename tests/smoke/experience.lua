@@ -140,10 +140,41 @@ do
 	res = UI:Search("@xp")
 	unknown = {}
 	for _, e in ipairs(res) do if e.unknown then unknown[#unknown + 1] = e.who end end
+	-- (1.8.7, review) the forgotten list moved over: @xp still lists (a key added while walking the table broke it)
+	check(#res >= 2, "@xp lists its rows after moving the forgotten list: " .. #res)
 	check(#unknown == 0, "no realm named: the bag addon's alts with one are the notes by name; one forgotten before too: "
 		.. table.concat(unknown, ", "))
 	check(ns.db.xpForgotten.zed == true and ns.db.xpForgotten["zed|forever"] == nil, "a forgotten name|realm kept as the name")
+	ns.db.xpForgotten = { ["a|x"] = true, ["b|y"] = true, ["c|z"] = true }
+	P._dirty = true
+	res = UI:Search("@xp")
+	check(#res >= 2 and ns.db.xpForgotten.a and ns.db.xpForgotten.b and ns.db.xpForgotten.c, "three old ones moved at once: " .. #res)
+	ns.db.xpForgotten = {}
 	ns.db.xpChars["Player-1-HHH"] = nil
+	-- (1.8.7, review) alts by their whole name: two of one first name are two; a bag addon's first name alone is the note's
+	ns.db.xpChars["Player-1-III"] = { name = "Plamen Warr", class = "WARRIOR", level = 10, xp = 1, max = 100, rested = 0, t = now }
+	G.Alts = function() return { { who = "Plamen Warr-PvP", class = "WARRIOR" }, { who = "Plamen Mage-PvP", class = "MAGE" } } end
+	P._dirty = true
+	res = UI:Search("@xp")
+	unknown = {}
+	for _, e in ipairs(res) do if e.unknown then unknown[#unknown + 1] = e.who end end
+	check(table.concat(unknown, ", ") == "Plamen Mage-PvP", "Plamen Warr noted, Plamen Mage not: Mage listed: " .. table.concat(unknown, ", "))
+	ns:FindCommand("forget").run("plamen warr")
+	G.Alts = function() return { { who = "Plamen Mage-PvP", class = "MAGE" }, { who = "Plamen Warr-PvP", class = "WARRIOR" } } end
+	P._dirty = true
+	res = UI:Search("@xp")
+	unknown = {}
+	for _, e in ipairs(res) do if e.unknown then unknown[#unknown + 1] = e.who end end
+	check(table.concat(unknown, ", ") == "Plamen Mage-PvP", ".forget plamen warr hides Warr, not Mage: " .. table.concat(unknown, ", "))
+	ns.db.xpForgotten = {}
+	ns.db.xpChars["Player-1-JJJ"] = { name = "Solo Hunter", class = "HUNTER", level = 10, xp = 1, max = 100, rested = 0, t = now }
+	G.Alts = function() return { { who = "Solo", class = "HUNTER" } } end
+	P._dirty = true
+	res = UI:Search("@xp")
+	unknown = {}
+	for _, e in ipairs(res) do if e.unknown then unknown[#unknown + 1] = e.who end end
+	check(#unknown == 0, "a bag addon's first name alone: the note with the surname: " .. table.concat(unknown, ", "))
+	ns.db.xpChars["Player-1-III"], ns.db.xpChars["Player-1-JJJ"] = nil, nil
 	_G.GetRealmName = function() return "Forever" end
 	G.Alts = saveAlts
 	ns.db.xpChars["Player-1-FFF"], ns.db.xpForgotten = nil, nil

@@ -176,25 +176,47 @@ local function Row(key, c, mine, now)
 	return e
 end
 
---- A name as its first word: "Plamen Warr" on Forever and the bag addons' "Plamen-Forever" alike are "plamen" (the bag
---- addons keep the first name, Terminal's note the name with its surname). By the name alone: names are unique across
---- Forever's realms, and since its November 20, 2026 hotfix the game gives no realm name (a bag addon's alts kept with
---- one were listed again as unnoted; 1.8.3).
+--- A character's name to match by: lowercase, without a "-Realm" (or the bag addon's "-PvP" ruleset) after it, and its
+--- first word. By the name alone: names are unique across WoW Forever's realms, and since its November 20, 2026 hotfix
+--- the game gives no realm name (1.8.4). Two names are one character when they're the same, or when one of them has no
+--- surname (a bag addon keeping the first name only) and the first words are the same: "Plamen Warr" and "Plamen Mage"
+--- are two (1.8.7, review: matched by the first word, noting one hid the other).
 local function Who(name)
 	name = ns.Lower(tostring(name or ""))
-	name = name:match("^(.-)%-.+$") or name
-	return name:match("^(%S+)") or name
+	name = (name:match("^(.-)%-[^%-]*$") or name):gsub("^%s+", ""):gsub("%s+$", "")
+	return name, (name:match("^(%S+)") or name)
 end
---- Alts forgotten with .forget <name>, by Who's name: not listed again as unnoted while the bag addon still knows them;
---- noted again once you log in on one. (Kept before 1.8.3 as "name|realm": read as the name.)
+--- A set of names (Who's), and whether `name` is one of them: by the whole name, or the first word when either side has
+--- no surname.
+local function Names(list)
+	local set = { full = {}, first = {}, bare = {} }
+	for n in pairs(list) do
+		local full, first = Who(n)
+		set.full[full], set.first[first] = true, true
+		if full == first then set.bare[first] = true end
+	end
+	return set
+end
+local function InNames(set, name)
+	local full, first = Who(name)
+	return set.full[full] or set.bare[first] or (full == first and set.first[first]) or false
+end
+--- Alts forgotten with .forget <name>, by Who's whole name: not listed again as unnoted while the bag addon still knows
+--- them; noted again once you log in on one. (Kept before 1.8.4 as "name|realm": read as the name. The old keys are
+--- gathered first and moved after: a key added while walking the table broke the walk, and @xp listed nothing; 1.8.7.)
 local function Forgotten()
 	local db = ns.db
 	if type(db) ~= "table" then return {} end
 	if type(db.xpForgotten) ~= "table" then db.xpForgotten = {} end
 	local f = db.xpForgotten
+	local old
 	for k in pairs(f) do
-		local n = type(k) == "string" and k:match("^(.-)|")
-		if n then f[k] = nil; if n ~= "" then f[n] = true end end
+		if type(k) == "string" and k:find("|", 1, true) then old = old or {}; old[#old + 1] = k end
+	end
+	for _, k in ipairs(old or {}) do
+		f[k] = nil
+		local n = k:match("^(.-)|")
+		if n and n ~= "" then f[n] = true end
 	end
 	return f
 end
@@ -204,16 +226,14 @@ function X.Unnoted(chars, myKey)
 	local G = ns.Gold
 	local ok, alts = pcall(function() return G and G.Alts and G.Alts() end)
 	if not ok or type(alts) ~= "table" then return {} end
-	local noted = {}
-	for key, c in pairs(chars or {}) do
-		if type(c) == "table" and c.name then
-			noted[Who(c.name)] = true
-		end
+	local names = {}
+	for _, c in pairs(chars or {}) do
+		if type(c) == "table" and c.name then names[c.name] = true end
 	end
-	local out, gone = {}, Forgotten()
+	local noted, gone = Names(names), Names(Forgotten())
+	local out = {}
 	for _, a in ipairs(alts) do
-		local n = Who(a.who)
-		if a.who and not noted[n] and not gone[n] then out[#out + 1] = a end
+		if a.who and not InNames(noted, a.who) and not InNames(gone, a.who) then out[#out + 1] = a end
 	end
 	table.sort(out, function(x, y) return x.who < y.who end)
 	return out
@@ -227,7 +247,9 @@ function X.Collect()
 	local rows = {}
 	if me then
 		if myKey then me = X.Keep(chars, myKey, me) end -- (kept fresh while you play)
-		Forgotten()[Who(me.name)] = nil -- (logged in on a forgotten one: noted again)
+		-- (logged in on a forgotten one: noted again; a first name kept alone before 1.8.7 too)
+		local f, full, first = Forgotten(), Who(me.name)
+		f[full], f[first] = nil, nil
 		rows[1] = Row(myKey or "me", me, true, now)
 	end
 	local alts = {}
@@ -275,7 +297,7 @@ function X.ForgetAlt(who)
 			or ns.Lower(c.name .. "-" .. tostring(c.realm)) == lw) then
 			chars[key] = nil
 			n = n + 1
-			Forgotten()[Who(c.name)] = true -- (as Unnoted reads it)
+			Forgotten()[(Who(c.name))] = true -- (as Unnoted reads it)
 		end
 	end
 	if n > 0 then ns:Changed("experience") end
