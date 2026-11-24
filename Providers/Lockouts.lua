@@ -201,15 +201,13 @@ end
 
 function LK.Collect()
 	local chars, myKey, now = Chars() or {}, MyKey(), Now()
-	local myRealm = Str(Safe(GetRealmName))
 	-- (yours afresh, as the game says them now: only once it has answered this session, else an empty list read before its
 	-- answer came would replace what was kept)
 	if myKey and LK.answered then LK.Record(true) end
 	local rows = {}
 	local function Add(key, c, mine)
 		if type(c) ~= "table" or type(c.list) ~= "table" then return end
-		local who = c.name or "?"
-		if c.realm and myRealm and c.realm ~= myRealm then who = who .. "-" .. c.realm end
+		local who = c.name or "?" -- (the name alone: names are unique across Forever's realms, which it no longer names)
 		local kept = {}
 		for _, l in ipairs(c.list) do
 			if type(l) == "table" and type(l.reset) == "number" and l.reset > now then kept[#kept + 1] = l end -- (reset since: gone)

@@ -154,11 +154,12 @@ end
 
 local ICON_ME, ICON_ALT = "Interface\\Icons\\Spell_Holy_SurgeOfLight", "Interface\\Icons\\INV_Misc_Book_09"
 
-local function Row(key, c, mine, myRealm, now)
+-- (a character's name alone: names are unique across WoW Forever's realms, and since its November 20, 2026 hotfix the
+-- game gives no realm name; a "-Realm" kept from before would set alts apart from you)
+local function Row(key, c, mine, now)
 	local rested, estimated = c.rested or 0, false
 	if not mine then rested, estimated = X.RestedNow(c, now) end
 	local who = c.name or "?"
-	if c.realm and myRealm and c.realm ~= myRealm then who = who .. "-" .. c.realm end
 	local e = {
 		key = key, name = who, who = who, mine = mine or nil, level = c.level, xp = c.xp,
 		xpMax = (tonumber(c.max) or 0) > 0 and c.max or nil, -- (0: a note from before 0.43.23, read at logout)
@@ -175,40 +176,44 @@ local function Row(key, c, mine, myRealm, now)
 	return e
 end
 
---- A name as "first word" and realm: "Plamen Warr" on Forever and "Plamen-Forever" alike are "plamen", "forever" (the
---- bag addons keep the first name, Terminal's note the name with its surname).
-local function Who(name, realm)
+--- A name as its first word: "Plamen Warr" on Forever and the bag addons' "Plamen-Forever" alike are "plamen" (the bag
+--- addons keep the first name, Terminal's note the name with its surname). By the name alone: names are unique across
+--- Forever's realms, and since its November 20, 2026 hotfix the game gives no realm name (a bag addon's alts kept with
+--- one were listed again as unnoted; 1.8.3).
+local function Who(name)
 	name = ns.Lower(tostring(name or ""))
-	local base, r = name:match("^(.-)%-(.+)$")
-	if base then name, realm = base, r end
-	-- (the realm without spaces or marks: the bag addons' "ArgentDawn" is Terminal's "Argent Dawn")
-	return (name:match("^(%S+)") or name), (ns.Lower(tostring(realm or "")):gsub("[%s%p]", ""))
+	name = name:match("^(.-)%-.+$") or name
+	return name:match("^(%S+)") or name
 end
---- Alts forgotten with .forget <name>, by Who's "name|realm": not listed again as unnoted while the bag addon still
---- knows them; noted again once you log in on one.
+--- Alts forgotten with .forget <name>, by Who's name: not listed again as unnoted while the bag addon still knows them;
+--- noted again once you log in on one. (Kept before 1.8.3 as "name|realm": read as the name.)
 local function Forgotten()
 	local db = ns.db
 	if type(db) ~= "table" then return {} end
 	if type(db.xpForgotten) ~= "table" then db.xpForgotten = {} end
-	return db.xpForgotten
+	local f = db.xpForgotten
+	for k in pairs(f) do
+		local n = type(k) == "string" and k:match("^(.-)|")
+		if n then f[k] = nil; if n ~= "" then f[n] = true end end
+	end
+	return f
 end
 
 --- The bag addon's alts with no note of their experience (ns.Gold.Alts): { { who, class } }.
-function X.Unnoted(chars, myKey, myRealm)
+function X.Unnoted(chars, myKey)
 	local G = ns.Gold
 	local ok, alts = pcall(function() return G and G.Alts and G.Alts() end)
 	if not ok or type(alts) ~= "table" then return {} end
 	local noted = {}
 	for key, c in pairs(chars or {}) do
 		if type(c) == "table" and c.name then
-			local n, r = Who(c.name, c.realm or myRealm)
-			noted[n .. "|" .. r] = true
+			noted[Who(c.name)] = true
 		end
 	end
 	local out, gone = {}, Forgotten()
 	for _, a in ipairs(alts) do
-		local n, r = Who(a.who, myRealm)
-		if a.who and not noted[n .. "|" .. r] and not gone[n .. "|" .. r] then out[#out + 1] = a end
+		local n = Who(a.who)
+		if a.who and not noted[n] and not gone[n] then out[#out + 1] = a end
 	end
 	table.sort(out, function(x, y) return x.who < y.who end)
 	return out
@@ -218,18 +223,16 @@ function X.Collect()
 	local chars = Chars() or {}
 	local myKey = MyKey()
 	local me = X.ReadMe()
-	local myRealm = me and me.realm
 	local now = Now()
 	local rows = {}
 	if me then
 		if myKey then me = X.Keep(chars, myKey, me) end -- (kept fresh while you play)
-		local n, r = Who(me.name, myRealm)
-		Forgotten()[n .. "|" .. r] = nil -- (logged in on a forgotten one: noted again)
-		rows[1] = Row(myKey or "me", me, true, myRealm, now)
+		Forgotten()[Who(me.name)] = nil -- (logged in on a forgotten one: noted again)
+		rows[1] = Row(myKey or "me", me, true, now)
 	end
 	local alts = {}
 	for key, c in pairs(chars) do
-		if key ~= myKey and type(c) == "table" and type(c.level) == "number" then alts[#alts + 1] = Row(key, c, false, myRealm, now) end
+		if key ~= myKey and type(c) == "table" and type(c.level) == "number" then alts[#alts + 1] = Row(key, c, false, now) end
 	end
 	-- the highest level first, then the closest to the next one, then by name
 	table.sort(alts, function(a, b)
@@ -240,7 +243,7 @@ function X.Collect()
 	end)
 	for _, e in ipairs(alts) do rows[#rows + 1] = e end
 	-- alts the bag addon knows of with no note yet: listed, last, saying to log in on them once
-	for _, a in ipairs(X.Unnoted(chars, myKey, myRealm)) do
+	for _, a in ipairs(X.Unnoted(chars, myKey)) do
 		rows[#rows + 1] = {
 			key = "stored:" .. a.who, name = a.who, who = a.who, unknown = true, color = ns.ClassHex(a.class), icon = ICON_ALT,
 			detail = "|cff9d9d9d" .. Summary({ unknown = true }, false, true) .. "|r",
@@ -272,9 +275,7 @@ function X.ForgetAlt(who)
 			or ns.Lower(c.name .. "-" .. tostring(c.realm)) == lw) then
 			chars[key] = nil
 			n = n + 1
-			local me = X.ReadMe()
-			local fn, fr = Who(c.name, c.realm or (me and me.realm)) -- (as Unnoted reads it)
-			Forgotten()[fn .. "|" .. fr] = true
+			Forgotten()[Who(c.name)] = true -- (as Unnoted reads it)
 		end
 	end
 	if n > 0 then ns:Changed("experience") end

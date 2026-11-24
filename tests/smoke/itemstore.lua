@@ -38,7 +38,7 @@ do
 	check(up(81), "a helm better for a warrior: an upgrade")
 	local rec = S.Get("facts", 81)
 	check(type(rec) == "string" and rec:find("INVTYPE_HEAD;16;22;2;", 1, true) and rec:find("str=7", 1, true)
-		and rec:find("sta=4", 1, true) and rec:find(";Grom@ArgentDawn+", 1, true), "kept: its slot, levels, binding, stats, usable by this character: " .. tostring(rec))
+		and rec:find("sta=4", 1, true) and rec:find(";Grom+", 1, true), "kept: its slot, levels, binding, stats, usable by this character: " .. tostring(rec))
 	check(ns.ItemQuality(81) == 3, "its quality as the game says")
 	-- a /reload: what the session knew is gone, the game hasn't sent the item again, the server doesn't answer yet
 	F.ForgetSessionFit()
@@ -54,14 +54,15 @@ do
 		check(not up(81), other .. ": not one (who can use it is kept per character; " .. other .. " was never asked)")
 	end
 	_G.UnitName = function() return "Grom" end
-	_G.GetRealmName = function() return "Forever" end
+	-- (1.8.3) by the name alone: unique across Forever's realms, which the game no longer names
+	_G.GetRealmName = function() return "" end
 	F.ForgetSessionFit()
-	check(not up(81), "a Grom on another realm: not one (never asked)")
+	check(up(81), "Grom with no realm named: still Grom, as kept")
 	_G.GetRealmName = function() return "Argent Dawn" end
 	F.ForgetSessionFit()
 	check(up(81), "Grom again: as kept")
 	-- (review, 0.51.25) mana per 5 kept too (its name has a digit)
-	S.Put("facts", 82, "INVTYPE_HEAD;16;22;2;int=5,mp5=4,sta=3;Grom@ArgentDawn+")
+	S.Put("facts", 82, "INVTYPE_HEAD;16;22;2;int=5,mp5=4,sta=3;Grom+")
 	ITEMS[82] = ITEMS[81]
 	F.ForgetSessionFit()
 	F.GearFit()({ kind = "loot", itemID = 82 })

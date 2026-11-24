@@ -78,11 +78,9 @@ end
 
 local list, boxRows -- (the last collect's rows; box rows by box key)
 
-local function Who(box, myRealm)
-	local who = box.name or "?"
-	if box.realm and myRealm and box.realm ~= myRealm then who = who .. "-" .. box.realm end
-	return who
-end
+-- (the name alone: names are unique across WoW Forever's realms, and since its November 20, 2026 hotfix the game names
+-- none; a "-Realm" kept from before set your own boxes apart)
+local function Who(box) return box.name or "?" end
 
 --- A mail's lines for chat: "  From Bob: Auction successful: Copper Bar  ·  45g  ·  2 days left (deleted)".
 local function MailLine(e)
@@ -413,9 +411,9 @@ end
 
 --- Who a character is, by its GUID: its mailbox's name, yours, an alt's name Terminal noted, else "an alt".
 function MA.WhoOf(key)
-	local boxes, myRealm = Boxes() or {}, Str(Safe(GetRealmName))
+	local boxes = Boxes() or {}
 	local box = boxes[key]
-	if type(box) == "table" then return Who(box, myRealm) end
+	if type(box) == "table" then return Who(box) end
 	if key == MyKey() then return ns.CharacterName() or Str(Safe(UnitName, "player")) or L["You"] end
 	local xp = ns.db and type(ns.db.xpChars) == "table" and ns.db.xpChars[key]
 	return (type(xp) == "table" and Str(xp.name)) or L["an alt"]
@@ -448,7 +446,6 @@ end
 function MA.Collect()
 	local boxes = Boxes() or {}
 	local myKey, now = MyKey(), Now()
-	local myRealm = Str(Safe(GetRealmName))
 	local rows, mailRows, byKey = {}, {}, {}
 	local keys = {}
 	for key, box in pairs(boxes) do
@@ -463,7 +460,7 @@ function MA.Collect()
 	table.sort(keys, Order)
 	for _, key in ipairs(keys) do
 		local box, mine = boxes[key], key == myKey
-		local who = box and Who(box, myRealm) or (ns.CharacterName() or Str(Safe(UnitName, "player")) or L["You"])
+		local who = box and Who(box) or (ns.CharacterName() or Str(Safe(UnitName, "player")) or L["You"])
 		local mails, gone = {}, 0
 		for i, m in ipairs(box and box.mails or {}) do
 			if type(m) == "table" and type(m.expires) == "number" then
@@ -687,11 +684,11 @@ function MA.None() return {} end
 --- MA.SOON, the soonest and what happens to it.
 function MA.Warnings(now)
 	now = now or Now()
-	local boxes, myKey, myRealm = Boxes() or {}, MyKey(), Str(Safe(GetRealmName))
+	local boxes, myKey = Boxes() or {}, MyKey()
 	local found = {}
 	for key, box in pairs(boxes) do
 		if type(box) == "table" and type(box.mails) == "table" then
-			local w = { key = key, who = Who(box, myRealm), money = 0, items = 0, mails = 0 }
+			local w = { key = key, who = Who(box), money = 0, items = 0, mails = 0 }
 			for _, m in ipairs(box.mails) do
 				local left = type(m) == "table" and type(m.expires) == "number" and (m.expires - now) or 0
 				if left > 0 and left < MA.SOON and (m.money or m.items) then

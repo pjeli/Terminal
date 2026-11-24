@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.8.4 (in testing)
+
+**Nothing relies on the realm's name** (the player: "fix anything that relies on realm name too")
+- Since WoW Forever's November 20, 2026 hotfix the game gives no realm name (`GetRealmName()` is empty; your saved
+  notes since then have none). Character names are unique across Forever's realms, so Terminal goes by the name alone.
+- Experience: your bag addon's alts, kept with a realm, were listed again as "not noted yet" beside their notes; an alt
+  forgotten with `.forget` before stays forgotten. No "-Realm" is put after a name any more (`@xp`, `@lockout`, `@mail`
+  and its warning), so a note kept with one isn't set apart from you.
+- Upgrades: your `.weights` picks and what each item is usable by are kept by your name; picks kept as `Name@Realm`
+  are found again.
+- Share: a Battle.net friend whose realm Battle.net still names was left out when yours isn't named; they're told apart
+  by the server in the characters' GUIDs instead, and a claim with no realm is theirs.
+- Console: `/etc/os-release` says "forever", not an empty realm.
+
 ## 1.8.3 (in testing)
 
 **Your layer can't be told any more** (the player: "double check if layering values are undetectable anymore")

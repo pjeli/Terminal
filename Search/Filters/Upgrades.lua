@@ -295,7 +295,7 @@ end
 --- Your own weights for this character: { w = { str = 2, ... }, name = a Pawn scale's } or nil.
 function F.CustomWeights()
 	local db, key = ns.db, F._MyName and F._MyName()
-	local c = db and key and type(db.upgradeCustom) == "table" and db.upgradeCustom[key]
+	local c = db and key and F.MineKept(db.upgradeCustom, key)
 	return type(c) == "table" and type(c.w) == "table" and next(c.w) ~= nil and c or nil
 end
 --- Keep (or forget: nil) your own weights for this character; forgotten, they're no longer one of the roles picked.
@@ -441,7 +441,7 @@ F.RolesOf = RolesOf
 --- The roles you picked (their ids, in your class's order), or nil: none (the all-round weights).
 function F.MyRoles()
 	local db, key = ns.db, F._MyName and F._MyName()
-	local saved = db and key and type(db.upgradeRoles) == "table" and db.upgradeRoles[key]
+	local saved = db and key and F.MineKept(db.upgradeRoles, key)
 	if type(saved) ~= "table" then return nil end
 	-- (one role at a time, "only let .weights define one role; easiest on the computation too"; several kept from
 	-- before: the first of them that's still a role of yours)
@@ -789,12 +789,23 @@ local function MyName()
 	-- (with its surname where characters have one: "Plamen Warr" and "Plamen Mage" are two.)
 	local ok, name = pcall(ns.CharacterName)
 	if not (ok and type(name) == "string" and name ~= "" and not name:find("[;,%+%-@]")) then return nil end
-	-- (and the realm, its letters only: two of the same name on two realms aren't one)
-	local okR, realm = pcall(_G.GetRealmName or function() end)
-	realm = okR and type(realm) == "string" and not Secret(realm) and realm:gsub("[%s%p]", "") or ""
-	return realm ~= "" and (name .. "@" .. realm) or name
+	-- (the name alone: names are unique across WoW Forever's realms, and since its November 20, 2026 hotfix the game
+	-- names none; picks kept before as "Name@Realm" are moved to the name, F.MineKept)
+	return name
 end
 F._MyName = MyName -- (tests)
+--- This character's entry of a table kept by name (db.upgradeRoles, db.upgradeCustom): one kept as "Name@Realm" before
+--- 1.8.3 is moved to the name alone the first time it's asked for.
+function F.MineKept(t, key)
+	if type(t) ~= "table" or not key then return nil end
+	if t[key] == nil then
+		local pre = key .. "@"
+		for k, v in pairs(t) do
+			if type(k) == "string" and k:sub(1, #pre) == pre then t[key], t[k] = v, nil break end
+		end
+	end
+	return t[key]
+end
 local function Escaped(s) return (s:gsub("%p", "%%%0")) end
 local function Encode(f, class, old)
 	local kinds = {}

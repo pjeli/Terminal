@@ -1430,7 +1430,9 @@ local function People()
 				-- (an id that isn't GetRealmID's numbering)
 				local realmName = type(g) == "table" and Str(g.realmName)
 				local same
-				if realmName then same = Canon((realmName:gsub("[%s%-']", ""))) == realm
+				-- (by name only when yours is known: since WoW Forever's November 20, 2026 hotfix it isn't, and every
+				-- friend with a realm named was left out)
+				if realmName and realm ~= "" then same = Canon((realmName:gsub("[%s%-']", ""))) == realm
 				else
 					local theirs = type(g) == "table" and Str(g.playerGuid)
 					theirs = theirs and theirs:match("^Player%-(%d+)%-")
@@ -1499,7 +1501,8 @@ local function Matches(claim, route)
 		local exact = name == c
 		if not (exact or name:sub(1, #c + 1) == c .. "-") then return false end
 		if not exact and c:find("-", 1, true) then return false end
-		if b.realm and SSH.Claim("x", b.realm) ~= "x@" .. realm then return false end
+		-- (a realm either side doesn't name tells nothing apart: Forever names none since its November 20, 2026 hotfix)
+		if b.realm and realm ~= "" and MyRealm() ~= "" and SSH.Claim("x", b.realm) ~= "x@" .. realm then return false end
 		-- (no realm from Battle.net: only a character of your own realm. any realm's taken)
 		if not b.realm and realm ~= "" and realm ~= MyRealm() then return false end
 		-- The character claimed, as your friend list or guild roster knows it: by its GUID, it's this Battle.net

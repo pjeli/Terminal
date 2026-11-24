@@ -1697,7 +1697,7 @@ function SH.FetchInfo()
 	local v, build = Try(_G.GetBuildInfo)
 	Add("OS", "World of Warcraft Forever " .. tostring(v or "?"))
 	local realm = Try(_G.GetRealmName)
-	if realm and not (ns.Secret and ns.Secret(realm)) then Add("Host", SH.Literal(realm)) end
+	if type(realm) == "string" and realm ~= "" and not (ns.Secret and ns.Secret(realm)) then Add("Host", SH.Literal(realm)) end
 	Add("Kernel", "Terminal " .. tostring(ns.version or "?") .. " (" .. tostring(build or "?") .. ")")
 	Add("Uptime", SH.FetchUptime(FS.SessionSeconds()))
 	local A = _G.C_AddOns

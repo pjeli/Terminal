@@ -134,7 +134,7 @@ local SPECIAL_FILES = {}
 
 SPECIAL_FILES.etc = function()
 	local me = ns.CharacterName and ns.CharacterName() or "you"
-	local realm = _G.GetRealmName and _G.GetRealmName() or "forever"
+	local realm = FS.Host()
 	local files = {
 		Special("motd", function() return FS.Motd() end),
 		Special("hostname", function() return { FS.Host() } end),

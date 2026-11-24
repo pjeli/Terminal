@@ -161,6 +161,19 @@ do
 	check(not SSH.game.env.eligible({ kind = "bn", id = 91 }), "...another server in its GUID: not")
 	check(table.concat(SSH.Debug(), "\n"):find("left out (another realm): Zed (no realm)", 1, true),
 		".share debug says who was left out for another realm")
+	-- (1.8.3) since WoW Forever's November 20, 2026 hotfix the game names no realm of yours: a friend Battle.net gives a
+	-- realm for is told apart by the server in the GUIDs, and a claim with no realm ("zed@") is theirs
+	local rn, nrn = rawget(_G, "GetRealmName"), rawget(_G, "GetNormalizedRealmName")
+	_G.GetRealmName, _G.GetNormalizedRealmName = function() return "" end, function() return "" end
+	rname = "Realm"
+	_G.UnitGUID = function(u) if u == "player" then return "Player-4619-00001234" end end
+	SSH.Forget()
+	check(SSH.game.env.eligible({ kind = "bn", id = 91 }) and M("zed@", { kind = "bn", id = 91 }),
+		"no realm of yours named: a Battle.net friend with one, on your server: connected")
+	_G.UnitGUID = function(u) if u == "player" then return "Player-4620-00001234" end end
+	SSH.Forget()
+	check(not SSH.game.env.eligible({ kind = "bn", id = 91 }), "...on another server: not")
+	_G.GetRealmName, _G.GetNormalizedRealmName = rn, nrn
 	_G.GetRealmID, _G.UnitGUID = idWas, guidWas
 	_G.BNGetNumFriends, C_BattleNet.GetFriendGameAccountInfo, C_BattleNet.GetFriendAccountInfo = bnN, gai, ac
 	C_BattleNet.GetFriendNumGameAccounts = ng
