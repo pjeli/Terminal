@@ -114,12 +114,13 @@ function BN.ReadLine(text, areas, foes)
 	local plain = Plain(text)
 	local low = Lower(plain)
 	if low:find('^%s*"') then return end -- (flavour text is quoted: never a bonus)
+	local lowIn = " " .. low -- (a line starting "In Haunted areas, ...": its " in " too)
 	-- places: each " in " followed by a list of area types only
 	local from = 1
 	while true do
-		local _, b = low:find(" in ", from, true)
+		local _, b = lowIn:find(" in ", from, true)
 		if not b then break end
-		local clause = low:sub(b + 1):match("^[^%.;:,%(]*") or ""
+		local clause = lowIn:sub(b + 1):match("^[^%.;:,%(]*") or ""
 		PlaceList(clause, areas)
 		from = b
 	end
@@ -162,13 +163,25 @@ BN.BATCH, BN.EVERY, BN.REDO, BN.GIVE_UP = 40, 0.5, 2, 30
 local queue, head, queued, waiting = {}, 1, {}, {} -- (ids in order, the next one's index, queued, asked: id -> when)
 local nWaiting = 0
 local pumping, redoAt, redoWaiting = false, 0, false
-BN.wantedText = nil -- (the prompt a bonus: filter was made for: run again as items come in while it's still typed)
+-- (asked and never answered within BN.GIVE_UP: not asked again this session, nor waited for: its search ran again
+-- every 30 s and the footer's note never went; 1.8.8, review)
+local gaveUp = {}
+local skipped = {} -- (not read for their item class, recipes and materials: kept false, not written to the saved file)
+BN.wantedText = nil -- (the prompt the search with a bonus filter was made for (UI:Search clears it): run again as items
+                    -- come in while it's still typed)
 
-F.ClearBonuses = function() kept = {} end
+F.ClearBonuses = function() kept, skipped = {}, {} end
 function BN.ForgetForTests()
-	kept, labels = {}, {}
+	kept, labels, gaveUp, skipped = {}, {}, {}, {}
 	queue, head, queued, waiting, nWaiting, pumping = {}, 1, {}, {}, 0, false
+	redoAt, redoWaiting = 0, false
 	BN.wantedText, BN.loaded = nil, nil
+	if BN.Listen then BN.Listen() end
+end
+--- .saved clear bonuses: what was read this session goes too (else written back at logout; 1.8.8, review).
+function BN.Clear()
+	kept, skipped = {}, {}
+	BN.loaded = true -- (nothing kept to read back: cleared)
 end
 
 -- (kept across sessions: "<build>" and the items read as "id=" (none) or "id=haunted,f:undead:Undead", one string; a new
@@ -204,9 +217,10 @@ end
 --- The items read in an earlier session of this build, back into the cache (once, when first asked).
 function BN.LoadKept()
 	if BN.loaded then return end
-	BN.loaded = true
 	local db = ns.db
-	local x = db and db.bonusIndex
+	if not db then return end -- (the saved data not there yet: tried again)
+	BN.loaded = true
+	local x = db.bonusIndex
 	if type(x) ~= "table" or x.build ~= Build() or type(x.items) ~= "string" then return end
 	for id, s in x.items:gmatch("(%d+)=([^;]*)") do
 		id = tonumber(id)
@@ -219,7 +233,7 @@ function BN.SaveKept()
 	if not db then return end
 	BN.LoadKept() -- (an earlier session's, not read this session, kept too)
 	local parts = {}
-	for id, c in pairs(kept) do parts[#parts + 1] = id .. "=" .. Pack(c or nil) end
+	for id, c in pairs(kept) do if not skipped[id] then parts[#parts + 1] = id .. "=" .. Pack(c or nil) end end
 	table.sort(parts)
 	db.bonusIndex = #parts > 0 and { build = Build(), items = table.concat(parts, ";") } or nil
 end
@@ -243,16 +257,20 @@ function BN.Of(id)
 	if get then
 		local ok, iid, _, _, _, _, classID = pcall(get, id)
 		if ok and iid == id and type(classID) == "number" and not READ[classID] then
-			kept[id] = false
+			kept[id], skipped[id] = false, true
 			return false
 		end
 	end
+	if gaveUp[id] then return nil end -- (the server never answered: none, this session)
 	local cached = C_Item and C_Item.IsItemDataCachedByID
 	if cached then
 		local ok, yes = pcall(cached, id)
 		if ok and yes == false then
 			BN.Queue(id)
-			F.loading = true
+			-- (the search isn't run again by RetryWhenLoaded for these, every 1.1 s: Redo does as they come in; it
+			-- isn't kept for the next keystroke to narrow from, nor answered with close spellings)
+			F.bonusLoading = true
+			if not BN.wantedText then BN.Want() end -- (group by bonus, the bar's Group: no bonus: filter typed)
 			return nil
 		end
 	end
@@ -301,8 +319,14 @@ local function Redo()
 		return
 	end
 	redoAt = now + BN.REDO
-	if not (UI and UI.RedoQuietly and UI.IsShown and UI:IsShown() and BN.wantedText and UI.edit and UI.edit:GetText() == BN.wantedText) then return end
-	UI:RedoQuietly()
+	-- (not in combat: a whole search of thousands of rows; after it)
+	if InCombatLockdown and InCombatLockdown() then
+		redoWaiting = true
+		C_Timer.After(5, function() redoWaiting = false; Redo() end)
+		return
+	end
+	if not (UI and UI.QuietRedo and UI.IsShown and UI:IsShown() and BN.wantedText and UI.edit and UI.edit:GetText() == BN.wantedText) then return end
+	UI:QuietRedo(true) -- (what it finds put up, not held for F5 each time a few more came in)
 end
 BN.Redo = Redo
 
@@ -312,14 +336,26 @@ function BN.Left() return (#queue - head + 1) + nWaiting end
 local Pump
 --- An item the game hasn't loaded: asked of the server in the background, read once it's in.
 function BN.Queue(id)
-	if queued[id] or waiting[id] then return end
+	if queued[id] or waiting[id] or gaveUp[id] then return end
 	queued[id] = true
 	queue[#queue + 1] = id
 	if not pumping then pumping = true; C_Timer.After(0, Pump) end
 end
 
+local frame
+--- The server's answers listened for only while some are awaited (item events fire for everything in the game).
+function BN.Listen()
+	if not frame then return end
+	if nWaiting > 0 then pcall(frame.RegisterEvent, frame, "ITEM_DATA_LOAD_RESULT")
+	else pcall(frame.UnregisterEvent, frame, "ITEM_DATA_LOAD_RESULT") end
+end
+
 local function Done(id, c)
-	if waiting[id] then waiting[id] = nil; nWaiting = nWaiting - 1 end
+	if waiting[id] then
+		waiting[id] = nil
+		nWaiting = nWaiting - 1
+		if nWaiting == 0 then BN.Listen() end
+	end
 	if c ~= nil then kept[id] = c end
 end
 
@@ -327,7 +363,7 @@ Pump = function()
 	if InCombatLockdown and InCombatLockdown() then return C_Timer.After(5, Pump) end
 	local now, n = GetTime(), 0
 	-- (asked long ago and never answered: let go; asked again next time a search meets it)
-	for id, at in pairs(waiting) do if now - at > BN.GIVE_UP then Done(id) end end
+	for id, at in pairs(waiting) do if now - at > BN.GIVE_UP then gaveUp[id] = true; Done(id) end end
 	local read = false
 	while n < BN.BATCH and head <= #queue do
 		local id = queue[head]
@@ -340,6 +376,7 @@ Pump = function()
 		if ok and yes == false then
 			if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
 			waiting[id], nWaiting = now, nWaiting + 1
+			if nWaiting == 1 then BN.Listen() end
 		elseif kept[id] == nil then
 			BN.Read(id)
 			read = true
@@ -359,8 +396,8 @@ BN.Pump = function() return Pump() end -- (tests)
 -- the server's answers; and what was read, kept at logout
 do
 	local f = CreateFrame("Frame")
-	pcall(f.RegisterEvent, f, "ITEM_DATA_LOAD_RESULT")
-	pcall(f.RegisterEvent, f, "PLAYER_LOGOUT")
+	frame = f
+	pcall(f.RegisterEvent, f, "PLAYER_LOGOUT") -- (ITEM_DATA_LOAD_RESULT: BN.Listen, while waiting)
 	f:SetScript("OnEvent", function(_, event, id, ok)
 		if event == "PLAYER_LOGOUT" then return pcall(BN.SaveKept) end
 		if type(id) ~= "number" or not waiting[id] then return end
@@ -411,26 +448,26 @@ function BN.ValueOf(label) return label and valueOf[label] end
 -- bonus:dem), area / creature for any of those, any for either
 local ANY_AREA = { area = true, areas = true, biome = true, biomes = true, zone = true, zones = true, place = true, places = true }
 local ANY_FOE = { creature = true, creatures = true, foe = true, foes = true, species = true, enemy = true, enemies = true, target = true }
+--- The area type a bonus: value names: one of its words, its key, or a start of one (bonus:mount, bonus:cav; not one a
+--- creature starts with too: bonus:und is undead). Nil: not an area type.
+local function AreaOf(v)
+	local area = AREA_OF[v] or (AREA_BY_KEY[v] and v)
+	if area or #v < 3 then return area end
+	for w in pairs(CREATURE_OF) do if w:sub(1, #v) == v then return nil end end
+	for _, a in ipairs(BN.AREAS) do
+		for _, w in ipairs(a.words) do if w:sub(1, #v) == v then return a.key end end
+	end
+	return nil
+end
 local function Test(v)
 	v = Lower(v):gsub("[%s_%-]", "")
 	if v == "" then return nil end
 	if v == "any" or v == "all" or v == "bonus" then return function() return true end end
 	if ANY_AREA[v] then return function(b) return b.area end end
 	if ANY_FOE[v] then return function(b) return not b.area end end
-	local area = AREA_OF[v] or (AREA_BY_KEY[v] and v)
+	local area = AreaOf(v)
 	if area then return function(b) return b.area and b.key == area end end
 	local want = Stem(v)
-	-- (an area type's start, bonus:mount, bonus:cav; not one a creature starts with too: bonus:und is undead)
-	local foe = false
-	for w in pairs(CREATURE_OF) do if w:sub(1, #v) == v then foe = true break end end
-	for _, a in ipairs(foe and {} or BN.AREAS) do
-		for _, w in ipairs(a.words) do
-			if #v >= 3 and w:sub(1, #v) == v then
-				local key = a.key
-				return function(b) return b.area and b.key == key end
-			end
-		end
-	end
 	return function(b) return not b.area and b.key:sub(1, #want) == want end
 end
 --- A bonus: filter said: "with a bonus in Haunted areas", "with a bonus against undead".
@@ -438,15 +475,17 @@ function BN.Say(v)
 	v = Lower(v):gsub("[%s_%-]", "")
 	if ANY_AREA[v] then return L["with an area bonus"] end
 	if ANY_FOE[v] then return L["with a bonus against creatures"] end
-	local area = AREA_OF[v] or (AREA_BY_KEY[v] and v)
-	if area then return L["with a bonus in %s areas"]:format(AREA_BY_KEY[area].label) end
 	if v == "any" or v == "all" or v == "bonus" then return L["with a bonus"] end
+	local area = AreaOf(v)
+	if area then return L["with a bonus in %s areas"]:format(AREA_BY_KEY[area].label) end
 	return L["with a bonus against %s"]:format(v)
 end
-local function Wanted()
+--- The search being made has a bonus in it: run again for this prompt as items come in.
+function BN.Want()
 	local UI = ns.UI
 	BN.wantedText = UI and UI.edit and UI.edit.GetText and UI.edit:GetText() or nil
 end
+local Wanted = BN.Want
 KEYS.bonus = function(v)
 	local test = Test(v)
 	if not test then return nil end
@@ -486,6 +525,7 @@ function BN.Take(words)
 	local i = 1
 	while i <= #words do
 		local w, nx = words[i], words[i + 1]
+		if FOE_WORD[w] and nx == "the" and words[i + 2] then i = i + 1; nx = words[i + 1] end -- ("against the naga")
 		local nxs = nx and nx:gsub("'s$", "")
 		if FOE_WORD[w] and nxs and (CREATURE_OF[nxs] or (w ~= "to" and w ~= "fighting" and #nxs > 2 and nxs:find("^%a+$")
 			and not NOT_CREATURE[nxs] and not BN.FILLER[nxs] and not AREA_OF[nxs])) then

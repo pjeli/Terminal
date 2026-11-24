@@ -783,7 +783,7 @@ function A.Apply(spec, res, base)
 		if f and got < cnt then parts[#parts + 1] = L["%d with no %s"]:format(cnt - got, f.label) end
 		return table.concat(parts, ns.DETAIL_SEP)
 	end
-	local loading = ns.Filters and ns.Filters.loading
+	local loading = ns.Filters and (ns.Filters.loading or ns.Filters.bonusLoading)
 	local opLabel = s.op == "avg" and L["average"] or s.op == "sum" and L["sum"] or L["group"]
 	if not s.by then
 		local v = Value(total, have)

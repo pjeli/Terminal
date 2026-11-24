@@ -29,6 +29,7 @@ do -- the wordings
 		{ "Damage is doubled in Forest areas and Swamp areas.", "forest,swamp" },
 		{ "|cff00ff00Equip: Restores 9 Mana per 5 sec in Haunted areas.|r", "haunted" },
 		{ "Can only be used in Stormwind City.", "" },
+		{ "In Haunted areas, your spells cost 5% less mana.", "haunted" },
 		{ "Forged in the city of Ironforge.", "" },
 		{ "\"Found deep in the swamps.\"", "" },
 		{ "Equip: +45 Attack Power when fighting Undead.", "vs undead" },
@@ -108,8 +109,9 @@ do -- the filter
 	check(reads == 0 and BN.Of(506) == false, "a trade good's tooltip isn't read: " .. reads)
 	-- (1.8.5, the player: "why can I not look at @loot that has bonuses against trolls / biome?") an item the client
 	-- hasn't got yet: queued and asked of the server in the background, read once it's in
-	uncached[507] = true; F.loading = false
-	check(BN.Of(507) == nil and F.loading == true and BN.Left() == 1, "an item still coming: queued, searched again: " .. BN.Left())
+	uncached[507] = true; F.loading, F.bonusLoading = false, nil
+	check(BN.Of(507) == nil and F.bonusLoading == true and not F.loading and BN.Left() == 1,
+		"an item still coming: queued (searched again as they come in, not every 1.1 s): " .. BN.Left())
 	FlushAll()
 	check(asked == 1 and BN.Left() == 1, "...asked of the server in the background: " .. asked)
 	uncached[507] = nil
@@ -125,9 +127,9 @@ do -- (1.8.5) thousands of them (AtlasLoot's): a batch at a time, the search sho
 	asked = 0
 	for id = 7000, 7099 do uncached[id] = true; TIPS[id] = { "Far Charm " .. id, "Equip: +5 Attack Power against Trolls." } end
 	local UI = ns.UI
-	local redone = 0
-	local redoWas, shownWas, editWas = UI.RedoQuietly, UI.IsShown, UI.edit
-	UI.RedoQuietly = function() redone = redone + 1 end
+	local redone, shows = 0, nil
+	local redoWas, shownWas, editWas = UI.QuietRedo, UI.IsShown, UI.edit
+	UI.QuietRedo = function(_, sh) redone = redone + 1; shows = sh end
 	UI.IsShown = function() return true end
 	UI.edit = { GetText = function() return "@loot bonus:troll" end }
 	local f = F.Parse("bonus:troll")
@@ -144,13 +146,30 @@ do -- (1.8.5) thousands of them (AtlasLoot's): a batch at a time, the search sho
 	passed = 0
 	for id = 7000, 7099 do if F.Pass({ itemID = id }, { f }) then passed = passed + 1 end end
 	check(passed == 100 and BN.Left() == 0 and BN.Note() == nil, "all in: every one found, the footer's note gone: " .. passed)
-	check(redone >= 1, "the search shown was run again as they came in: " .. redone)
+	check(redone >= 1 and shows == true, "the search shown was run again as they came in, what it finds put up (no F5): " .. redone)
 	-- a line typed since: not run again for it
 	redone = 0
 	UI.edit = { GetText = function() return "something else" end }
 	uncached[7100] = true; TIPS[7100] = TIPS[7000]
 	BN.Of(7100); FlushAll(); uncached[7100] = nil; T.Fire("ITEM_DATA_LOAD_RESULT", 7100, true); FlushAll()
 	check(redone == 0, "another line typed meanwhile: not run again: " .. redone)
+	-- (1.8.8, review) an item the server never answers: let go after a while, not asked again, the note gone
+	local clockWas, t = _G.GetTime, 5000
+	_G.GetTime = function() return t end
+	UI.edit = { GetText = function() return "@loot bonus:troll" end }
+	BN.wantedText = "@loot bonus:troll"
+	uncached[7200] = true; TIPS[7200] = TIPS[7000]
+	asked = 0
+	BN.Of(7200); T.Flush()
+	check(asked == 1 and BN.Left() == 1, "asked once: " .. asked)
+	t = t + BN.GIVE_UP + 1
+	FlushAll()
+	check(BN.Left() == 0 and BN.Note() == nil, "never answered: let go, the note gone: " .. BN.Left())
+	check(BN.Of(7200) == nil and BN.Left() == 0, "...and not queued again this session")
+	FlushAll()
+	check(asked == 1, "...nor asked again: " .. asked)
+	_G.GetTime = clockWas
+	uncached[7200] = nil
 	-- kept for the next session: read again from what was kept, not from the tooltips
 	local dbWas = ns.db.bonusIndex
 	BN.SaveKept()
@@ -166,9 +185,57 @@ do -- (1.8.5) thousands of them (AtlasLoot's): a batch at a time, the search sho
 	BN.ForgetForTests()
 	BN.Of(7042)
 	check(reads == 1, "a new client build: read again: " .. reads)
+	-- (1.8.8, review) .saved clear bonuses: what was read this session goes too, not written back at logout
+	ns:FindCommand("saved").run("clear bonuses")
+	BN.SaveKept()
+	check(ns.db.bonusIndex == nil, ".saved clear bonuses sticks: " .. tostring(ns.db.bonusIndex))
+	-- recipes and materials (skipped by their class): not written to the saved file
+	BN.ForgetForTests()
+	BN.Of(506); BN.Of(7042)
+	BN.SaveKept()
+	check(ns.db.bonusIndex and not ns.db.bonusIndex.items:find("506=", 1, true) and ns.db.bonusIndex.items:find("7042=", 1, true),
+		"a trade good skipped by its class isn't saved: " .. tostring(ns.db.bonusIndex and ns.db.bonusIndex.items))
 	ns.db.bonusIndex = dbWas
 	for id = 7000, 7100 do TIPS[id] = nil end
-	UI.RedoQuietly, UI.IsShown, UI.edit = redoWas, shownWas, editWas
+	UI.QuietRedo, UI.IsShown, UI.edit = redoWas, shownWas, editWas
+	-- (1.8.8, review) a new search starts with no line wanted (a bonus: filter, or an item queued, sets it again)
+	BN.wantedText = "@loot bonus:troll"
+	UI:Search("@items linen")
+	check(BN.wantedText == nil and not F.bonusLoading, "a new search: no line wanted yet: " .. tostring(BN.wantedText))
+	BN.ForgetForTests()
+end
+
+do -- (1.8.8, review) on screen, while tooltips load: no rows without the bonus as "the closest", and what comes in
+	-- put up without F5
+	BN.ForgetForTests()
+	local UI = ns.UI
+	local lists = { providers = ns.providers, order = ns.providerOrder, easy = ns.db.easyMode }
+	ns.providers, ns.providerOrder = {}, {}
+	for id = 7300, 7319 do uncached[id] = true; TIPS[id] = { "Troll Charm " .. id, "Equip: +5 Attack Power against Trolls." }; CLASS[id] = 4 end
+	for id = 7320, 7339 do TIPS[id] = { "Plain Charm " .. id, "Equip: +5 Stamina." }; CLASS[id] = 4 end
+	ns:RegisterProvider("loot", { label = "Loot", aliases = { "loot" }, collect = function()
+		local list = {}
+		for id = 7300, 7339 do list[#list + 1] = { name = TIPS[id][1], itemID = id, key = "l" .. id } end
+		return list
+	end })
+	ns.db.easyMode = true; UI:EasyChanged()
+	UI.lastScan = nil
+	UI:Open("charm against trolls"); T.Flush()
+	local function Ids()
+		local t = {}
+		for _, e in ipairs(UI.Results()) do if e.itemID then t[#t + 1] = e.itemID end end
+		return t
+	end
+	check(#Ids() == 0, "nothing read yet: no plain charms listed as the closest: " .. #Ids())
+	for id = 7300, 7319 do uncached[id] = nil; T.Fire("ITEM_DATA_LOAD_RESULT", id, true) end
+	FlushAll()
+	check(#Ids() == 20 and not UI.held, "they came in: put up, not held for F5: " .. #Ids())
+	UI:Hide(); FlushAll()
+	ns.db.easyMode = lists.easy; UI:EasyChanged()
+	ns.providers, ns.providerOrder = lists.providers, lists.order
+	ns:AliasesChanged()
+	UI.lastScan = nil
+	for id = 7300, 7339 do TIPS[id], CLASS[id] = nil, nil end
 	BN.ForgetForTests()
 end
 
@@ -212,6 +279,11 @@ do -- Simple mode's words, and how the filter is said
 	said = E.SayFilter("bonus:undead") or ""
 	check(said:find("undead", 1, true), "bonus:undead said: " .. said)
 	check(F.IsKey("bonus") and F.IsKey("biome"), "bonus: and biome: are filter keys")
+	-- (1.8.8, review) said as the filter reads it: an area type's start is that area type
+	said = E.SayFilter("bonus:mount") or ""
+	check(said:find("Mountainous", 1, true), "bonus:mount said as Mountainous: " .. said)
+	local specs = BN.Take({ "rewards", "against", "the", "naga" })
+	check(specs[1] == "bonus:naga", "\"against the naga\" in plain words: " .. tostring(specs[1]))
 	local helped = false
 	for _, h in ipairs(F.HELP) do if h[1] == "bonus:haunted" then helped = true end end
 	check(helped, ".filters lists bonus:")

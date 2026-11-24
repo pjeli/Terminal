@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.8.8 (in testing)
+
+**Review fixes: a bonus search while items' tooltips are read** (the player: "double check the loading icons on a
+bonus filter search")
+- An item the server never answered was let go after 30 s, then asked for again by the next search: the search ran
+  again every 30 s while the window was open, and the footer's "reading 1 items' tooltips" never went. It's now let go
+  for the session.
+- What the background reading finds is put up as it comes in; before, everything after the first few waited for F5,
+  again and again.
+- `| group by bonus` (typed, or the bar's Group) and `is:bonus` after an earlier bonus search got neither the
+  footer's count nor the search run again: each search now says which line it's for, and any item queued says so too.
+- In Simple mode, rows without the bonus were listed as "the closest" while tooltips were read ("charm against
+  trolls" listed every charm); not any more.
+- The search is no longer run again every 1.1 s for these items (the background reading runs it as they come in), nor
+  in combat.
+- `.saved clear bonuses` now sticks (what was read this session was written back at logout); recipes and materials,
+  skipped by their item type, aren't written to the saved file.
+- The game's item-loading event is listened for only while items are awaited.
+- Smaller: `bonus:mount` is said as "in Mountainous areas"; "rewards against the naga" reads the naga; a tooltip line
+  starting "In Haunted areas, ..." counts.
+
 ## 1.8.7 (in testing)
 
 **Review fixes: experience** (a review of 1.8.1-1.8.6)

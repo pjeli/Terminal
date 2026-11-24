@@ -96,22 +96,15 @@ function UI:RetryWhenLoaded(text)
 		if self.dataRetry ~= r or not self:IsShown() or UI.edit:GetText() ~= r.typed then return end
 		r.tries = r.tries + 1
 		ns:Trace(("search: item data was still loading, searching %q again (%d)"):format(ns.MaskSecret(text), r.tries))
-		self:RedoQuietly()
+		self:QuietRedo()
 	end)
 end
 
---- The search shown, run again from scratch in the background: the list stays as it is till it's done, and what it
---- finds waits for F5 (UI:Refresh). Item data came in: RetryWhenLoaded, Bonus.lua's tooltips read in the background.
-function UI:RedoQuietly()
-	self.lastScan, self.lastExtra = nil, nil
-	self.refreshedAt, self.searchedText = nil, nil
-	self.quietRedo = true
-	self:Refresh()
-end
-
 function UI:Search(text)
+	if ns.Bonus then ns.Bonus.wantedText = nil end -- (set again by this search's bonus filter, Bonus.lua)
 	if ns.Filters then
 		ns.Filters.loading = nil
+		ns.Filters.bonusLoading = nil
 		ns.Filters.fitMade = nil -- (is:upgrade's filter says so when it's made: its rows' tooltips say why)
 		if ns.Filters.ResetAsks then ns.Filters.ResetAsks() end -- (items the client hasn't loaded: a few asked per search)
 	end
@@ -574,7 +567,7 @@ function Scan.Extra(self, q, matched)
 	local narrowed = self.lastSearchNarrowed -- (the overview's: what the search narrowed is its matches, not these few lists)
 	local more = Scan.Collect(self, eq, included, sig, fresh)
 	self.lastSearchNarrowed = narrowed
-	if not (ns.Filters and ns.Filters.loading) and not q.empty then
+	if not (ns.Filters and (ns.Filters.loading or ns.Filters.bonusLoading)) and not q.empty then
 		self.lastExtra = { sig = sig, gen = ns.entriesGen, tokens = q.tokens, matches = more, spans = eq.spans }
 	end
 	if self.softRelaxed and q.softs and #more == 0 then

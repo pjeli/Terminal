@@ -38,7 +38,8 @@ SV.GROUPS = {
 		lists = { "buyback", "durability" } },
 	{ name = "books", keys = { "lore" }, label = L["books read"] },
 	-- (bonus: reads every item's tooltip once; kept for the client build, read again on a new one: Bonus.lua)
-	{ name = "bonuses", keys = { "bonusIndex" }, label = L["items' bonuses read from their tooltips"], rebuilt = true },
+	{ name = "bonuses", keys = { "bonusIndex" }, label = L["items' bonuses read from their tooltips"], rebuilt = true,
+		onClear = function() if ns.Bonus and ns.Bonus.Clear then ns.Bonus.Clear() end end },
 	{ name = "console", keys = { "consoleData" }, label = L["the console's history, panes and folders"] },
 	{ name = "other", keys = { "typingBest", "snakeBest", "tetrisBest", "lootrunBest" }, label = L["other records"] },
 }
@@ -578,6 +579,7 @@ ns:RegisterCommand("saved", {
 			if not list[1] then return { L["Clear what? .saved lists the names"] } end
 			for _, g in ipairs(list) do
 				for _, k in ipairs(g.keys) do SV.cache[k] = nil end
+				if g.onClear then pcall(g.onClear) end -- (what's held in memory too, else written back at logout)
 			end
 			Changed(list)
 			return { name == "all" and L["Cleared everything in TerminalCache.lua."] or L["Cleared %s."]:format(list[1].label) }

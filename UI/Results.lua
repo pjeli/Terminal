@@ -298,12 +298,15 @@ UI.LIVE_WAIT, UI.LIVE_SAME, UI.LIVE_FRESH = 1, 3, 10
 local live = { kinds = {}, timer = false, same = 0 }
 UI.live = live -- (tests)
 
---- The same search run again in the background (Refresh's quiet path): data came in, a list changed.
-function UI:QuietRedo()
+--- The same search run again in the background (Refresh's quiet path): data came in, a list changed. `shows`: what it
+--- finds is put up, not held for F5 (Bonus.lua: tooltips read in the background, a few more found every couple of
+--- seconds; F5 each time was a chore; 1.8.8, review).
+function UI:QuietRedo(shows)
 	if not self:IsShown() or self.mode ~= "search" then return end
 	self.lastScan, self.lastExtra = nil, nil
 	self.refreshedAt, self.searchedText = nil, nil
 	self.quietRedo = true
+	self.quietShows = shows or nil
 	self:Refresh()
 end
 
@@ -376,7 +379,7 @@ end
 -- the list stays where you scrolled it (the same row made again counts: kind, key and name, as Refresh has it)
 local function Completed(self, job, final)
 	final = self:CollapseGroup(final)
-	if job.quiet then -- (run in the background: held for F5)
+	if job.quiet and not job.shows then -- (run in the background: held for F5)
 		local h = Hold(self, UI.results, final)
 		UI.LiveCounted(h == nil)
 		if h == "held" then self:UpdateBusy() return end
@@ -684,7 +687,8 @@ function UI:Refresh()
 	-- searched again because item data came in (RetryWhenLoaded): the list shown stays as it is till the search is
 	-- done, not its first frame's best put up meanwhile
 	local quiet = same and self.quietRedo and not yours
-	self.quietRedo = nil
+	local shows = quiet and self.quietShows
+	self.quietRedo, self.quietShows = nil, nil
 	if not quiet then
 		self.held, self.heldFields, self.candidate, live.same = nil, nil, nil, 0
 		confirm.gen, confirm.tries, confirm.all = confirm.gen + 1, 0, 0 -- (checks of the last search's candidate: not this one's)
@@ -698,8 +702,9 @@ function UI:Refresh()
 	if quiet then
 		if self.searchJob then
 			self.searchJob.quiet = true -- (Completed holds what it finds)
+			self.searchJob.shows = shows or nil -- (...or puts it up: QuietRedo(true))
 			UI.results = shown
-		else
+		elseif not shows then
 			local h = Hold(self, shown, UI.results)
 			UI.shownNew = h == nil -- (nothing real was shown: put up, not counted as nothing new)
 			if h == "held" then UI.results = shown end

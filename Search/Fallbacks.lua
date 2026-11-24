@@ -24,13 +24,18 @@ function Scan.Fallbacks(self, q, out, included, sig, noNear)
 		-- (not while a filter met data still loading: the rows it couldn't judge are left out, and the next letter
 		-- would narrow from what's left, judge nothing and never ask again)
 		local slot = q.slot or "lastScan"
-		if not (ns.Filters and ns.Filters.loading) then
+		local F = ns.Filters
+		local bonusLoading = F and F.bonusLoading
+		if not (F and (F.loading or bonusLoading)) then
 			self[slot] = { sig = sig, gen = ns.entriesGen, tokens = tokens, matches = out, spans = q.spans }
 		else
 			self[slot] = nil
 		end
 		-- easy mode, nothing passed every everyday word ("rare shield wailing caverns" for a green shield):
 		-- the rows with the typed words, those passing more of the everyday words first
+		-- (not while items' tooltips are read for a bonus: rows without it were listed as "the closest", and the real
+		-- ones came in behind them; 1.8.8, review)
+		if bonusLoading then return end
 		if #out == 0 and softs then self:RelaxSoft(included, tokens, hard, softs, out, overBudget) end
 		-- nothing has every word: names within an edit or two of them ("hearhtstone"); not for a sum the calculator
 		-- answered (nor for a sum: "lnen clth | count" counts nothing, not the close spellings) (with the hard filters
