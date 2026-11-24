@@ -152,8 +152,77 @@ end
 local kept = {}
 local labels = {} -- a creature key -> how its first tooltip wrote it ("Undead", "Trolls")
 local READ = { [0] = true, [2] = true, [4] = true } -- (Consumable, Weapon, Armor)
+
+-- Items the game hasn't loaded (most of AtlasLoot's: @loot bonus:troll; 1.8.5, the player: "why can I not look at @loot
+-- that has bonuses against trolls / biome?"; a search asked 40 at most and waited 9 s, so @loot found next to nothing):
+-- queued, asked of the server a batch at a time (BN.BATCH every BN.EVERY s, not in combat), and read as they come in;
+-- the search shown is run again as they do (BN.REDO s apart at most) and its footer says how many are left. What was
+-- read is kept across sessions for this client build (db.bonusIndex), so the next session's search is instant.
+BN.BATCH, BN.EVERY, BN.REDO, BN.GIVE_UP = 40, 0.5, 2, 30
+local queue, head, queued, waiting = {}, 1, {}, {} -- (ids in order, the next one's index, queued, asked: id -> when)
+local nWaiting = 0
+local pumping, redoAt, redoWaiting = false, 0, false
+BN.wantedText = nil -- (the prompt a bonus: filter was made for: run again as items come in while it's still typed)
+
 F.ClearBonuses = function() kept = {} end
-function BN.ForgetForTests() kept, labels = {}, {} end
+function BN.ForgetForTests()
+	kept, labels = {}, {}
+	queue, head, queued, waiting, nWaiting, pumping = {}, 1, {}, {}, 0, false
+	BN.wantedText, BN.loaded = nil, nil
+end
+
+-- (kept across sessions: "<build>" and the items read as "id=" (none) or "id=haunted,f:undead:Undead", one string; a new
+-- client build reads them all again: a hotfix may reword a tooltip)
+local function Build()
+	local v, b = _G.GetBuildInfo and GetBuildInfo()
+	return tostring(v or "?") .. "." .. tostring(b or "?")
+end
+BN.Build = Build
+--- What an item's bonuses are written as, kept: "" (none), "haunted,f:undead:Undead".
+local function Pack(list)
+	if not list then return "" end
+	local out = {}
+	for _, b in ipairs(list) do
+		out[#out + 1] = b.area and b.key or ("f:" .. b.key .. ":" .. (labels[b.key] or b.key):gsub("[,:;=]", ""))
+	end
+	return table.concat(out, ",")
+end
+local function Unpack(s)
+	if s == "" then return false end
+	local out = {}
+	for part in s:gmatch("[^,]+") do
+		local key, label = part:match("^f:([^:]+):(.*)$")
+		if key then
+			out[#out + 1] = { key = key }
+			if label ~= "" and not labels[key] then labels[key] = label end
+		elseif AREA_BY_KEY[part] then
+			out[#out + 1] = { key = part, area = true }
+		end
+	end
+	return #out > 0 and out or false
+end
+--- The items read in an earlier session of this build, back into the cache (once, when first asked).
+function BN.LoadKept()
+	if BN.loaded then return end
+	BN.loaded = true
+	local db = ns.db
+	local x = db and db.bonusIndex
+	if type(x) ~= "table" or x.build ~= Build() or type(x.items) ~= "string" then return end
+	for id, s in x.items:gmatch("(%d+)=([^;]*)") do
+		id = tonumber(id)
+		if id and kept[id] == nil then kept[id] = Unpack(s) end
+	end
+end
+--- Write what was read for the next session (at logout).
+function BN.SaveKept()
+	local db = ns.db
+	if not db then return end
+	BN.LoadKept() -- (an earlier session's, not read this session, kept too)
+	local parts = {}
+	for id, c in pairs(kept) do parts[#parts + 1] = id .. "=" .. Pack(c or nil) end
+	table.sort(parts)
+	db.bonusIndex = #parts > 0 and { build = Build(), items = table.concat(parts, ";") } or nil
+end
 
 local function Lines(id)
 	local TI = C_TooltipInfo
@@ -167,6 +236,7 @@ end
 --- the search runs again once it's in).
 function BN.Of(id)
 	if type(id) ~= "number" then return false end
+	if not BN.loaded then BN.LoadKept() end
 	local c = kept[id]
 	if c ~= nil then return c end
 	local get = C_Item and C_Item.GetItemInfoInstant
@@ -181,11 +251,17 @@ function BN.Of(id)
 	if cached then
 		local ok, yes = pcall(cached, id)
 		if ok and yes == false then
-			if F.MayAsk(id) and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+			BN.Queue(id)
 			F.loading = true
 			return nil
 		end
 	end
+	return BN.Read(id)
+end
+
+--- Read an item the game has: its tooltip's bonuses, kept (nil: its tooltip is still coming in).
+function BN.Read(id)
+	local c
 	local lines = Lines(id)
 	if not lines then return false end
 	local areas, foes = {}, {}
@@ -212,6 +288,94 @@ function BN.Of(id)
 	c = #out > 0 and out or false
 	kept[id] = c
 	return c
+end
+
+-- the search shown, run again once items came in (not more often than BN.REDO), while its line is still typed
+local function Redo()
+	local UI = ns.UI
+	local now = GetTime()
+	if redoWaiting then return end
+	if now < redoAt then
+		redoWaiting = true
+		C_Timer.After(redoAt - now, function() redoWaiting = false; Redo() end)
+		return
+	end
+	redoAt = now + BN.REDO
+	if not (UI and UI.RedoQuietly and UI.IsShown and UI:IsShown() and BN.wantedText and UI.edit and UI.edit:GetText() == BN.wantedText) then return end
+	UI:RedoQuietly()
+end
+BN.Redo = Redo
+
+--- How many items are still to be read (queued or asked of the server).
+function BN.Left() return (#queue - head + 1) + nWaiting end
+
+local Pump
+--- An item the game hasn't loaded: asked of the server in the background, read once it's in.
+function BN.Queue(id)
+	if queued[id] or waiting[id] then return end
+	queued[id] = true
+	queue[#queue + 1] = id
+	if not pumping then pumping = true; C_Timer.After(0, Pump) end
+end
+
+local function Done(id, c)
+	if waiting[id] then waiting[id] = nil; nWaiting = nWaiting - 1 end
+	if c ~= nil then kept[id] = c end
+end
+
+Pump = function()
+	if InCombatLockdown and InCombatLockdown() then return C_Timer.After(5, Pump) end
+	local now, n = GetTime(), 0
+	-- (asked long ago and never answered: let go; asked again next time a search meets it)
+	for id, at in pairs(waiting) do if now - at > BN.GIVE_UP then Done(id) end end
+	local read = false
+	while n < BN.BATCH and head <= #queue do
+		local id = queue[head]
+		head = head + 1 -- (left in place: a hole at the front would make #queue unreliable)
+		queued[id] = nil
+		n = n + 1
+		local cached = C_Item and C_Item.IsItemDataCachedByID
+		local ok, yes = true, true
+		if cached then ok, yes = pcall(cached, id) end
+		if ok and yes == false then
+			if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+			waiting[id], nWaiting = now, nWaiting + 1
+		elseif kept[id] == nil then
+			BN.Read(id)
+			read = true
+		end
+	end
+	if head > #queue then queue, head = {}, 1 end -- (drained: a fresh table)
+	if read then Redo() end
+	if head <= #queue or nWaiting > 0 then
+		C_Timer.After(BN.EVERY, Pump)
+	else
+		pumping = false
+		Redo() -- (the last ones: the footer's count goes)
+	end
+end
+BN.Pump = function() return Pump() end -- (tests)
+
+-- the server's answers; and what was read, kept at logout
+do
+	local f = CreateFrame("Frame")
+	pcall(f.RegisterEvent, f, "ITEM_DATA_LOAD_RESULT")
+	pcall(f.RegisterEvent, f, "PLAYER_LOGOUT")
+	f:SetScript("OnEvent", function(_, event, id, ok)
+		if event == "PLAYER_LOGOUT" then return pcall(BN.SaveKept) end
+		if type(id) ~= "number" or not waiting[id] then return end
+		if ok == false then Done(id, false) -- (the server has no such item)
+		else Done(id); BN.Read(id) end
+		Redo()
+	end)
+	BN.frame = f -- (tests)
+end
+
+--- The footer's note while items are read: "reading 1,240 items' tooltips for bonuses", or nil.
+function BN.Note()
+	local left = BN.Left()
+	if left <= 0 or not BN.wantedText then return nil end
+	return L["reading %s items' tooltips for bonuses"]:format(ns.Thousands and ns.Thousands(left) or tostring(left))
 end
 
 --- A row's item's bonuses (its own item, or what a recipe makes), or nil: none, or still loading.
@@ -279,9 +443,14 @@ function BN.Say(v)
 	if v == "any" or v == "all" or v == "bonus" then return L["with a bonus"] end
 	return L["with a bonus against %s"]:format(v)
 end
+local function Wanted()
+	local UI = ns.UI
+	BN.wantedText = UI and UI.edit and UI.edit.GetText and UI.edit:GetText() or nil
+end
 KEYS.bonus = function(v)
 	local test = Test(v)
 	if not test then return nil end
+	Wanted()
 	return function(e)
 		local list = BN.OfRow(e)
 		if not list then return false end
@@ -291,7 +460,10 @@ KEYS.bonus = function(v)
 end
 KEYS.bonuses = KEYS.bonus
 KEYS.biome = function(v) return KEYS.bonus(v) end
-IS.bonus = function(e) return BN.OfRow(e) ~= nil end
+IS.bonus = function(e)
+	if not BN.wantedText then Wanted() end
+	return BN.OfRow(e) ~= nil
+end
 IS.bonuses = IS.bonus
 
 -- A bonus said in plain words, inside a longer line ("argent dawn rewards against trolls", "reputation rewards that deal

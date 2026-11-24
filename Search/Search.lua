@@ -96,11 +96,17 @@ function UI:RetryWhenLoaded(text)
 		if self.dataRetry ~= r or not self:IsShown() or UI.edit:GetText() ~= r.typed then return end
 		r.tries = r.tries + 1
 		ns:Trace(("search: item data was still loading, searching %q again (%d)"):format(ns.MaskSecret(text), r.tries))
-		self.lastScan, self.lastExtra = nil, nil
-		self.refreshedAt, self.searchedText = nil, nil
-		self.quietRedo = true -- (the list stays as it is till this search is done: UI:Refresh)
-		self:Refresh()
+		self:RedoQuietly()
 	end)
+end
+
+--- The search shown, run again from scratch in the background: the list stays as it is till it's done, and what it
+--- finds waits for F5 (UI:Refresh). Item data came in: RetryWhenLoaded, Bonus.lua's tooltips read in the background.
+function UI:RedoQuietly()
+	self.lastScan, self.lastExtra = nil, nil
+	self.refreshedAt, self.searchedText = nil, nil
+	self.quietRedo = true
+	self:Refresh()
 end
 
 function UI:Search(text)

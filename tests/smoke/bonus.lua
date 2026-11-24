@@ -1,7 +1,7 @@
 -- (1.8.1, the player: "find bonuses for biomes as well as against creature types; filter-able and group-able") an item's
 -- bonus by area type or creature, read from its tooltip: bonus:haunted, bonus:undead, is:bonus, | group by bonus.
 local T = ...
-local ns, check = T.ns, T.check
+local ns, check, FlushAll = T.ns, T.check, T.FlushAll
 local F, BN, A, E = ns.Filters, ns.Bonus, ns.Aggregate, ns.Easy
 
 io.write("[bonus: area types and creatures from the tooltip]\n")
@@ -106,11 +106,69 @@ do -- the filter
 	BN.ForgetForTests(); reads = 0
 	BN.Of(506)
 	check(reads == 0 and BN.Of(506) == false, "a trade good's tooltip isn't read: " .. reads)
-	-- an item the client hasn't got yet: asked for, the search runs again, nothing kept
+	-- (1.8.5, the player: "why can I not look at @loot that has bonuses against trolls / biome?") an item the client
+	-- hasn't got yet: queued and asked of the server in the background, read once it's in
 	uncached[507] = true; F.loading = false
-	check(BN.Of(507) == nil and F.loading == true and asked == 1, "an item still coming: asked for (" .. asked .. "), searched again")
-	uncached[507] = nil; F.loading = false
-	check(BN.Of(507) and BN.Of(507)[1].key == "haunted", "once it's in: read")
+	check(BN.Of(507) == nil and F.loading == true and BN.Left() == 1, "an item still coming: queued, searched again: " .. BN.Left())
+	FlushAll()
+	check(asked == 1 and BN.Left() == 1, "...asked of the server in the background: " .. asked)
+	uncached[507] = nil
+	T.Fire("ITEM_DATA_LOAD_RESULT", 507, true)
+	check(BN.Of(507) and BN.Of(507)[1].key == "haunted" and BN.Left() == 0, "once it's in: read, none left: " .. BN.Left())
+	FlushAll()
+	BN.ForgetForTests()
+end
+
+do -- (1.8.5) thousands of them (AtlasLoot's): a batch at a time, the search shown run again as they come in, the
+	-- footer saying how many are left; kept for the next session of this client build
+	BN.ForgetForTests(); F.ResetAsks()
+	asked = 0
+	for id = 7000, 7099 do uncached[id] = true; TIPS[id] = { "Far Charm " .. id, "Equip: +5 Attack Power against Trolls." } end
+	local UI = ns.UI
+	local redone = 0
+	local redoWas, shownWas, editWas = UI.RedoQuietly, UI.IsShown, UI.edit
+	UI.RedoQuietly = function() redone = redone + 1 end
+	UI.IsShown = function() return true end
+	UI.edit = { GetText = function() return "@loot bonus:troll" end }
+	local f = F.Parse("bonus:troll")
+	local passed = 0
+	for id = 7000, 7099 do if F.Pass({ itemID = id }, { f }) then passed = passed + 1 end end
+	check(passed == 0 and BN.Left() == 100 and asked == 0, "a hundred not loaded: none yet, all queued, none asked in the search: " .. asked)
+	check(tostring(BN.Note()):find("100", 1, true), "the footer says how many are left: " .. tostring(BN.Note()))
+	T.Flush()
+	check(asked == BN.BATCH, "asked a batch at a time: " .. asked)
+	FlushAll()
+	check(asked == 100, "...then the rest: " .. asked)
+	for id = 7000, 7099 do uncached[id] = nil; T.Fire("ITEM_DATA_LOAD_RESULT", id, true) end
+	FlushAll()
+	passed = 0
+	for id = 7000, 7099 do if F.Pass({ itemID = id }, { f }) then passed = passed + 1 end end
+	check(passed == 100 and BN.Left() == 0 and BN.Note() == nil, "all in: every one found, the footer's note gone: " .. passed)
+	check(redone >= 1, "the search shown was run again as they came in: " .. redone)
+	-- a line typed since: not run again for it
+	redone = 0
+	UI.edit = { GetText = function() return "something else" end }
+	uncached[7100] = true; TIPS[7100] = TIPS[7000]
+	BN.Of(7100); FlushAll(); uncached[7100] = nil; T.Fire("ITEM_DATA_LOAD_RESULT", 7100, true); FlushAll()
+	check(redone == 0, "another line typed meanwhile: not run again: " .. redone)
+	-- kept for the next session: read again from what was kept, not from the tooltips
+	local dbWas = ns.db.bonusIndex
+	BN.SaveKept()
+	local x = ns.db.bonusIndex
+	check(type(x) == "table" and x.build == BN.Build() and x.items:find("7000=f:troll:Trolls", 1, true), "kept by build: "
+		.. tostring(x and x.items and x.items:sub(1, 60)))
+	BN.ForgetForTests()
+	reads = 0
+	check(F.Pass({ itemID = 7042 }, { F.Parse("bonus:troll") }) and reads == 0, "the next session: from what was kept, no tooltip read: " .. reads)
+	check(BN.Labels({ itemID = 7042 })[1] == "Against Trolls", "its label kept too: " .. tostring(BN.Labels({ itemID = 7042 })[1]))
+	-- another client build: read again
+	ns.db.bonusIndex.build = "0.0.0.1"
+	BN.ForgetForTests()
+	BN.Of(7042)
+	check(reads == 1, "a new client build: read again: " .. reads)
+	ns.db.bonusIndex = dbWas
+	for id = 7000, 7100 do TIPS[id] = nil end
+	UI.RedoQuietly, UI.IsShown, UI.edit = redoWas, shownWas, editWas
 	BN.ForgetForTests()
 end
 

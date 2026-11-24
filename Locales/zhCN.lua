@@ -3648,4 +3648,6 @@ L["with a bonus in %s areas"] = "在%s区域有加成"
 L["with a bonus against %s"] = "带有对抗%s的加成"
 L["gear whose bonus grows in an area type (forest swamp wasteland haunted mountainous snowy desert stronghold cavern volcanic; bonus:area: any) or against a creature (bonus:undead, bonus:beast, bonus:troll; bonus:creature: any); is:bonus: either. Read from the game's own tooltip text (English); | group by bonus"] = "加成在某种区域类型中提升的装备（forest swamp wasteland haunted mountainous snowy desert stronghold cavern volcanic；bonus:area：任意）或对抗某种生物的装备（bonus:undead、bonus:beast、bonus:troll；bonus:creature：任意）；is:bonus：两者皆可。从游戏自己的鼠标提示文本读取（英文）；| group by bonus"
 L["WoW Forever hides your layer since its November 20, 2026 hotfix: creatures no longer carry it, so no addon can tell which one you're on."] = "自 2026 年 11 月 20 日的热修复起，WoW Forever 隐藏了你所在的位面：生物不再携带它，任何插件都无法判断你在哪个位面。"
+L["reading %s items' tooltips for bonuses"] = "正在读取 %s 件物品的鼠标提示以查找加成"
+L["items' bonuses read from their tooltips"] = "从鼠标提示读取的物品加成"
 --@end-do-not-package@

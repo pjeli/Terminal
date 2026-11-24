@@ -37,6 +37,8 @@ SV.GROUPS = {
 	{ name = "vendors", keys = { "vendorItems", "repairVendor", "buyback" }, label = L["vendors and buyback"],
 		lists = { "buyback", "durability" } },
 	{ name = "books", keys = { "lore" }, label = L["books read"] },
+	-- (bonus: reads every item's tooltip once; kept for the client build, read again on a new one: Bonus.lua)
+	{ name = "bonuses", keys = { "bonusIndex" }, label = L["items' bonuses read from their tooltips"], rebuilt = true },
 	{ name = "console", keys = { "consoleData" }, label = L["the console's history, panes and folders"] },
 	{ name = "other", keys = { "typingBest", "snakeBest", "tetrisBest", "lootrunBest" }, label = L["other records"] },
 }

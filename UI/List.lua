@@ -169,6 +169,10 @@ do
 		-- (upgrades weighed: how to judge them otherwise, with them listed or none; Search.lua's UI:Search)
 		if self.weightsNote and self.mode == "search" then text = Append(text, HINT .. self.weightsNote .. "|r") end
 		if busy and busy:IsShown() then text = Append(text, L["loading..."]) end
+		-- (bonus: reading items' tooltips in the background, Bonus.lua: how many are left)
+		local bonusNote = self.mode == "search" and ns.Bonus and ns.Bonus.Note and UI.edit and ns.Bonus.wantedText == UI.edit:GetText()
+			and ns.Bonus.Note()
+		if bonusNote then text = Append(text, HINT .. bonusNote .. "|r") end
 		-- (a search run again in the background found more: UI.held, shown on F5)
 		if self.held and self.mode == "search" then text = Append(text, HINT .. L["new results: F5 shows them"] .. "|r") end
 		-- (a category listing another number than its row counted: UI:NoteCountChange)

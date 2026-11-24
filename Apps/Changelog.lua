@@ -14,12 +14,13 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.8.4", when = "in testing",
+		v = "1.8.5", when = "in testing",
 		items = {
 			"Find gear by its bonus: where it grows (\"haunted bonus\", bonus:swamp, bonus:area) or what it's against (\"against undead\", bonus:troll), read from the item's own tooltip; | group by bonus.",
 			"A bonus goes with the rest of a search: \"argent dawn rewards against trolls\", \"reputation rewards that deal 2x damage to trolls\", \"faction rewards with a bonus in mountainous areas\".",
 			"\"what layer am i on\" says WoW Forever hides your layer since its November 20 hotfix, instead of a number that no longer means anything.",
 			"Nothing relies on your realm's name any more (the game no longer gives it): alts, mail, lockouts, upgrade picks and sharing with Battle.net friends go by names alone.",
+			"@loot finds bonuses too (\"@loot bonus:troll\"): items the game hasn't loaded are read in the background, the footer counting them down, and remembered for next time.",
 		},
 	},
 	{

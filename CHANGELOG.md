@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.5 (in testing)
+
+**Bonuses in `@loot`** (the player: "why can I not look at `@loot` that has bonuses against trolls / biome?")
+- A bonus is read from an item's tooltip, and the game has a tooltip only for items it has loaded: most of
+  AtlasLoot's aren't. A search asked the server for 40 at most and waited about 9 seconds, so `@loot bonus:troll`
+  found next to nothing.
+- Items not loaded yet are now asked for in the background, a batch at a time (not in combat), and read as they come
+  in; the search shown runs again as they do (new results wait for F5 once some are shown), and the footer says how
+  many are left ("reading 1,240 items' tooltips for bonuses").
+- What was read is kept for the next session of the same client build (a new build reads them again), so the second
+  time is instant. A group of its own in `.saved` ("items' bonuses read from their tooltips").
+
 ## 1.8.4 (in testing)
 
 **Nothing relies on the realm's name** (the player: "fix anything that relies on realm name too")

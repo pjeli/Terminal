@@ -3648,4 +3648,6 @@ L["with a bonus in %s areas"] = "с бонусом в местности: %s"
 L["with a bonus against %s"] = "с бонусом против: %s"
 L["gear whose bonus grows in an area type (forest swamp wasteland haunted mountainous snowy desert stronghold cavern volcanic; bonus:area: any) or against a creature (bonus:undead, bonus:beast, bonus:troll; bonus:creature: any); is:bonus: either. Read from the game's own tooltip text (English); | group by bonus"] = "снаряжение, чей бонус растёт в типе местности (forest swamp wasteland haunted mountainous snowy desert stronghold cavern volcanic; bonus:area: любой) или против существ (bonus:undead, bonus:beast, bonus:troll; bonus:creature: любых); is:bonus: то или другое. Читается из текста подсказки игры (английского); | group by bonus"
 L["WoW Forever hides your layer since its November 20, 2026 hotfix: creatures no longer carry it, so no addon can tell which one you're on."] = "WoW Forever скрывает ваш слой после исправления от 20 ноября 2026 года: существа больше не несут его, и ни один аддон не может сказать, на каком вы."
+L["reading %s items' tooltips for bonuses"] = "читаю подсказки предметов (%s) в поисках бонусов"
+L["items' bonuses read from their tooltips"] = "бонусы предметов из их подсказок"
 --@end-do-not-package@
