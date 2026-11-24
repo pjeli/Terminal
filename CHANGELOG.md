@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.12 (in testing)
+
+**`.pick` says its pick when the roll lands** (the player: "The .pick outputs the result right away instead of
+waiting for the roll animation to play out")
+- The pick was said in group chat (or to you) at once, while the names were still rolling on screen. It's said as
+  the roll lands on it now (party, raid and instance chat take an addon's line outside a key press, as Share's
+  `>>>` sends them once their items are in). A `.pick` run again mid-roll ends the first: only the second is said;
+  chat locked by the time it lands, an encounter pulled, it's said only to you.
+
 ## 1.8.11 (in testing)
 
 **Review fixes: consistency**

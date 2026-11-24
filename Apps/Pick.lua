@@ -3,8 +3,10 @@ local L = ns.L
 
 -- .pick (1.8.6, the player: "I like the .pick idea!"): someone from your group picked at random, "who's buying the
 -- repairs", with a short roll of names on screen; or one of the things you list (.pick tacos, pizza, sushi). In a group
--- the pick is said in the group's chat (party, raid, or instance chat when the group is the instance's), sent inside the
--- Enter that ran it as Share's >>> sends; .pick quiet keeps it to you.
+-- the pick is said in the group's chat (party, raid, or instance chat when the group is the instance's) when the roll
+-- lands on it (1.8.12, the player: it was said at once, before the roll had played out); the game takes party, raid and
+-- instance chat from an addon outside a key press, as Share's >>> sends them once their items are in. .pick quiet keeps
+-- it to you, said in your chat window as it lands.
 
 local PK = {}
 ns.Pick = PK
@@ -76,8 +78,9 @@ end
 PK.Frame = function() return frame end -- (tests)
 
 local rollGen = 0
---- Roll `names` on screen, landing on `pick`.
-function PK.Roll(names, pick, of)
+--- Roll `names` on screen, landing on `pick`; then `landed()` (nil: nothing). Another .pick meanwhile ends this one,
+--- its landed() never called.
+function PK.Roll(names, pick, of, landed)
 	local f = Frame()
 	rollGen = rollGen + 1
 	local gen = rollGen
@@ -92,6 +95,7 @@ function PK.Roll(names, pick, of)
 			f.sub:SetText(L["picked, out of %d"]:format(of))
 			if _G.PlaySound and _G.SOUNDKIT and _G.SOUNDKIT.READY_CHECK then pcall(_G.PlaySound, _G.SOUNDKIT.READY_CHECK) end
 			C_Timer.After(PK.HOLD, function() if gen == rollGen then f:Hide() end end)
+			if landed then landed() end
 			return
 		end
 		-- (any name but the one shown last: a flick you can see)
@@ -108,7 +112,7 @@ function PK.Roll(names, pick, of)
 	Step(1)
 end
 
---- .pick: who or what was picked and where it was said; lines for the chat (only to you), nil when said in the group.
+--- .pick: who or what was picked, said when the roll lands; lines now only when there's nothing to pick from.
 function PK.Run(args)
 	local words = tostring(args or "")
 	local quiet = false
@@ -122,14 +126,20 @@ function PK.Run(args)
 	local pick = names[PK.random(#names)]
 	local said = L["Terminal picks %s (of %d)"]:format(pick, #names)
 	local chat = not quiet and PK.Chat()
-	PK.Roll(names, pick, #names)
-	-- (said in the group's chat, it's in your chat window already; otherwise the line, printed: Commands' way)
-	if chat then
-		local send = ns.ChatSender and ns.ChatSender()
-		if ns.ChatLocked and ns.ChatLocked() then return { said .. "  " .. L["(the game doesn't let addons send chat right now)"] } end
-		if send and pcall(send, said, chat) then return nil end
-	end
-	return { said }
+	-- (said in the group's chat, it's in your chat window already; otherwise the line, printed as Commands' are)
+	PK.Roll(names, pick, #names, function()
+		if chat then
+			local send = ns.ChatSender and ns.ChatSender()
+			-- (chat locked meanwhile, an encounter pulled: said to you)
+			if ns.ChatLocked and ns.ChatLocked() then
+				ns:Output({ said .. "  " .. L["(the game doesn't let addons send chat right now)"] })
+				return
+			end
+			if send and pcall(send, said, chat) then return end
+		end
+		ns:Output({ said })
+	end)
+	return nil
 end
 
 ns:RegisterCommand("pick", {

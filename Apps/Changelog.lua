@@ -14,11 +14,11 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.8.11", when = "in testing",
+		v = "1.8.12", when = "in testing",
 		items = {
 			"Find gear by its bonus: where it grows (\"haunted bonus\", bonus:swamp) or what it's against (\"against undead\", bonus:troll), read from its tooltip; with the rest of a search too (\"reputation rewards that deal 2x damage to trolls\"); | group by bonus.",
 			"@loot's thousands of items are read for bonuses in the background, the footer counting them down, and remembered for next time.",
-			".pick: someone of your group picked at random, with a roll of names on screen and the pick said in group chat (.pick quiet: only you; .pick tacos, pizza, sushi: one of those).",
+			".pick: someone of your group picked at random, with a roll of names on screen and the pick said in group chat as it lands (.pick quiet: only you; .pick tacos, pizza, sushi: one of those).",
 			"\"what layer am i on\" says WoW Forever hides your layer since its November 20 hotfix, and nothing relies on the realm name it no longer gives.",
 			"Fixed: @xp listing nothing after an alt forgotten before, a Battle.net friend twice on the map, and the fixes of a review.",
 		},
