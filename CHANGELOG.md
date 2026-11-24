@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.3 (in testing)
+
+**Your layer can't be told any more** (the player: "double check if layering values are undetectable anymore")
+- WoW Forever's hotfix of November 20, 2026 hid the layer: every creature's GUID now carries a different server and
+  zone number, two standing side by side included (measured by TitanLayer's author on 1.60.1.71037), and Blizzard said
+  layer-picking addons would be stopped through API changes. `@layer` read that zone number, so it showed a different,
+  meaningless layer for each creature you met.
+- `@layer`, "what layer am i on" and "my layer" now say the game hides it, and no creature is read for it.
+
 ## 1.8.2 (in testing)
 
 **Bonuses combine with the rest of a search** (the player: "faction or reputation rewards that deal 2x damage to
