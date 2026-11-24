@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.9 (in testing)
+
+**Review fixes: sharing with no realm of yours named** (Terminal: Share)
+- OpenMap keyed a Battle.net friend whose realm Battle.net names as "bob-realm" and the same friend on your friend
+  list as "bob": two hellos, two dots on the map. With no realm of yours named, a friend is keyed by the name alone.
+
 ## 1.8.8 (in testing)
 
 **Review fixes: a bonus search while items' tooltips are read** (the player: "double check the loading icons on a

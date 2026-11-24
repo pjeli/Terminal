@@ -56,14 +56,20 @@ end
 
 -- a name as the game writes it, canonical, your own realm left out ("Bob-YourRealm", "Bob": "bob"; "Bob-Other":
 -- "bob-other"): a guild message's "Name-Realm" and a friend list's "Name" are one key
-local function Key(name, realm)
+local Key
+Key = function(name, realm)
 	local c = Canon(name)
 	if c == "" then return nil end
-	if realm and realm ~= "" then c = c .. "-" .. Canon((realm:gsub("[%s%-']", ""))) end
 	local mine = MyRealm()
+	-- (no realm of yours named, WoW Forever since its November 20, 2026 hotfix: names are unique across its realms, so
+	-- a realm given isn't added: a Battle.net friend's "bob-realm" and the friend list's "bob" were two, two hellos and
+	-- two dots; 1.8.9, review. Not cut from the name: "Plamen Warr" is "plamen-warr", its surname after the "-")
+	if mine == "" then return c end
+	if realm and realm ~= "" then c = c .. "-" .. Canon((realm:gsub("[%s%-']", ""))) end
 	if mine ~= "" and #c > #mine + 1 and c:sub(-(#mine + 1)) == "-" .. mine then c = c:sub(1, -(#mine + 2)) end
 	return c
 end
+OM.Key = Key -- (tests)
 
 -- the name shown: your own realm's left out (Ambiguate)
 local function Shown(name)

@@ -173,6 +173,11 @@ do
 	_G.UnitGUID = function(u) if u == "player" then return "Player-4620-00001234" end end
 	SSH.Forget()
 	check(not SSH.game.env.eligible({ kind = "bn", id = 91 }), "...on another server: not")
+	-- (1.8.9, review) no realm of yours named: OpenMap keys a friend without the realm Battle.net gives (a Battle.net
+	-- friend's "bob-realm" and the friend list's "bob" were two), a surname kept
+	local OM = SSH.OpenMap
+	check(OM and OM.Key("Bob", "Realm") == "bob" and OM.Key("Bob") == "bob" and OM.Key("Plamen Warr", "Realm") == "plamen-warr",
+		"OpenMap: a friend by the name alone, a surname kept: " .. tostring(OM and OM.Key("Plamen Warr", "Realm")))
 	_G.GetRealmName, _G.GetNormalizedRealmName = rn, nrn
 	_G.GetRealmID, _G.UnitGUID = idWas, guidWas
 	_G.BNGetNumFriends, C_BattleNet.GetFriendGameAccountInfo, C_BattleNet.GetFriendAccountInfo = bnN, gai, ac
