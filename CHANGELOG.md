@@ -1,134 +1,11 @@
 # Changelog
 
-## 1.8.12 (in testing)
+## 1.9.0
 
-**`.pick` says its pick when the roll lands** (the player: "The .pick outputs the result right away instead of
-waiting for the roll animation to play out")
-- The pick was said in group chat (or to you) at once, while the names were still rolling on screen. It's said as
-  the roll lands on it now (party, raid and instance chat take an addon's line outside a key press, as Share's
-  `>>>` sends them once their items are in). A `.pick` run again mid-roll ends the first: only the second is said;
-  chat locked by the time it lands, an encounter pulled, it's said only to you.
-
-## 1.8.11 (in testing)
-
-**Review fixes: consistency**
-- An area type's word alone is no longer the bonus in Simple mode: it's in names ("Volcanic Leggings", "The Haunted
-  Isle", searched as a bonus before). Say "haunted gear", "haunted bonus" or "haunted areas"; "biome" still works.
-- A bonus is said as "with a Haunted bonus" (".explain", Simple mode); "in Strongholds and Cities areas" read oddly.
-- `.pick` offers "quiet" only as its first word (a list's last word that matched it was written over: ".pick yes,
-  no, qu"), "me" no longer means quiet, and a pick only for you is the command's own line.
-- `@layer`'s leftovers: the help line says the game hides it; it's no longer suggested in the empty prompt.
-- Your `.weights` picks kept as `Name@Realm` are found again when you clear your own weights too.
-- The share and console docs say what happens with no realm named; the questions doc says a faction's rewards take a
-  bonus.
-
-## 1.8.10 (in testing)
-
-**Review fixes: the bonus search's costs**
-- What was read is written at logout only when something new was read (it was rewritten, sorted, at every logout and
-  `/reload`: tens of milliseconds with thousands of items kept).
-- The bar's Group menu, checking whether Group by bonus tells the rows apart, reads only what's known: opening it over
-  `@loot` read a hundred tooltips and asked the server for items.
-- A `| bonus:x` step no longer makes a table for every row without a bonus; tooltip lines without any of the words a
-  bonus is said with aren't lowercased and read (about a third of a first read).
-- "reading 1 item's tooltip", not "1 items'". The speed check has two new cases, `bonus:` over 5,000 items and
-  `| group by bonus`, and its baseline is written again from this build.
-
-## 1.8.9 (in testing)
-
-**Review fixes: sharing with no realm of yours named** (Terminal: Share)
-- OpenMap keyed a Battle.net friend whose realm Battle.net names as "bob-realm" and the same friend on your friend
-  list as "bob": two hellos, two dots on the map. With no realm of yours named, a friend is keyed by the name alone.
-
-## 1.8.8 (in testing)
-
-**Review fixes: a bonus search while items' tooltips are read** (the player: "double check the loading icons on a
-bonus filter search")
-- An item the server never answered was let go after 30 s, then asked for again by the next search: the search ran
-  again every 30 s while the window was open, and the footer's "reading 1 items' tooltips" never went. It's now let go
-  for the session.
-- What the background reading finds is put up as it comes in; before, everything after the first few waited for F5,
-  again and again.
-- `| group by bonus` (typed, or the bar's Group) and `is:bonus` after an earlier bonus search got neither the
-  footer's count nor the search run again: each search now says which line it's for, and any item queued says so too.
-- In Simple mode, rows without the bonus were listed as "the closest" while tooltips were read ("charm against
-  trolls" listed every charm); not any more.
-- The search is no longer run again every 1.1 s for these items (the background reading runs it as they come in), nor
-  in combat.
-- `.saved clear bonuses` now sticks (what was read this session was written back at logout); recipes and materials,
-  skipped by their item type, aren't written to the saved file.
-- The game's item-loading event is listened for only while items are awaited.
-- Smaller: `bonus:mount` is said as "in Mountainous areas"; "rewards against the naga" reads the naga; a tooltip line
-  starting "In Haunted areas, ..." counts.
-
-## 1.8.7 (in testing)
-
-**Review fixes: experience** (a review of 1.8.1-1.8.6)
-- 1.8.4 moved alts forgotten with `.forget` to their names while walking the list it changed: with a few of them
-  `@xp` listed nothing, and `.forget` failed the same way. They're gathered first, then moved.
-- Your bag addon's alts are matched to Terminal's notes by the whole name, and by the first name only when one side
-  has no surname: "Plamen Warr" noted no longer hid "Plamen Mage" from "not noted yet", and `.forget plamen warr`
-  no longer hid Mage too.
-
-## 1.8.6 (in testing)
-
-**`.pick`** (the player: "I like the .pick idea!")
-- `.pick` picks someone of your group at random ("who's buying the repairs"): their names roll by on screen, slower
-  and slower, and land on the pick, and Terminal says it in the group's chat (party, raid, or instance chat when your
-  group is the instance's), sent with the Enter that ran it.
-- `.pick quiet` keeps the pick to you. `.pick tacos, pizza, sushi` picks one of those (commas, or words without them);
-  outside a group a list is only shown to you.
-- While the game holds chat back from addons (an encounter in an instance), the pick is said only to you.
-- `.random` and `.choose` say the same. It's a new file: restart the game for it.
-
-## 1.8.5 (in testing)
-
-**Bonuses in `@loot`** (the player: "why can I not look at `@loot` that has bonuses against trolls / biome?")
-- A bonus is read from an item's tooltip, and the game has a tooltip only for items it has loaded: most of
-  AtlasLoot's aren't. A search asked the server for 40 at most and waited about 9 seconds, so `@loot bonus:troll`
-  found next to nothing.
-- Items not loaded yet are now asked for in the background, a batch at a time (not in combat), and read as they come
-  in; the search shown runs again as they do (new results wait for F5 once some are shown), and the footer says how
-  many are left ("reading 1,240 items' tooltips for bonuses").
-- What was read is kept for the next session of the same client build (a new build reads them again), so the second
-  time is instant. A group of its own in `.saved` ("items' bonuses read from their tooltips").
-
-## 1.8.4 (in testing)
-
-**Nothing relies on the realm's name** (the player: "fix anything that relies on realm name too")
-- Since WoW Forever's November 20, 2026 hotfix the game gives no realm name (`GetRealmName()` is empty; your saved
-  notes since then have none). Character names are unique across Forever's realms, so Terminal goes by the name alone.
-- Experience: your bag addon's alts, kept with a realm, were listed again as "not noted yet" beside their notes; an alt
-  forgotten with `.forget` before stays forgotten. No "-Realm" is put after a name any more (`@xp`, `@lockout`, `@mail`
-  and its warning), so a note kept with one isn't set apart from you.
-- Upgrades: your `.weights` picks and what each item is usable by are kept by your name; picks kept as `Name@Realm`
-  are found again.
-- Share: a Battle.net friend whose realm Battle.net still names was left out when yours isn't named; they're told apart
-  by the server in the characters' GUIDs instead, and a claim with no realm is theirs.
-- Console: `/etc/os-release` says "forever", not an empty realm.
-
-## 1.8.3 (in testing)
-
-**Your layer can't be told any more** (the player: "double check if layering values are undetectable anymore")
-- WoW Forever's hotfix of November 20, 2026 hid the layer: every creature's GUID now carries a different server and
-  zone number, two standing side by side included (measured by TitanLayer's author on 1.60.1.71037), and Blizzard said
-  layer-picking addons would be stopped through API changes. `@layer` read that zone number, so it showed a different,
-  meaningless layer for each creature you met.
-- `@layer`, "what layer am i on" and "my layer" now say the game hides it, and no creature is read for it.
-
-## 1.8.2 (in testing)
-
-**Bonuses combine with the rest of a search** (the player: "faction or reputation rewards that deal 2x damage to
-trolls, or have a bonus in mountainous areas")
-- A faction's rewards take a bonus said in plain words: "argent dawn rewards against trolls", "reputation rewards that
-  deal 2x damage to trolls", "faction rewards with a bonus in mountainous areas", "exalted rewards against undead".
-  In Advanced syntax they're `@reputation is:reward argent dawn bonus:troll`; the title says the bonus too.
-- The words a bonus is said with ("deal 2x damage", "with a bonus", "that have") are no longer searched as names, in
-  any list: "trinkets that deal 2x damage to trolls" looks for trinkets with `bonus:troll`. "to trolls" and
-  "fighting undead" are read as "against".
-- Tab offers `bonus:`'s values after `@reputation` and `@itemset` too.
-
-## 1.8.1 (in testing)
+Terminal 1.9: gear is found and grouped by its bonus, by area type ("biome") or against a creature type, alone or with
+the rest of a search; `@loot`'s items are read for bonuses in the background; `.pick` picks someone of your group with
+a roll of names; and Terminal no longer relies on the layer or the realm name WoW Forever's November 20 hotfix hid.
+With the fixes of a bug, quality, consistency and speed pass.
 
 **Bonus search** (the player: WoW Forever's items with effects by area type, "biome", or against a creature type)
 - `bonus:` finds gear by its bonus, read from the item's own tooltip (the game's English text): where it grows,
@@ -138,9 +15,64 @@ trolls, or have a bonus in mountainous areas")
   16 in Cavernous or Underground areas", "+45 Attack Power when fighting Undead", "against the Naga", set bonuses too.
 - `| group by bonus` (also on the bar's Group menu) makes a group per bonus, "Haunted", "Against Undead"; an item with
   two is in both. Enter on a group lists it with its `bonus:` filter.
-- Simple mode: "haunted bonus", "gear for swamp areas", "against undead", "vs beasts", "biome gear"; "items by bonus".
-- Which area types you're standing in isn't answered yet: the game doesn't say, and which zones are which isn't
-  published.
+- Simple mode: "haunted bonus", "haunted gear", "gear for swamp areas", "against undead", "vs beasts", "biome gear",
+  "items by bonus". An area type's word alone stays a name ("Volcanic Leggings"). Explained as "with a Haunted bonus".
+- Which area types you're standing in isn't answered: the game doesn't say, and which zones are which isn't published.
+
+**Bonuses combine with the rest of a search** (the player: "faction or reputation rewards that deal 2x damage to
+trolls, or have a bonus in mountainous areas")
+- A faction's rewards take a bonus said in plain words: "argent dawn rewards against trolls", "reputation rewards that
+  deal 2x damage to trolls", "faction rewards with a bonus in mountainous areas", "exalted rewards against undead".
+  In Advanced syntax they're `@reputation is:reward argent dawn bonus:troll`; the title says the bonus too.
+- The words a bonus is said with ("deal 2x damage", "with a bonus", "that have") are no longer searched as names, in
+  any list: "trinkets that deal 2x damage to trolls" looks for trinkets with `bonus:troll`. "to trolls" and
+  "fighting undead" are read as "against". Tab offers `bonus:`'s values after `@reputation` and `@itemset` too.
+
+**Bonuses in `@loot`** (the player: "why can I not look at `@loot` that has bonuses against trolls / biome?")
+- The game has a tooltip only for items it has loaded, and most of AtlasLoot's aren't. Items not loaded yet are now
+  asked for in the background, a batch at a time (not in combat), and read as they come in; the search shown is put up
+  again as they do, and the footer counts down how many are left ("reading 1,240 items' tooltips for bonuses").
+- What was read is kept for the next session of the same client build, so the second time is instant; written at
+  logout only when something new was read. A group of its own in `.saved` ("items' bonuses read from their
+  tooltips"); `.saved clear bonuses` sticks.
+- An item the server never answers is let go for the session (the search no longer ran again every 30 s, and the
+  footer's note no longer stayed). In Simple mode, rows without the bonus aren't listed as "the closest" while
+  tooltips are read. The game's item-loading event is listened for only while items are awaited.
+
+**`.pick`** (the player: "I like the .pick idea!")
+- `.pick` picks someone of your group at random ("who's buying the repairs"): their names roll by on screen, slower
+  and slower, and land on the pick, and Terminal says it in the group's chat (party, raid, or instance chat when your
+  group is the instance's) as the roll lands on it.
+- `.pick quiet` keeps the pick to you. `.pick tacos, pizza, sushi` picks one of those (commas, or words without them);
+  outside a group a list is only shown to you. A `.pick` run again mid-roll ends the first.
+- While the game holds chat back from addons (an encounter in an instance), the pick is said only to you.
+- `.random` and `.choose` say the same. It's a new file: restart the game for it.
+
+**Your layer can't be told any more** (the player: "double check if layering values are undetectable anymore")
+- WoW Forever's hotfix of November 20, 2026 hid the layer: every creature's GUID now carries a different server and
+  zone number, two standing side by side included (measured by TitanLayer's author on 1.60.1.71037), and Blizzard said
+  layer-picking addons would be stopped through API changes. `@layer` read that zone number, so it showed a different,
+  meaningless layer for each creature you met.
+- `@layer`, "what layer am i on" and "my layer" now say the game hides it, and no creature is read for it.
+
+**Nothing relies on the realm's name** (the player: "fix anything that relies on realm name too")
+- Since the same hotfix the game gives no realm name (`GetRealmName()` is empty). Character names are unique across
+  Forever's realms, so Terminal goes by the name alone.
+- Experience: your bag addon's alts, kept with a realm, are matched to their notes again, by the whole name (the first
+  name only when one side has no surname); an alt forgotten with `.forget` before stays forgotten. No "-Realm" is put
+  after a name any more (`@xp`, `@lockout`, `@mail` and its warning).
+- Upgrades: your `.weights` picks and what each item is usable by are kept by your name; picks kept as `Name@Realm`
+  are found again.
+- Share: a Battle.net friend whose realm Battle.net still names is told apart by the server in the characters' GUIDs;
+  OpenMap keys them once (two hellos, two dots on the map before).
+- Console: `/etc/os-release` says "forever", not an empty realm.
+
+**Fixed in the pass**
+- With a few alts forgotten before, `@xp` listed nothing and `.forget` failed (the list was changed while walked).
+- The bar's Group menu over `@loot` no longer reads a hundred tooltips to check Group by bonus; a `| bonus:x` step no
+  longer makes a table per row; tooltip lines without a bonus's words aren't read. The speed check has two new cases.
+- `.pick` offers "quiet" only as its first word; your `.weights` picks kept as `Name@Realm` are found when you clear
+  your own weights too; the help, examples and docs say what 1.9 changed.
 
 ## 1.8.0
 

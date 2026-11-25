@@ -14,7 +14,7 @@ ns.Changelog = CL
 
 CL.LOG = {
 	{
-		v = "1.8.12", when = "in testing",
+		v = "1.9.0", when = "released November 2026",
 		items = {
 			"Find gear by its bonus: where it grows (\"haunted bonus\", bonus:swamp) or what it's against (\"against undead\", bonus:troll), read from its tooltip; with the rest of a search too (\"reputation rewards that deal 2x damage to trolls\"); | group by bonus.",
 			"@loot's thousands of items are read for bonuses in the background, the footer counting them down, and remembered for next time.",
